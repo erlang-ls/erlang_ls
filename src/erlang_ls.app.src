@@ -1,0 +1,19 @@
+{application, erlang_ls,
+ [{description, "An OTP application"},
+  {vsn, "0.1.0"},
+  {registered, []},
+  {mod, { erlang_ls_app, []}},
+  {applications,
+   [ kernel
+   , stdlib
+   , ranch
+   , jsx
+   , cowlib
+   ]},
+  {env,[]},
+  {modules, []},
+
+  {maintainers, []},
+  {licenses, ["Apache 2.0"]},
+  {links, []}
+ ]}.
