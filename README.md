@@ -26,7 +26,6 @@ Emacs Setup
 
     ;; Enable code completion
     (require 'company-lsp)
-    (push 'company-lsp company-backends)
 
     ;; Connect to an already started language server
     (lsp-define-tcp-client
@@ -37,7 +36,12 @@ Emacs Setup
      "localhost"
      9000)
 
-    (add-hook 'erlang-mode #'lsp-erlang-mode-enable)
+    (add-hook 'erlang-mode-hook 'company-mode)
+    (add-hook 'erlang-mode-hook (lambda ()
+                                  (push 'company-lsp company-backends)
+                                  )
+              )
+    (add-hook 'erlang-mode-hook 'lsp-erlang-mode-enable)
 
 Manual enable the server for a buffer:
 
