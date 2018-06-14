@@ -13,10 +13,9 @@ Erlanger Slack.
 Dev Quickstart
 -----
 
-    $ rebar3 shell
-    application:ensure_all_started(erlang_ls).
-    Opts = [{msgs, 1000}, {time, 99999}, {print_file, "/tmp/redbug"}],
-    redbug:start("erlang_ls_protocol->return", Opts).
+    $ rebar3 release
+    $ _build/default/rel/erlang_ls/bin/erlang_ls console
+    > lager:set_loglevel(lager_console_backend, debug).
 
 Emacs Setup
 -----

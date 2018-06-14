@@ -106,6 +106,7 @@ handle_request(Data, #state{ socket    = Socket
   Request   = parse_data(Data),
   Method    = maps:get(<<"method">>, Request),
   Params    = maps:get(<<"params">>, Request),
+  lager:debug("[Handling request] [method=~s] [params=~p]", [Method, Params]),
   case handle_request(Method, Params, State) of
     {Result, NewState} ->
       RequestId = maps:get(<<"id">>, Request),
@@ -151,7 +152,7 @@ handle_request(<<"textDocument/completion">>, Params, #state{ text = Text
   Result      = [#{label => C} || C <- Completions],
   {Result, State};
 handle_request(Method, _Params, State) ->
-  erlang:display({not_implemented, Method}),
+  lager:warning("[Method not implemented] [method=~s]", [Method]),
   {State}.
 
 -spec parse_data(binary()) -> request().
