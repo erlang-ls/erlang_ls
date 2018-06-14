@@ -37,7 +37,7 @@
 %%==============================================================================
 -record(state, { socket
                , transport
-               , text
+               , buffers = []
                }).
 
 %%==============================================================================
@@ -133,23 +133,32 @@ handle_request(<<"initialized">>, _, State) ->
   {State};
 handle_request(<<"textDocument/didOpen">>, Params, State) ->
   TextDocument   = maps:get(<<"textDocument">>, Params),
+  Uri            = maps:get(<<"uri">>         , TextDocument),
   Text           = maps:get(<<"text">>        , TextDocument),
-  {State#state{ text = Text }};
+  {ok, Pid}      = supervisor:start_child(erlang_ls_sup, [Text]),
+  {State#state{ buffers = [{Uri, Pid}|State#state.buffers] }};
 handle_request(<<"textDocument/didChange">>, Params, State) ->
   ContentChanges = maps:get(<<"contentChanges">>, Params),
+  TextDocument   = maps:get(<<"textDocument">>  , Params),
+  Uri            = maps:get(<<"uri">>           , TextDocument),
   case ContentChanges of
-    []                      -> {State};
-    [#{<<"text">> := Text}] -> {State#state{ text = Text }}
-  end;
+    []                      -> ok;
+    [#{<<"text">> := Text}] ->
+      Pid = proplists:get_value(Uri, State#state.buffers),
+      erlang_ls_buffer:set_text(Pid, Text)
+  end,
+  {State};
 handle_request(<<"textDocument/hover">>, _Params, State) ->
   {null, State};
-handle_request(<<"textDocument/completion">>, Params, #state{ text = Text
-                                                            } = State) ->
-  Position    = maps:get(<<"position">> , Params),
-  Line        = maps:get(<<"line">>     , Position),
-  Character   = maps:get(<<"character">>, Position),
-  Completions = get_completions(Text, Line, Character),
-  Result      = [#{label => C} || C <- Completions],
+handle_request(<<"textDocument/completion">>, Params, State) ->
+  Position     = maps:get(<<"position">> , Params),
+  Line         = maps:get(<<"line">>     , Position),
+  Character    = maps:get(<<"character">>, Position),
+  TextDocument = maps:get(<<"textDocument">>  , Params),
+  Uri          = maps:get(<<"uri">>      , TextDocument),
+  Pid          = proplists:get_value(Uri, State#state.buffers),
+  Completions  = erlang_ls_buffer:get_completions(Pid, Line, Character),
+  Result       = [#{label => C} || C <- Completions],
   {Result, State};
 handle_request(Method, _Params, State) ->
   lager:warning("[Method not implemented] [method=~s]", [Method]),
@@ -173,28 +182,3 @@ reply(Socket, Transport, Response) ->
   Headers = io_lib:format("Content-Length: ~p\r\n", [byte_size(Body)]),
   Data    = [Headers, "\r\n", Body],
   Transport:send(Socket, Data).
-
--spec get_completions(binary(), integer(), integer()) -> [binary()].
-get_completions(Text, Line, Character) ->
-  LineText        = get_line_text(Text, Line),
-  LineBeforeChar  = binary:part(LineText, {0, Character - 1}),
-  {ok, Tokens, _} = erl_scan:string(binary_to_list(LineBeforeChar)),
-  [H| _] = lists:reverse(Tokens),
-  Info = case H of
-           {atom, _, Atom} ->
-             try Atom:module_info(exports)
-             catch _:_ -> []
-             end;
-           _ ->
-             []
-         end,
-  [function_name_to_binary(M, A) || {M, A} <- Info].
-
--spec get_line_text(binary(), integer()) -> binary().
-get_line_text(Text, Line) ->
-  Lines = binary:split(Text, <<"\n">>, [global]),
-  lists:nth(Line + 1, Lines).
-
--spec function_name_to_binary(module(), non_neg_integer()) -> binary().
-function_name_to_binary(Module, Arity) ->
-  list_to_binary(io_lib:format("~p/~p", [Module, Arity])).

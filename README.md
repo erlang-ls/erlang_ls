@@ -13,8 +13,7 @@ Erlanger Slack.
 Dev Quickstart
 -----
 
-    $ rebar3 release
-    $ _build/default/rel/erlang_ls/bin/erlang_ls console
+    $ rebar3 shell
     > lager:set_loglevel(lager_console_backend, debug).
 
 Emacs Setup

@@ -35,4 +35,12 @@ start_link() ->
 %%==============================================================================
 -spec init([]) -> {ok, {supervisor:sup_flags(), supervisor:child_spec()}}.
 init([]) ->
-  {ok, { {one_for_all, 0, 1}, []} }.
+  SupFlags = #{ strategy  => simple_one_for_one
+              , intensity => 0
+              , period    => 1
+              },
+  ChildSpecs = [#{ id       => erlang_ls_buffer
+                 , start    => {erlang_ls_buffer, start_link, []}
+                 , shutdown => brutal_kill
+                 }],
+  {ok, {SupFlags, ChildSpecs}}.
