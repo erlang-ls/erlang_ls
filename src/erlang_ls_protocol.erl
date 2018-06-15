@@ -49,6 +49,8 @@
 -type request()      :: #{}.
 -type response()     :: #{}.
 -type result()       :: #{}.
+-type message()      :: #{}.
+-type params()       :: #{}.
 
 %%==============================================================================
 %% ranch_protocol callbacks
@@ -180,12 +182,25 @@ handle_request(<<"textDocument/completion">>, Params, State) ->
   Result       = [#{label => C} || C <- Completions],
   {Result, State};
 handle_request(Method, _Params, State) ->
+  Text    = <<"Method not implemented: ", Method/binary>>,
+  Params  = #{ type    => 3
+             , message => Text
+             },
+  Message = build_message(<<"window/showMessage">>, Params),
+  reply(State#state.socket, State#state.transport, Message),
   lager:warning("[Method not implemented] [method=~s]", [Method]),
   {State}.
 
 -spec parse_data(binary()) -> request().
 parse_data(Body) ->
   jsx:decode(Body, [return_maps]).
+
+-spec build_message(binary(), params()) -> message().
+build_message(Method, Params) ->
+  #{ jsonrpc => ?JSONRPC_VSN
+   , method  => Method
+   , params  => Params
+   }.
 
 -spec build_response(integer(), result()) -> response().
 build_response(RequestId, Result) ->
