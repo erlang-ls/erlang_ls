@@ -37,6 +37,8 @@
 %%==============================================================================
 -record(state, { socket
                , transport
+               , length
+               , body
                , buffers = []
                }).
 
@@ -89,8 +91,17 @@ terminate(_Reason, _StateName, #state{ socket    = Socket
 %% gen_statem State Functions
 %%==============================================================================
 -spec connected(gen_statem:event_type(), any(), state()) -> any().
-connected(info, {tcp, Socket, Data}, #state{ socket = Socket } = State) ->
-  handle_request(Data, State);
+connected(info, {tcp, Socket, TcpData}, #state{ socket = Socket } = State) ->
+  case State#state.length of
+    undefined ->
+      {Headers, Body} = cow_http:parse_headers(TcpData),
+      BinLength       = proplists:get_value( <<"content-length">>, Headers),
+      Length          = binary_to_integer(BinLength),
+      handle_body_part(State#state{ length = Length, body = Body });
+    _ ->
+      OldBody = State#state.body,
+      handle_body_part(State#state{ body = <<OldBody/binary, TcpData/binary>> })
+  end;
 connected(info, {tcp_closed, _Socket}, _State) ->
   {stop, normal};
 connected(info, {tcp_error, _, Reason}, _State) ->
@@ -99,11 +110,19 @@ connected(info, {tcp_error, _, Reason}, _State) ->
 %%==============================================================================
 %% Internal Functions
 %%==============================================================================
--spec handle_request(binary(), state()) -> any().
-handle_request(Data, #state{ socket    = Socket
-                           , transport = Transport
-                           } = State) ->
-  Request   = parse_data(Data),
+-spec handle_body_part(state()) -> any().
+handle_body_part(#state{body = Body, length = Length} = State) ->
+  case byte_size(Body) < Length of
+    true  -> {keep_state, State};
+    false -> handle_request(State#state{ length = undefined })
+  end.
+
+-spec handle_request(state()) -> any().
+handle_request(#state{ socket    = Socket
+                     , transport = Transport
+                     , body      = Body
+                     } = State) ->
+  Request   = parse_data(Body),
   Method    = maps:get(<<"method">>, Request),
   Params    = maps:get(<<"params">>, Request),
   lager:debug("[Handling request] [method=~s] [params=~p]", [Method, Params]),
@@ -165,8 +184,7 @@ handle_request(Method, _Params, State) ->
   {State}.
 
 -spec parse_data(binary()) -> request().
-parse_data(Data) ->
-  {_Headers, Body} = cow_http:parse_headers(Data),
+parse_data(Body) ->
   jsx:decode(Body, [return_maps]).
 
 -spec build_response(integer(), result()) -> response().
