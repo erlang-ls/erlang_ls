@@ -51,6 +51,8 @@
 -type result()       :: #{}.
 -type message()      :: #{}.
 -type params()       :: #{}.
+-type diagnostic()   :: #{}.
+-type range()        :: #{}.
 
 %%==============================================================================
 %% ranch_protocol callbacks
@@ -181,6 +183,16 @@ handle_request(<<"textDocument/completion">>, Params, State) ->
   Completions  = erlang_ls_buffer:get_completions(Pid, Line, Character),
   Result       = [#{label => C} || C <- Completions],
   {Result, State};
+handle_request(<<"textDocument/didSave">>, Params, State) ->
+  TextDocument = maps:get(<<"textDocument">>, Params),
+  Uri          = maps:get(<<"uri">>         , TextDocument),
+  Diagnostics  = get_compilation_diagnostics(Uri),
+  Params1  = #{ uri => Uri
+              , diagnostics => Diagnostics
+              },
+  Message = build_message(<<"textDocument/publishDiagnostics">>, Params1),
+  reply(State#state.socket, State#state.transport, Message),
+  {State};
 handle_request(Method, _Params, State) ->
   Text    = <<"Method not implemented: ", Method/binary>>,
   Params  = #{ type    => 3
@@ -208,6 +220,44 @@ build_response(RequestId, Result) ->
    , result  => Result
    , id      => RequestId
    }.
+
+-spec build_range(integer()) -> range().
+build_range(Line) ->
+  #{ start => #{line => Line, character => 0}
+   , 'end' => #{line => Line, character => 0}
+   }.
+
+-spec build_diagnostic(range(), binary(), integer()) -> diagnostic().
+build_diagnostic(Range, Message, Severity) ->
+  #{ range    => Range
+   , message  => Message
+   , severity => Severity
+   }.
+
+-spec get_compilation_diagnostics(binary()) -> [diagnostic()].
+get_compilation_diagnostics(Uri) ->
+  <<"file://", Path/binary>> = Uri,
+  CompileOpts = [return_warnings, return_errors],
+  case compile:file(binary_to_list(Path), CompileOpts) of
+    {ok, _, WS} ->
+      build_compilation_diagnostics(WS, 1);
+    {error, ES, WS} ->
+      build_compilation_diagnostics(WS, 1) ++
+        build_compilation_diagnostics(ES, 2)
+  end.
+
+-spec build_compilation_diagnostics(any(), integer()) -> [diagnostic()].
+build_compilation_diagnostics(List, Severity) ->
+  lists:flatten([[ build_compilation_diagnostic(Line, Module, Desc, Severity)
+                   || {Line, Module, Desc} <- Info]
+                 || {_Filename, Info } <- List]).
+
+-spec build_compilation_diagnostic(integer(), module(), string(), integer()) ->
+  diagnostic().
+build_compilation_diagnostic(Line, Module, Desc, Severity) ->
+  Range   = build_range(Line),
+  Message = list_to_binary(lists:flatten(Module:format_error(Desc))),
+  build_diagnostic(Range, Message, Severity).
 
 -spec reply(any(), module(), response()) -> ok.
 reply(Socket, Transport, Response) ->
