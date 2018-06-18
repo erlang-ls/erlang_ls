@@ -108,6 +108,8 @@ connected(info, {tcp, Socket, TcpData}, #state{ socket = Socket } = State) ->
   end;
 connected(info, {tcp_closed, _Socket}, _State) ->
   {stop, normal};
+connected(info, {'EXIT', _, normal}, _State) ->
+  keep_state_and_data;
 connected(info, {tcp_error, _, Reason}, _State) ->
   {stop, Reason}.
 
@@ -186,9 +188,10 @@ handle_request(<<"textDocument/completion">>, Params, State) ->
 handle_request(<<"textDocument/didSave">>, Params, State) ->
   TextDocument = maps:get(<<"textDocument">>, Params),
   Uri          = maps:get(<<"uri">>         , TextDocument),
-  Diagnostics  = get_compilation_diagnostics(Uri),
+  CDiagnostics = get_compilation_diagnostics(Uri),
+  DDiagnostics =  get_dialyzer_diagnostics(Uri),
   Params1  = #{ uri => Uri
-              , diagnostics => Diagnostics
+              , diagnostics => CDiagnostics ++ DDiagnostics
               },
   Message = build_message(<<"textDocument/publishDiagnostics">>, Params1),
   reply(State#state.socket, State#state.transport, Message),
@@ -237,7 +240,7 @@ build_diagnostic(Range, Message, Severity) ->
 -spec get_compilation_diagnostics(binary()) -> [diagnostic()].
 get_compilation_diagnostics(Uri) ->
   <<"file://", Path/binary>> = Uri,
-  CompileOpts = [return_warnings, return_errors],
+  CompileOpts = [debug_info, return_warnings, return_errors],
   case compile:file(binary_to_list(Path), CompileOpts) of
     {ok, _, WS} ->
       build_compilation_diagnostics(WS, 1);
@@ -258,6 +261,22 @@ build_compilation_diagnostic(Line, Module, Desc, Severity) ->
   Range   = build_range(Line),
   Message = list_to_binary(lists:flatten(Module:format_error(Desc))),
   build_diagnostic(Range, Message, Severity).
+
+-spec get_dialyzer_diagnostics(binary()) -> [diagnostic()].
+get_dialyzer_diagnostics(Uri) ->
+  <<"file://", Path/binary>> = Uri,
+    WS = try dialyzer:run([{files, [binary_to_list(Path)]}, {from, src_code}])
+         catch _:_ ->
+                 []
+         end,
+  [build_dialyzer_diagnostic(W) || W <- WS].
+
+-spec build_dialyzer_diagnostic(any()) ->
+  diagnostic().
+build_dialyzer_diagnostic({_, {_, Line}, _} = Warning) ->
+  Range   = build_range(Line),
+  Message = list_to_binary(lists:flatten(dialyzer:format_warning(Warning))),
+  build_diagnostic(Range, Message, 2).
 
 -spec reply(any(), module(), response()) -> ok.
 reply(Socket, Transport, Response) ->
