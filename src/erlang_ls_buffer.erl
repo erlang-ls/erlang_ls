@@ -16,6 +16,7 @@
 -export([ start_link/1
         , set_text/2
         , get_completions/3
+        , get_mfa/3
         ]).
 
 %% gen_server callbacks
@@ -53,6 +54,11 @@ set_text(Pid, Text) ->
 get_completions(Pid, Line, Char) ->
   gen_server:call(Pid, {get_completions, Line, Char}).
 
+-spec get_mfa(pid(), non_neg_integer(), non_neg_integer()) ->
+  {module(), atom(), non_neg_integer()}.
+get_mfa(Pid, Line, Char) ->
+  gen_server:call(Pid, {get_mfa, Line, Char}).
+
 %%%===================================================================
 %%% gen_server callbacks
 %%%===================================================================
@@ -68,6 +74,10 @@ handle_call({set_text, Text}, _From, State) ->
 handle_call({get_completions, Line, Char}, _From, #state{ text = Text
                                                         } = State) ->
   Reply = do_get_completions(Text, Line, Char),
+  {reply, Reply, State#state{text = Text}};
+handle_call({get_mfa, Line, Char}, _From, #state{ text = Text
+                                                } = State) ->
+  Reply = do_get_mfa(Text, Line, Char),
   {reply, Reply, State#state{text = Text}}.
 
 -spec handle_cast(any(), state()) -> {noreply, state()}.
@@ -104,6 +114,14 @@ do_get_completions(Text, Line, Character) ->
              []
          end,
   [function_name_to_binary(M, A) || {M, A} <- Info].
+
+-spec do_get_mfa(binary(), integer(), integer()) ->
+  {module(), atom(), non_neg_integer()}.
+do_get_mfa(Text, Line, _Character) ->
+  LineText        = get_line_text(Text, Line),
+  {ok, Tokens, _} = erl_scan:string(binary_to_list(LineText)),
+  [{atom, _, M}, {':', _}, {atom, _, F}, {'/', _}, {integer, _, A}] = Tokens,
+  {M, F, A}.
 
 -spec get_line_text(binary(), integer()) -> binary().
 get_line_text(Text, Line) ->

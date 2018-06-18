@@ -196,6 +196,24 @@ handle_request(<<"textDocument/didSave">>, Params, State) ->
   Message = build_message(<<"textDocument/publishDiagnostics">>, Params1),
   reply(State#state.socket, State#state.transport, Message),
   {State};
+handle_request(<<"textDocument/definition">>, Params, State) ->
+  Position     = maps:get(<<"position">>    , Params),
+  Line         = maps:get(<<"line">>        , Position),
+  Character    = maps:get(<<"character">>   , Position),
+  TextDocument = maps:get(<<"textDocument">>, Params),
+  Uri          = maps:get(<<"uri">>         , TextDocument),
+  Pid          = proplists:get_value(Uri, State#state.buffers),
+  {M, F, A}    = erlang_ls_buffer:get_mfa(Pid, Line, Character),
+  Which = code:which(M),
+  Source = list_to_binary(proplists:get_value( source
+                                             , M:module_info(compile))),
+  DefUri = <<"file://", Source/binary>>,
+  {ok, {_, [{abstract_code, {_, AC}}]}} = beam_lib:chunks(Which, [abstract_code]),
+  [DefLine] = [ AL-1 || {function, AL, AF, AA, _} <- AC, F =:= AF, A =:= AA],
+  Result = #{ uri => DefUri
+            , range => build_range(DefLine)
+            },
+  {Result, State};
 handle_request(Method, _Params, State) ->
   Text    = <<"Method not implemented: ", Method/binary>>,
   Params  = #{ type    => 3
