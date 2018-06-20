@@ -50,7 +50,7 @@ set_text(Pid, Text) ->
   gen_server:call(Pid, {set_text, Text}).
 
 -spec get_completions(pid(), non_neg_integer(), non_neg_integer()) ->
-  [binary()].
+  [{module(), binary()}].
 get_completions(Pid, Line, Char) ->
   gen_server:call(Pid, {get_completions, Line, Char}).
 
@@ -99,21 +99,22 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
--spec do_get_completions(binary(), integer(), integer()) -> [binary()].
+-spec do_get_completions(binary(), integer(), integer()) ->
+  [{module(), binary()}].
 do_get_completions(Text, Line, Character) ->
   LineText        = get_line_text(Text, Line),
   LineBeforeChar  = binary:part(LineText, {0, Character - 1}),
   {ok, Tokens, _} = erl_scan:string(binary_to_list(LineBeforeChar)),
   [H| _] = lists:reverse(Tokens),
-  Info = case H of
-           {atom, _, Atom} ->
-             try Atom:module_info(exports)
-             catch _:_ -> []
-             end;
-           _ ->
-             []
-         end,
-  [function_name_to_binary(M, A) || {M, A} <- Info].
+  case H of
+    {atom, _, Module} ->
+      try Module:module_info(exports) of
+          Info ->
+          [{Module, function_name_to_binary(F, A)} || {F, A} <- Info]
+      catch _:_ ->
+          []
+      end
+  end.
 
 -spec do_get_mfa(binary(), integer(), integer()) ->
   {module(), atom(), non_neg_integer()}.
@@ -128,6 +129,6 @@ get_line_text(Text, Line) ->
   Lines = binary:split(Text, <<"\n">>, [global]),
   lists:nth(Line + 1, Lines).
 
--spec function_name_to_binary(module(), non_neg_integer()) -> binary().
-function_name_to_binary(Module, Arity) ->
-  list_to_binary(io_lib:format("~p/~p", [Module, Arity])).
+-spec function_name_to_binary(atom(), non_neg_integer()) -> binary().
+function_name_to_binary(Function, Arity) ->
+  list_to_binary(io_lib:format("~p/~p", [Function, Arity])).
