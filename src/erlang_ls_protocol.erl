@@ -136,6 +136,7 @@ handle_request(#state{ socket    = Socket
     {Result, NewState} ->
       RequestId = maps:get(<<"id">>, Request),
       Response  = build_response(RequestId, Result),
+      lager:debug("[Sending reply] [result=~p]", [Result]),
       reply(Socket, Transport, Response),
       {keep_state, NewState};
     {NewState}         ->
