@@ -147,8 +147,9 @@ handle_request(#state{ socket    = Socket
   {result(), state()} | {state()}.
 handle_request(<<"initialize">>, _Params, State) ->
   Result = #{ capabilities =>
-                #{ completionProvider =>
-                     #{ resolveProvider => true
+                #{ hoverProvider => false
+                 , completionProvider =>
+                     #{ resolveProvider => false
                       , triggerCharacters => [<<":">>]
                       }
                  , textDocumentSync => 1
@@ -186,32 +187,9 @@ handle_request(<<"textDocument/completion">>, Params, State) ->
   Completions  = erlang_ls_buffer:get_completions(Pid, Line, Character),
   Result       = [#{ label => C
                    , data => Module
+                   , documentation => erlang_ls_doc:get_doc(Module, C)
                    } || {Module, C} <- Completions],
   {Result, State};
-handle_request(<<"completionItem/resolve">>, Params, State) ->
-  Module = maps:get(<<"data">>, Params),
-  Label  = maps:get(<<"label">>, Params),
-  Which  = code:which(binary_to_atom(Module, utf8)),
-  [BF, BA] = re:split(Label, "/"),
-  {ok, {_, [{abstract_code, {_, AC}}]}} = beam_lib:chunks(Which, [abstract_code]),
-  case [erl_prettypr:format(Spec) ||
-         {attribute, _, spec, {{F, A}, _}} = Spec <- AC
-           , F =:= binary_to_atom(BF, utf8)
-           , A =:= binary_to_integer(BA)] of
-    [] ->
-      Result = maps:put( documentation
-                       , <<"No specs available">>
-                       , Params
-                       ),
-      {Result, State};
-    [S] ->
-      Result = maps:put( documentation
-                       , list_to_binary(S)
-                       , Params
-                       ),
-      erlang:display({resolve, Result}),
-      {Result, State}
-  end;
 handle_request(<<"textDocument/didSave">>, Params, State) ->
   TextDocument = maps:get(<<"textDocument">>, Params),
   Uri          = maps:get(<<"uri">>         , TextDocument),
