@@ -153,6 +153,7 @@ handle_request(<<"initialize">>, _Params, State) ->
                       , triggerCharacters => [<<":">>]
                       }
                  , textDocumentSync => 1
+                 , definitionProvider => true
                  }
             },
   {Result, State};
