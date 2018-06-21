@@ -275,7 +275,7 @@ get_compilation_diagnostics(Uri) ->
 
 -spec build_compilation_diagnostics(any(), integer()) -> [diagnostic()].
 build_compilation_diagnostics(List, Severity) ->
-  lists:flatten([[ build_compilation_diagnostic(Line, Module, Desc, Severity)
+  lists:flatten([[ build_compilation_diagnostic(Line-1, Module, Desc, Severity)
                    || {Line, Module, Desc} <- Info]
                  || {_Filename, Info } <- List]).
 
