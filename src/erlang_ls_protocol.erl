@@ -150,7 +150,7 @@ handle_request(<<"initialize">>, _Params, State) ->
                 #{ hoverProvider => false
                  , completionProvider =>
                      #{ resolveProvider => false
-                      , triggerCharacters => [<<":">>]
+                      , triggerCharacters => [<<":">>, <<"#">>]
                       }
                  , textDocumentSync => 1
                  , definitionProvider => true
@@ -185,11 +185,7 @@ handle_request(<<"textDocument/completion">>, Params, State) ->
   TextDocument = maps:get(<<"textDocument">>  , Params),
   Uri          = maps:get(<<"uri">>      , TextDocument),
   Pid          = proplists:get_value(Uri, State#state.buffers),
-  Completions  = erlang_ls_buffer:get_completions(Pid, Line, Character),
-  Result       = [#{ label => C
-                   , data => Module
-                   , documentation => erlang_ls_doc:get_doc(Module, C)
-                   } || {Module, C} <- Completions],
+  Result       = erlang_ls_buffer:get_completions(Pid, Line, Character),
   {Result, State};
 handle_request(<<"textDocument/didSave">>, Params, State) ->
   TextDocument = maps:get(<<"textDocument">>, Params),

@@ -104,16 +104,29 @@ code_change(_OldVsn, State, _Extra) ->
 do_get_completions(Text, Line, Character) ->
   LineText        = get_line_text(Text, Line),
   LineBeforeChar  = binary:part(LineText, {0, Character - 1}),
-  {ok, Tokens, _} = erl_scan:string(binary_to_list(LineBeforeChar)),
-  [H| _] = lists:reverse(Tokens),
-  case H of
-    {atom, _, Module} ->
-      try Module:module_info(exports) of
-          Info ->
-          [{Module, function_name_to_binary(F, A)} || {F, A} <- Info]
-      catch _:_ ->
-          []
-      end
+  Trigger         = binary:part(LineText, {Character - 1, 1}),
+  %% TODO: Can't we get the context from the client?
+  case Trigger of
+    <<":">> ->
+      {ok, Tokens, _} = erl_scan:string(binary_to_list(LineBeforeChar)),
+      [H| _] = lists:reverse(Tokens),
+      case H of
+        {atom, _, Module} ->
+          try Module:module_info(exports) of
+              Info ->
+              CS = [{Module, function_name_to_binary(F, A)} || {F, A} <- Info],
+              [#{ label => C
+                , data => M
+                , documentation => erlang_ls_doc:get_doc(M, C)
+                } || {M, C} <- CS]
+          catch _:_ ->
+              []
+          end
+      end;
+    <<"#">> ->
+      [#{label => list_to_binary(io_lib:format("~p", [RD]))} || RD <- erlang_ls_completion:record_definitions()];
+    _ ->
+      []
   end.
 
 -spec do_get_mfa(binary(), integer(), integer()) ->
