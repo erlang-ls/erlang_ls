@@ -1,6 +1,8 @@
 erlang_ls
 =====
 
+[![Build Status](https://travis-ci.org/erlang-ls/erlang_ls.svg?branch=master)](https://travis-ci.org/erlang-ls/erlang_ls)
+
 An Erlang server using Microsoft's Language Server Protocol 3.0.
 
 Get in Touch
