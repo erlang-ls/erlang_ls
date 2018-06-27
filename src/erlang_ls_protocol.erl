@@ -1,12 +1,14 @@
 -module(erlang_ls_protocol).
 
--export([ request/4 ]).
+-export([ request/4
+        , response/3
+        ]).
 
 -include("erlang_ls.hrl").
 
--spec request(gen_tcp:socket(), binary(), number(), any()) ->
+-spec request(gen_tcp:socket(), number(), binary(), any()) ->
   {ok, any()}.
-request(Socket, Method, RequestId, Params) ->
+request(Socket, RequestId, Method, Params) ->
   Message = #{ jsonrpc => ?JSONRPC_VSN
              , method  => Method
              , id      => RequestId
@@ -15,6 +17,15 @@ request(Socket, Method, RequestId, Params) ->
   Content = content(jsx:encode(Message)),
   ok = tcp_send(Socket, Content),
   tcp_receive(Socket).
+
+-spec response(gen_tcp:socket(), number(), any()) -> ok.
+response(Socket, RequestId, Result) ->
+  Message = #{ jsonrpc => ?JSONRPC_VSN
+             , id      => RequestId
+             , result  => Result
+             },
+  Content = content(jsx:encode(Message)),
+  ok = tcp_send(Socket, Content).
 
 -spec content(binary()) -> iolist().
 content(Body) ->

@@ -64,8 +64,8 @@ handle_call({initialize}, _From, #state{ request_id = RequestId
   Method = <<"initialize">>,
   Params = #{},
   {ok, Response} = erlang_ls_protocol:request( Socket
-                                             , Method
                                              , RequestId
+                                             , Method
                                              , Params
                                              ),
   {reply, Response, State#state{request_id = RequestId + 1}}.

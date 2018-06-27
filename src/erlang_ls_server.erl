@@ -118,7 +118,6 @@ handle_body_part(#state{body = Body, length = Length} = State) ->
 
 -spec handle_request(state()) -> any().
 handle_request(#state{ socket    = Socket
-                     , transport = Transport
                      , body      = Body
                      } = State) ->
   Request   = parse_data(Body),
@@ -128,9 +127,8 @@ handle_request(#state{ socket    = Socket
   case handle_request(Method, Params, State) of
     {Result, NewState} ->
       RequestId = maps:get(<<"id">>, Request),
-      Response  = build_response(RequestId, Result),
       lager:debug("[Sending reply] [result=~p]", [Result]),
-      reply(Socket, Transport, Response),
+      ok = erlang_ls_protocol:response(Socket, RequestId, Result),
       {keep_state, NewState};
     {NewState}         ->
       {keep_state, NewState}
@@ -228,13 +226,6 @@ build_message(Method, Params) ->
   #{ jsonrpc => ?JSONRPC_VSN
    , method  => Method
    , params  => Params
-   }.
-
--spec build_response(integer(), any()) -> response().
-build_response(RequestId, Result) ->
-  #{ jsonrpc => ?JSONRPC_VSN
-   , result  => Result
-   , id      => RequestId
    }.
 
 -spec build_range(integer()) -> range().
