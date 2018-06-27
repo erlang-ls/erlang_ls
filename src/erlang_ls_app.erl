@@ -30,7 +30,7 @@ start(_StartType, _StartArgs) ->
   {ok, _} = ranch:start_listener( erlang_ls
                                 , ranch_tcp
                                 , [{port, ?DEFAULT_PORT}]
-                                , erlang_ls_protocol
+                                , erlang_ls_server
                                 , []
                                 ),
   erlang_ls_sup:start_link().

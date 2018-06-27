@@ -348,3 +348,9 @@
              #{ relatedInformation => boolean()
               }
          }.
+
+-type server_capabilities() :: #{
+                          }.
+
+-type initialize_result() :: #{ capabilities => server_capabilities()
+                              }.
