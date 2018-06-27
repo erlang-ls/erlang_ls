@@ -116,7 +116,7 @@ handle_body_part(#state{body = Body, length = Length} = State) ->
     false -> handle_request(State#state{ length = undefined })
   end.
 
--spec handle_request(state()) -> any().
+-spec handle_request(state()) -> no_return().
 handle_request(#state{ socket    = Socket
                      , body      = Body
                      } = State) ->
@@ -202,10 +202,14 @@ handle_request(<<"textDocument/definition">>, Params, State) ->
                                              , M:module_info(compile))),
   DefUri = <<"file://", Source/binary>>,
   {ok, {_, [{abstract_code, {_, AC}}]}} = beam_lib:chunks(Which, [abstract_code]),
-  [DefLine] = [ AL-1 || {function, AL, AF, AA, _} <- AC, F =:= AF, A =:= AA],
-  Result = #{ uri => DefUri
-            , range => build_range(DefLine)
-            },
+  Result = case [ AL || {function, AL, AF, AA, _} <- AC, F =:= AF, A =:= AA] of
+             [DefLine] ->
+               #{ uri => DefUri
+                , range => build_range(erl_anno:line(DefLine) - 1)
+                };
+             [] ->
+               null
+           end,
   {Result, State};
 handle_request(Method, _Params, State) ->
   Text    = <<"Method not implemented: ", Method/binary>>,
@@ -217,18 +221,18 @@ handle_request(Method, _Params, State) ->
   lager:warning("[Method not implemented] [method=~s]", [Method]),
   {State}.
 
--spec parse_data(binary()) -> request().
+-spec parse_data(binary()) -> map().
 parse_data(Body) ->
   jsx:decode(Body, [return_maps]).
 
--spec build_message(binary(), any()) -> message().
+-spec build_message(binary(), any()) -> map().
 build_message(Method, Params) ->
   #{ jsonrpc => ?JSONRPC_VSN
    , method  => Method
    , params  => Params
    }.
 
--spec build_range(integer()) -> range().
+-spec build_range(integer()) -> map().
 build_range(Line) ->
   #{ start => #{line => Line, character => 0}
    , 'end' => #{line => Line, character => 0}
@@ -282,7 +286,7 @@ build_dialyzer_diagnostic({_, {_, Line}, _} = Warning) ->
   Message = list_to_binary(lists:flatten(dialyzer:format_warning(Warning))),
   build_diagnostic(Range, Message, 2).
 
--spec reply(any(), module(), response()) -> ok.
+-spec reply(any(), module(), map()) -> ok.
 reply(Socket, Transport, Response) ->
   Body    = jsx:encode(Response),
   Headers = io_lib:format("Content-Length: ~p\r\n", [byte_size(Body)]),

@@ -100,7 +100,7 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 -spec do_get_completions(binary(), integer(), integer()) ->
-  [{module(), binary()}].
+  [map()].
 do_get_completions(Text, Line, Character) ->
   LineText        = get_line_text(Text, Line),
   LineBeforeChar  = binary:part(LineText, {0, Character - 1}),

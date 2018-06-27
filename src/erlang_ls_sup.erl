@@ -33,7 +33,7 @@ start_link() ->
 %%==============================================================================
 %% Supervisor callbacks
 %%==============================================================================
--spec init([]) -> {ok, {supervisor:sup_flags(), supervisor:child_spec()}}.
+-spec init([]) -> {ok, {supervisor:sup_flags(), [supervisor:child_spec()]}}.
 init([]) ->
   SupFlags = #{ strategy  => simple_one_for_one
               , intensity => 0
