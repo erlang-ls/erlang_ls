@@ -1,4 +1,8 @@
-{build     , "rebar3 as eqc compile"}.
-{deps      , "_build/eqc/lib/*/ebin"}.
-{test_path , "_build/eqc/lib/erlang_ls/ebin"}.
+{build     , "make eqc"}.
+{deps      , "_build/eqc/lib/cowlib/ebin"}.
+{deps      , "_build/eqc/lib/goldrush/ebin"}.
+{deps      , "_build/eqc/lib/jsx/ebin"}.
+{deps      , "_build/eqc/lib/lager/ebin"}.
+{deps      , "_build/eqc/lib/ranch/ebin"}.
 {test_path , "test"}.
+{test_path , "_build/eqc/lib/erlang_ls/ebin"}.
