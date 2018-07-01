@@ -24,6 +24,11 @@ Running the Tests
 
     $ rebar3 as eqc ct
 
+Coverage Reports
+-----
+
+    $  rebar3 as eqc cover --verbose
+
 Emacs Setup
 -----
 
