@@ -1,0 +1,4 @@
+{build     , "rebar3 as eqc compile"}.
+{deps      , "_build/eqc/lib/*/ebin"}.
+{test_path , "_build/eqc/lib/erlang_ls/ebin"}.
+{test_path , "test"}.
