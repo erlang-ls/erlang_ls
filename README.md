@@ -19,6 +19,11 @@ Dev Quickstart
     $ rebar3 shell
     > lager:set_loglevel(lager_console_backend, debug).
 
+Running the Tests
+-----
+
+    $ rebar3 as eqc ct
+
 Emacs Setup
 -----
 
