@@ -1,0 +1,65 @@
+* erlang-ls
+** Specifications
+- [ ] $ Notifications and Requests
+- [ ] Cancellation Support
+- [ ] Full URI support (http://tools.ietf.org/html/rfc3986)
+- [ ] Define all CompletionItemKind
+- [ ] Define all SymbolKind
+- [ ] Define all CodeActionKind
+- [ ] Define typespecs for server_capabilities
+- [ ] Support for STDIO as opposed to TCP
+** Refactoring
+- [ ] Separate server from protocol
+- [ ] Move shared logic about headers/body constructing to shared module
+- [ ] Introduce JSONRPC library
+** CI
+- [ ] Pre-build PLT in Travis
+- [ ] Cover reports
+** Docs
+- [ ] Rationale
+- [ ] How the project was born (EDTS discussions, EUC, etc)
+- [ ] Add proper README (including list of features and their status)
+** Blog
+- [ ] EDTS Architecture
+- [ ] EDTS Comparison with edts
+- [ ] Issues with quickcheck-ci.com
+  - rebar.config partial support
+  - warn_missing_spec_all
+  - Removing project
+  - Badge status not refreshed
+  - Bug in multi-branch projects
+- [ ] Best friends
+  - erl_syntax
+  - erl_prettypr
+  - shell
+** Erlang server
+- [ ] Elvis support
+- [ ] Send message to client for unimplemented methods
+- [ ] Support for multiple clients
+- [ ] Store record definitions in ETS
+- [ ] Restore resolve now that the [[https://github.com/emacs-lsp/lsp-mode/issues/384#issuecomment-398789267][issue]] is solved.
+- [ ] Implement actual FSM
+- [ ] Run Dialyzer on demand
+- [ ] Incremental text sync
+- [ ] Support for Unicode
+** Features
+- [ ] Propose to include record definition
+- [ ] POC for workspace (eg via rebar3)
+- [ ] Goto definition
+- [ ] Completion
+  - Keywords
+  - Variables
+  - Local functions
+  - Imported functions
+  - Exported functions
+  - BIFs
+  - Modules
+  - Macros
+- [ ] edoc
+** Bugs
+- [ ] tcp errors displayed on client
+- [ ] Handle dialyzer return value on compilation errors
+- [ ] completion is triggered for extra chars
+- [ ] Properly figure out MFA under point for goto-definitions
+- [ ] Use column (maybe full length) when reporting compilation errors
+- [ ] Fix warning/error colours
