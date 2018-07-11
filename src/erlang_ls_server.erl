@@ -1,5 +1,5 @@
 %%==============================================================================
-%% The Language Server Protocol Implementation
+%% The Erlang Language Server
 %%==============================================================================
 -module(erlang_ls_server).
 
@@ -12,7 +12,6 @@
 %%==============================================================================
 %% Exports
 %%==============================================================================
-
 %% ranch_protocol callbacks
 -export([ start_link/4 ]).
 
@@ -127,7 +126,6 @@ handle_request(#state{ socket    = Socket
   case handle_request(Method, Params, State) of
     {Result, NewState} ->
       RequestId = maps:get(<<"id">>, Request),
-      lager:debug("[Sending reply] [result=~p]", [Result]),
       ok = erlang_ls_protocol:response(Socket, RequestId, Result),
       {keep_state, NewState};
     {NewState}         ->
@@ -178,16 +176,16 @@ handle_request(<<"textDocument/completion">>, Params, State) ->
   Pid          = proplists:get_value(Uri, State#state.buffers),
   Result       = erlang_ls_buffer:get_completions(Pid, Line, Character),
   {Result, State};
-handle_request(<<"textDocument/didSave">>, Params, State) ->
+handle_request(<<"textDocument/didSave">>, Params, #state{socket = Socket} = State) ->
   TextDocument = maps:get(<<"textDocument">>, Params),
   Uri          = maps:get(<<"uri">>         , TextDocument),
   CDiagnostics = get_compilation_diagnostics(Uri),
   DDiagnostics =  get_dialyzer_diagnostics(Uri),
+  Method = <<"textDocument/publishDiagnostics">>,
   Params1  = #{ uri => Uri
               , diagnostics => CDiagnostics ++ DDiagnostics
               },
-  Message = build_message(<<"textDocument/publishDiagnostics">>, Params1),
-  reply(State#state.socket, State#state.transport, Message),
+  erlang_ls_protocol:notification(Socket, Method, Params1),
   {State};
 handle_request(<<"textDocument/definition">>, Params, State) ->
   Position     = maps:get(<<"position">>    , Params),
@@ -211,26 +209,19 @@ handle_request(<<"textDocument/definition">>, Params, State) ->
                null
            end,
   {Result, State};
-handle_request(Method, _Params, State) ->
-  Text    = <<"Method not implemented: ", Method/binary>>,
-  Params  = #{ type    => 3
-             , message => Text
+handle_request(RequestMethod, _Params, #state{socket = Socket} = State) ->
+  Message = <<"Method not implemented: ", RequestMethod/binary>>,
+  Method  = <<"window/showMessage">>,
+  Params  = #{ type    => ?MESSAGE_TYPE_INFO
+             , message => Message
              },
-  Message = build_message(<<"window/showMessage">>, Params),
-  reply(State#state.socket, State#state.transport, Message),
+  erlang_ls_protocol:notification(Socket, Method, Params),
   lager:warning("[Method not implemented] [method=~s]", [Method]),
   {State}.
 
 -spec parse_data(binary()) -> map().
 parse_data(Body) ->
   jsx:decode(Body, [return_maps]).
-
--spec build_message(binary(), any()) -> map().
-build_message(Method, Params) ->
-  #{ jsonrpc => ?JSONRPC_VSN
-   , method  => Method
-   , params  => Params
-   }.
 
 -spec build_range(integer()) -> map().
 build_range(Line) ->
@@ -285,10 +276,3 @@ build_dialyzer_diagnostic({_, {_, Line}, _} = Warning) ->
   Range   = build_range(Line),
   Message = list_to_binary(lists:flatten(dialyzer:format_warning(Warning))),
   build_diagnostic(Range, Message, 2).
-
--spec reply(any(), module(), map()) -> ok.
-reply(Socket, Transport, Response) ->
-  Body    = jsx:encode(Response),
-  Headers = io_lib:format("Content-Length: ~p\r\n", [byte_size(Body)]),
-  Data    = [Headers, "\r\n", Body],
-  Transport:send(Socket, Data).

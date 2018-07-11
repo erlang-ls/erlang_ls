@@ -1,6 +1,6 @@
 {application, erlang_ls,
- [{description, "An OTP application"},
-  {vsn, "0.1.0"},
+ [{description, "The Erlang Language Server"},
+  {vsn, "1.0.0"},
   {registered, []},
   {mod, { erlang_ls_app, []}},
   {applications,

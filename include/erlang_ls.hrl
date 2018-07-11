@@ -56,10 +56,10 @@
 %%------------------------------------------------------------------------------
 %% Notification Message
 %%------------------------------------------------------------------------------
--type notification() :: #{ jsonrpc := jsonrpc_vsn()
-                         , method  := binary()
-                         , params  => [any()] | map()
-                         }.
+-type notification(Method, Params) :: #{ jsonrpc := jsonrpc_vsn()
+                                       , method  := Method
+                                       , params  => Params
+                                       }.
 
 %%------------------------------------------------------------------------------
 %% Cancellation Support
@@ -354,3 +354,37 @@
 
 -type initialize_result() :: #{ capabilities => server_capabilities()
                               }.
+
+%%------------------------------------------------------------------------------
+%% Initialize Notification
+%%-----------------------------------------------------------------------------
+
+%%------------------------------------------------------------------------------
+%% Shutdown Request
+%%-----------------------------------------------------------------------------
+
+%%------------------------------------------------------------------------------
+%% Exit Notification
+%%-----------------------------------------------------------------------------
+
+%%------------------------------------------------------------------------------
+%% ShowMessage Notification
+%%-----------------------------------------------------------------------------
+-type show_message_notification() :: notification( show_message_method()
+                                                 , show_message_params()
+                                                 ).
+
+-type show_message_method() :: 'window/showMessage'.
+-type show_message_params() :: #{ type    := show_message_type()
+                                , message := binary()
+                                }.
+
+-define(MESSAGE_TYPE_ERROR   , 1).
+-define(MESSAGE_TYPE_WARNING , 2).
+-define(MESSAGE_TYPE_INFO    , 3).
+-define(MESSAGE_TYPE_LOG     , 4).
+
+-type show_message_type() :: ?MESSAGE_TYPE_ERROR
+                           | ?MESSAGE_TYPE_WARNING
+                           | ?MESSAGE_TYPE_INFO
+                           | ?MESSAGE_TYPE_LOG.

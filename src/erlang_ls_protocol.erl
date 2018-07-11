@@ -1,10 +1,34 @@
+%%==============================================================================
+%% The Language Server Protocol
+%%==============================================================================
 -module(erlang_ls_protocol).
 
--export([ request/4
+%%==============================================================================
+%% Exports
+%%==============================================================================
+-export([ notification/3
+        , request/4
         , response/3
         ]).
 
+%%==============================================================================
+%% Includes
+%%==============================================================================
 -include("erlang_ls.hrl").
+
+%%==============================================================================
+%% Low Level API
+%%==============================================================================
+-spec notification(gen_tcp:socket(), binary(), any()) ->
+  {ok, any()}.
+notification(Socket, Method, Params) ->
+  Message = #{ jsonrpc => ?JSONRPC_VSN
+             , method  => Method
+             , params  => Params
+             },
+  Content = content(jsx:encode(Message)),
+  ok = tcp_send(Socket, Content),
+  tcp_receive(Socket).
 
 -spec request(gen_tcp:socket(), number(), binary(), any()) ->
   {ok, any()}.
@@ -24,9 +48,13 @@ response(Socket, RequestId, Result) ->
              , id      => RequestId
              , result  => Result
              },
+  lager:debug("[Response] [message=~p]", [Message]),
   Content = content(jsx:encode(Message)),
   ok = tcp_send(Socket, Content).
 
+%%==============================================================================
+%% Internal Functions
+%%==============================================================================
 -spec content(binary()) -> iolist().
 content(Body) ->
   [headers(Body), "\r\n", Body].
