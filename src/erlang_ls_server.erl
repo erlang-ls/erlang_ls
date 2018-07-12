@@ -38,7 +38,6 @@
                , transport
                , length
                , body
-               , buffers = []
                }).
 
 %%==============================================================================
@@ -149,11 +148,8 @@ handle_request(<<"initialize">>, _Params, State) ->
 handle_request(<<"initialized">>, _, State) ->
   {State};
 handle_request(<<"textDocument/didOpen">>, Params, State) ->
-  TextDocument   = maps:get(<<"textDocument">>, Params),
-  Uri            = maps:get(<<"uri">>         , TextDocument),
-  Text           = maps:get(<<"text">>        , TextDocument),
-  {ok, Pid}      = supervisor:start_child(erlang_ls_sup, [Text]),
-  {State#state{ buffers = [{Uri, Pid}|State#state.buffers] }};
+  ok = erlang_ls_text_synchronization:did_open(State#state.socket, Params),
+  {State};
 handle_request(<<"textDocument/didChange">>, Params, State) ->
   ContentChanges = maps:get(<<"contentChanges">>, Params),
   TextDocument   = maps:get(<<"textDocument">>  , Params),
@@ -161,8 +157,8 @@ handle_request(<<"textDocument/didChange">>, Params, State) ->
   case ContentChanges of
     []                      -> ok;
     [#{<<"text">> := Text}] ->
-      Pid = proplists:get_value(Uri, State#state.buffers),
-      erlang_ls_buffer:set_text(Pid, Text)
+      {ok, Buffer} = erlang_ls_buffer_server:get_buffer(Uri),
+      ok = erlang_ls_buffer:set_text(Buffer, Text)
   end,
   {State};
 handle_request(<<"textDocument/hover">>, _Params, State) ->
@@ -173,19 +169,11 @@ handle_request(<<"textDocument/completion">>, Params, State) ->
   Character    = maps:get(<<"character">>, Position),
   TextDocument = maps:get(<<"textDocument">>  , Params),
   Uri          = maps:get(<<"uri">>      , TextDocument),
-  Pid          = proplists:get_value(Uri, State#state.buffers),
-  Result       = erlang_ls_buffer:get_completions(Pid, Line, Character),
+  {ok, Buffer} = erlang_ls_buffer_server:get_buffer(Uri),
+  Result       = erlang_ls_buffer:get_completions(Buffer, Line, Character),
   {Result, State};
-handle_request(<<"textDocument/didSave">>, Params, #state{socket = Socket} = State) ->
-  TextDocument = maps:get(<<"textDocument">>, Params),
-  Uri          = maps:get(<<"uri">>         , TextDocument),
-  CDiagnostics = erlang_ls_compiler_diagnostics:diagnostics(Uri),
-  DDiagnostics = erlang_ls_dialyzer_diagnostics:diagnostics(Uri),
-  Method = <<"textDocument/publishDiagnostics">>,
-  Params1  = #{ uri => Uri
-              , diagnostics => CDiagnostics ++ DDiagnostics
-              },
-  erlang_ls_protocol:notification(Socket, Method, Params1),
+handle_request(<<"textDocument/didSave">>, Params, State) ->
+  ok = erlang_ls_text_synchronization:did_save(State#state.socket, Params),
   {State};
 handle_request(<<"textDocument/definition">>, Params, State) ->
   Position     = maps:get(<<"position">>    , Params),
@@ -193,8 +181,8 @@ handle_request(<<"textDocument/definition">>, Params, State) ->
   Character    = maps:get(<<"character">>   , Position),
   TextDocument = maps:get(<<"textDocument">>, Params),
   Uri          = maps:get(<<"uri">>         , TextDocument),
-  Pid          = proplists:get_value(Uri, State#state.buffers),
-  {M, F, A}    = erlang_ls_buffer:get_mfa(Pid, Line, Character),
+  {ok, Buffer} = erlang_ls_buffer_server:get_buffer(Uri),
+  {M, F, A}    = erlang_ls_buffer:get_mfa(Buffer, Line, Character),
   Which = code:which(M),
   Source = list_to_binary(proplists:get_value( source
                                              , M:module_info(compile))),
