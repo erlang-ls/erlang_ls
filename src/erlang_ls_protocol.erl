@@ -6,9 +6,15 @@
 %%==============================================================================
 %% Exports
 %%==============================================================================
+%% Messaging API
 -export([ notification/3
         , request/4
         , response/3
+        ]).
+
+%% Data Structures
+-export([ range/1
+        , range/2
         ]).
 
 %%==============================================================================
@@ -17,7 +23,7 @@
 -include("erlang_ls.hrl").
 
 %%==============================================================================
-%% Low Level API
+%% Messaging API
 %%==============================================================================
 -spec notification(gen_tcp:socket(), binary(), any()) ->
   {ok, any()}.
@@ -51,6 +57,19 @@ response(Socket, RequestId, Result) ->
   lager:debug("[Response] [message=~p]", [Message]),
   Content = content(jsx:encode(Message)),
   ok = tcp_send(Socket, Content).
+
+%%==============================================================================
+%% Data Structures
+%%==============================================================================
+-spec range(integer()) -> range().
+range(FromLine) ->
+  range(FromLine, FromLine).
+
+-spec range(integer(), integer()) -> range().
+range(FromLine, ToLine) ->
+  #{ start => #{line => FromLine, character => 0}
+   , 'end' => #{line => ToLine,   character => 0}
+   }.
 
 %%==============================================================================
 %% Internal Functions

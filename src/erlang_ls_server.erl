@@ -179,8 +179,8 @@ handle_request(<<"textDocument/completion">>, Params, State) ->
 handle_request(<<"textDocument/didSave">>, Params, #state{socket = Socket} = State) ->
   TextDocument = maps:get(<<"textDocument">>, Params),
   Uri          = maps:get(<<"uri">>         , TextDocument),
-  CDiagnostics = get_compilation_diagnostics(Uri),
-  DDiagnostics =  get_dialyzer_diagnostics(Uri),
+  CDiagnostics = erlang_ls_compiler_diagnostics:diagnostics(Uri),
+  DDiagnostics = erlang_ls_dialyzer_diagnostics:diagnostics(Uri),
   Method = <<"textDocument/publishDiagnostics">>,
   Params1  = #{ uri => Uri
               , diagnostics => CDiagnostics ++ DDiagnostics
@@ -203,7 +203,7 @@ handle_request(<<"textDocument/definition">>, Params, State) ->
   Result = case [ AL || {function, AL, AF, AA, _} <- AC, F =:= AF, A =:= AA] of
              [DefLine] ->
                #{ uri => DefUri
-                , range => build_range(erl_anno:line(DefLine) - 1)
+                , range => erlang_ls_protocol:range(erl_anno:line(DefLine) - 1)
                 };
              [] ->
                null
@@ -222,57 +222,3 @@ handle_request(RequestMethod, _Params, #state{socket = Socket} = State) ->
 -spec parse_data(binary()) -> map().
 parse_data(Body) ->
   jsx:decode(Body, [return_maps]).
-
--spec build_range(integer()) -> map().
-build_range(Line) ->
-  #{ start => #{line => Line, character => 0}
-   , 'end' => #{line => Line, character => 0}
-   }.
-
--spec build_diagnostic(range(), binary(), integer()) -> diagnostic().
-build_diagnostic(Range, Message, Severity) ->
-  #{ range    => Range
-   , message  => Message
-   , severity => Severity
-   }.
-
--spec get_compilation_diagnostics(binary()) -> [diagnostic()].
-get_compilation_diagnostics(Uri) ->
-  <<"file://", Path/binary>> = Uri,
-  CompileOpts = [debug_info, return_warnings, return_errors],
-  case compile:file(binary_to_list(Path), CompileOpts) of
-    {ok, _, WS} ->
-      build_compilation_diagnostics(WS, 1);
-    {error, ES, WS} ->
-      build_compilation_diagnostics(WS, 1) ++
-        build_compilation_diagnostics(ES, 2)
-  end.
-
--spec build_compilation_diagnostics(any(), integer()) -> [diagnostic()].
-build_compilation_diagnostics(List, Severity) ->
-  lists:flatten([[ build_compilation_diagnostic(Line-1, Module, Desc, Severity)
-                   || {Line, Module, Desc} <- Info]
-                 || {_Filename, Info } <- List]).
-
--spec build_compilation_diagnostic(integer(), module(), string(), integer()) ->
-  diagnostic().
-build_compilation_diagnostic(Line, Module, Desc, Severity) ->
-  Range   = build_range(Line),
-  Message = list_to_binary(lists:flatten(Module:format_error(Desc))),
-  build_diagnostic(Range, Message, Severity).
-
--spec get_dialyzer_diagnostics(binary()) -> [diagnostic()].
-get_dialyzer_diagnostics(Uri) ->
-  <<"file://", Path/binary>> = Uri,
-    WS = try dialyzer:run([{files, [binary_to_list(Path)]}, {from, src_code}])
-         catch _:_ ->
-                 []
-         end,
-  [build_dialyzer_diagnostic(W) || W <- WS].
-
--spec build_dialyzer_diagnostic(any()) ->
-  diagnostic().
-build_dialyzer_diagnostic({_, {_, Line}, _} = Warning) ->
-  Range   = build_range(Line),
-  Message = list_to_binary(lists:flatten(dialyzer:format_warning(Warning))),
-  build_diagnostic(Range, Message, 2).
