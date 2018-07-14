@@ -33,8 +33,7 @@ notification(Socket, Method, Params) ->
              , params  => Params
              },
   Content = content(jsx:encode(Message)),
-  ok = tcp_send(Socket, Content),
-  tcp_receive(Socket).
+  ok = tcp_send(Socket, Content).
 
 -spec request(gen_tcp:socket(), number(), binary(), any()) ->
   {ok, any()}.

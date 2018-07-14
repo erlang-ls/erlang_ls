@@ -12,7 +12,8 @@
 %% Exports
 %%==============================================================================
 %% API
--export([ initialize/0
+-export([ did_open/4
+        , initialize/0
         , start_link/2
         , stop/0
         ]).
@@ -53,6 +54,10 @@
 %%%=============================================================================
 %%% API
 %%%=============================================================================
+-spec did_open(uri(), binary(), number(), binary()) -> ok.
+did_open(Uri, LanguageId, Version, Text) ->
+  gen_server:call(?SERVER, {did_open, Uri, LanguageId, Version, Text}).
+
 -spec initialize() -> ok.
 initialize() ->
   gen_server:call(?SERVER, {initialize}).
@@ -75,6 +80,19 @@ init({Host, Port}) ->
   {ok, #state{socket = Socket}}.
 
 -spec handle_call(any(), any(), state()) -> {reply, any(), state()}.
+handle_call({did_open, Uri, LanguageId, Version, Text}, _From, State) ->
+  Method = <<"textDocument/didOpen">>,
+  TextDocument = #{ uri        => Uri
+                  , languageId => LanguageId
+                  , version    => Version
+                  , text       => Text
+                  },
+  Params = #{textDocument => TextDocument},
+  ok = erlang_ls_protocol:notification( State#state.socket
+                                      , Method
+                                      , Params
+                                      ),
+  {reply, ok, State};
 handle_call({initialize}, _From, #state{ request_id = RequestId
                                        , socket     = Socket
                                        } = State) ->

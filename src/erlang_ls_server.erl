@@ -34,21 +34,17 @@
 %%==============================================================================
 %% Record Definitions
 %%==============================================================================
--record(state, { socket
-               , transport
-               , length
-               , body
-               }).
+-record(state, {socket, data, length}).
 
 %%==============================================================================
 %% Type Definitions
 %%==============================================================================
--type state()        :: #state{}.
+-type state() :: #state{}.
 
 %%==============================================================================
 %% ranch_protocol callbacks
 %%==============================================================================
--spec start_link(ramnch:ref(), any(), module(), any()) -> {ok, pid()}.
+-spec start_link(ranch:ref(), any(), module(), any()) -> {ok, pid()}.
 start_link(Ref, Socket, Transport, Opts) ->
   {ok, proc_lib:spawn_link(?MODULE, init, [{Ref, Socket, Transport, Opts}])}.
 
@@ -66,8 +62,9 @@ init({Ref, Socket, Transport, _Opts}) ->
   gen_statem:enter_loop( ?MODULE
                        , []
                        , connected
-                       , #state{ socket    = Socket
-                               , transport = Transport
+                       , #state{ socket = Socket
+                               , data   = <<>>
+                               , length = undefined
                                }
                        ).
 
@@ -76,26 +73,25 @@ code_change(_OldVsn, StateName, State, _Extra) ->
   {ok, StateName, State}.
 
 -spec terminate(any(), atom(), state()) -> any().
-terminate(_Reason, _StateName, #state{ socket    = Socket
-                                     , transport = Transport
-                                     }) ->
-  Transport:close(Socket),
+terminate(_Reason, _StateName, #state{socket = Socket}) ->
+  gen_tcp:close(Socket),
   ok.
 
 %%==============================================================================
 %% gen_statem State Functions
 %%==============================================================================
 -spec connected(gen_statem:event_type(), any(), state()) -> any().
-connected(info, {tcp, Socket, TcpData}, #state{ socket = Socket } = State) ->
-  case State#state.length of
-    undefined ->
-      {Headers, Body} = cow_http:parse_headers(TcpData),
-      BinLength       = proplists:get_value( <<"content-length">>, Headers),
-      Length          = binary_to_integer(BinLength),
-      handle_body_part(State#state{ length = Length, body = Body });
-    _ ->
-      OldBody = State#state.body,
-      handle_body_part(State#state{ body = <<OldBody/binary, TcpData/binary>> })
+connected(info, {tcp, Socket, NewData}, #state{ socket = Socket
+                                              , data   = OldData
+                                              , length = Length
+                                              } = State) ->
+  Data = <<OldData/binary, NewData/binary>>,
+  case Length =/= undefined andalso Length < byte_size(Data) of
+    true ->
+      {keep_state, State#state{data = Data}};
+    false ->
+      Rest = handle_requests(Socket, Data),
+      {keep_state, State#state{data = Rest}}
   end;
 connected(info, {tcp_closed, _Socket}, _State) ->
   {stop, normal};
@@ -107,33 +103,36 @@ connected(info, {tcp_error, _, Reason}, _State) ->
 %%==============================================================================
 %% Internal Functions
 %%==============================================================================
--spec handle_body_part(state()) -> any().
-handle_body_part(#state{body = Body, length = Length} = State) ->
-  case byte_size(Body) < Length of
-    true  -> {keep_state, State};
-    false -> handle_request(State#state{ length = undefined })
-  end.
-
--spec handle_request(state()) -> no_return().
-handle_request(#state{ socket    = Socket
-                     , body      = Body
-                     } = State) ->
-  Request   = parse_data(Body),
-  Method    = maps:get(<<"method">>, Request),
-  Params    = maps:get(<<"params">>, Request),
-  lager:debug("[Handling request] [method=~s] [params=~p]", [Method, Params]),
-  case handle_request(Method, Params, State) of
-    {Result, NewState} ->
+-spec handle_requests(any(), binary()) -> binary().
+handle_requests(Socket, Data) ->
+  {Headers, Payload} = cow_http:parse_headers(Data),
+  BinLength          = proplists:get_value(<<"content-length">>, Headers),
+  L                  = binary_to_integer(BinLength),
+  <<Body:L/binary, Rest/binary>> = Payload,
+  Request = jsx:decode(Body, [return_maps]),
+  case handle_request(Socket, Request) of
+    {Result} ->
       RequestId = maps:get(<<"id">>, Request),
-      ok = erlang_ls_protocol:response(Socket, RequestId, Result),
-      {keep_state, NewState};
-    {NewState}         ->
-      {keep_state, NewState}
+      ok = erlang_ls_protocol:response(Socket, RequestId, Result);
+    {} ->
+      ok
+  end,
+  case byte_size(Rest) > 0 of
+    true ->
+      handle_requests(Socket, Rest);
+    false ->
+      Rest
   end.
 
--spec handle_request(binary(), map(), state()) ->
-  {any(), state()} | {state()}.
-handle_request(<<"initialize">>, _Params, State) ->
+-spec handle_request(any(), map()) -> ok.
+handle_request(Socket, Request) ->
+  Method = maps:get(<<"method">>, Request),
+  Params = maps:get(<<"params">>, Request),
+  lager:debug("[Handling request] [method=~s] [params=~p]", [Method, Params]),
+  handle_request(Socket, Method, Params).
+
+-spec handle_request(any(), binary(), map()) -> {any()} | {}.
+handle_request(_Socket, <<"initialize">>, _Params) ->
   Result = #{ capabilities =>
                 #{ hoverProvider => false
                  , completionProvider =>
@@ -144,13 +143,13 @@ handle_request(<<"initialize">>, _Params, State) ->
                  , definitionProvider => true
                  }
             },
-  {Result, State};
-handle_request(<<"initialized">>, _, State) ->
-  {State};
-handle_request(<<"textDocument/didOpen">>, Params, State) ->
-  ok = erlang_ls_text_synchronization:did_open(State#state.socket, Params),
-  {State};
-handle_request(<<"textDocument/didChange">>, Params, State) ->
+  {Result};
+handle_request(_Socket, <<"initialized">>, _) ->
+  {};
+handle_request(_Socket, <<"textDocument/didOpen">>, Params) ->
+  ok = erlang_ls_text_synchronization:did_open(Params),
+  {};
+handle_request(_Socket, <<"textDocument/didChange">>, Params) ->
   ContentChanges = maps:get(<<"contentChanges">>, Params),
   TextDocument   = maps:get(<<"textDocument">>  , Params),
   Uri            = maps:get(<<"uri">>           , TextDocument),
@@ -160,10 +159,10 @@ handle_request(<<"textDocument/didChange">>, Params, State) ->
       {ok, Buffer} = erlang_ls_buffer_server:get_buffer(Uri),
       ok = erlang_ls_buffer:set_text(Buffer, Text)
   end,
-  {State};
-handle_request(<<"textDocument/hover">>, _Params, State) ->
-  {null, State};
-handle_request(<<"textDocument/completion">>, Params, State) ->
+  {};
+handle_request(_Socket, <<"textDocument/hover">>, _Params) ->
+  {null};
+handle_request(_Socket, <<"textDocument/completion">>, Params) ->
   Position     = maps:get(<<"position">> , Params),
   Line         = maps:get(<<"line">>     , Position),
   Character    = maps:get(<<"character">>, Position),
@@ -171,11 +170,11 @@ handle_request(<<"textDocument/completion">>, Params, State) ->
   Uri          = maps:get(<<"uri">>      , TextDocument),
   {ok, Buffer} = erlang_ls_buffer_server:get_buffer(Uri),
   Result       = erlang_ls_buffer:get_completions(Buffer, Line, Character),
-  {Result, State};
-handle_request(<<"textDocument/didSave">>, Params, State) ->
-  ok = erlang_ls_text_synchronization:did_save(State#state.socket, Params),
-  {State};
-handle_request(<<"textDocument/definition">>, Params, State) ->
+  {Result};
+handle_request(Socket, <<"textDocument/didSave">>, Params) ->
+  ok = erlang_ls_text_synchronization:did_save(Socket, Params),
+  {};
+handle_request(_Socket, <<"textDocument/definition">>, Params) ->
   Position     = maps:get(<<"position">>    , Params),
   Line         = maps:get(<<"line">>        , Position),
   Character    = maps:get(<<"character">>   , Position),
@@ -196,8 +195,8 @@ handle_request(<<"textDocument/definition">>, Params, State) ->
              [] ->
                null
            end,
-  {Result, State};
-handle_request(RequestMethod, _Params, #state{socket = Socket} = State) ->
+  {Result};
+handle_request(Socket, RequestMethod, _Params) ->
   Message = <<"Method not implemented: ", RequestMethod/binary>>,
   Method  = <<"window/showMessage">>,
   Params  = #{ type    => ?MESSAGE_TYPE_INFO
@@ -205,8 +204,4 @@ handle_request(RequestMethod, _Params, #state{socket = Socket} = State) ->
              },
   erlang_ls_protocol:notification(Socket, Method, Params),
   lager:warning("[Method not implemented] [method=~s]", [Method]),
-  {State}.
-
--spec parse_data(binary()) -> map().
-parse_data(Body) ->
-  jsx:decode(Body, [return_maps]).
+  {}.

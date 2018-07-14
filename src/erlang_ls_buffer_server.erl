@@ -56,8 +56,8 @@ start_link() ->
   gen_server:start_link({local, ?SERVER}, ?MODULE, {}, []).
 
 -spec add_buffer(uri(), buffer()) -> ok.
-add_buffer(Uri, Pid) ->
-  gen_server:call(?SERVER, {add_buffer, Uri, Pid}).
+add_buffer(Uri, Buffer) ->
+  gen_server:call(?SERVER, {add_buffer, Uri, Buffer}).
 
 -spec get_buffer(uri()) -> {ok, buffer()}.
 get_buffer(Uri) ->

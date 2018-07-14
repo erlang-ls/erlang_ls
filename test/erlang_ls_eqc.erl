@@ -27,7 +27,9 @@
 %% Initial State
 %%==============================================================================
 initial_state() ->
-  #{connected => false}.
+  #{ connected => false
+   , buffers   => []
+   }.
 
 %%==============================================================================
 %% Commands
@@ -79,6 +81,25 @@ initialize_post(_S, _Args, Res) ->
                    }
               },
   ?assertEqual(Expected, maps:get(result, Res)),
+  true.
+
+%%------------------------------------------------------------------------------
+%% textDocument/didOpen
+%%------------------------------------------------------------------------------
+did_open(Uri, LanguageId, Version, Text) ->
+  erlang_ls_client:did_open(Uri, LanguageId, Version, Text).
+
+did_open_args(_S) ->
+  [erlang_ls_eqc_gen:uri(), <<"erlang">>, 0, utf8()].
+
+did_open_pre(#{connected := Connected} = _S) ->
+  Connected.
+
+did_open_next(S, _R, [Uri, _, _, _]) ->
+  maps:put(buffers, maps:get(buffers, S) ++ [Uri], S).
+
+did_open_post(_S, _Args, Res) ->
+  ?assertEqual(ok, Res),
   true.
 
 %%------------------------------------------------------------------------------

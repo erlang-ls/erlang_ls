@@ -1,15 +1,15 @@
 -module(erlang_ls_text_synchronization).
 
--export([ did_open/2
+-export([ did_open/1
         , did_save/2
         ]).
 
--spec did_open(any(), map()) -> ok.
-did_open(_Socket, Params) ->
+-spec did_open(map()) -> ok.
+did_open(Params) ->
   TextDocument = maps:get(<<"textDocument">>, Params),
   Uri          = maps:get(<<"uri">>         , TextDocument),
   Text         = maps:get(<<"text">>        , TextDocument),
-  {ok, Pid}    = supervisor:start_child(erlang_ls_sup, [Text]),
+  {ok, Pid}    = supervisor:start_child(erlang_ls_buffer_sup, [Text]),
   ok           = erlang_ls_buffer_server:add_buffer(Uri, Pid).
 
 -spec did_save(any(), map()) -> ok.
