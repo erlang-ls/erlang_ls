@@ -1,7 +1,7 @@
 -module(erlang_ls_text_synchronization).
 
 -export([ did_open/1
-        , did_save/2
+        , did_save/1
         ]).
 
 -spec did_open(map()) -> ok.
@@ -12,8 +12,8 @@ did_open(Params) ->
   {ok, Pid}    = supervisor:start_child(erlang_ls_buffer_sup, [Text]),
   ok           = erlang_ls_buffer_server:add_buffer(Uri, Pid).
 
--spec did_save(any(), map()) -> ok.
-did_save(Socket, Params) ->
+-spec did_save(map()) -> ok.
+did_save(Params) ->
   TextDocument = maps:get(<<"textDocument">>, Params),
   Uri          = maps:get(<<"uri">>         , TextDocument),
   CDiagnostics = erlang_ls_compiler_diagnostics:diagnostics(Uri),
@@ -22,5 +22,6 @@ did_save(Socket, Params) ->
   Params1  = #{ uri => Uri
               , diagnostics => CDiagnostics ++ DDiagnostics
               },
-  erlang_ls_protocol:notification(Socket, Method, Params1),
+  Content = erlang_ls_protocol:notification(Method, Params1),
+  erlang_ls_server:notification(Content),
   ok.

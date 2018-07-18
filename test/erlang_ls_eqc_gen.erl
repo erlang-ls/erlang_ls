@@ -19,11 +19,12 @@
 %% Generators
 %%==============================================================================
 uri() ->
-  ?LET( I
-      , int()
-      , filename:join([ <<"/tmp">>
-                      , list_to_binary(integer_to_list(I) ++ ".erl")
-                      ])
+  ?LET( B
+      , selected_binary()
+      , <<"file:///tmp/", B/binary, ".erl">>
       ).
+
+selected_binary() ->
+  elements([<<"a">>, <<"b">>, <<"c">>]).
 
 -endif.

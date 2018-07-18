@@ -97,6 +97,9 @@ connected(info, {tcp_closed, _Socket}, _State) ->
   {stop, normal};
 connected(info, {'EXIT', _, normal}, _State) ->
   keep_state_and_data;
+connected(info, {tcp_send, Content}, State) ->
+  gen_tcp:send(State#state.socket, Content),
+  {keep_state, State};
 connected(info, {tcp_error, _, Reason}, _State) ->
   {stop, Reason}.
 
@@ -110,10 +113,11 @@ handle_requests(Socket, Data) ->
   L                  = binary_to_integer(BinLength),
   <<Body:L/binary, Rest/binary>> = Payload,
   Request = jsx:decode(Body, [return_maps]),
-  case handle_request(Socket, Request) of
+  case handle_request(Request) of
     {Result} ->
       RequestId = maps:get(<<"id">>, Request),
-      ok = erlang_ls_protocol:response(Socket, RequestId, Result);
+      Content = erlang_ls_protocol:response(RequestId, Result),
+      gen_tcp:send(Socket, Content);
     {} ->
       ok
   end,
@@ -124,15 +128,15 @@ handle_requests(Socket, Data) ->
       Rest
   end.
 
--spec handle_request(any(), map()) -> ok.
-handle_request(Socket, Request) ->
+-spec handle_request(map()) -> ok.
+handle_request(Request) ->
   Method = maps:get(<<"method">>, Request),
   Params = maps:get(<<"params">>, Request),
   lager:debug("[Handling request] [method=~s] [params=~p]", [Method, Params]),
-  handle_request(Socket, Method, Params).
+  handle_request(Method, Params).
 
--spec handle_request(any(), binary(), map()) -> {any()} | {}.
-handle_request(_Socket, <<"initialize">>, _Params) ->
+-spec handle_request(binary(), map()) -> {any()} | {}.
+handle_request(<<"initialize">>, _Params) ->
   Result = #{ capabilities =>
                 #{ hoverProvider => false
                  , completionProvider =>
@@ -144,12 +148,12 @@ handle_request(_Socket, <<"initialize">>, _Params) ->
                  }
             },
   {Result};
-handle_request(_Socket, <<"initialized">>, _) ->
+handle_request(<<"initialized">>, _) ->
   {};
-handle_request(_Socket, <<"textDocument/didOpen">>, Params) ->
+handle_request(<<"textDocument/didOpen">>, Params) ->
   ok = erlang_ls_text_synchronization:did_open(Params),
   {};
-handle_request(_Socket, <<"textDocument/didChange">>, Params) ->
+handle_request(<<"textDocument/didChange">>, Params) ->
   ContentChanges = maps:get(<<"contentChanges">>, Params),
   TextDocument   = maps:get(<<"textDocument">>  , Params),
   Uri            = maps:get(<<"uri">>           , TextDocument),
@@ -160,9 +164,9 @@ handle_request(_Socket, <<"textDocument/didChange">>, Params) ->
       ok = erlang_ls_buffer:set_text(Buffer, Text)
   end,
   {};
-handle_request(_Socket, <<"textDocument/hover">>, _Params) ->
+handle_request(<<"textDocument/hover">>, _Params) ->
   {null};
-handle_request(_Socket, <<"textDocument/completion">>, Params) ->
+handle_request(<<"textDocument/completion">>, Params) ->
   Position     = maps:get(<<"position">> , Params),
   Line         = maps:get(<<"line">>     , Position),
   Character    = maps:get(<<"character">>, Position),
@@ -171,10 +175,10 @@ handle_request(_Socket, <<"textDocument/completion">>, Params) ->
   {ok, Buffer} = erlang_ls_buffer_server:get_buffer(Uri),
   Result       = erlang_ls_buffer:get_completions(Buffer, Line, Character),
   {Result};
-handle_request(Socket, <<"textDocument/didSave">>, Params) ->
-  ok = erlang_ls_text_synchronization:did_save(Socket, Params),
+handle_request(<<"textDocument/didSave">>, Params) ->
+  spawn_link(fun() -> erlang_ls_text_synchronization:did_save(Params) end),
   {};
-handle_request(_Socket, <<"textDocument/definition">>, Params) ->
+handle_request(<<"textDocument/definition">>, Params) ->
   Position     = maps:get(<<"position">>    , Params),
   Line         = maps:get(<<"line">>        , Position),
   Character    = maps:get(<<"character">>   , Position),
@@ -196,12 +200,12 @@ handle_request(_Socket, <<"textDocument/definition">>, Params) ->
                null
            end,
   {Result};
-handle_request(Socket, RequestMethod, _Params) ->
+handle_request(RequestMethod, _Params) ->
+  lager:warning("[Method not implemented] [method=~s]", [RequestMethod]),
   Message = <<"Method not implemented: ", RequestMethod/binary>>,
   Method  = <<"window/showMessage">>,
   Params  = #{ type    => ?MESSAGE_TYPE_INFO
              , message => Message
              },
-  erlang_ls_protocol:notification(Socket, Method, Params),
-  lager:warning("[Method not implemented] [method=~s]", [Method]),
-  {}.
+  Content = erlang_ls_protocol:notification(Method, Params),
+  {Content}.

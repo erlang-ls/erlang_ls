@@ -103,6 +103,25 @@ did_open_post(_S, _Args, Res) ->
   true.
 
 %%------------------------------------------------------------------------------
+%% textDocument/didSave
+%%------------------------------------------------------------------------------
+did_save(Uri) ->
+  erlang_ls_client:did_save(Uri).
+
+did_save_args(_S) ->
+  [erlang_ls_eqc_gen:uri()].
+
+did_save_pre(#{connected := Connected} = _S) ->
+  Connected.
+
+did_save_next(S, _R, _Args) ->
+  S.
+
+did_save_post(_S, _Args, Res) ->
+  ?assertEqual(ok, Res),
+  true.
+
+%%------------------------------------------------------------------------------
 %% Disconnect
 %%------------------------------------------------------------------------------
 disconnect() ->

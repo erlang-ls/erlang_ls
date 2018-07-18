@@ -13,6 +13,7 @@
 %%==============================================================================
 %% API
 -export([ did_open/4
+        , did_save/1
         , initialize/0
         , start_link/2
         , stop/0
@@ -58,6 +59,10 @@
 did_open(Uri, LanguageId, Version, Text) ->
   gen_server:call(?SERVER, {did_open, Uri, LanguageId, Version, Text}).
 
+-spec did_save(uri()) -> ok.
+did_save(Uri) ->
+  gen_server:call(?SERVER, {did_save, Uri}).
+
 -spec initialize() -> ok.
 initialize() ->
   gen_server:call(?SERVER, {initialize}).
@@ -88,21 +93,24 @@ handle_call({did_open, Uri, LanguageId, Version, Text}, _From, State) ->
                   , text       => Text
                   },
   Params = #{textDocument => TextDocument},
-  ok = erlang_ls_protocol:notification( State#state.socket
-                                      , Method
-                                      , Params
-                                      ),
+  Content = erlang_ls_protocol:notification(Method, Params),
+  ok = tcp_send(State#state.socket, Content),
+  {reply, ok, State};
+handle_call({did_save, Uri}, _From, State) ->
+  Method = <<"textDocument/didSave">>,
+  TextDocument = #{ uri => Uri },
+  Params = #{textDocument => TextDocument},
+  Content = erlang_ls_protocol:notification(Method, Params),
+  ok = tcp_send(State#state.socket, Content),
   {reply, ok, State};
 handle_call({initialize}, _From, #state{ request_id = RequestId
                                        , socket     = Socket
                                        } = State) ->
-  Method = <<"initialize">>,
-  Params = #{},
-  {ok, Response} = erlang_ls_protocol:request( Socket
-                                             , RequestId
-                                             , Method
-                                             , Params
-                                             ),
+  Method  = <<"initialize">>,
+  Params  = #{},
+  Content = erlang_ls_protocol:request(RequestId, Method, Params),
+  tcp_send(Socket, Content),
+  {ok, Response} = tcp_receive(Socket),
   {reply, Response, State#state{request_id = RequestId + 1}}.
 
 -spec handle_cast(any(), state()) -> {noreply, state()}.
@@ -121,3 +129,29 @@ terminate(_Reason, #state{socket = Socket} = _State) ->
 -spec code_change(any(), state(), any()) -> {ok, state()}.
 code_change(_OldVsn, State, _Extra) ->
   {ok, State}.
+
+%%==============================================================================
+%% Internal Functions
+%%==============================================================================
+-spec tcp_send(gen_tcp:socket(), iodata()) -> ok.
+tcp_send(Socket, Content) ->
+  ok = gen_tcp:send(Socket, Content).
+
+-spec tcp_receive(gen_tcp:socket()) -> {ok, binary()}.
+tcp_receive(Socket) ->
+  {ok, Packet}    = gen_tcp:recv(Socket, 0),
+  {Headers, Body} = cow_http:parse_headers(Packet),
+  BinLength       = proplists:get_value( <<"content-length">>, Headers),
+  Length          = binary_to_integer(BinLength),
+  tcp_receive(Socket, Body, Length).
+
+-spec tcp_receive(gen_tcp:socket(), binary(), non_neg_integer()) ->
+  {ok, binary()}.
+tcp_receive(Socket, Body, Length) ->
+  case byte_size(Body) < Length of
+    true ->
+      {ok, Packet} = gen_tcp:recv(Socket, 0),
+      tcp_receive(Socket, <<Body/binary, Packet/binary>>, Length);
+    false ->
+      {ok, jsx:decode(Body, [return_maps, {labels, atom}])}
+  end.
