@@ -96,7 +96,10 @@ connected(info, {tcp_closed, _Socket}, _State) ->
 connected(info, {'EXIT', _, normal}, _State) ->
   keep_state_and_data;
 connected(info, {tcp_error, _, Reason}, _State) ->
-  {stop, Reason}.
+  {stop, Reason};
+connected(cast, {notification, M, P}, State) ->
+  send_notification(State#state.socket, M, P),
+  keep_state_and_data.
 
 %%==============================================================================
 %% Internal Functions
@@ -138,9 +141,7 @@ handle_request(Socket, Request) ->
       lager:debug("[SERVER] No response", []),
       ok;
     {notification, M, P} ->
-      Notification = erlang_ls_protocol:notification(M, P),
-      lager:debug("[SERVER] Sending notification [notification=~p]", [Notification]),
-      gen_tcp:send(Socket, Notification)
+      send_notification(Socket, M, P)
   end.
 
 -spec handle_method(binary(), map()) ->
@@ -185,8 +186,8 @@ handle_method(<<"textDocument/completion">>, Params) ->
   Result       = erlang_ls_buffer:get_completions(Buffer, Line, Character),
   {response, Result};
 handle_method(<<"textDocument/didSave">>, Params) ->
-  {Method, Params1} = erlang_ls_text_synchronization:did_save(Params),
-  {notification, Method, Params1};
+  spawn(erlang_ls_text_synchronization, did_save, [Params, self()]),
+  {};
 handle_method(<<"textDocument/definition">>, Params) ->
   Position     = maps:get(<<"position">>    , Params),
   Line         = maps:get(<<"line">>        , Position),
@@ -217,3 +218,9 @@ handle_method(Method, _Params) ->
              , message => Message
              },
   {notification, Method1, Params}.
+
+-spec send_notification(any(), binary(), map()) -> ok.
+send_notification(Socket, Method, Params) ->
+  Notification = erlang_ls_protocol:notification(Method, Params),
+  lager:debug("[SERVER] Sending notification [notification=~p]", [Notification]),
+  gen_tcp:send(Socket, Notification).
