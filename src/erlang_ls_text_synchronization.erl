@@ -12,7 +12,7 @@ did_open(Params) ->
   {ok, Pid}    = supervisor:start_child(erlang_ls_buffer_sup, [Text]),
   ok           = erlang_ls_buffer_server:add_buffer(Uri, Pid).
 
--spec did_save(map()) -> ok.
+-spec did_save(map()) -> {binary(), map()}.
 did_save(Params) ->
   TextDocument = maps:get(<<"textDocument">>, Params),
   Uri          = maps:get(<<"uri">>         , TextDocument),
@@ -22,6 +22,4 @@ did_save(Params) ->
   Params1  = #{ uri => Uri
               , diagnostics => CDiagnostics ++ DDiagnostics
               },
-  Content = erlang_ls_protocol:notification(Method, Params1),
-  erlang_ls_server:notification(Content),
-  ok.
+  {Method, Params1}.

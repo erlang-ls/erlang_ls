@@ -25,8 +25,7 @@
 %%==============================================================================
 %% Messaging API
 %%==============================================================================
--spec notification(binary(), any()) ->
-  {ok, any()}.
+-spec notification(binary(), any()) -> any().
 notification(Method, Params) ->
   Message = #{ jsonrpc => ?JSONRPC_VSN
              , method  => Method
@@ -34,8 +33,7 @@ notification(Method, Params) ->
              },
   content(jsx:encode(Message)).
 
--spec request(number(), binary(), any()) ->
-  {ok, any()}.
+-spec request(number(), binary(), any()) -> any().
 request(RequestId, Method, Params) ->
   Message = #{ jsonrpc => ?JSONRPC_VSN
              , method  => Method
@@ -44,7 +42,7 @@ request(RequestId, Method, Params) ->
              },
   content(jsx:encode(Message)).
 
--spec response(number(), any()) -> ok.
+-spec response(number(), any()) -> any().
 response(RequestId, Result) ->
   Message = #{ jsonrpc => ?JSONRPC_VSN
              , id      => RequestId

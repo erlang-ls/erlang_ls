@@ -20,11 +20,11 @@
 %%==============================================================================
 uri() ->
   ?LET( B
-      , selected_binary()
+      , buffer()
       , <<"file:///tmp/", B/binary, ".erl">>
       ).
 
-selected_binary() ->
+buffer() ->
   elements([<<"a">>, <<"b">>, <<"c">>]).
 
 -endif.

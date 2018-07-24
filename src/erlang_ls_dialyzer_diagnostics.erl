@@ -35,7 +35,7 @@ diagnostics(Uri) ->
 %%==============================================================================
 -spec diagnostic(any()) -> diagnostic().
 diagnostic({_, {_, Line}, _} = Warning) ->
-  Range   = erlang_ls_protocol:range(Line),
+  Range   = erlang_ls_protocol:range(Line - 1),
   Message = list_to_binary(lists:flatten(dialyzer:format_warning(Warning))),
   #{ range    => Range
    , message  => Message

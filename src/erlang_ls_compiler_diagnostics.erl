@@ -47,13 +47,13 @@ diagnostics(Uri) ->
 %%==============================================================================
 -spec diagnostics([compiler_msg()], severity()) -> [diagnostic()].
 diagnostics(List, Severity) ->
-  lists:flatten([[ diagnostic(Line-1, Module, Desc, Severity)
+  lists:flatten([[ diagnostic(Line, Module, Desc, Severity)
                    || {Line, Module, Desc} <- Info]
                  || {_Filename, Info } <- List]).
 
 -spec diagnostic(integer(), module(), string(), integer()) -> diagnostic().
 diagnostic(Line, Module, Desc, Severity) ->
-  Range   = erlang_ls_protocol:range(Line),
+  Range   = erlang_ls_protocol:range(Line - 1),
   Message = list_to_binary(lists:flatten(Module:format_error(Desc))),
   #{ range    => Range
    , message  => Message

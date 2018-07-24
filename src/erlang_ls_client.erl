@@ -43,6 +43,8 @@
 %%==============================================================================
 -record(state, { socket
                , request_id = 1
+               , pending    = []
+               , buffer     = <<>>
                }).
 
 %%==============================================================================
@@ -80,7 +82,7 @@ stop() ->
 %%==============================================================================
 -spec init({hostname(), port_no()}) -> {ok, state()}.
 init({Host, Port}) ->
-  Opts         = [binary, {active, false}],
+  Opts         = [binary, {active, once}, {packet, 0}],
   {ok, Socket} = gen_tcp:connect(Host, Port, Opts),
   {ok, #state{socket = Socket}}.
 
@@ -94,31 +96,46 @@ handle_call({did_open, Uri, LanguageId, Version, Text}, _From, State) ->
                   },
   Params = #{textDocument => TextDocument},
   Content = erlang_ls_protocol:notification(Method, Params),
-  ok = tcp_send(State#state.socket, Content),
+  ok = gen_tcp:send(State#state.socket, Content),
   {reply, ok, State};
 handle_call({did_save, Uri}, _From, State) ->
   Method = <<"textDocument/didSave">>,
   TextDocument = #{ uri => Uri },
   Params = #{textDocument => TextDocument},
   Content = erlang_ls_protocol:notification(Method, Params),
-  ok = tcp_send(State#state.socket, Content),
+  ok = gen_tcp:send(State#state.socket, Content),
   {reply, ok, State};
-handle_call({initialize}, _From, #state{ request_id = RequestId
-                                       , socket     = Socket
-                                       } = State) ->
+handle_call({initialize}, From, #state{ request_id = RequestId
+                                      , socket     = Socket
+                                      } = State) ->
   Method  = <<"initialize">>,
   Params  = #{},
   Content = erlang_ls_protocol:request(RequestId, Method, Params),
-  tcp_send(Socket, Content),
-  {ok, Response} = tcp_receive(Socket),
-  {reply, Response, State#state{request_id = RequestId + 1}}.
+  gen_tcp:send(Socket, Content),
+  {noreply, State#state{ request_id = RequestId + 1
+                       , pending    = [{RequestId, From} | State#state.pending]
+                       }}.
 
 -spec handle_cast(any(), state()) -> {noreply, state()}.
 handle_cast(_Msg, State) ->
   {noreply, State}.
 
 -spec handle_info(any(), state()) -> {noreply, state()}.
-handle_info(_Info, State) ->
+handle_info({tcp, _Socket, Packet}, #state{ buffer  = Buffer
+                                          , socket  = Socket
+                                          , pending = Pending
+                                          } = State) ->
+  lager:debug("[SERVER] TCP Packet [buffer=~p] [packet=~p] ", [Buffer, Packet]),
+  Data = <<Buffer/binary, Packet/binary>>,
+  {Responses, NewBuffer} = split(Data),
+  Pending1 = handle_responses(Socket, Responses, Pending),
+  inet:setopts(Socket, [{active, once}]),
+  {noreply, State#state{ buffer = NewBuffer, pending = Pending1 }};
+handle_info({tcp_closed, _Socket}, State) ->
+  lager:debug("[CLIENT] TCP closed", []),
+  {noreply, State};
+handle_info({tcp_error, _Socket, Reason}, State) ->
+  lager:debug("[CLIENT] TCP error [reason=~p]", [Reason]),
   {noreply, State}.
 
 -spec terminate(any(), state()) -> ok.
@@ -133,25 +150,43 @@ code_change(_OldVsn, State, _Extra) ->
 %%==============================================================================
 %% Internal Functions
 %%==============================================================================
--spec tcp_send(gen_tcp:socket(), iodata()) -> ok.
-tcp_send(Socket, Content) ->
-  ok = gen_tcp:send(Socket, Content).
+-spec split(binary()) -> {[map()], binary()}.
+split(Data) ->
+  split(Data, []).
 
--spec tcp_receive(gen_tcp:socket()) -> {ok, binary()}.
-tcp_receive(Socket) ->
-  {ok, Packet}    = gen_tcp:recv(Socket, 0),
-  {Headers, Body} = cow_http:parse_headers(Packet),
-  BinLength       = proplists:get_value( <<"content-length">>, Headers),
-  Length          = binary_to_integer(BinLength),
-  tcp_receive(Socket, Body, Length).
+-spec split(binary(), [map()]) -> {[map()], binary()}.
+split(Data, Responses) ->
+  try cow_http:parse_headers(Data) of
+    {Headers, Data1} ->
+      BinLength     = proplists:get_value(<<"content-length">>, Headers),
+      Length        = binary_to_integer(BinLength),
+      CurrentLength = byte_size(Data1),
+      case CurrentLength < Length of
+        true  ->
+          lager:debug("[CLIENT] Packet too little [current_length=~p] [length=~p]", [CurrentLength, Length]),
+          {lists:reverse(Responses), Data};
+        false ->
+          <<Body:Length/binary, Rest/binary>> = Data1,
+          Response  = jsx:decode(Body, [return_maps, {labels, atom}]),
+          split(Rest, [Response|Responses])
+      end
+  catch _:_ ->
+      lager:debug("[CLIENT] Cannot parse headers [data=~p]", [Data]),
+      {lists:reverse(Responses), Data}
+  end.
 
--spec tcp_receive(gen_tcp:socket(), binary(), non_neg_integer()) ->
-  {ok, binary()}.
-tcp_receive(Socket, Body, Length) ->
-  case byte_size(Body) < Length of
+-spec handle_responses(any(), [map()], [any()]) -> [any()].
+handle_responses(_Socket, [], Pending) ->
+  Pending;
+handle_responses(Socket, [Response|Responses], Pending) ->
+  case maps:is_key(id, Response) of
     true ->
-      {ok, Packet} = gen_tcp:recv(Socket, 0),
-      tcp_receive(Socket, <<Body/binary, Packet/binary>>, Length);
+      lager:debug("[CLIENT] Handling Response [response=~p]", [Response]),
+      RequestId         = maps:get(id, Response),
+      {RequestId, From} = lists:keyfind(RequestId, 1, Pending),
+      gen_server:reply(From, Response),
+      handle_responses(Socket, Responses, lists:keydelete(RequestId, 1, Pending));
     false ->
-      {ok, jsx:decode(Body, [return_maps, {labels, atom}])}
+      lager:debug("[CLIENT] Handling Notification [notification=~p]", [Response]),
+      handle_responses(Socket, Responses, Pending)
   end.
