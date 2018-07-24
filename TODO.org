@@ -12,6 +12,9 @@
 - [ ] Separate server from protocol
 - [ ] Move shared logic about headers/body constructing to shared module
 - [ ] Introduce JSONRPC library
+- [ ] Dot notation for maps
+- [ ] Move ETS buffers handling to separate module
+- [ ] Get rid of ranch
 ** CI
 - [ ] Pre-build PLT in Travis
 - [ ] Cover reports
@@ -19,6 +22,7 @@
 - [ ] Rationale
 - [ ] How the project was born (EDTS discussions, EUC, etc)
 - [ ] Add proper README (including list of features and their status)
+- [ ] Add Erlang to https://microsoft.github.io/language-server-protocol/specification
 ** Blog
 - [ ] EDTS Architecture
 - [ ] EDTS Comparison with edts
@@ -32,6 +36,10 @@
   - erl_syntax
   - erl_prettypr
   - shell
+- [ ] Design for collaboration
+- [ ] Buffers supervision tree
+- [ ] Development workflow. The need for EQC
+- [ ] Compare with sourcer and other implementations
 ** Erlang server
 - [ ] Elvis support
 - [ ] Send message to client for unimplemented methods
@@ -43,7 +51,7 @@
 - [ ] Incremental text sync
 - [ ] Support for Unicode
 ** Features
-- [ ] Propose to include record definition
+- [ ] Lens: Propose to include record definition
 - [ ] POC for workspace (eg via rebar3)
 - [ ] Goto definition
 - [ ] Completion
@@ -56,6 +64,13 @@
   - Modules
   - Macros
 - [ ] edoc
+- [ ] Find all callers
+- [ ] Actions to automatically case/pattern match on return values
+- [ ] Get compiler options from build tool
+- [ ] didClose
+- [ ] Support for multiple BEAM languages and delegation to servers
+** Emacs
+- [ ] Add lsp-erlang to emacs-lsp
 ** Bugs
 - [ ] tcp errors displayed on client
 - [ ] Handle dialyzer return value on compilation errors
@@ -63,3 +78,6 @@
 - [ ] Properly figure out MFA under point for goto-definitions
 - [ ] Use column (maybe full length) when reporting compilation errors
 - [ ] Fix warning/error colours
+- [ ] Ensure /tmp/*.erl files exist in a random dir
+- [ ] Abstract pattern in common JSON-RPC module
+- [ ] Lots of symultaneous did_save requests can block the server and cause timeouts. Notifications should be async
