@@ -60,7 +60,7 @@ start_link() ->
 add_buffer(Uri, Buffer) ->
   gen_server:call(?SERVER, {add_buffer, Uri, Buffer}).
 
--spec get_buffer(uri()) -> {ok, buffer()}.
+-spec get_buffer(uri()) -> {ok, buffer() | undefined}.
 get_buffer(Uri) ->
   gen_server:call(?SERVER, {get_buffer, Uri}).
 
