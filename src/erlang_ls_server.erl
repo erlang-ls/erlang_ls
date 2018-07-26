@@ -87,7 +87,7 @@ connected(info, {tcp, Socket, Packet}, #state{ socket = Socket
                                              } = State) ->
   lager:debug("[SERVER] TCP Packet [buffer=~p] [packet=~p] ", [Buffer, Packet]),
   Data = <<Buffer/binary, Packet/binary>>,
-  {Requests, NewBuffer} = split(Data),
+  {Requests, NewBuffer} = erlang_ls_jsonrpc:split(Data, [return_maps]),
   [handle_request(Socket, Request) || Request <- Requests],
   inet:setopts(Socket, [{active, once}]),
   {keep_state, State#state{ buffer = NewBuffer }};
@@ -104,29 +104,6 @@ connected(cast, {notification, M, P}, State) ->
 %%==============================================================================
 %% Internal Functions
 %%==============================================================================
--spec split(binary()) -> {[map()], binary()}.
-split(Data) ->
-  split(Data, []).
-
--spec split(binary(), [map()]) -> {[map()], binary()}.
-split(Data, Requests) ->
-  try cow_http:parse_headers(Data) of
-    {Headers, Data1} ->
-      BinLength     = proplists:get_value(<<"content-length">>, Headers),
-      Length        = binary_to_integer(BinLength),
-      CurrentLength = byte_size(Data1),
-      case CurrentLength < Length of
-        true  ->
-          {lists:reverse(Requests), Data};
-        false ->
-          <<Body:Length/binary, Rest/binary>> = Data1,
-          Request   = jsx:decode(Body, [return_maps]),
-          split(Rest, [Request|Requests])
-      end
-  catch _:_ ->
-      {lists:reverse(Requests), Data}
-  end.
-
 -spec handle_request(any(), map()) -> ok.
 handle_request(Socket, Request) ->
   Method    = maps:get(<<"method">>, Request),

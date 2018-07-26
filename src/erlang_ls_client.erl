@@ -55,9 +55,9 @@
 -type hostname() :: tuple().
 -type port_no()  :: pos_integer().
 
-%%%=============================================================================
-%%% API
-%%%=============================================================================
+%%==============================================================================
+%% API
+%%==============================================================================
 -spec did_open(uri(), binary(), number(), binary()) -> ok.
 did_open(Uri, LanguageId, Version, Text) ->
   gen_server:call(?SERVER, {did_open, Uri, LanguageId, Version, Text}).
@@ -139,7 +139,7 @@ handle_info({tcp, _Socket, Packet}, #state{ buffer  = Buffer
                                           } = State) ->
   lager:debug("[SERVER] TCP Packet [buffer=~p] [packet=~p] ", [Buffer, Packet]),
   Data = <<Buffer/binary, Packet/binary>>,
-  {Responses, NewBuffer} = split(Data),
+  {Responses, NewBuffer} = erlang_ls_jsonrpc:split(Data, [return_maps, {labels, atom}]),
   Pending1 = handle_responses(Socket, Responses, Pending),
   inet:setopts(Socket, [{active, once}]),
   {noreply, State#state{ buffer = NewBuffer, pending = Pending1 }};
@@ -162,31 +162,6 @@ code_change(_OldVsn, State, _Extra) ->
 %%==============================================================================
 %% Internal Functions
 %%==============================================================================
--spec split(binary()) -> {[map()], binary()}.
-split(Data) ->
-  split(Data, []).
-
--spec split(binary(), [map()]) -> {[map()], binary()}.
-split(Data, Responses) ->
-  try cow_http:parse_headers(Data) of
-    {Headers, Data1} ->
-      BinLength     = proplists:get_value(<<"content-length">>, Headers),
-      Length        = binary_to_integer(BinLength),
-      CurrentLength = byte_size(Data1),
-      case CurrentLength < Length of
-        true  ->
-          lager:debug("[CLIENT] Packet too little [current_length=~p] [length=~p]", [CurrentLength, Length]),
-          {lists:reverse(Responses), Data};
-        false ->
-          <<Body:Length/binary, Rest/binary>> = Data1,
-          Response  = jsx:decode(Body, [return_maps, {labels, atom}]),
-          split(Rest, [Response|Responses])
-      end
-  catch _:_ ->
-      lager:debug("[CLIENT] Cannot parse headers [data=~p]", [Data]),
-      {lists:reverse(Responses), Data}
-  end.
-
 -spec handle_responses(any(), [map()], [any()]) -> [any()].
 handle_responses(_Socket, [], Pending) ->
   Pending;
