@@ -38,10 +38,16 @@ all() ->
 
 -spec init_per_suite(config()) -> config().
 init_per_suite(Config) ->
+  meck:new(erlang_ls_compiler_diagnostics, [no_link, passthrough]),
+  meck:new(erlang_ls_dialyzer_diagnostics, [no_link, passthrough]),
+  meck:expect(erlang_ls_compiler_diagnostics, diagnostics, 1, []),
+  meck:expect(erlang_ls_dialyzer_diagnostics, diagnostics, 1, []),
   Config.
 
 -spec end_per_suite(config()) -> ok.
 end_per_suite(_Config) ->
+  meck:unload(erlang_ls_compiler_diagnostics),
+  meck:unload(erlang_ls_dialyzer_diagnostics),
   ok.
 
 -spec init_per_testcase(atom(), config()) -> any().
