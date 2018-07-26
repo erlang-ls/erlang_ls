@@ -15,6 +15,7 @@
 - [ ] Dot notation for maps
 - [ ] Move ETS buffers handling to separate module
 - [ ] Get rid of ranch
+- [ ] Tests take too long. Mock compiler/dialyzer
 ** CI
 - [ ] Pre-build PLT in Travis
 - [ ] Cover reports
