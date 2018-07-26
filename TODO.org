@@ -9,13 +9,9 @@
 - [ ] Define typespecs for server_capabilities
 - [ ] Support for STDIO as opposed to TCP
 ** Refactoring
-- [ ] Separate server from protocol
-- [ ] Move shared logic about headers/body constructing to shared module
-- [ ] Introduce JSONRPC library
 - [ ] Dot notation for maps
 - [ ] Move ETS buffers handling to separate module
 - [ ] Get rid of ranch
-- [ ] Tests take too long. Mock compiler/dialyzer
 ** CI
 - [ ] Pre-build PLT in Travis
 - [ ] Cover reports
@@ -68,7 +64,6 @@
 - [ ] Find all callers
 - [ ] Actions to automatically case/pattern match on return values
 - [ ] Get compiler options from build tool
-- [ ] didClose
 - [ ] Support for multiple BEAM languages and delegation to servers
 ** Emacs
 - [ ] Add lsp-erlang to emacs-lsp
@@ -80,5 +75,3 @@
 - [ ] Use column (maybe full length) when reporting compilation errors
 - [ ] Fix warning/error colours
 - [ ] Ensure /tmp/*.erl files exist in a random dir
-- [ ] Abstract pattern in common JSON-RPC module
-- [ ] Lots of symultaneous did_save requests can block the server and cause timeouts. Notifications should be async
