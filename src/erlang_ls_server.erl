@@ -188,6 +188,9 @@ handle_method(<<"textDocument/completion">>, Params) ->
 handle_method(<<"textDocument/didSave">>, Params) ->
   spawn(erlang_ls_text_synchronization, did_save, [Params, self()]),
   {};
+handle_method(<<"textDocument/didClose">>, Params) ->
+  ok = erlang_ls_text_synchronization:did_close(Params),
+  {};
 handle_method(<<"textDocument/definition">>, Params) ->
   Position     = maps:get(<<"position">>    , Params),
   Line         = maps:get(<<"line">>        , Position),

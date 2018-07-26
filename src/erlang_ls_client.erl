@@ -14,6 +14,7 @@
 %% API
 -export([ did_open/4
         , did_save/1
+        , did_close/1
         , initialize/0
         , start_link/2
         , stop/0
@@ -65,6 +66,10 @@ did_open(Uri, LanguageId, Version, Text) ->
 did_save(Uri) ->
   gen_server:call(?SERVER, {did_save, Uri}).
 
+-spec did_close(uri()) -> ok.
+did_close(Uri) ->
+  gen_server:call(?SERVER, {did_close, Uri}).
+
 -spec initialize() -> ok.
 initialize() ->
   gen_server:call(?SERVER, {initialize}).
@@ -100,6 +105,13 @@ handle_call({did_open, Uri, LanguageId, Version, Text}, _From, State) ->
   {reply, ok, State};
 handle_call({did_save, Uri}, _From, State) ->
   Method = <<"textDocument/didSave">>,
+  TextDocument = #{ uri => Uri },
+  Params = #{textDocument => TextDocument},
+  Content = erlang_ls_protocol:notification(Method, Params),
+  ok = gen_tcp:send(State#state.socket, Content),
+  {reply, ok, State};
+handle_call({did_close, Uri}, _From, State) ->
+  Method = <<"textDocument/didClose">>,
   TextDocument = #{ uri => Uri },
   Params = #{textDocument => TextDocument},
   Content = erlang_ls_protocol:notification(Method, Params),

@@ -122,6 +122,25 @@ did_save_post(_S, _Args, Res) ->
   true.
 
 %%------------------------------------------------------------------------------
+%% textDocument/didClose
+%%------------------------------------------------------------------------------
+did_close(Uri) ->
+  erlang_ls_client:did_close(Uri).
+
+did_close_args(_S) ->
+  [erlang_ls_eqc_gen:uri()].
+
+did_close_pre(#{connected := Connected} = _S) ->
+  Connected.
+
+did_close_next(S, _R, _Args) ->
+  S.
+
+did_close_post(_S, _Args, Res) ->
+  ?assertEqual(ok, Res),
+  true.
+
+%%------------------------------------------------------------------------------
 %% Disconnect
 %%------------------------------------------------------------------------------
 disconnect() ->

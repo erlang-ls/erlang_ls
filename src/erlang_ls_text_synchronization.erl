@@ -2,6 +2,7 @@
 
 -export([ did_open/1
         , did_save/2
+        , did_close/1
         ]).
 
 -spec did_open(map()) -> ok.
@@ -23,3 +24,17 @@ did_save(Params, Server) ->
               , diagnostics => CDiagnostics ++ DDiagnostics
               },
   gen_server:cast(Server, {notification, Method, Params1}).
+
+-spec did_close(map()) -> ok.
+did_close(Params) ->
+  TextDocument = maps:get(<<"textDocument">>, Params),
+  Uri          = maps:get(<<"uri">>         , TextDocument),
+  {ok, Buffer} = erlang_ls_buffer_server:get_buffer(Uri),
+  case Buffer of
+    undefined ->
+      lager:debug("[SERVER] Attempting to close un-opened text document, ignoring [uri=~p]", [Uri]);
+    B when is_pid(B) ->
+      ok = erlang_ls_buffer_server:remove_buffer(Uri),
+      ok = supervisor:terminate_child(erlang_ls_buffer_sup, Buffer)
+  end,
+  ok.
