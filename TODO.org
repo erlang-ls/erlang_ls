@@ -73,5 +73,4 @@
 - [ ] completion is triggered for extra chars
 - [ ] Properly figure out MFA under point for goto-definitions
 - [ ] Use column (maybe full length) when reporting compilation errors
-- [ ] Fix warning/error colours
 - [ ] Ensure /tmp/*.erl files exist in a random dir
