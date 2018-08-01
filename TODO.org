@@ -17,11 +17,9 @@
 - [ ] Cover reports
 ** Docs
 - [ ] Rationale
-- [ ] How the project was born (EDTS discussions, EUC, etc)
 - [ ] Add proper README (including list of features and their status)
 - [ ] Add Erlang to https://microsoft.github.io/language-server-protocol/specification
 ** Blog
-- [ ] EDTS Architecture
 - [ ] EDTS Comparison with edts
 - [ ] Issues with quickcheck-ci.com
   - rebar.config partial support
