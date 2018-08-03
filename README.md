@@ -163,12 +163,12 @@ user. Please notice that _request cancellation_ and _partial results_
 are optional features according to the LSP protocol, so both
 approaches are valid.
 
-_sourcer_ support full-text synchronization, meaning that upon each
-change, the entire content of the modified buffer is sent to the
+_sourcer_ supports full-text synchronization, meaning that upon each
+change the entire content of the modified buffer is sent to the
 server. All contents for all buffers are stored into the state of a
-single process, which seemed un-necessary. _erlang_ls_ has a dedicated
+single process. On the contrary, _erlang_ls_ has a dedicated
 supervisor for text synchronization purposes, where each opened buffer
-is modeled as a separate Erlang process with its own state, favouring
+is modelled as a separate Erlang process with its own state, favouring
 decoupling.
 
 An interesting idea in _sourcer_ is the presence of a _database_ which
