@@ -101,7 +101,99 @@ It was time to roll my own.
 
 ## Other LSP Implementations
 
+_erlang_ls_ is not by any means the _first_, the _only_ or the _best_
+Erlang implementation of the [Language Server
+Protocol](https://microsoft.github.io/language-server-protocol/specification)
+(aka _LSP_). This section aims at covering the other existing
+implementations, explaining differences and similarities with
+_erlang_ls_. Since things around _erlang_ls_ will inevitably evolve,
+this section will tend to become outdated very quickly. Therefore,
+feel free to contribute by pull-requesting a change whenever deemed
+necessary. Also consider that _erlang_ls_ is an extremely young
+project and that some of the functionalities discussed here are not
+fully implemented, yet. The intent of this section is not to criticize
+other implementations, but to explain why a new implementation was
+created. As always in software design, there are no _best_ solutions,
+but choices and trade-offs.
+
 ### sourcer
+
+To use the author's own words,
+[sourcer](https://github.com/erlang/sourcer) is the _reincarnation_ of
+a 7 years old, battle-tested, Erlang plugin for Eclipse, named
+[ErlIDE](https://erlide.org/), to use Microsoft's _Language Server
+Protocol_.
+
+The project is split into two separate Erlang applications:
+`lsp_server` and `sourcer`. `lsp_server` is the actual implementation
+of the _Language Server Protocol_ (aka _LSP_) and it supports both TCP
+and STDIO transports. The application consists of a single
+_one_for_one_ supervisor with three child processes. One of the three
+children, named _jsonrpc_, is a TCP server responsible for
+encoding/decoding LSP messages and for dispatching these messages
+from/to the other two children: `lsp_server` and `lsp_client`,
+respectively the LSP server itself and a middleman towards the actual
+LSP client (i.e. the text editor). The `sourcer` application contains
+the port of the _erlide_ libraries to the new format. Here the origin
+of the project is clearly visible in the structure of the code-base,
+in the references to _erlide_ and the presence of a `src2` folder,
+containing all the _erlide_ code not yet ported to the new project. In
+reality, the project contains a third Erlang application, named
+`erlang_ls` (yes, what a fortunate name collision), but that is just a
+wrapper to create an Erlang
+[escript](http://erlang.org/doc/man/escript.html) to bootstrap the
+whole server, so we can safely ignore it here.
+
+In _sourcer_, a separate worker process is spawn to handle each
+individual LSP method (e.g. `textDocument/completion` or
+`textDocument/hover`). _sourcer_ uses a mix of OTP patterns and basic,
+low-level, Erlang spawning and message passing, which this project
+tries to avoid, preferring to adopt OTP guidelines and patterns across
+the entire code-base.
+
+_sourcer_ defines the concept of a _cancellable worker_. Essentially,
+since every LSP method is executed within a separate process, this
+process can be killed at any time. Each worker processes can send
+_partial results_ to a central server, which can return these partial
+results to the client upon cancellation. This is not the cases for the
+_erlang_ls_ project, where processes can be killed, but no _partial_
+results are sent back to the client. The rationale behind this choice
+is that partial result could often be misleading to the end
+user. Please notice that _request cancellation_ and _partial results_
+are optional features according to the LSP protocol, so both
+approaches are valid.
+
+_sourcer_ support full-text synchronization, meaning that upon each
+change, the entire content of the modified buffer is sent to the
+server. All contents for all buffers are stored into the state of a
+single process, which seemed un-necessary. _erlang_ls_ has a dedicated
+supervisor for text synchronization purposes, where each opened buffer
+is modeled as a separate Erlang process with its own state, favouring
+decoupling.
+
+An interesting idea in _sourcer_ is the presence of a _database_ which
+is populated by worker processes and queried by the LSP server. The
+database acts as a memoization tool and avoids re-calculating already
+calculated information.
+
+_sourcer_ implements a custom scanner and parser, which try to handle
+situations where, for example, an un-closed string would provoke the
+rest of an Erlang module to be un-parsable. It does so by artificially
+adding quotes and other potentially missing tokens. Having a
+temporarily un-parsable module is not considered an actual problem by
+the _erlang_ls_ project, which prefers simplicity in this scenario
+and uses the default Erlang scanner and parser.
+
+_sourcer_ implements some very basic _project_ support, mainly
+focusing on [rebar3](https://www.rebar3.org/) conventions. _erlang_ls_
+tries to be agnostic of the building tool whilst providing _workspace_
+functionalities.
+
+_sourcer_ provides auto-formatting of Erlang modules using custom
+tools (i.e. the `sourcer_indent` module). _erlang_ls_ prefers standard
+Erlang tools, such as the `erl_tidy` module. In the same way,
+_sourcer_ prefers to run its own custom cross-reference analysis of
+Erlang modules, whilst _erlang_ls_ prefers the standard _xref_ tool.
 
 ### vscode_erlang
 
