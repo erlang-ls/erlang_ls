@@ -183,7 +183,7 @@ setup() ->
   meck:expect(erlang_ls_compiler_diagnostics, diagnostics, 1, []),
   meck:expect(erlang_ls_dialyzer_diagnostics, diagnostics, 1, []),
   application:ensure_all_started(erlang_ls),
-  lager:set_loglevel(lager_console_backend, debug),
+  lager:set_loglevel(lager_console_backend, warning),
   ok.
 
 %%==============================================================================
