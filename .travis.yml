@@ -2,8 +2,6 @@ language: erlang
 otp_release:
   - 22.0
   - 21.3
-install:
-  - wget https://s3.amazonaws.com/rebar3/rebar3 && chmod +x rebar3
 script:
   - rebar3 as test do compile, proper --cover, dialyzer, xref, cover, coveralls send
 cache:
