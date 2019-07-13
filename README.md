@@ -1,7 +1,7 @@
 # erlang_ls
 
 [![Build Status](https://travis-ci.org/erlang-ls/erlang_ls.svg?branch=master)](https://travis-ci.org/erlang-ls/erlang_ls)
-[![Build Status](http://quickcheck-ci.com/p/erlang-ls/erlang_ls.svg)](http://quickcheck-ci.com/p/erlang-ls/erlang_ls)
+[![Coverage Status](https://coveralls.io/repos/github/erlang-ls/erlang_ls/badge.svg?branch=master)](https://coveralls.io/github/erlang-ls/erlang_ls?branch=master)
 
 An Erlang server using Microsoft's Language Server Protocol 3.0.
 

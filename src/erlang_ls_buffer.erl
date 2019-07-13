@@ -112,19 +112,11 @@ do_get_completions(Text, Line, Character) ->
       [H| _] = lists:reverse(Tokens),
       case H of
         {atom, _, Module} ->
-          try Module:module_info(exports) of
-              Info ->
-              CS = [{Module, function_name_to_binary(F, A)} || {F, A} <- Info],
-              [#{ label => C
-                , data => M
-                , documentation => erlang_ls_doc:get_doc(M, C)
-                } || {M, C} <- CS]
-          catch _:_ ->
-              []
-          end
+          do_get_completions(Module)
       end;
     <<"#">> ->
-      [#{label => list_to_binary(io_lib:format("~p", [RD]))} || RD <- erlang_ls_completion:record_definitions()];
+      [#{label => list_to_binary(io_lib:format("~p", [RD]))} ||
+        RD <- erlang_ls_completion:record_definitions()];
     _ ->
       []
   end.
@@ -145,3 +137,16 @@ get_line_text(Text, Line) ->
 -spec function_name_to_binary(atom(), non_neg_integer()) -> binary().
 function_name_to_binary(Function, Arity) ->
   list_to_binary(io_lib:format("~p/~p", [Function, Arity])).
+
+-spec do_get_completions(module()) -> [map()].
+do_get_completions(Module) ->
+  try Module:module_info(exports) of
+      Info ->
+      CS = [{Module, function_name_to_binary(F, A)} || {F, A} <- Info],
+      [#{ label => C
+        , data => M
+        , documentation => erlang_ls_doc:get_doc(M, C)
+        } || {M, C} <- CS]
+  catch _:_ ->
+      []
+  end.
