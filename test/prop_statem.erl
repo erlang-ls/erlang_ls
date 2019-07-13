@@ -168,8 +168,9 @@ disconnect_post(_S, _Args, Res) ->
 %% The statem's property
 %%==============================================================================
 prop_main() ->
-  Config = #{ setup_fun   => fun setup/0
-            , cleanup_fun => fun cleanup/0
+  Config = #{ setup_fun    => fun setup/0
+            , teardown_fun => fun teardown/1
+            , cleanup_fun  => fun cleanup/0
             },
   proper_contrib_statem:run(?MODULE, Config).
 
@@ -177,8 +178,20 @@ prop_main() ->
 %% Setup
 %%==============================================================================
 setup() ->
+  meck:new(erlang_ls_compiler_diagnostics, [no_link, passthrough]),
+  meck:new(erlang_ls_dialyzer_diagnostics, [no_link, passthrough]),
+  meck:expect(erlang_ls_compiler_diagnostics, diagnostics, 1, []),
+  meck:expect(erlang_ls_dialyzer_diagnostics, diagnostics, 1, []),
   application:ensure_all_started(erlang_ls),
   lager:set_loglevel(lager_console_backend, debug),
+  ok.
+
+%%==============================================================================
+%% Teardown
+%%==============================================================================
+teardown(_) ->
+  meck:unload(erlang_ls_compiler_diagnostics),
+  meck:unload(erlang_ls_dialyzer_diagnostics),
   ok.
 
 %%==============================================================================
