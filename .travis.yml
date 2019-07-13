@@ -6,3 +6,6 @@ install:
   - wget https://s3.amazonaws.com/rebar3/rebar3 && chmod +x rebar3
 script:
   - rebar3 as test do compile, proper --cover, dialyzer, xref, cover, coveralls send
+cache:
+  directories:
+     - "$HOME/.cache/rebar3"
