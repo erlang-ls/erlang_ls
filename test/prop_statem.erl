@@ -1,21 +1,26 @@
 %%==============================================================================
-%% QuickCheck tests
+%% PropEr tests
 %%==============================================================================
--module(erlang_ls_eqc).
+-module(prop_statem).
 
--ifdef(EQC_TESTING).
+
+%%==============================================================================
+%% Behaviours
+%%==============================================================================
+-behaviour(proper_statem).
 
 %%==============================================================================
 %% Includes
 %%==============================================================================
--include_lib("eqc/include/eqc.hrl").
--include_lib("eqc/include/eqc_statem.hrl").
+-include_lib("proper/include/proper.hrl").
 -include_lib("stdlib/include/assert.hrl").
+-include_lib("proper_contrib/include/proper_contrib_statem.hrl").
 
 %%==============================================================================
 %% Exports
 %%==============================================================================
 -compile(export_all).
+-compile(nowarn_export_all).
 
 %%==============================================================================
 %% Defines
@@ -90,7 +95,7 @@ did_open(Uri, LanguageId, Version, Text) ->
   erlang_ls_client:did_open(Uri, LanguageId, Version, Text).
 
 did_open_args(_S) ->
-  [erlang_ls_eqc_gen:uri(), <<"erlang">>, 0, utf8()].
+  [erlang_ls_proper_gen:uri(), <<"erlang">>, 0, utf8()].
 
 did_open_pre(#{connected := Connected} = _S) ->
   Connected.
@@ -109,7 +114,7 @@ did_save(Uri) ->
   erlang_ls_client:did_save(Uri).
 
 did_save_args(_S) ->
-  [erlang_ls_eqc_gen:uri()].
+  [erlang_ls_proper_gen:uri()].
 
 did_save_pre(#{connected := Connected} = _S) ->
   Connected.
@@ -128,7 +133,7 @@ did_close(Uri) ->
   erlang_ls_client:did_close(Uri).
 
 did_close_args(_S) ->
-  [erlang_ls_eqc_gen:uri()].
+  [erlang_ls_proper_gen:uri()].
 
 did_close_pre(#{connected := Connected} = _S) ->
   Connected.
@@ -163,26 +168,10 @@ disconnect_post(_S, _Args, Res) ->
 %% The statem's property
 %%==============================================================================
 prop_main() ->
-  setup(),
-  ?FORALL( Cmds
-         , commands(?MODULE)
-         , begin
-             cleanup(),
-             {H, S, Res} = run_commands(Cmds),
-             check_command_names( Cmds
-                                , measure( length
-                                         , commands_length(Cmds)
-                                         , aggregate( call_features(H)
-                                                    , pretty_commands( ?MODULE
-                                                                     , Cmds
-                                                                     , { H
-                                                                       , S
-                                                                       , Res},
-                                                                      Res == ok)
-                                                    )
-                                         )
-                                )
-           end).
+  Config = #{ setup_fun   => fun setup/0
+            , cleanup_fun => fun cleanup/0
+            },
+  proper_contrib_statem:run(?MODULE, Config).
 
 %%==============================================================================
 %% Setup
@@ -198,5 +187,3 @@ setup() ->
 cleanup() ->
   catch disconnect(),
   ok.
-
--endif.
