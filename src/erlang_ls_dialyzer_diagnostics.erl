@@ -33,7 +33,7 @@ diagnostics(Uri) ->
 %%==============================================================================
 %% Internal Functions
 %%==============================================================================
--spec diagnostic(any()) -> diagnostic().
+-spec diagnostic({any(), {any(), integer()}, any()}) -> diagnostic().
 diagnostic({_, {_, Line}, _} = Warning) ->
   Range   = erlang_ls_protocol:range(Line - 1),
   Message = list_to_binary(lists:flatten(dialyzer:format_warning(Warning))),

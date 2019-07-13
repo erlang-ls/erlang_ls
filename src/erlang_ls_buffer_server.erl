@@ -79,7 +79,7 @@ stop() ->
 init({}) ->
   {ok, #state{buffers = []}}.
 
--spec handle_call(any(), any(), state()) -> {reply, any(), state()}.
+-spec handle_call(any(), any(), state()) -> {reply, ok | {ok, buffer()}, state()}.
 handle_call({add_buffer, Uri, Buffer}, _From, State) ->
   {reply, ok, State#state{ buffers = [{Uri, Buffer}|State#state.buffers]}};
 handle_call({get_buffer, Uri}, _From, State) ->

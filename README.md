@@ -1,13 +1,21 @@
 # erlang_ls
 
 [![Build Status](https://travis-ci.org/erlang-ls/erlang_ls.svg?branch=master)](https://travis-ci.org/erlang-ls/erlang_ls)
-[![Build Status](http://quickcheck-ci.com/p/erlang-ls/erlang_ls.svg)](http://quickcheck-ci.com/p/erlang-ls/erlang_ls)
+[![Coverage Status](https://coveralls.io/repos/github/erlang-ls/erlang_ls/badge.svg?branch=master)](https://coveralls.io/github/erlang-ls/erlang_ls?branch=master)
 
 An Erlang server using Microsoft's Language Server Protocol 3.0.
 
 ## Rationale
 
 ## Principles
+
+* Follow OTP design patterns as much as possible
+* Re-use existing Erlang standard libraries as much as possible. Do
+  not re-invent the wheel
+* Use property-based testing to test the _erlang_ls_ software
+* Develop for collaboration
+* Feature driven
+* User documentation
 
 ## History of the project
 
@@ -198,6 +206,37 @@ Erlang modules, whilst _erlang_ls_ prefers the standard _xref_ tool.
 ### vscode_erlang
 
 ### EDTS
+
+## Features
+
+This section summarizes the functionalities implemented and available
+via the LSP protocol.
+
+### Code Completion
+
+Completion requests are sent from the client to the server to compute
+completion items at a given cursor position. Completion items are
+presented to the user for easy selection.
+
+Code completion are typically triggered by one of the following
+characters: `: # . ?`.
+
+Code completion is available for the following elements:
+
+* Erlang keywords (e.g. `case`, `receive`)
+* Variables in the current scope
+* Local function names
+* Built-in functions (e.g. `now()`)
+* Module names
+* Macros
+* Record names
+* Record fields
+* Atom names
+* Module attributes
+
+### Code Snippets
+
+
 
 ## Get in Touch
 
