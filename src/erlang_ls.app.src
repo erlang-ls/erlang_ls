@@ -6,6 +6,7 @@
   {applications,
    [ kernel
    , stdlib
+   , dialyzer
    , ranch
    , jsx
    , cowlib

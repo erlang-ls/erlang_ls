@@ -67,7 +67,7 @@ init([Text]) ->
   process_flag(trap_exit, true),
   {ok, #state{ text = Text}}.
 
--spec handle_call(any(), any(), state()) -> {reply, any(), state()}.
+-spec handle_call(any(), any(), state()) -> {reply, ok, state()}.
 handle_call({set_text, Text}, _From, State) ->
   Reply = ok,
   {reply, Reply, State#state{text = Text}};
@@ -99,7 +99,7 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
--spec do_get_completions(binary(), integer(), integer()) ->
+-spec do_get_completions(binary(), non_neg_integer(), pos_integer()) ->
   [map()].
 do_get_completions(Text, Line, Character) ->
   LineText        = get_line_text(Text, Line),
