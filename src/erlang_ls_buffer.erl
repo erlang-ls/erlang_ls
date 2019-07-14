@@ -151,7 +151,7 @@ get_ast(Text) ->
   File    = "/tmp/x.erl",
   ok      = file:write_file(File, Text),
   {ok, F} = file:open(File, [read]),
-  {ok, E} = epp:open(File, F, {1,1}, [], []),
+  {ok, E} = epp:open(File, F, {1, 1}, [], []),
   Epp     = epp:parse_file(E),
   ok      = epp:close(E),
   ok      = file:close(F),

@@ -176,33 +176,7 @@ handle_method(<<"textDocument/definition">>, Params) ->
   Uri          = maps:get(<<"uri">>         , TextDocument),
   {ok, Buffer} = erlang_ls_buffer_server:get_buffer(Uri),
   Element      = erlang_ls_buffer:get_element_at_pos(Buffer, Line + 1, Character + 1),
-  Result = case erl_syntax:type(Element) of
-             application ->
-               Op = erl_syntax:application_operator(Element),
-               A  = length(erl_syntax:application_arguments(Element)),
-               case erl_syntax:type(Op) of
-                 module_qualifier ->
-                   M = list_to_atom(erl_syntax:atom_name(erl_syntax:module_qualifier_argument(Op))),
-                   F = list_to_atom(erl_syntax:atom_name(erl_syntax:module_qualifier_body(Op))),
-                   Which = code:which(M),
-                   Source = list_to_binary(proplists:get_value( source
-                                                              , M:module_info(compile))),
-                   DefUri = <<"file://", Source/binary>>,
-                   {ok, {_, [{abstract_code, {_, AC}}]}} = beam_lib:chunks(Which, [abstract_code]),
-                   case [ AL || {function, AL, AF, AA, _} <- AC, F =:= AF, A =:= AA] of
-                     [DefLine] ->
-                       #{ uri => DefUri
-                        , range => erlang_ls_protocol:range(erl_anno:line(DefLine) - 1)
-                        };
-                     [] ->
-                       null
-                   end;
-                 _ ->
-                   null
-               end;
-             _ ->
-               null
-           end,
+  Result = definition(Element),
   {response, Result};
 handle_method(Method, _Params) ->
   lager:warning("[Method not implemented] [method=~s]", [Method]),
@@ -218,3 +192,37 @@ send_notification(Socket, Method, Params) ->
   Notification = erlang_ls_protocol:notification(Method, Params),
   lager:debug("[SERVER] Sending notification [notification=~p]", [Notification]),
   gen_tcp:send(Socket, Notification).
+
+-spec definition(any()) -> null | [map()].
+definition(Element) ->
+  case erl_syntax:type(Element) of
+    application ->
+      Op = erl_syntax:application_operator(Element),
+      A  = length(erl_syntax:application_arguments(Element)),
+      case erl_syntax:type(Op) of
+        module_qualifier ->
+          definition_from_module_qualifier(Op, A);
+        _ ->
+          null
+      end;
+    _ ->
+      null
+  end.
+
+-spec definition_from_module_qualifier(any(), non_neg_integer()) -> null | map().
+definition_from_module_qualifier(Op, A) ->
+  M = list_to_atom(erl_syntax:atom_name(erl_syntax:module_qualifier_argument(Op))),
+  F = list_to_atom(erl_syntax:atom_name(erl_syntax:module_qualifier_body(Op))),
+  Which = code:which(M),
+  Source = list_to_binary(proplists:get_value( source
+                                             , M:module_info(compile))),
+  DefUri = <<"file://", Source/binary>>,
+  {ok, {_, [{abstract_code, {_, AC}}]}} = beam_lib:chunks(Which, [abstract_code]),
+  case [ AL || {function, AL, AF, AA, _} <- AC, F =:= AF, A =:= AA] of
+    [DefLine] ->
+      #{ uri => DefUri
+       , range => erlang_ls_protocol:range(erl_anno:line(DefLine) - 1)
+       };
+    [] ->
+      null
+  end.
