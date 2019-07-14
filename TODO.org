@@ -14,21 +14,12 @@
 - [ ] Dot notation for maps
 - [ ] Move ETS buffers handling to separate module
 - [ ] Get rid of ranch
-** CI
-- [ ] Pre-build PLT in Travis
-- [ ] Cover reports
 ** Docs
 - [ ] Rationale
 - [ ] Add proper README (including list of features and their status)
 - [ ] Add Erlang to https://microsoft.github.io/language-server-protocol/specification
 ** Blog
 - [ ] EDTS Comparison
-- [ ] Issues with quickcheck-ci.com
-  - rebar.config partial support
-  - warn_missing_spec_all
-  - Removing project
-  - Badge status not refreshed
-  - Bug in multi-branch projects
 - [ ] Best friends
   - http://erlang.org/documentation/doc-5.9.2/lib/syntax_tools-1.6.9/doc/html/chapter.html
   - erl_syntax
@@ -61,7 +52,6 @@ How to get column numbers?
 + [ ] Snippets (e.g. try catch)
 - [ ] Completion of export list
 - [ ] Complete list of keywords
-- [ ] Indentation via erl_tidy
 + [ ] edoc
 + [ ] Find all callers
 + [ ] Actions to automatically case/pattern match on return values
