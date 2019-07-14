@@ -17,6 +17,7 @@
         , set_text/2
         , get_completions/3
         , get_mfa/3
+        , get_element_at_pos/3
         ]).
 
 %% gen_server callbacks
@@ -59,6 +60,11 @@ get_completions(Pid, Line, Char) ->
 get_mfa(Pid, Line, Char) ->
   gen_server:call(Pid, {get_mfa, Line, Char}).
 
+-spec get_element_at_pos(pid(), non_neg_integer(), non_neg_integer()) ->
+  any().
+get_element_at_pos(Pid, Line, Char) ->
+  gen_server:call(Pid, {get_element_at_pos, Line, Char}).
+
 %%%===================================================================
 %%% gen_server callbacks
 %%%===================================================================
@@ -74,11 +80,15 @@ handle_call({set_text, Text}, _From, State) ->
 handle_call({get_completions, Line, Char}, _From, #state{ text = Text
                                                         } = State) ->
   Reply = do_get_completions(Text, Line, Char),
-  {reply, Reply, State#state{text = Text}};
+  {reply, Reply, State};
 handle_call({get_mfa, Line, Char}, _From, #state{ text = Text
                                                 } = State) ->
   Reply = do_get_mfa(Text, Line, Char),
-  {reply, Reply, State#state{text = Text}}.
+  {reply, Reply, State};
+handle_call({get_element_at_pos, Line, Char}, _From, #state{ text = Text
+                                                           } = State) ->
+  Reply = do_get_element_at_pos(Text, Line, Char),
+  {reply, Reply, State}.
 
 -spec handle_cast(any(), state()) -> {noreply, state()}.
 handle_cast(_Msg, State) ->
@@ -128,6 +138,24 @@ do_get_mfa(Text, Line, _Character) ->
   {ok, Tokens, _} = erl_scan:string(binary_to_list(LineText)),
   [{atom, _, M}, {':', _}, {atom, _, F}, {'/', _}, {integer, _, A}] = Tokens,
   {M, F, A}.
+
+-spec do_get_element_at_pos(binary(), non_neg_integer(), non_neg_integer()) ->
+   any().
+do_get_element_at_pos(Text, Line, Character) ->
+  Ast = get_ast(Text),
+  erlang_ls_navigation:find_by_pos({Line, Character}, Ast).
+
+-spec get_ast(binary()) -> [any()].
+get_ast(Text) ->
+  %% TODO: Do not write to file
+  File    = "/tmp/x.erl",
+  ok      = file:write_file(File, Text),
+  {ok, F} = file:open(File, [read]),
+  {ok, E} = epp:open(File, F, {1,1}, [], []),
+  Epp     = epp:parse_file(E),
+  ok      = epp:close(E),
+  ok      = file:close(F),
+  Epp.
 
 -spec get_line_text(binary(), integer()) -> binary().
 get_line_text(Text, Line) ->

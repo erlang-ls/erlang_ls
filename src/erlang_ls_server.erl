@@ -175,18 +175,32 @@ handle_method(<<"textDocument/definition">>, Params) ->
   TextDocument = maps:get(<<"textDocument">>, Params),
   Uri          = maps:get(<<"uri">>         , TextDocument),
   {ok, Buffer} = erlang_ls_buffer_server:get_buffer(Uri),
-  {M, F, A}    = erlang_ls_buffer:get_mfa(Buffer, Line, Character),
-  Which = code:which(M),
-  Source = list_to_binary(proplists:get_value( source
-                                             , M:module_info(compile))),
-  DefUri = <<"file://", Source/binary>>,
-  {ok, {_, [{abstract_code, {_, AC}}]}} = beam_lib:chunks(Which, [abstract_code]),
-  Result = case [ AL || {function, AL, AF, AA, _} <- AC, F =:= AF, A =:= AA] of
-             [DefLine] ->
-               #{ uri => DefUri
-                , range => erlang_ls_protocol:range(erl_anno:line(DefLine) - 1)
-                };
-             [] ->
+  Element      = erlang_ls_buffer:get_element_at_pos(Buffer, Line + 1, Character + 1),
+  Result = case erl_syntax:type(Element) of
+             application ->
+               Op = erl_syntax:application_operator(Element),
+               A  = length(erl_syntax:application_arguments(Element)),
+               case erl_syntax:type(Op) of
+                 module_qualifier ->
+                   M = list_to_atom(erl_syntax:atom_name(erl_syntax:module_qualifier_argument(Op))),
+                   F = list_to_atom(erl_syntax:atom_name(erl_syntax:module_qualifier_body(Op))),
+                   Which = code:which(M),
+                   Source = list_to_binary(proplists:get_value( source
+                                                              , M:module_info(compile))),
+                   DefUri = <<"file://", Source/binary>>,
+                   {ok, {_, [{abstract_code, {_, AC}}]}} = beam_lib:chunks(Which, [abstract_code]),
+                   case [ AL || {function, AL, AF, AA, _} <- AC, F =:= AF, A =:= AA] of
+                     [DefLine] ->
+                       #{ uri => DefUri
+                        , range => erlang_ls_protocol:range(erl_anno:line(DefLine) - 1)
+                        };
+                     [] ->
+                       null
+                   end;
+                 _ ->
+                   null
+               end;
+             _ ->
                null
            end,
   {response, Result};
