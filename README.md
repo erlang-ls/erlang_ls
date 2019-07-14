@@ -7,6 +7,24 @@ An Erlang server using Microsoft's Language Server Protocol 3.0.
 
 ## Rationale
 
+The Erlang community is, at the time of this writing, quite small when
+compared to other communities. Within the same Erlang community,
+different developers have been using different editors to write their
+code, ranging from Emacs to Vim, from Eclipse to VS Code. The limited
+number of community members, combined with the fragmentation of
+editors used, historically caused the lack of a serious development
+environment for Erlang.
+
+The [Language Server
+Protocol](https://microsoft.github.io/language-server-protocol/overview)
+enables developers to build a single _language server_ that multiple
+development tools and editors can leverage.
+
+The goal of this project is to create that missing language server for
+Erlang. For the time being, the scope of the project is limited to
+Erlang only, but with the mindset of supporting other _BEAM languages_
+in the long term.
+
 ## Principles
 
 * Follow OTP design patterns as much as possible
