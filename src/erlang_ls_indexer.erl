@@ -1,5 +1,5 @@
 %%==============================================================================
-%% The Buffer Server
+%% The Indexer
 %%==============================================================================
 -module(erlang_ls_indexer).
 
@@ -13,7 +13,7 @@
 %%==============================================================================
 %% API
 -export([ start_link/0
-        , index/1
+        , index/2
         , stop/0
         ]).
 
@@ -32,6 +32,7 @@
 %% Defines
 %%==============================================================================
 -define(SERVER, ?MODULE).
+-define(TABLE,  ?MODULE).
 
 %%==============================================================================
 %% Record Definitions
@@ -50,9 +51,9 @@
 start_link() ->
   gen_server:start_link({local, ?SERVER}, ?MODULE, {}, []).
 
--spec index(uri()) -> ok.
-index(Uri) ->
-  gen_server:call(?SERVER, {index, Uri}).
+-spec index(uri(), binary()) -> ok.
+index(Uri, Text) ->
+  gen_server:call(?SERVER, {index, Uri, Text}).
 
 -spec stop() -> ok.
 stop() ->
@@ -63,11 +64,12 @@ stop() ->
 %%==============================================================================
 -spec init({}) -> {ok, state()}.
 init({}) ->
+  ets:new(?TABLE, [named_table, bag, protected, {read_concurrency, true}]),
   {ok, #state{}}.
 
 -spec handle_call(any(), any(), state()) -> {reply, ok, state()}.
-handle_call({index, Uri}, _From, State) ->
-  ok = do_index(Uri),
+handle_call({index, Uri, Text}, _From, State) ->
+  ok = do_index(Uri, Text),
   {reply, ok, State}.
 
 -spec handle_cast(any(), state()) -> {noreply, state()}.
@@ -76,75 +78,60 @@ handle_cast(_Msg, State) -> {noreply, State}.
 %%==============================================================================
 %% Internal Functions
 %%==============================================================================
--spec do_index(uri()) -> ok.
-do_index(Uri) ->
-  {ok, IoDevice} = file:open(Uri, [read]),
+-spec do_index(uri(), binary()) -> ok.
+do_index(Uri, Text) ->
+  %% TODO: Avoid writing
+  Path = "/tmp/erlang_ls_tmp",
+  ok = file:write_file(Path, Text),
+  {ok, IoDevice} = file:open(Path, [read]),
   {ok, Forms} = epp_dodger:parse(IoDevice, {1, 1}),
-  erl_syntax_lib:mapfold(fun analyze_form/2, #{ module => undefined
-                                              , macros => []
-                                              , variables => []
-                                              , applications => []
-                                              }, erl_syntax:form_list(Forms)),
+  F = fun(Form) -> index_form(Form, Uri) end,
+  erl_syntax_lib:map(F, erl_syntax:form_list(Forms)),
   ok = file:close(IoDevice),
   ok.
 
--spec analyze_form(erl_syntax:syntax_tree(), map()) -> map().
-analyze_form(Form, Acc) ->
-  NewAcc = try erl_syntax_lib:analyze_form(Form) of
-               Type -> analyze_form(Form, Type, Acc)
-           catch _:_ ->
-               T = erl_syntax:type(Form),
-               erlang:display(T),
-               analyze_tree(Form, T, Acc)
-           end,
-  {Form, NewAcc}.
-
-analyze_form(Form, {attribute, preprocessor}, Acc) ->
-  Name = erl_syntax:attribute_name(Form),
-  [Var|_] = erl_syntax:attribute_arguments(Form),
-  case erl_syntax:atom_name(Name) of
-    "define" ->
-      Macros = maps:get(macros, Acc),
-      Pos = erl_syntax:get_pos(Form),
-      Macro = #{ pos => Pos
-               , name => erl_syntax:variable_name(Var)
-               },
-      maps:put(macros, [Macro|Macros], Acc);
-    _ ->
-      Acc
-  end;
-analyze_form(_Form, {attribute, {module, {Module, _Variables}}}, Acc) ->
-  maps:put(module, Module, Acc);
-analyze_form(_Form, {attribute, {module, Module}}, Acc) ->
-  maps:put(module, Module, Acc);
-analyze_form(_Form, _, Acc) ->
-  Acc.
-
-analyze_tree(Form, application, Acc) ->
+-spec index_form(erl_syntax:syntax_tree(), uri()) -> erl_syntax:syntax_tree().
+index_form(Form, Uri) ->
   Pos = erl_syntax:get_pos(Form),
+  try erl_syntax_lib:analyze_form(Form) of
+      {attribute, Info} ->
+        index_attribute(Form, Info, Uri, Pos);
+      _ ->
+        ok
+  catch _:_ ->
+      Type = erl_syntax:type(Form),
+      index_node(Form, Type, Uri, Pos)
+  end,
+  Form.
+
+index_attribute(_Form, {module, {Module, _Variables}}, Uri, Pos) ->
+  ets:insert(?TABLE, {{Uri, module}, Module, Pos});
+index_attribute(_Form, {module, Module}, Uri, Pos) ->
+  ets:insert(?TABLE, {{Uri, module}, Module, Pos});
+index_attribute(Form, preprocessor, Uri, Pos) ->
+  AttributeName = erl_syntax:atom_name(erl_syntax:attribute_name(Form)),
+  [Variable|_] = erl_syntax:attribute_arguments(Form),
+  case AttributeName of
+    "define" ->
+      VariableName = erl_syntax:variable_name(Variable),
+      ets:insert(?TABLE, {{Uri, macro}, {VariableName, Pos}});
+    _ ->
+      ok
+  end;
+index_attribute(_Form, _Info, _Uri, _Pos) ->
+  ok.
+
+index_node(Form, application, Uri, Pos) ->
   Application = case erl_syntax_lib:analyze_application(Form) of
                   {M, {F, A}} ->
-                    #{ pos => Pos
-                     , name => {M, F, A}
-                     };
+                    {M, F, A};
                   {F, A} ->
-                    #{ pos => Pos
-                     , name => {maps:get(module, Acc), F, A}
-                     }
+                    [{{Uri, module}, M, _Pos}] = ets:lookup(?TABLE, {Uri, module}),
+                    {M, F, A}
                 end,
-  maps:put(applications, [Application | maps:get(applications, Acc)], Acc);
-analyze_tree(Form, variable, Acc) ->
-  Variable = #{ pos => erl_syntax:get_pos(Form)
-              , name => erl_syntax:variable_name(Form)
-              },
-  maps:put(variables, [Variable | maps:get(variables, Acc)], Acc);
-analyze_tree(_Form, _Type, Acc) ->
-  Acc.
-
-%% TODO: Introduce ETS and avoid fold
-%% TODO: Rename into analyzer
-%% TODO: Analyze on init
-%% TODO: Assume OTP structure on init
-%% TODO: Function to append to map field
-%% TODO: We should input binaries, not files. Could we patch epp?
-%% TODO: Avoid epp parsing twice
+  ets:insert(?TABLE, {{Uri, application}, Application, Pos});
+index_node(Form, variable, Uri, Pos) ->
+  VariableName = erl_syntax:variable_name(Form),
+  ets:insert(?TABLE, {{Uri, variable}, VariableName, Pos});
+index_node(_Form, _Type, _Uri, _Pos) ->
+  ok.

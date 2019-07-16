@@ -11,7 +11,8 @@ did_open(Params) ->
   Uri          = maps:get(<<"uri">>         , TextDocument),
   Text         = maps:get(<<"text">>        , TextDocument),
   {ok, Pid}    = supervisor:start_child(erlang_ls_buffer_sup, [Text]),
-  ok           = erlang_ls_buffer_server:add_buffer(Uri, Pid).
+  ok           = erlang_ls_buffer_server:add_buffer(Uri, Pid),
+  ok           = erlang_ls_indexer:index(Uri, Text).
 
 -spec did_save(map(), pid()) -> ok.
 did_save(Params, Server) ->
@@ -23,6 +24,7 @@ did_save(Params, Server) ->
   Params1  = #{ uri => Uri
               , diagnostics => CDiagnostics ++ DDiagnostics
               },
+  %% TODO: prune/re-index on save/change
   gen_server:cast(Server, {notification, Method, Params1}).
 
 -spec did_close(map()) -> ok.
