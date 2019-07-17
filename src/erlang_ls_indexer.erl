@@ -44,6 +44,17 @@
 %%==============================================================================
 -type state()  :: #state{}.
 
+%%==============================================================================
+%% Dialyzer Exceptions
+%%==============================================================================
+%% The specs for the epp_dodger API are slightly incorrect.
+%% A bug has been reported (see https://bugs.erlang.org/browse/ERL-1005)
+%% Meanwhile, let's skip checking this module.
+-dialyzer(no_contracts).
+-dialyzer(no_return).
+-dialyzer(no_unused).
+-dialyzer(no_fail_call).
+
 %%%=============================================================================
 %%% API
 %%%=============================================================================
@@ -90,7 +101,7 @@ do_index(Uri, Text) ->
   ok = file:close(IoDevice),
   ok.
 
--spec index_form(erl_syntax:syntax_tree(), uri()) -> erl_syntax:syntax_tree().
+-spec index_form(erl_syntax:syntaxTree(), uri()) -> erl_syntax:syntaxTree().
 index_form(Form, Uri) ->
   Pos = erl_syntax:get_pos(Form),
   try erl_syntax_lib:analyze_form(Form) of
