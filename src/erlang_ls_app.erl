@@ -26,7 +26,7 @@
 %%==============================================================================
 -spec start(normal, any()) -> {ok, pid()}.
 start(_StartType, _StartArgs) ->
-  Port = list_to_integer(os:getenv("ERLANG_LS_PORT", ?DEFAULT_PORT)),
+  Port = application:get_env(erlang_ls, port, ?DEFAULT_PORT),
   {ok, _} = ranch:start_listener( erlang_ls
                                 , ranch_tcp
                                 , [{port, Port}]
