@@ -47,5 +47,9 @@ init([]) ->
                   , start    => {erlang_ls_buffer_sup, start_link, []}
                   , shutdown => brutal_kill
                   }
+               , #{ id       => erlang_ls_indexer
+                  , start    => {erlang_ls_indexer, start_link, []}
+                  , shutdown => brutal_kill
+                  }
                ],
   {ok, {SupFlags, ChildSpecs}}.
