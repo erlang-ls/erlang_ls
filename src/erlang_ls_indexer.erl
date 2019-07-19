@@ -115,6 +115,8 @@ index_form(Form, Uri) ->
   end,
   Form.
 
+-spec index_attribute(erl_syntax:syntaxTree(), any(), uri(), pos()) ->
+   ok.
 index_attribute(_Form, {module, {Module, _Variables}}, Uri, Pos) ->
   ets:insert(?TABLE, {{Uri, module}, Module, Pos});
 index_attribute(_Form, {module, Module}, Uri, Pos) ->
@@ -132,6 +134,8 @@ index_attribute(Form, preprocessor, Uri, Pos) ->
 index_attribute(_Form, _Info, _Uri, _Pos) ->
   ok.
 
+-spec index_node(erl_syntax:syntaxTree(), any(), uri(), pos()) ->
+                    {atom(), atom(), integer()}.
 index_node(Form, application, Uri, Pos) ->
   Application = case erl_syntax_lib:analyze_application(Form) of
                   {M, {F, A}} ->

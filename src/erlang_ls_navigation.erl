@@ -2,11 +2,18 @@
 
 -export([find_by_pos/2]).
 
+-include("erlang_ls.hrl").
+
+-spec find_by_pos( pos()
+                 , erl_syntax:syntaxTree() | [erl_syntax:syntaxTree()]
+                 ) -> any().
 find_by_pos(Pos, Tree) ->
   AnnotatedTree = postorder_update(fun annotate_with_range/1, erl_syntax:form_list(Tree)),
   {_Pos, Found} = erl_syntax_lib:fold(fun do_find_by_pos/2, {Pos, undefined}, AnnotatedTree),
   Found.
 
+-spec do_find_by_pos(erl_syntax:syntaxTree(), {integer(), boolean()}) ->
+   {integer(), boolean()}.
 do_find_by_pos(Tree, {Pos, Found}) ->
   case Found of
     undefined ->
@@ -18,6 +25,7 @@ do_find_by_pos(Tree, {Pos, Found}) ->
       {Pos, Found}
   end.
 
+-spec in_range(integer(), erl_syntax:syntaxTree()) -> boolean().
 in_range(Pos, Tree) ->
   Ann = erl_syntax:get_ann(Tree),
   case lists:keyfind(range, 1, Ann) of
@@ -27,6 +35,7 @@ in_range(Pos, Tree) ->
       (Start =< Pos) andalso (Pos =< End)
   end.
 
+-spec annotate_with_range(erl_syntax:syntaxTree()) -> erl_syntax:syntaxTree().
 annotate_with_range(Node) ->
   case erl_syntax:type(Node) of
     application ->
@@ -46,6 +55,8 @@ annotate_with_range(Node) ->
       Node
   end.
 
+-spec postorder_update(fun(), erl_syntax:syntaxTree()) ->
+   erl_syntax:syntaxTree().
 postorder_update(F, Tree) ->
   F(case erl_syntax:subtrees(Tree) of
       [] -> Tree;
