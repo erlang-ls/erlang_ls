@@ -2,7 +2,11 @@
 
 -export([find_by_pos/2]).
 
--spec find_by_pos(integer(), erl_syntax:syntaxTree()) -> boolean().
+-include("erlang_ls.hrl").
+
+-spec find_by_pos( pos()
+                 , erl_syntax:syntaxTree() | [erl_syntax:syntaxTree()]
+                 ) -> any().
 find_by_pos(Pos, Tree) ->
   AnnotatedTree = postorder_update(fun annotate_with_range/1, erl_syntax:form_list(Tree)),
   {_Pos, Found} = erl_syntax_lib:fold(fun do_find_by_pos/2, {Pos, undefined}, AnnotatedTree),
