@@ -277,11 +277,9 @@ Erlanger Slack.
 
 ## Emacs Setup
 
-    A PR is currently in-progress to get native Erlang support as part of the `lsp-mode` package:
-
-    https://github.com/emacs-lsp/lsp-mode/pull/947
-
-    Once the PR is merged, the following is required:
+The official `lsp-mode` package already includea a client for the
+Erlang Language Server, so simply add the following to your `.emacs`
+file:
 
     ```elisp
     ;; Require the official lsp-mode package
