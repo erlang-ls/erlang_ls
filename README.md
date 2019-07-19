@@ -277,33 +277,27 @@ Erlanger Slack.
 
 ## Emacs Setup
 
-    ;; Language Server Protocol Tests
+The official `lsp-mode` package already includea a client for the
+Erlang Language Server, so simply add the following to your `.emacs`
+file:
+
+    ```elisp
+    ;; Require the official lsp-mode package
     (require 'lsp-mode)
+    ;; Configure the location of the Erlang language server
+    (setq lsp-erlang-server-install-dir "/path/to/erlang_ls")
+    ;; Enable LSP automatically for Erlang files
+    (add-hook 'erlang-mode-hook #'lsp)
+    ```
 
-    ;; Enable code completion
-    (require 'company-lsp)
+    Ensure you have Erlang (i.e. `erl`, `escript` and friends) as part of your Emacs path.
+    If you don't, you can try the following:
 
-    ;; Connect to an already started language server
-    (lsp-define-tcp-client
-     lsp-erlang-mode
-     "erlang"
-     (lambda () default-directory)
-     '("/usr/local/opt/coreutils/libexec/gnubin/false")
-     "localhost"
-     9000)
-
-    (add-hook 'erlang-mode-hook 'company-mode)
-    (add-hook 'erlang-mode-hook (lambda ()
-                                  (push 'company-lsp company-backends)
-                                  )
-              )
-    (add-hook 'erlang-mode-hook 'lsp-erlang-mode-enable)
-
-Manual enable the server for a buffer:
-
-M-x company-mode
-M-x company-lsp
-M-x lsp-erlang-mode-enable
+    ```elisp
+    ;; Ensure your Emacs environment looks like your user's shell one
+    (package-require 'exec-path-from-shell)
+    (exec-path-from-shell-initialize)
+    ```
 
 ## References
 
