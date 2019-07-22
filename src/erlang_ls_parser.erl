@@ -33,7 +33,7 @@ parse(Text) ->
 parse_file(Path) ->
   case file:open(Path, [read]) of
     {ok, IoDevice} ->
-      %% Providing `{1, 1}` as the second argument ensures
+      %% Providing `{1, 1}` as the initial location ensures
       %% that the returned forms include column numbers, as well.
       {ok, Forms} = epp_dodger:parse(IoDevice, {1, 1}),
       Tree = erl_syntax:form_list(Forms),
@@ -47,10 +47,7 @@ parse_file(Path) ->
 %% tree.
 -spec annotate(syntax_tree()) -> syntax_tree().
 annotate(Tree) ->
-  case analyze(Tree) of
-    undefined -> Tree;
-    Poi -> erl_syntax:add_ann(Poi, Tree)
-  end.
+  lists:foldl(fun erl_syntax:add_ann/2, Tree, analyze(Tree)).
 
 %% Extracted from the `erl_syntax` documentation.
 -spec postorder_update(fun(), syntax_tree()) -> syntax_tree().
@@ -63,12 +60,13 @@ postorder_update(F, Tree) ->
                                       || Group <- List])
     end).
 
--spec get_range(syntax_tree(), {atom(), any()}) -> range().
-get_range(Tree, {behaviour, Behaviour}) ->
-  {Line, Column} = erl_syntax:get_pos(Tree),
+-spec get_range(syntax_tree(), pos(), {atom(), any()}) -> range().
+get_range(_Tree, {Line, Column}, {behaviour, Behaviour}) ->
   From = {Line, Column - 1},
   To = {Line, length("behaviour") + length(atom_to_list(Behaviour)) + 1},
-  #{ from => From, to => To }.
+  #{ from => From, to => To };
+get_range(_Tree, {_Line, _Column}, {exports_entry, {_F, _A}}) ->
+  #{ from => {0, 0}, to => {0, 0} }.
 
 -spec find_by_pos(syntax_tree(), pos()) -> [poi()].
 find_by_pos(Tree, Pos) ->
@@ -88,29 +86,32 @@ find_by_pos(Tree, Pos) ->
 matches_pos(Pos, #{from := From, to := To}) ->
   (From =< Pos) andalso (Pos =< To).
 
--spec analyze(syntax_tree()) -> poi() | undefined.
+-spec analyze(syntax_tree()) -> [poi()].
 analyze(Tree) ->
   Type = erl_syntax:type(Tree),
   analyze(Tree, Type).
 
--spec analyze(syntax_tree(), any()) -> poi() | undefined.
+-spec analyze(syntax_tree(), any()) -> [poi()].
 analyze(Tree, attribute) ->
   case erl_syntax_lib:analyze_attribute(Tree) of
     %% Yes, Erlang allows both British and American spellings for
     %% keywords.
     {behavior, {behavior, Behaviour}} ->
-      poi(Tree, {behaviour, Behaviour});
+      [poi(Tree, {behaviour, Behaviour})];
     {behaviour, {behaviour, Behaviour}} ->
-      poi(Tree, {behaviour, Behaviour});
+      [poi(Tree, {behaviour, Behaviour})];
+    {export, Exports} ->
+      [poi(Tree, {exports_entry, {F, A}}) || {F, A} <- Exports];
     _ ->
-      undefined
+      []
   end;
 analyze(_Tree, _) ->
-  undefined.
+  [].
 
 -spec poi(syntax_tree(), any()) -> poi().
 poi(Tree, Info) ->
-  Range = get_range(Tree, Info),
+  Pos = erl_syntax:get_pos(Tree),
+  Range = get_range(Tree, Pos, Info),
   #{ type  => poi
    , info  => Info
    , range => Range
