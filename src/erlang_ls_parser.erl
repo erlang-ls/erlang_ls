@@ -75,6 +75,10 @@ get_range(_Tree, {_Line, _Column}, {exports_entry, {_F, _A}}) ->
 get_range(_Tree, {Line, Column}, {include, Include}) ->
   From = {Line, Column - 1},
   To = {Line, length("include") + length(Include) + 1},
+  #{ from => From, to => To };
+get_range(_Tree, {Line, Column}, {include_lib, Include}) ->
+  From = {Line, Column - 1},
+  To = {Line, length("include_lib") + length(Include) + 1},
   #{ from => From, to => To }.
 
 -spec find_by_pos(syntax_tree(), pos()) -> [poi()].
@@ -122,6 +126,8 @@ analyze(Tree, attribute) ->
       case {Name, erl_syntax:attribute_arguments(Tree)} of
         {"include", [String]} ->
           [poi(Tree, {include, erl_syntax:string_literal(String)})];
+        {"include_lib", [String]} ->
+          [poi(Tree, {include_lib, erl_syntax:string_literal(String)})];
         _ ->
           []
       end;
