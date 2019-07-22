@@ -66,7 +66,7 @@ postorder_update(F, Tree) ->
 -spec get_range(syntax_tree(), pos(), {atom(), any()}) -> range().
 get_range(_Tree, {Line, Column}, {behaviour, Behaviour}) ->
   From = {Line, Column - 1},
-  To = {Line, length("behaviour") + length(atom_to_list(Behaviour)) + 1},
+  To = {Line, Column + length("behaviour") + length(atom_to_list(Behaviour))},
   #{ from => From, to => To };
 get_range(_Tree, {_Line, _Column}, {exports_entry, {_F, _A}}) ->
   %% TODO: The location information for the arity qualifiers are lost during
@@ -74,11 +74,15 @@ get_range(_Tree, {_Line, _Column}, {exports_entry, {_F, _A}}) ->
   #{ from => {0, 0}, to => {0, 0} };
 get_range(_Tree, {Line, Column}, {include, Include}) ->
   From = {Line, Column - 1},
-  To = {Line, length("include") + length(Include) + 1},
+  To = {Line, Column + length("include") + length(Include)},
   #{ from => From, to => To };
 get_range(_Tree, {Line, Column}, {include_lib, Include}) ->
   From = {Line, Column - 1},
-  To = {Line, length("include_lib") + length(Include) + 1},
+  To = {Line, Column + length("include_lib") + length(Include)},
+  #{ from => From, to => To };
+get_range(_Tree, {Line, Column}, {macro, Macro}) ->
+  From = {Line, Column},
+  To = {Line, Column + length(atom_to_list(Macro))},
   #{ from => From, to => To }.
 
 -spec find_by_pos(syntax_tree(), pos()) -> [poi()].
@@ -122,11 +126,11 @@ analyze(Tree, attribute) ->
     {export, Exports} ->
       [poi(Tree, {exports_entry, {F, A}}) || {F, A} <- Exports];
     preprocessor ->
-      Name = erl_syntax:atom_name(erl_syntax:attribute_name(Tree)),
+      Name = erl_syntax:atom_value(erl_syntax:attribute_name(Tree)),
       case {Name, erl_syntax:attribute_arguments(Tree)} of
-        {"include", [String]} ->
+        {include, [String]} ->
           [poi(Tree, {include, erl_syntax:string_literal(String)})];
-        {"include_lib", [String]} ->
+        {include_lib, [String]} ->
           [poi(Tree, {include_lib, erl_syntax:string_literal(String)})];
         _ ->
           []
@@ -134,6 +138,9 @@ analyze(Tree, attribute) ->
     _ ->
       []
   end;
+analyze(Tree, macro) ->
+  Macro = erl_syntax:variable_name(erl_syntax:macro_name(Tree)),
+  [poi(Tree, {macro, Macro})];
 analyze(_Tree, _) ->
   [].
 
