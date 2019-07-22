@@ -3,7 +3,8 @@
 
 -export([ annotate/1
         , annotate_node/1
-        , find_by_pos/2
+        , find_poi_by_pos/2
+        , list_poi/1
         , parse/1
         , parse_file/1
         , postorder_update/2
@@ -83,16 +84,25 @@ get_range(_Tree, {Line, Column}, {include_lib, Include}) ->
 get_range(_Tree, {Line, Column}, {macro, Macro}) ->
   From = {Line, Column},
   To = {Line, Column + length(atom_to_list(Macro))},
-  #{ from => From, to => To }.
+  #{ from => From, to => To };
+get_range(_Tree, {Line, Column}, {record_expr, Record}) ->
+  From = {Line, Column - 1},
+  To = {Line, Column + length(Record) - 1},
+  #{ from => From, to => To };
+get_range(_Tree, {_Line, _Column}, {spec, _Spec}) ->
+  %% TODO: The location information for the arity qualifiers are lost during
+  %%       parsing in `epp_dodger`. This requires fixing.
+  #{ from => {0, 0}, to => {0, 0} }.
 
--spec find_by_pos(syntax_tree(), pos()) -> [poi()].
-find_by_pos(Tree, Pos) ->
+-spec find_poi_by_pos(syntax_tree(), pos()) -> [poi()].
+find_poi_by_pos(Tree, Pos) ->
+  [POI || #{range := Range} = POI <- list_poi(Tree), matches_pos(Pos, Range)].
+
+-spec list_poi(syntax_tree()) -> [poi()].
+list_poi(Tree) ->
   F = fun(T, Acc) ->
           Annotations = erl_syntax:get_ann(T),
-          case [Info || #{ type  := poi
-                         , info  := Info
-                         , range := Range }
-                          <- Annotations, matches_pos(Pos, Range)] of
+          case [POI || #{ type := poi } = POI <- Annotations] of
             [] -> Acc;
             L -> L ++ Acc
           end
@@ -135,12 +145,17 @@ analyze(Tree, attribute) ->
         _ ->
           []
       end;
+    {spec, Spec} ->
+      [poi(Tree, {spec, Spec})];
     _ ->
       []
   end;
 analyze(Tree, macro) ->
   Macro = erl_syntax:variable_name(erl_syntax:macro_name(Tree)),
   [poi(Tree, {macro, Macro})];
+analyze(Tree, record_expr) ->
+  Record = erl_syntax:atom_name(erl_syntax:record_expr_type(Tree)),
+  [poi(Tree, {record_expr, Record})];
 analyze(_Tree, _) ->
   [].
 
