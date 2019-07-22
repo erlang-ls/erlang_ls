@@ -2,12 +2,11 @@
 -module(erlang_ls_parser).
 
 -export([ annotate/1
+        , annotate_node/1
         , find_by_pos/2
         , parse/1
         , parse_file/1
-        ]).
-
--export([ postorder_update/2
+        , postorder_update/2
         ]).
 
 -type syntax_tree() :: erl_syntax:syntaxTree().
@@ -43,10 +42,14 @@ parse_file(Path) ->
       {error, Error}
   end.
 
-%% Create annotations for the points of interest (aka `poi`) in the
-%% tree.
 -spec annotate(syntax_tree()) -> syntax_tree().
 annotate(Tree) ->
+  postorder_update(fun annotate_node/1, Tree).
+
+%% Create annotations for the points of interest (aka `poi`) in the
+%% tree.
+-spec annotate_node(syntax_tree()) -> syntax_tree().
+annotate_node(Tree) ->
   lists:foldl(fun erl_syntax:add_ann/2, Tree, analyze(Tree)).
 
 %% Extracted from the `erl_syntax` documentation.
@@ -66,7 +69,13 @@ get_range(_Tree, {Line, Column}, {behaviour, Behaviour}) ->
   To = {Line, length("behaviour") + length(atom_to_list(Behaviour)) + 1},
   #{ from => From, to => To };
 get_range(_Tree, {_Line, _Column}, {exports_entry, {_F, _A}}) ->
-  #{ from => {0, 0}, to => {0, 0} }.
+  %% TODO: The location information for the arity qualifiers are lost during
+  %%       parsing in `epp_dodger`. This requires fixing.
+  #{ from => {0, 0}, to => {0, 0} };
+get_range(_Tree, {Line, Column}, {include, Include}) ->
+  From = {Line, Column - 1},
+  To = {Line, length("include") + length(Include) + 1},
+  #{ from => From, to => To }.
 
 -spec find_by_pos(syntax_tree(), pos()) -> [poi()].
 find_by_pos(Tree, Pos) ->
@@ -89,7 +98,13 @@ matches_pos(Pos, #{from := From, to := To}) ->
 -spec analyze(syntax_tree()) -> [poi()].
 analyze(Tree) ->
   Type = erl_syntax:type(Tree),
-  analyze(Tree, Type).
+  try analyze(Tree, Type)
+  catch
+    Class:Reason ->
+      lager:warning("Could not analyze tree: ~p:~p", [Class, Reason]),
+      erlang:display({Class, Reason}),
+      []
+  end.
 
 -spec analyze(syntax_tree(), any()) -> [poi()].
 analyze(Tree, attribute) ->
@@ -102,6 +117,14 @@ analyze(Tree, attribute) ->
       [poi(Tree, {behaviour, Behaviour})];
     {export, Exports} ->
       [poi(Tree, {exports_entry, {F, A}}) || {F, A} <- Exports];
+    preprocessor ->
+      Name = erl_syntax:atom_name(erl_syntax:attribute_name(Tree)),
+      case {Name, erl_syntax:attribute_arguments(Tree)} of
+        {"include", [String]} ->
+          [poi(Tree, {include, erl_syntax:string_literal(String)})];
+        _ ->
+          []
+      end;
     _ ->
       []
   end;
