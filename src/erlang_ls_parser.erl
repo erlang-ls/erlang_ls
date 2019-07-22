@@ -65,6 +65,16 @@ postorder_update(F, Tree) ->
     end).
 
 -spec get_range(syntax_tree(), pos(), {atom(), any()}) -> range().
+get_range(_Tree, {Line, Column}, {application, {M, F, _A}}) ->
+  CFrom = Column - length(atom_to_list(M)),
+  From = {Line, CFrom},
+  CTo = Column + length(atom_to_list(F)),
+  To = {Line, CTo},
+  #{ from => From, to => To };
+get_range(_Tree, {Line, Column}, {application, {F, _A}}) ->
+  From = {Line, Column},
+  To = {Line, Column + length(atom_to_list(F))},
+  #{ from => From, to => To };
 get_range(_Tree, {Line, Column}, {behaviour, Behaviour}) ->
   From = {Line, Column - 1},
   To = {Line, Column + length("behaviour") + length(atom_to_list(Behaviour))},
@@ -120,11 +130,37 @@ analyze(Tree) ->
   catch
     Class:Reason ->
       lager:warning("Could not analyze tree: ~p:~p", [Class, Reason]),
-      erlang:display({Class, Reason}),
       []
   end.
 
 -spec analyze(syntax_tree(), any()) -> [poi()].
+analyze(Tree, application) ->
+  case erl_syntax_lib:analyze_application(Tree) of
+    {M, {F, A}} ->
+      %% Remote call
+      [poi(Tree, {application, {M, F, A}})];
+    {F, A} ->
+      %% Local call
+      [poi(Tree, {application, {F, A}})];
+    A when is_integer(A) ->
+      %% If the function is not explicitly named (e.g. a variable is
+      %% used as the module qualifier or the function name), only the
+      %% arity A is returned.
+      %% In the special case where the macro `?MODULE` is used as the
+      %% module qualifier, we can consider it as a local call.
+      Operator = erl_syntax:application_operator(Tree),
+      try { erl_syntax:variable_name(
+              erl_syntax:macro_name(
+                erl_syntax:module_qualifier_argument(Operator)))
+          , erl_syntax:atom_value(
+              erl_syntax:module_qualifier_body(Operator))
+          } of
+          {'MODULE', F} ->
+          [poi(Tree, {application, {'MODULE', F, A}})]
+      catch _:_ ->
+          []
+      end
+  end;
 analyze(Tree, attribute) ->
   case erl_syntax_lib:analyze_attribute(Tree) of
     %% Yes, Erlang allows both British and American spellings for
