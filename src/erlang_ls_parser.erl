@@ -140,8 +140,14 @@ analyze(Tree, application) ->
       %% Remote call
       [poi(Tree, {application, {M, F, A}})];
     {F, A} ->
-      %% Local call
-      [poi(Tree, {application, {F, A}})];
+      case lists:member({F, A}, erlang:module_info(exports)) of
+        true ->
+          %% Call to a function from the `erlang` module
+          [poi(Tree, {application, {erlang, F, A}})];
+        false ->
+          %% Local call
+          [poi(Tree, {application, {F, A}})]
+      end;
     A when is_integer(A) ->
       %% If the function is not explicitly named (e.g. a variable is
       %% used as the module qualifier or the function name), only the
