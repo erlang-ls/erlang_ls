@@ -36,6 +36,8 @@
 %%==============================================================================
 -record(state, {socket, buffer}).
 
+-define(OTP_INCLUDE_PATH, "/usr/local/Cellar/erlang/21.2.4/lib/erlang/lib").
+
 %%==============================================================================
 %% Type Definitions
 %%==============================================================================
@@ -175,8 +177,8 @@ handle_method(<<"textDocument/definition">>, Params) ->
   TextDocument = maps:get(<<"textDocument">>, Params),
   Uri          = maps:get(<<"uri">>         , TextDocument),
   {ok, Buffer} = erlang_ls_buffer_server:get_buffer(Uri),
-  Element      = erlang_ls_buffer:get_element_at_pos(Buffer, Line + 1, Character + 1),
-  Result = definition(Element),
+  POI          = erlang_ls_buffer:get_element_at_pos(Buffer, Line + 1, Character + 1),
+  Result = definition(Uri, POI),
   {response, Result};
 handle_method(Method, _Params) ->
   lager:warning("[Method not implemented] [method=~s]", [Method]),
@@ -193,36 +195,27 @@ send_notification(Socket, Method, Params) ->
   lager:debug("[SERVER] Sending notification [notification=~p]", [Notification]),
   gen_tcp:send(Socket, Notification).
 
--spec definition(any()) -> null | [map()].
-definition(Element) ->
-  case erl_syntax:type(Element) of
-    application ->
-      Op = erl_syntax:application_operator(Element),
-      A  = length(erl_syntax:application_arguments(Element)),
-      case erl_syntax:type(Op) of
-        module_qualifier ->
-          definition_from_module_qualifier(Op, A);
-        _ ->
+-spec definition(uri(), erlang_ls_parser:poi()) -> null | map().
+definition(_Uri, #{ info := {application, {M, F, A}} }) ->
+  %% TODO: Check whether URI is already cached
+  Path = filelib:wildcard(filename:join([?OTP_INCLUDE_PATH, "*/src"])),
+  %% TODO: Cache syntax tree here?
+  case file:path_open(Path, atom_to_list(M) ++ ".erl", [read]) of
+    {ok, IoDevice, FullName} ->
+      %% TODO: Avoid opening file twice
+      file:close(IoDevice),
+      {ok, Tree} = erlang_ls_parser:parse_file(FullName),
+      AnnotatedTree = erlang_ls_parser:annotate(Tree),
+      Info = {function, {F, A}},
+      case erlang_ls_parser:find_poi_by_info(AnnotatedTree, Info) of
+        [#{ range := Range }] ->
+          %% TODO: Use API to create types
+          #{ uri => erlang_ls_uri:uri(list_to_binary(FullName))
+           , range => erlang_ls_protocol:range(Range)
+           };
+        [] ->
           null
       end;
-    _ ->
-      null
-  end.
-
--spec definition_from_module_qualifier(any(), non_neg_integer()) -> null | map().
-definition_from_module_qualifier(Op, A) ->
-  M = list_to_atom(erl_syntax:atom_name(erl_syntax:module_qualifier_argument(Op))),
-  F = list_to_atom(erl_syntax:atom_name(erl_syntax:module_qualifier_body(Op))),
-  Which = code:which(M),
-  Source = list_to_binary(proplists:get_value( source
-                                             , M:module_info(compile))),
-  DefUri = <<"file://", Source/binary>>,
-  {ok, {_, [{abstract_code, {_, AC}}]}} = beam_lib:chunks(Which, [abstract_code]),
-  case [ AL || {function, AL, AF, AA, _} <- AC, F =:= AF, A =:= AA] of
-    [DefLine] ->
-      #{ uri => DefUri
-       , range => erlang_ls_protocol:range(erl_anno:line(DefLine) - 1)
-       };
-    [] ->
+    {error, _Error} ->
       null
   end.

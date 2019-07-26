@@ -3,6 +3,7 @@
 
 -export([ annotate/1
         , annotate_node/1
+        , find_poi_by_info/2
         , find_poi_by_pos/2
         , list_poi/1
         , parse/1
@@ -17,6 +18,8 @@
 -type range()       :: #{ from := pos(), to := pos() }.
 %% Point of Interest
 -type poi()         :: #{ type := atom(), info => any(), range := range()}.
+
+-export_type([ poi/0 ]).
 
 %% TODO: Generate random filename
 %% TODO: Ideally avoid writing to file at all (require epp changes)
@@ -83,6 +86,10 @@ get_range(_Tree, {_Line, _Column}, {exports_entry, {_F, _A}}) ->
   %% TODO: The location information for the arity qualifiers are lost during
   %%       parsing in `epp_dodger`. This requires fixing.
   #{ from => {0, 0}, to => {0, 0} };
+get_range(_Tree, {Line, Column}, {function, {F, _A}}) ->
+  From = {Line - 1, Column - 1},
+  To = {Line - 1, Column + length(atom_to_list(F)) - 1},
+  #{ from => From, to => To };
 get_range(_Tree, {Line, Column}, {include, Include}) ->
   From = {Line, Column - 1},
   To = {Line, Column + length("include") + length(Include)},
@@ -103,6 +110,10 @@ get_range(_Tree, {_Line, _Column}, {spec, _Spec}) ->
   %% TODO: The location information for the arity qualifiers are lost during
   %%       parsing in `epp_dodger`. This requires fixing.
   #{ from => {0, 0}, to => {0, 0} }.
+
+-spec find_poi_by_info(syntax_tree(), any()) -> poi().
+find_poi_by_info(Tree, Info0) ->
+  [POI || #{info := Info} = POI <- list_poi(Tree), Info0 =:= Info].
 
 -spec find_poi_by_pos(syntax_tree(), pos()) -> [poi()].
 find_poi_by_pos(Tree, Pos) ->
@@ -192,6 +203,9 @@ analyze(Tree, attribute) ->
     _ ->
       []
   end;
+analyze(Tree, function) ->
+  {F, A} = erl_syntax_lib:analyze_function(Tree),
+  [poi(Tree, {function, {F, A}})];
 analyze(Tree, macro) ->
   Macro = erl_syntax:variable_name(erl_syntax:macro_name(Tree)),
   [poi(Tree, {macro, Macro})];

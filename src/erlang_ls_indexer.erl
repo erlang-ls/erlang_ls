@@ -91,14 +91,9 @@ handle_cast(_Msg, State) -> {noreply, State}.
 %%==============================================================================
 -spec do_index(uri(), binary()) -> ok.
 do_index(Uri, Text) ->
-  %% TODO: Avoid writing
-  Path = "/tmp/erlang_ls_tmp",
-  ok = file:write_file(Path, Text),
-  {ok, IoDevice} = file:open(Path, [read]),
-  {ok, Forms} = epp_dodger:parse(IoDevice, {1, 1}),
+  {ok, Tree} = erlang_ls_parser:parse(Text),
   F = fun(Form) -> index_form(Form, Uri) end,
-  erl_syntax_lib:map(F, erl_syntax:form_list(Forms)),
-  ok = file:close(IoDevice),
+  erl_syntax_lib:map(F, Tree),
   ok.
 
 -spec index_form(erl_syntax:syntaxTree(), uri()) -> erl_syntax:syntaxTree().
