@@ -197,20 +197,14 @@ send_notification(Socket, Method, Params) ->
 
 -spec definition(uri(), erlang_ls_parser:poi()) -> null | map().
 definition(_Uri, #{ info := {application, {M, F, A}} }) ->
-  %% TODO: Check whether URI is already cached
-  Path = filelib:wildcard(filename:join([?OTP_INCLUDE_PATH, "*/src"])),
-  %% TODO: Cache syntax tree here?
-  case file:path_open(Path, atom_to_list(M) ++ ".erl", [read]) of
-    {ok, IoDevice, FullName} ->
-      %% TODO: Avoid opening file twice
-      file:close(IoDevice),
-      {ok, Tree} = erlang_ls_parser:parse_file(FullName),
-      AnnotatedTree = erlang_ls_parser:annotate(Tree),
+  case annotated_tree(M) of
+    {ok, Uri, AnnotatedTree} ->
+      %% TODO: Abstract this mapping in a function
       Info = {function, {F, A}},
       case erlang_ls_parser:find_poi_by_info(AnnotatedTree, Info) of
         [#{ range := Range }] ->
           %% TODO: Use API to create types
-          #{ uri => erlang_ls_uri:uri(list_to_binary(FullName))
+          #{ uri => Uri
            , range => erlang_ls_protocol:range(Range)
            };
         [] ->
@@ -218,4 +212,33 @@ definition(_Uri, #{ info := {application, {M, F, A}} }) ->
       end;
     {error, _Error} ->
       null
+  end;
+definition(_Uri, #{ info := {behaviour, Behaviour} }) ->
+  case annotated_tree(Behaviour) of
+    {ok, Uri, _AnnotatedTree} ->
+      #{ uri => Uri
+         %% TODO: We could point to the module attribute, instead
+       , range => erlang_ls_protocol:range(#{ from => {0, 0}
+                                            , to   => {0, 0}
+                                            })
+       };
+    {error, _Error} ->
+      null
+  end.
+
+-spec annotated_tree(atom()) ->
+   {ok, uri(), erlang_ls_parser:syntax_tree()} | {error, any()}.
+annotated_tree(Module) ->
+  %% TODO: Check whether URI is already cached
+  Path = filelib:wildcard(filename:join([?OTP_INCLUDE_PATH, "*/src"])),
+  %% TODO: Cache syntax tree here?
+  case file:path_open(Path, atom_to_list(Module) ++ ".erl", [read]) of
+    {ok, IoDevice, FullName} ->
+      %% TODO: Avoid opening file twice
+      file:close(IoDevice),
+      {ok, Tree} = erlang_ls_parser:parse_file(FullName),
+      Uri = erlang_ls_uri:uri(list_to_binary(FullName)),
+      {ok, Uri, erlang_ls_parser:annotate(Tree)};
+    {error, Error} ->
+      {error, Error}
   end.

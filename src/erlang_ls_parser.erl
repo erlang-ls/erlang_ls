@@ -19,7 +19,20 @@
 %% Point of Interest
 -type poi()         :: #{ type := atom(), info => any(), range := range()}.
 
--export_type([ poi/0 ]).
+-export_type([ poi/0
+             , range/0
+             ]).
+
+%%==============================================================================
+%% Dialyzer Exceptions
+%%==============================================================================
+%% The specs for the epp_dodger API are slightly incorrect.
+%% A bug has been reported (see https://bugs.erlang.org/browse/ERL-1005)
+%% Meanwhile, let's skip checking this module.
+-dialyzer(no_contracts).
+-dialyzer(no_return).
+-dialyzer(no_unused).
+-dialyzer(no_fail_call).
 
 %% TODO: Generate random filename
 %% TODO: Ideally avoid writing to file at all (require epp changes)
