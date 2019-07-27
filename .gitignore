@@ -19,3 +19,4 @@ rebar3.crashdump
 .eqc-info
 .edts
 current_counterexample.eqc
+*.coverdata
