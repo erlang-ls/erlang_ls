@@ -11,8 +11,7 @@ did_open(Params) ->
   Uri          = maps:get(<<"uri">>         , TextDocument),
   Text         = maps:get(<<"text">>        , TextDocument),
   {ok, Pid}    = supervisor:start_child(erlang_ls_buffer_sup, [Text]),
-  ok           = erlang_ls_buffer_server:add_buffer(Uri, Pid),
-  ok           = erlang_ls_indexer:index(Uri, Text).
+  ok           = erlang_ls_buffer_server:add_buffer(Uri, Pid).
 
 -spec did_save(map(), pid()) -> ok.
 did_save(Params, Server) ->
