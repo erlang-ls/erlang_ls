@@ -37,6 +37,9 @@
 -record(state, {socket, buffer}).
 
 -define(OTP_INCLUDE_PATH, "/usr/local/Cellar/erlang/21.2.4/lib/erlang/lib").
+%% TODO: Implement support for workspaces
+-define(APP_PATH, "/Users/robert.aloi/git/github/erlang-ls/erlang_ls").
+-define(DEPS_PATH, "/Users/robert.aloi/git/github/erlang-ls/erlang_ls/_build/debug/lib").
 
 %%==============================================================================
 %% Type Definitions
@@ -213,6 +216,24 @@ definition(_Uri, #{ info := {application, {M, F, A}} }) ->
     {error, _Error} ->
       null
   end;
+definition(Uri, #{ info := {application, {F, A}} }) ->
+  M = binary_to_atom(filename:basename(erlang_ls_uri:path(Uri), ".erl"), utf8),
+  case annotated_tree(M) of
+    {ok, Uri, AnnotatedTree} ->
+      %% TODO: Abstract this mapping in a function
+      Info = {function, {F, A}},
+      case erlang_ls_parser:find_poi_by_info(AnnotatedTree, Info) of
+        [#{ range := Range }] ->
+          %% TODO: Use API to create types
+          #{ uri => Uri
+           , range => erlang_ls_protocol:range(Range)
+           };
+        [] ->
+          null
+      end;
+    {error, _Error} ->
+      null
+  end;
 definition(_Uri, #{ info := {behaviour, Behaviour} }) ->
   case annotated_tree(Behaviour) of
     {ok, Uri, _AnnotatedTree} ->
@@ -230,7 +251,10 @@ definition(_Uri, #{ info := {behaviour, Behaviour} }) ->
    {ok, uri(), erlang_ls_parser:syntax_tree()} | {error, any()}.
 annotated_tree(Module) ->
   %% TODO: Check whether URI is already cached
-  Path = filelib:wildcard(filename:join([?OTP_INCLUDE_PATH, "*/src"])),
+  Path = lists:append( [ otp_path()
+                       , app_path()
+                       , deps_path()
+                       ]),
   %% TODO: Cache syntax tree here?
   case file:path_open(Path, atom_to_list(Module) ++ ".erl", [read]) of
     {ok, IoDevice, FullName} ->
@@ -242,3 +266,15 @@ annotated_tree(Module) ->
     {error, Error} ->
       {error, Error}
   end.
+
+-spec otp_path() -> [string()].
+otp_path() ->
+  filelib:wildcard(filename:join([?OTP_INCLUDE_PATH, "*/src"])).
+
+-spec app_path() -> [string()].
+app_path() ->
+  [filename:join([?APP_PATH, "src"])].
+
+-spec deps_path() -> [string()].
+deps_path() ->
+  filelib:wildcard(filename:join([?DEPS_PATH, "*/src"])).
