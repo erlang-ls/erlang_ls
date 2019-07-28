@@ -119,6 +119,11 @@ get_range(_Tree, {Line, Column}, {record_expr, Record}) ->
   From = {Line, Column - 1},
   To = {Line, Column + length(Record) - 1},
   #{ from => From, to => To };
+%% TODO: Distinguish between usage poi and definition poi
+get_range(_Tree, {Line, _Column}, {record, _Record}) ->
+  From = {Line - 1, 0},
+  To = From,
+  #{ from => From, to => To };
 get_range(_Tree, {_Line, _Column}, {spec, _Spec}) ->
   %% TODO: The location information for the arity qualifiers are lost during
   %%       parsing in `epp_dodger`. This requires fixing.
@@ -211,6 +216,8 @@ analyze(Tree, attribute) ->
         _ ->
           []
       end;
+    {record, {Record, _Fields}} ->
+      [poi(Tree, {record, atom_to_list(Record)})];
     {spec, Spec} ->
       [poi(Tree, {spec, Spec})];
     _ ->

@@ -61,7 +61,7 @@ get_mfa(Pid, Line, Char) ->
   gen_server:call(Pid, {get_mfa, Line, Char}).
 
 -spec get_element_at_pos(pid(), non_neg_integer(), non_neg_integer()) ->
-  any().
+  [any()].
 get_element_at_pos(Pid, Line, Char) ->
   gen_server:call(Pid, {get_element_at_pos, Line, Char}).
 
@@ -140,14 +140,12 @@ do_get_mfa(Text, Line, _Character) ->
   {M, F, A}.
 
 -spec do_get_element_at_pos(binary(), non_neg_integer(), non_neg_integer()) ->
-   erlang_ls_parser:poi().
+   [erlang_ls_parser:poi()].
 do_get_element_at_pos(Text, Line, Column) ->
   %% TODO: Cache tree
   {ok, Tree} = erlang_ls_parser:parse(Text),
   AnnotatedTree = erlang_ls_parser:annotate(Tree),
-  %% TODO: Refine API to handle multiple, overlapping, POIs
-  [POI] = erlang_ls_parser:find_poi_by_pos(AnnotatedTree, {Line, Column}),
-  POI.
+  erlang_ls_parser:find_poi_by_pos(AnnotatedTree, {Line, Column}).
 
 -spec get_line_text(binary(), integer()) -> binary().
 get_line_text(Text, Line) ->

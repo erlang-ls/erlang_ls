@@ -180,9 +180,12 @@ handle_method(<<"textDocument/definition">>, Params) ->
   TextDocument = maps:get(<<"textDocument">>, Params),
   Uri          = maps:get(<<"uri">>         , TextDocument),
   {ok, Buffer} = erlang_ls_buffer_server:get_buffer(Uri),
-  POI          = erlang_ls_buffer:get_element_at_pos(Buffer, Line + 1, Character + 1),
-  Result = definition(Uri, POI),
-  {response, Result};
+  case erlang_ls_buffer:get_element_at_pos(Buffer, Line + 1, Character + 1) of
+    [POI|_] ->
+      {response, definition(Uri, POI)};
+    [] ->
+      {response, null}
+  end;
 handle_method(Method, _Params) ->
   lager:warning("[Method not implemented] [method=~s]", [Method]),
   Message = <<"Method not implemented: ", Method/binary>>,
@@ -217,7 +220,7 @@ definition(_Uri, #{ info := {application, {M, F, A}} }) ->
       null
   end;
 definition(Uri, #{ info := {application, {F, A}} }) ->
-  M = binary_to_atom(filename:basename(erlang_ls_uri:path(Uri), ".erl"), utf8),
+  M = erlang_ls_uri:module(Uri),
   case annotated_tree(M) of
     {ok, Uri, AnnotatedTree} ->
       %% TODO: Abstract this mapping in a function
@@ -245,17 +248,21 @@ definition(_Uri, #{ info := {behaviour, Behaviour} }) ->
        };
     {error, _Error} ->
       null
-  end.
+  end;
+definition(Uri, #{ info := {record_expr, Record} }) ->
+  search_record(Uri, Record);
+definition(_Uri, _) ->
+  null.
 
 -spec annotated_tree(atom()) ->
    {ok, uri(), erlang_ls_parser:syntax_tree()} | {error, any()}.
 annotated_tree(Module) ->
-  %% TODO: Check whether URI is already cached
-  Path = lists:append( [ otp_path()
-                       , app_path()
-                       , deps_path()
-                       ]),
-  %% TODO: Cache syntax tree here?
+  Path = lists:append( [ app_path() , deps_path() , otp_path() ]),
+  annotated_tree(Module, Path).
+
+-spec annotated_tree(atom(), [string()]) ->
+   {ok, uri(), erlang_ls_parser:syntax_tree()} | {error, any()}.
+annotated_tree(Module, Path) ->
   case file:path_open(Path, atom_to_list(Module) ++ ".erl", [read]) of
     {ok, IoDevice, FullName} ->
       %% TODO: Avoid opening file twice
@@ -278,3 +285,21 @@ app_path() ->
 -spec deps_path() -> [string()].
 deps_path() ->
   filelib:wildcard(filename:join([?DEPS_PATH, "*/src"])).
+
+-spec search_record(uri(), atom()) -> null | map().
+search_record(Uri, Record) ->
+  Module = erlang_ls_uri:module(Uri),
+  case annotated_tree(Module) of
+    {ok, Uri, AnnotatedTree} ->
+      Info = {record, Record},
+      case erlang_ls_parser:find_poi_by_info(AnnotatedTree, Info) of
+        [#{ range := Range }|_] ->
+          #{ uri => Uri
+           , range => erlang_ls_protocol:range(Range)
+           };
+        [] ->
+          null
+      end;
+    {error, _Error} ->
+      null
+  end.
