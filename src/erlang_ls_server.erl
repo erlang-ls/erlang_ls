@@ -250,9 +250,13 @@ definition(_Uri, #{ info := {behaviour, Behaviour} }) ->
       null
   end;
 %% TODO: Eventually search everywhere and suggest a code lens to include a file
+%% TODO: Create a function to host the mapping between poi and definition
+definition(Uri, #{ info := {macro, Define} }) ->
+  Filename = erlang_ls_uri:basename(Uri),
+  search(Filename, app_path(), {define, Define});
 definition(Uri, #{ info := {record_expr, Record} }) ->
   Filename = erlang_ls_uri:basename(Uri),
-  search_record(Filename, app_path(), Record);
+  search(Filename, app_path(), {record, Record});
 definition(_Uri, _) ->
   null.
 
@@ -292,16 +296,16 @@ app_path() ->
 deps_path() ->
   filelib:wildcard(filename:join([?DEPS_PATH, "*/src"])).
 
-%% Look for a record definition recursively in a file and its includes.
--spec search_record(binary(), [string()], string()) -> null | map().
-search_record(Filename, Path, Record) ->
+%% Look for a definition recursively in a file and its includes.
+-spec search(binary(), [string()], any()) -> null | map().
+search(Filename, Path, Thing) ->
   case annotated_tree(Filename, Path) of
     {ok, Uri, AnnotatedTree} ->
-      case find_record(Uri, AnnotatedTree, Record) of
+      case find(Uri, AnnotatedTree, Thing) of
         null ->
           Includes = erlang_ls_parser:find_poi_by_info_key(AnnotatedTree, include),
           IncludeLibs = erlang_ls_parser:find_poi_by_info_key(AnnotatedTree, include_lib),
-          search_record_in_includes(Includes ++ IncludeLibs, Record);
+          search_in_includes(Includes ++ IncludeLibs, Thing);
         Def ->
           Def
       end;
@@ -309,33 +313,32 @@ search_record(Filename, Path, Record) ->
       null
   end.
 
-%% Look for a record definition in a given tree
--spec find_record(uri(), erlang_ls_parser:syntax_tree(), string()) -> null | map().
-find_record(Uri, AnnotatedTree, Record) ->
-  Info = {record, Record},
-  case erlang_ls_parser:find_poi_by_info(AnnotatedTree, Info) of
+%% Look for a definition in a given tree
+-spec find(uri(), erlang_ls_parser:syntax_tree(), any()) -> null | map().
+find(Uri, AnnotatedTree, Thing) ->
+  case erlang_ls_parser:find_poi_by_info(AnnotatedTree, Thing) of
     [#{ range := Range }|_] ->
       #{ uri => Uri, range => erlang_ls_protocol:range(Range) };
     [] ->
       null
   end.
 
--spec search_record_in_includes([erlang_ls_parser:poi()], string()) -> null | map().
-search_record_in_includes([], _Record) ->
+-spec search_in_includes([erlang_ls_parser:poi()], string()) -> null | map().
+search_in_includes([], _Thing) ->
   null;
-search_record_in_includes([#{info := {include, Include0}}|T], Record) ->
+search_in_includes([#{info := {include, Include0}}|T], Thing) ->
   Include = string:trim(Include0, both, [$"]),
-  case search_record(list_to_binary(Include), app_path(), Record) of
+  case search(list_to_binary(Include), app_path(), Thing) of
     null ->
-      search_record_in_includes(T, Record);
+      search_in_includes(T, Thing);
     Def ->
       Def
   end;
-search_record_in_includes([#{info := {include_lib, Include0}}|T], Record) ->
+search_in_includes([#{info := {include_lib, Include0}}|T], Thing) ->
   Include = lists:last(filename:split(string:trim(Include0, both, [$"]))),
-  case search_record(list_to_binary(Include), app_path(), Record) of
+  case search(list_to_binary(Include), app_path(), Thing) of
     null ->
-      search_record_in_includes(T, Record);
+      search_in_includes(T, Thing);
     Def ->
       Def
   end.

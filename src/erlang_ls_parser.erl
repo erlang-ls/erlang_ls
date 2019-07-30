@@ -104,6 +104,10 @@ get_range(_Tree, {Line, Column}, {function, {F, _A}}) ->
   From = {Line - 1, Column - 1},
   To = {Line - 1, Column + length(atom_to_list(F)) - 1},
   #{ from => From, to => To };
+get_range(_Tree, {Line, _Column}, {define, _Define}) ->
+  From = {Line - 1, 0},
+  To = From,
+  #{ from => From, to => To };
 get_range(_Tree, {Line, Column}, {include, Include}) ->
   From = {Line, Column - 1},
   To = {Line, Column + length("include") + length(Include)},
@@ -215,6 +219,8 @@ analyze(Tree, attribute) ->
     preprocessor ->
       Name = erl_syntax:atom_value(erl_syntax:attribute_name(Tree)),
       case {Name, erl_syntax:attribute_arguments(Tree)} of
+        {define, [Define|_]} ->
+          [poi(Tree, {define, erl_syntax:variable_name(Define)})];
         {include, [String]} ->
           [poi(Tree, {include, erl_syntax:string_literal(String)})];
         {include_lib, [String]} ->
