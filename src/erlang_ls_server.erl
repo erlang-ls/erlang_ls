@@ -203,12 +203,10 @@ send_notification(Socket, Method, Params) ->
   gen_tcp:send(Socket, Notification).
 
 -spec definition(uri(), erlang_ls_parser:poi()) -> null | map().
-definition(_Uri, #{ info := {application, {M, F, A}} }) ->
+definition(_Uri, #{ info := {application, {M, _F, _A}} = Info }) ->
   case annotated_tree(erlang_ls_uri:filename(M)) of
     {ok, Uri, AnnotatedTree} ->
-      %% TODO: Abstract this mapping in a function
-      Info = {function, {F, A}},
-      case erlang_ls_parser:find_poi_by_info(AnnotatedTree, Info) of
+      case erlang_ls_parser:find_poi_by_info(AnnotatedTree, definition(Info)) of
         [#{ range := Range }] ->
           %% TODO: Use API to create types
           #{ uri => Uri
@@ -220,12 +218,10 @@ definition(_Uri, #{ info := {application, {M, F, A}} }) ->
     {error, _Error} ->
       null
   end;
-definition(Uri, #{ info := {application, {F, A}} }) ->
+definition(Uri, #{ info := {application, {_F, _A}} = Info }) ->
   case annotated_tree(erlang_ls_uri:basename(Uri)) of
     {ok, Uri, AnnotatedTree} ->
-      %% TODO: Abstract this mapping in a function
-      Info = {function, {F, A}},
-      case erlang_ls_parser:find_poi_by_info(AnnotatedTree, Info) of
+      case erlang_ls_parser:find_poi_by_info(AnnotatedTree, definition(Info)) of
         [#{ range := Range }] ->
           %% TODO: Use API to create types
           #{ uri => Uri
@@ -250,15 +246,50 @@ definition(_Uri, #{ info := {behaviour, Behaviour} }) ->
       null
   end;
 %% TODO: Eventually search everywhere and suggest a code lens to include a file
-%% TODO: Create a function to host the mapping between poi and definition
-definition(Uri, #{ info := {macro, Define} }) ->
+definition(Uri, #{ info := {macro, _Define} = Info }) ->
   Filename = erlang_ls_uri:basename(Uri),
-  search(Filename, app_path(), {define, Define});
-definition(Uri, #{ info := {record_expr, Record} }) ->
+  search(Filename, app_path(), definition(Info));
+definition(Uri, #{ info := {record_expr, _Record} = Info }) ->
   Filename = erlang_ls_uri:basename(Uri),
-  search(Filename, app_path(), {record, Record});
+  search(Filename, app_path(), Info);
+definition(_Uri, #{ info := {include, Include0} }) ->
+  Include = list_to_binary(string:trim(Include0, both, [$"])),
+  case annotated_tree(Include) of
+    {ok, Uri, _AnnotatedTree} ->
+      #{ uri => Uri
+         %% TODO: We could point to the module attribute, instead
+       , range => erlang_ls_protocol:range(#{ from => {0, 0}
+                                            , to   => {0, 0}
+                                            })
+       };
+    {error, _Error} ->
+      null
+  end;
+definition(_Uri, #{ info := {include_lib, Include0} }) ->
+  Include = list_to_binary(lists:last(filename:split(string:trim(Include0, both, [$"])))),
+  case annotated_tree(Include) of
+    {ok, Uri, _AnnotatedTree} ->
+      #{ uri => Uri
+         %% TODO: We could point to the module attribute, instead
+       , range => erlang_ls_protocol:range(#{ from => {0, 0}
+                                            , to   => {0, 0}
+                                            })
+       };
+    {error, _Error} ->
+      null
+  end;
 definition(_Uri, _) ->
   null.
+
+-spec definition({atom(), any()}) -> {atom(), any()}.
+definition({application, {_M, F, A}}) ->
+  {function, {F, A}};
+definition({application, {F, A}}) ->
+  {function, {F, A}};
+definition({macro, Define}) ->
+  {define, Define};
+definition({record_expr, Record}) ->
+  {record, Record}.
 
 -spec annotated_tree(binary()) ->
    {ok, uri(), erlang_ls_parser:syntax_tree()} | {error, any()}.
