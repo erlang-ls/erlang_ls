@@ -13,9 +13,7 @@
         ]).
 
 %% Data Structures
--export([ range/1
-        , range/2
-        ]).
+-export([ range/1 ]).
 
 %%==============================================================================
 %% Includes
@@ -54,14 +52,10 @@ response(RequestId, Result) ->
 %%==============================================================================
 %% Data Structures
 %%==============================================================================
--spec range(integer()) -> range().
-range(FromLine) ->
-  range(FromLine, FromLine).
-
--spec range(integer(), integer()) -> range().
-range(FromLine, ToLine) ->
-  #{ start => #{line => FromLine, character => 0}
-   , 'end' => #{line => ToLine,   character => 0}
+-spec range(erlang_ls_parser:range()) -> range().
+range(#{ from := {FromL, FromC}, to := {ToL, ToC} }) ->
+  #{ start => #{line => FromL, character => FromC}
+   , 'end' => #{line => ToL,   character => ToC}
    }.
 
 %%==============================================================================

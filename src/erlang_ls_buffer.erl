@@ -37,7 +37,7 @@
 %%==============================================================================
 %% Type Definitions
 %%==============================================================================
--type state()        :: #state{}.
+-type state() :: #state{}.
 
 %%%===================================================================
 %%% API
@@ -61,7 +61,7 @@ get_mfa(Pid, Line, Char) ->
   gen_server:call(Pid, {get_mfa, Line, Char}).
 
 -spec get_element_at_pos(pid(), non_neg_integer(), non_neg_integer()) ->
-  any().
+  [any()].
 get_element_at_pos(Pid, Line, Char) ->
   gen_server:call(Pid, {get_element_at_pos, Line, Char}).
 
@@ -140,22 +140,12 @@ do_get_mfa(Text, Line, _Character) ->
   {M, F, A}.
 
 -spec do_get_element_at_pos(binary(), non_neg_integer(), non_neg_integer()) ->
-   any().
-do_get_element_at_pos(Text, Line, Character) ->
-  Ast = get_ast(Text),
-  erlang_ls_navigation:find_by_pos({Line, Character}, Ast).
-
--spec get_ast(binary()) -> [any()].
-get_ast(Text) ->
-  %% TODO: Do not write to file
-  File    = "/tmp/x.erl",
-  ok      = file:write_file(File, Text),
-  {ok, F} = file:open(File, [read]),
-  {ok, E} = epp:open(File, F, {1, 1}, [], []),
-  Epp     = epp:parse_file(E),
-  ok      = epp:close(E),
-  ok      = file:close(F),
-  Epp.
+   [erlang_ls_parser:poi()].
+do_get_element_at_pos(Text, Line, Column) ->
+  %% TODO: Cache tree
+  {ok, Tree} = erlang_ls_parser:parse(Text),
+  AnnotatedTree = erlang_ls_parser:annotate(Tree),
+  erlang_ls_parser:find_poi_by_pos(AnnotatedTree, {Line, Column}).
 
 -spec get_line_text(binary(), integer()) -> binary().
 get_line_text(Text, Line) ->
