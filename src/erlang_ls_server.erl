@@ -357,19 +357,15 @@ find(Uri, AnnotatedTree, Thing) ->
 -spec search_in_includes([erlang_ls_parser:poi()], string()) -> null | map().
 search_in_includes([], _Thing) ->
   null;
-search_in_includes([#{info := {include, Include0}}|T], Thing) ->
-  Include = string:trim(Include0, both, [$"]),
+search_in_includes([#{info := Info}|T], Thing) ->
+  Include = normalize_include(Info),
   case search(list_to_binary(Include), app_path(), Thing) of
-    null ->
-      search_in_includes(T, Thing);
-    Def ->
-      Def
-  end;
-search_in_includes([#{info := {include_lib, Include0}}|T], Thing) ->
-  Include = lists:last(filename:split(string:trim(Include0, both, [$"]))),
-  case search(list_to_binary(Include), app_path(), Thing) of
-    null ->
-      search_in_includes(T, Thing);
-    Def ->
-      Def
+    null -> search_in_includes(T, Thing);
+    Def  -> Def
   end.
+
+-spec normalize_include({atom(), string()}) -> string().
+normalize_include({include, Include}) ->
+  string:trim(Include, both, [$"]);
+normalize_include({include_lib, Include}) ->
+  lists:last(filename:split(string:trim(Include, both, [$"]))).
