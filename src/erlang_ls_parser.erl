@@ -4,6 +4,7 @@
 -export([ annotate/1
         , annotate_node/1
         , find_poi_by_info/2
+        , find_poi_by_info_key/2
         , find_poi_by_pos/2
         , list_poi/1
         , parse/1
@@ -132,6 +133,11 @@ get_range(_Tree, {_Line, _Column}, {spec, _Spec}) ->
 -spec find_poi_by_info(syntax_tree(), any()) -> poi().
 find_poi_by_info(Tree, Info0) ->
   [POI || #{info := Info} = POI <- list_poi(Tree), Info0 =:= Info].
+
+%% TODO: Rename
+-spec find_poi_by_info_key(syntax_tree(), atom()) -> poi().
+find_poi_by_info_key(Tree, Key0) ->
+  [POI || #{info := {Key, _}} = POI <- list_poi(Tree), Key0 =:= Key].
 
 -spec find_poi_by_pos(syntax_tree(), pos()) -> [poi()].
 find_poi_by_pos(Tree, Pos) ->

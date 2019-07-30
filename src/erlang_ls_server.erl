@@ -38,7 +38,8 @@
 
 -define(OTP_INCLUDE_PATH, "/usr/local/Cellar/erlang/21.2.4/lib/erlang/lib").
 %% TODO: Implement support for workspaces
--define(APP_PATH, "/Users/robert.aloi/git/github/erlang-ls/erlang_ls").
+-define(ERLANG_LS_PATH, "/Users/robert.aloi/git/github/erlang-ls/erlang_ls").
+-define(TEST_APP_PATH, "/Users/robert.aloi/git/github/erlang-ls/test").
 -define(DEPS_PATH, "/Users/robert.aloi/git/github/erlang-ls/erlang_ls/_build/debug/lib").
 
 %%==============================================================================
@@ -203,7 +204,7 @@ send_notification(Socket, Method, Params) ->
 
 -spec definition(uri(), erlang_ls_parser:poi()) -> null | map().
 definition(_Uri, #{ info := {application, {M, F, A}} }) ->
-  case annotated_tree(M) of
+  case annotated_tree(erlang_ls_uri:filename(M)) of
     {ok, Uri, AnnotatedTree} ->
       %% TODO: Abstract this mapping in a function
       Info = {function, {F, A}},
@@ -220,8 +221,7 @@ definition(_Uri, #{ info := {application, {M, F, A}} }) ->
       null
   end;
 definition(Uri, #{ info := {application, {F, A}} }) ->
-  M = erlang_ls_uri:module(Uri),
-  case annotated_tree(M) of
+  case annotated_tree(erlang_ls_uri:basename(Uri)) of
     {ok, Uri, AnnotatedTree} ->
       %% TODO: Abstract this mapping in a function
       Info = {function, {F, A}},
@@ -238,7 +238,7 @@ definition(Uri, #{ info := {application, {F, A}} }) ->
       null
   end;
 definition(_Uri, #{ info := {behaviour, Behaviour} }) ->
-  case annotated_tree(Behaviour) of
+  case annotated_tree(erlang_ls_uri:filename(Behaviour)) of
     {ok, Uri, _AnnotatedTree} ->
       #{ uri => Uri
          %% TODO: We could point to the module attribute, instead
@@ -249,26 +249,28 @@ definition(_Uri, #{ info := {behaviour, Behaviour} }) ->
     {error, _Error} ->
       null
   end;
+%% TODO: Eventually search everywhere and suggest a code lens to include a file
 definition(Uri, #{ info := {record_expr, Record} }) ->
-  search_record(Uri, Record);
+  Filename = erlang_ls_uri:basename(Uri),
+  search_record(Filename, app_path(), Record);
 definition(_Uri, _) ->
   null.
 
--spec annotated_tree(atom()) ->
+-spec annotated_tree(binary()) ->
    {ok, uri(), erlang_ls_parser:syntax_tree()} | {error, any()}.
-annotated_tree(Module) ->
+annotated_tree(Filename) ->
   Path = lists:append( [ app_path() , deps_path() , otp_path() ]),
-  annotated_tree(Module, Path).
+  annotated_tree(Filename, Path).
 
--spec annotated_tree(atom(), [string()]) ->
+-spec annotated_tree(binary(), [string()]) ->
    {ok, uri(), erlang_ls_parser:syntax_tree()} | {error, any()}.
-annotated_tree(Module, Path) ->
-  case file:path_open(Path, atom_to_list(Module) ++ ".erl", [read]) of
+annotated_tree(Filename, Path) ->
+  case file:path_open(Path, Filename, [read]) of
     {ok, IoDevice, FullName} ->
       %% TODO: Avoid opening file twice
       file:close(IoDevice),
       {ok, Tree} = erlang_ls_parser:parse_file(FullName),
-      Uri = erlang_ls_uri:uri(list_to_binary(FullName)),
+      Uri = erlang_ls_uri:uri(FullName),
       {ok, Uri, erlang_ls_parser:annotate(Tree)};
     {error, Error} ->
       {error, Error}
@@ -280,26 +282,60 @@ otp_path() ->
 
 -spec app_path() -> [string()].
 app_path() ->
-  [filename:join([?APP_PATH, "src"])].
+  [ filename:join([?TEST_APP_PATH, "src"])
+  , filename:join([?TEST_APP_PATH, "include"])
+  , filename:join([?ERLANG_LS_PATH, "src"])
+  , filename:join([?TEST_APP_PATH, "include"])
+  ].
 
 -spec deps_path() -> [string()].
 deps_path() ->
   filelib:wildcard(filename:join([?DEPS_PATH, "*/src"])).
 
--spec search_record(uri(), atom()) -> null | map().
-search_record(Uri, Record) ->
-  Module = erlang_ls_uri:module(Uri),
-  case annotated_tree(Module) of
+%% Look for a record definition recursively in a file and its includes.
+-spec search_record(binary(), [string()], string()) -> null | map().
+search_record(Filename, Path, Record) ->
+  case annotated_tree(Filename, Path) of
     {ok, Uri, AnnotatedTree} ->
-      Info = {record, Record},
-      case erlang_ls_parser:find_poi_by_info(AnnotatedTree, Info) of
-        [#{ range := Range }|_] ->
-          #{ uri => Uri
-           , range => erlang_ls_protocol:range(Range)
-           };
-        [] ->
-          null
+      case find_record(Uri, AnnotatedTree, Record) of
+        null ->
+          Includes = erlang_ls_parser:find_poi_by_info_key(AnnotatedTree, include),
+          IncludeLibs = erlang_ls_parser:find_poi_by_info_key(AnnotatedTree, include_lib),
+          search_record_in_includes(Includes ++ IncludeLibs, Record);
+        Def ->
+          Def
       end;
     {error, _Error} ->
       null
+  end.
+
+%% Look for a record definition in a given tree
+-spec find_record(uri(), erlang_ls_parser:syntax_tree(), string()) -> null | map().
+find_record(Uri, AnnotatedTree, Record) ->
+  Info = {record, Record},
+  case erlang_ls_parser:find_poi_by_info(AnnotatedTree, Info) of
+    [#{ range := Range }|_] ->
+      #{ uri => Uri, range => erlang_ls_protocol:range(Range) };
+    [] ->
+      null
+  end.
+
+-spec search_record_in_includes([erlang_ls_parser:poi()], string()) -> null | map().
+search_record_in_includes([], _Record) ->
+  null;
+search_record_in_includes([#{info := {include, Include0}}|T], Record) ->
+  Include = string:trim(Include0, both, [$"]),
+  case search_record(list_to_binary(Include), app_path(), Record) of
+    null ->
+      search_record_in_includes(T, Record);
+    Def ->
+      Def
+  end;
+search_record_in_includes([#{info := {include_lib, Include0}}|T], Record) ->
+  Include = lists:last(filename:split(string:trim(Include0, both, [$"]))),
+  case search_record(list_to_binary(Include), app_path(), Record) of
+    null ->
+      search_record_in_includes(T, Record);
+    Def ->
+      Def
   end.
