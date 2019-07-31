@@ -13,7 +13,8 @@
         ]).
 
 %% Test cases
--export([ main/1
+-export([ macro/1
+        , record/1
         ]).
 
 %%==============================================================================
@@ -36,7 +37,13 @@ suite() ->
 
 -spec init_per_suite(config()) -> config().
 init_per_suite(Config) ->
-  Config.
+  DataDir    = ?config(data_dir, Config),
+  DataDirBin = list_to_binary(DataDir),
+  [ {data_dir_bin, DataDirBin}
+  , {include_path, [ filename:join([DataDirBin, "src"])
+                   , filename:join([DataDirBin, "include"])
+                   ]}
+    |Config].
 
 -spec end_per_suite(config()) -> ok.
 end_per_suite(_Config) ->
@@ -52,18 +59,45 @@ end_per_testcase(_TestCase, _Config) ->
 
 -spec all() -> [atom()].
 all() ->
-  [main].
+  [macro, record].
 
 %%==============================================================================
 %% Testcases
 %%==============================================================================
+-spec macro(config()) -> ok.
+macro(Config) ->
+  FileName    = <<"code_navigation.erl">>,
+  Thing       = {macro, 'MACRO_A'},
+  Definition  = definition(?config(data_dir_bin, Config), Thing),
+  ?assertEqual( Definition
+              , erlang_ls_server:search( FileName
+                                       , ?config(include_path, Config)
+                                       , erlang_ls_server:definition(Thing))),
+  ok.
 
--spec main(config()) -> ok.
-main(_Config) ->
-  %% First stream allowed
-  ?assert(true),
+-spec record(config()) -> ok.
+record(Config) ->
+  FileName    = <<"code_navigation.erl">>,
+  Thing       = {record_expr, "record_a"},
+  Definition  = definition(?config(data_dir_bin, Config), Thing),
+  ?assertEqual( Definition
+              , erlang_ls_server:search( FileName
+                                       , ?config(include_path, Config)
+                                       , erlang_ls_server:definition(Thing))),
   ok.
 
 %%==============================================================================
 %% Internal Functions
 %%==============================================================================
+definition(DataDir, {record_expr, "record_a"}) ->
+  FilePath = filename:join([DataDir, <<"src">>, <<"code_navigation.erl">>]),
+  #{ range => erlang_ls_protocol:range(#{from => {4, 0}, to => {4, 0}})
+   , uri   => erlang_ls_uri:uri(FilePath)
+   };
+definition(DataDir, {macro, 'MACRO_A'}) ->
+  FilePath = filename:join([DataDir, <<"src">>, <<"code_navigation.erl">>]),
+  #{ range => erlang_ls_protocol:range(#{from => {6, 0}, to => {6, 0}})
+   , uri   => erlang_ls_uri:uri(FilePath)
+   }.
+
+%% TODO: Armonize strings vs atoms in definitions

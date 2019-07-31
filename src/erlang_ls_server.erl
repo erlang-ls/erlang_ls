@@ -26,6 +26,11 @@
 -export([ connected/3
         ]).
 
+%% TODO: Move to separate module
+-export([ definition/1
+        , search/3
+        ]).
+
 %%==============================================================================
 %% Includes
 %%==============================================================================
@@ -202,6 +207,7 @@ send_notification(Socket, Method, Params) ->
   lager:debug("[SERVER] Sending notification [notification=~p]", [Notification]),
   gen_tcp:send(Socket, Notification).
 
+%% TODO: definition/2 should probably not take the Uri, but a path.
 -spec definition(uri(), erlang_ls_parser:poi()) -> null | map().
 definition(_Uri, #{ info := {application, {M, _F, _A}} = Info }) ->
   case annotated_tree(erlang_ls_uri:filename(M)) of
