@@ -27,7 +27,7 @@
 
 %% TODO: Generate random filename
 %% TODO: Ideally avoid writing to file at all (require epp changes)
--define(TMP_PATH, "/tmp/erlang_ls_tmp").
+-define(TMP_PATH, <<"/tmp/erlang_ls_tmp">>).
 
 -spec parse(binary()) -> {ok, syntax_tree()}.
 parse(Text) ->
@@ -36,7 +36,7 @@ parse(Text) ->
   ok = file:write_file(?TMP_PATH, Text),
   parse_file(?TMP_PATH).
 
--spec parse_file(string()) -> {ok, syntax_tree()} | {error, any()}.
+-spec parse_file(binary()) -> {ok, syntax_tree()} | {error, any()}.
 parse_file(Path) ->
   case file:open(Path, [read]) of
     {ok, IoDevice} ->
@@ -127,12 +127,12 @@ get_range(_Tree, {_Line, _Column}, {spec, _Spec}) ->
   %%       parsing in `epp_dodger`. This requires fixing.
   #{ from => {0, 0}, to => {0, 0} }.
 
--spec find_poi_by_info(syntax_tree(), any()) -> poi().
+-spec find_poi_by_info(syntax_tree(), any()) -> [poi()].
 find_poi_by_info(Tree, Info0) ->
   [POI || #{info := Info} = POI <- list_poi(Tree), Info0 =:= Info].
 
 %% TODO: Rename
--spec find_poi_by_info_key(syntax_tree(), atom()) -> poi().
+-spec find_poi_by_info_key(syntax_tree(), atom()) -> [poi()].
 find_poi_by_info_key(Tree, Key0) ->
   [POI || #{info := {Key, _}} = POI <- list_poi(Tree), Key0 =:= Key].
 
