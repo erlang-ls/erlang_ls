@@ -117,3 +117,11 @@ definition(DataDir, {record_expr, "record_a"}) ->
   #{ range => erlang_ls_protocol:range(#{from => {9, 0}, to => {9, 0}})
    , uri   => erlang_ls_uri:uri(FilePath)
    }.
+%% TODO: API should be refactored. I should search for something, not the definition.
+%% TODO: include
+%% TODO: include_lib
+%% TODO: recursive record
+%% TODO: recursive macro
+%% TODO: local function
+%% TODO: remote function
+%% TODO: bif
