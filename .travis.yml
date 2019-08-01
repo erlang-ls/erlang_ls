@@ -3,7 +3,7 @@ otp_release:
   - 22.0
   - 21.3
 script:
-  - rebar3 as test do compile, ct, proper --cover, xref, cover, coveralls send
+  - rebar3 as test do compile, ct, proper --cover, dialyzer, xref, cover, coveralls send
 cache:
   directories:
      - "$HOME/.cache/rebar3"
