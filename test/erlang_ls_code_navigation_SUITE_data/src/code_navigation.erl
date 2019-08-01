@@ -1,6 +1,11 @@
 -module(code_navigation).
 
+-behaviour(behaviour_a).
+
 -export([ function_a/0 ]).
+
+%% behaviour_a callbacks
+-export([ callback_a/0 ]).
 
 -record(record_a, {field_a, field_b}).
 
@@ -12,3 +17,6 @@ function_a() ->
 
 function_b() ->
   ?MACRO_A.
+
+callback_a() ->
+  ok.

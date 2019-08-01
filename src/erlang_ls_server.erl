@@ -239,18 +239,9 @@ definition(Uri, #{ info := {application, {_F, _A}} = Info }) ->
     {error, _Error} ->
       null
   end;
-definition(_Uri, #{ info := {behaviour, Behaviour} }) ->
-  case annotated_tree(erlang_ls_uri:filename(Behaviour)) of
-    {ok, Uri, _AnnotatedTree} ->
-      #{ uri => Uri
-         %% TODO: We could point to the module attribute, instead
-       , range => erlang_ls_protocol:range(#{ from => {0, 0}
-                                            , to   => {0, 0}
-                                            })
-       };
-    {error, _Error} ->
-      null
-  end;
+definition(_Uri, #{ info := {behaviour, Behaviour} = Info }) ->
+  Filename = erlang_ls_uri:filename(Behaviour),
+  search(Filename, full_path(), definition(Info));
 %% TODO: Eventually search everywhere and suggest a code lens to include a file
 definition(Uri, #{ info := {macro, _Define} = Info }) ->
   Filename = erlang_ls_uri:basename(Uri),
@@ -292,6 +283,8 @@ definition({application, {_M, F, A}}) ->
   {function, {F, A}};
 definition({application, {F, A}}) ->
   {function, {F, A}};
+definition({behaviour, Behaviour}) ->
+  {module, Behaviour};
 definition({macro, Define}) ->
   {define, Define};
 definition({record_expr, Record}) ->
@@ -300,8 +293,7 @@ definition({record_expr, Record}) ->
 -spec annotated_tree(binary()) ->
    {ok, uri(), erlang_ls_parser:syntax_tree()} | {error, any()}.
 annotated_tree(Filename) ->
-  Path = lists:append( [ app_path() , deps_path() , otp_path() ]),
-  annotated_tree(Filename, Path).
+  annotated_tree(Filename, full_path()).
 
 -spec annotated_tree(binary(), [string()]) ->
    {ok, uri(), erlang_ls_parser:syntax_tree()} | {error, any()}.
@@ -332,6 +324,9 @@ app_path() ->
 -spec deps_path() -> [string()].
 deps_path() ->
   filelib:wildcard(filename:join([?DEPS_PATH, "*/src"])).
+
+full_path() ->
+  lists:append( [ app_path() , deps_path() , otp_path() ]).
 
 %% Look for a definition recursively in a file and its includes.
 -spec search(binary(), [string()], any()) -> null | map().

@@ -113,6 +113,10 @@ get_range(_Tree, {Line, Column}, {macro, Macro}) ->
   From = {Line, Column},
   To = {Line, Column + length(atom_to_list(Macro))},
   #{ from => From, to => To };
+get_range(_Tree, {Line, Column}, {module, _}) ->
+  From = {Line - 1, Column - 1},
+  To = From,
+  #{ from => From, to => To };
 get_range(_Tree, {Line, Column}, {record_expr, Record}) ->
   From = {Line, Column - 1},
   To = {Line, Column + length(Record) - 1},
@@ -209,6 +213,10 @@ analyze(Tree, attribute) ->
       [poi(Tree, {behaviour, Behaviour})];
     {export, Exports} ->
       [poi(Tree, {exports_entry, {F, A}}) || {F, A} <- Exports];
+    {module, {Module, _Args}} ->
+      [poi(Tree, {module, Module})];
+    {module, Module} ->
+      [poi(Tree, {module, Module})];
     preprocessor ->
       Name = erl_syntax:atom_value(erl_syntax:attribute_name(Tree)),
       case {Name, erl_syntax:attribute_arguments(Tree)} of

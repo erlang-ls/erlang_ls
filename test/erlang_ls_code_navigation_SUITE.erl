@@ -13,7 +13,8 @@
         ]).
 
 %% Test cases
--export([ macro/1
+-export([ behaviour/1
+        , macro/1
         , record/1
         ]).
 
@@ -59,11 +60,23 @@ end_per_testcase(_TestCase, _Config) ->
 
 -spec all() -> [atom()].
 all() ->
-  [macro, record].
+  [behaviour, macro, record].
 
 %%==============================================================================
 %% Testcases
 %%==============================================================================
+%% TODO: Refactor API
+-spec behaviour(config()) -> ok.
+behaviour(Config) ->
+  FileName    = <<"behaviour_a.erl">>,
+  Thing       = {behaviour, 'behaviour_a'},
+  Definition  = definition(?config(data_dir_bin, Config), Thing),
+  ?assertEqual( Definition
+              , erlang_ls_server:search( FileName
+                                       , ?config(include_path, Config)
+                                       , erlang_ls_server:definition(Thing))),
+  ok.
+
 -spec macro(config()) -> ok.
 macro(Config) ->
   FileName    = <<"code_navigation.erl">>,
@@ -89,15 +102,18 @@ record(Config) ->
 %%==============================================================================
 %% Internal Functions
 %%==============================================================================
-definition(DataDir, {record_expr, "record_a"}) ->
-  FilePath = filename:join([DataDir, <<"src">>, <<"code_navigation.erl">>]),
-  #{ range => erlang_ls_protocol:range(#{from => {4, 0}, to => {4, 0}})
+definition(DataDir, {behaviour, 'behaviour_a'}) ->
+  FilePath = filename:join([DataDir, <<"src">>, <<"behaviour_a.erl">>]),
+  #{ range => erlang_ls_protocol:range(#{from => {0, 1}, to => {0, 1}})
    , uri   => erlang_ls_uri:uri(FilePath)
    };
 definition(DataDir, {macro, 'MACRO_A'}) ->
   FilePath = filename:join([DataDir, <<"src">>, <<"code_navigation.erl">>]),
-  #{ range => erlang_ls_protocol:range(#{from => {6, 0}, to => {6, 0}})
+  #{ range => erlang_ls_protocol:range(#{from => {11, 0}, to => {11, 0}})
+   , uri   => erlang_ls_uri:uri(FilePath)
+   };
+definition(DataDir, {record_expr, "record_a"}) ->
+  FilePath = filename:join([DataDir, <<"src">>, <<"code_navigation.erl">>]),
+  #{ range => erlang_ls_protocol:range(#{from => {9, 0}, to => {9, 0}})
    , uri   => erlang_ls_uri:uri(FilePath)
    }.
-
-%% TODO: Armonize strings vs atoms in definitions
