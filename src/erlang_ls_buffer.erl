@@ -144,7 +144,7 @@ do_get_mfa(Text, Line, _Character) ->
 do_get_element_at_pos(Text, Line, Column) ->
   %% TODO: Cache tree
   {ok, Tree} = erlang_ls_parser:parse(Text),
-  AnnotatedTree = erlang_ls_parser:annotate(Tree),
+  AnnotatedTree = erlang_ls_tree:annotate(Tree),
   erlang_ls_parser:find_poi_by_pos(AnnotatedTree, {Line, Column}).
 
 -spec get_line_text(binary(), integer()) -> binary().
