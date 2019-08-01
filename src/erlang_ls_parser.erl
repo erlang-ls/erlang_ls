@@ -24,17 +24,6 @@
              , range/0
              ]).
 
-%%==============================================================================
-%% Dialyzer Exceptions
-%%==============================================================================
-%% The specs for the epp_dodger API are slightly incorrect.
-%% A bug has been reported (see https://bugs.erlang.org/browse/ERL-1005)
-%% Meanwhile, let's skip checking this module.
--dialyzer(no_contracts).
--dialyzer(no_return).
--dialyzer(no_unused).
--dialyzer(no_fail_call).
-
 %% TODO: Generate random filename
 %% TODO: Ideally avoid writing to file at all (require epp changes)
 -define(TMP_PATH, "/tmp/erlang_ls_tmp").
@@ -52,7 +41,10 @@ parse_file(Path) ->
     {ok, IoDevice} ->
       %% Providing `{1, 1}` as the initial location ensures
       %% that the returned forms include column numbers, as well.
-      {ok, Forms} = epp_dodger:parse(IoDevice, {1, 1}),
+      %% The specs for the epp_dodger API are slightly incorrect.
+      %% A bug has been reported (see https://bugs.erlang.org/browse/ERL-1005)
+      %% Meanwhile, let's trick Dialyzer with an apply.
+      {ok, Forms} = erlang:apply(epp_dodger, parse, [IoDevice, {1, 1}]),
       Tree = erl_syntax:form_list(Forms),
       ok = file:close(IoDevice),
       {ok, Tree};
