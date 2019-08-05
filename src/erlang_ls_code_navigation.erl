@@ -37,7 +37,7 @@
 %% TODO: goto_definition/2 should probably not take the Uri, but a path.
 -spec goto_definition(uri(), erlang_ls_poi:poi()) -> null | map().
 goto_definition(_Uri, #{ info := {application, {M, _F, _A}} = Info }) ->
-  case annotated_tree(erlang_ls_uri:filename(M)) of
+  case erlang_ls_tree:annotate_file(erlang_ls_uri:filename(M), full_path()) of
     {ok, Uri, AnnotatedTree} ->
       case erlang_ls_parser:find_poi_by_info(AnnotatedTree, definition(Info)) of
         [#{ range := Range }] ->
@@ -52,7 +52,7 @@ goto_definition(_Uri, #{ info := {application, {M, _F, _A}} = Info }) ->
       null
   end;
 goto_definition(Uri, #{ info := {application, {_F, _A}} = Info }) ->
-  case annotated_tree(erlang_ls_uri:basename(Uri)) of
+  case erlang_ls_tree:annotate_file(erlang_ls_uri:basename(Uri), full_path()) of
     {ok, Uri, AnnotatedTree} ->
       case erlang_ls_parser:find_poi_by_info(AnnotatedTree, definition(Info)) of
         [#{ range := Range }] ->
@@ -78,7 +78,7 @@ goto_definition(Uri, #{ info := {record_expr, _Record} = Info }) ->
   search(Filename, app_path(), Info);
 goto_definition(_Uri, #{ info := {include, Include0} }) ->
   Include = list_to_binary(string:trim(Include0, both, [$"])),
-  case annotated_tree(Include) of
+  case erlang_ls_tree:annotate_file(Include, full_path()) of
     {ok, Uri, _AnnotatedTree} ->
       #{ uri => Uri
          %% TODO: We could point to the module attribute, instead
@@ -91,7 +91,7 @@ goto_definition(_Uri, #{ info := {include, Include0} }) ->
   end;
 goto_definition(_Uri, #{ info := {include_lib, Include0} }) ->
   Include = list_to_binary(lists:last(filename:split(string:trim(Include0, both, [$"])))),
-  case annotated_tree(Include) of
+  case erlang_ls_tree:annotate_file(Include, full_path()) of
     {ok, Uri, _AnnotatedTree} ->
       #{ uri => Uri
          %% TODO: We could point to the module attribute, instead
@@ -104,26 +104,6 @@ goto_definition(_Uri, #{ info := {include_lib, Include0} }) ->
   end;
 goto_definition(_Uri, _) ->
   null.
-
-%% TODO: Move to tree module
--spec annotated_tree(binary()) ->
-   {ok, uri(), erlang_ls_tree:tree()} | {error, any()}.
-annotated_tree(Filename) ->
-  annotated_tree(Filename, full_path()).
-
--spec annotated_tree(binary(), [string()]) ->
-   {ok, uri(), erlang_ls_tree:tree()} | {error, any()}.
-annotated_tree(Filename, Path) ->
-  case file:path_open(Path, Filename, [read]) of
-    {ok, IoDevice, FullName} ->
-      %% TODO: Avoid opening file twice
-      file:close(IoDevice),
-      {ok, Tree} = erlang_ls_parser:parse_file(FullName),
-      Uri = erlang_ls_uri:uri(FullName),
-      {ok, Uri, erlang_ls_tree:annotate(Tree)};
-    {error, Error} ->
-      {error, Error}
-  end.
 
 -spec definition({atom(), any()}) -> {atom(), any()}.
 definition({application, {_M, F, A}}) ->
@@ -157,11 +137,10 @@ deps_path() ->
 full_path() ->
   lists:append( [ app_path() , deps_path() , otp_path() ]).
 
-
 %% Look for a definition recursively in a file and its includes.
 -spec search(binary(), [string()], any()) -> null | map().
 search(Filename, Path, Thing) ->
-  case annotated_tree(Filename, Path) of
+  case erlang_ls_tree:annotate_file(Filename, Path) of
     {ok, Uri, AnnotatedTree} ->
       case find(Uri, AnnotatedTree, Thing) of
         null ->

@@ -7,17 +7,26 @@
 %% Exports
 %%==============================================================================
 -export([ annotate/1
+        , annotate_file/2
         , annotate_node/1
         , postorder_update/2
         , points_of_interest/1
         ]).
 
 %%==============================================================================
+%% Includes
+%%==============================================================================
+-include("erlang_ls.hrl").
+
+%%==============================================================================
 %% Types
 %%==============================================================================
 -type tree() :: erl_syntax:syntaxTree().
+-type annotated_tree() :: tree().
 
--export_type([ tree/0 ]).
+-export_type([ annotated_tree/0
+             , tree/0
+             ]).
 
 %%==============================================================================
 %% API
@@ -27,6 +36,21 @@
 -spec annotate(tree()) -> tree().
 annotate(Tree) ->
   postorder_update(fun annotate_node/1, Tree).
+
+-spec annotate_file(binary(), [string()]) ->
+   {ok, uri(), annotated_tree()} | {error, any()}.
+annotate_file(Filename, Path) ->
+  case file:path_open(Path, Filename, [read]) of
+    {ok, IoDevice, FullName} ->
+      %% TODO: Avoid opening file twice
+      file:close(IoDevice),
+      {ok, Tree} = erlang_ls_parser:parse_file(FullName),
+      Uri = erlang_ls_uri:uri(FullName),
+      {ok, Uri, annotate(Tree)};
+    {error, Error} ->
+      {error, Error}
+  end.
+
 
 %% @edoc Add an annotation to the root of the given `Tree` for each
 %% point of interest found.

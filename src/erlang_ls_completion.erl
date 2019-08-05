@@ -3,7 +3,6 @@
 -export([ record_definitions/0
         ]).
 
-%% TODO: Store these in an ETS table
 -spec record_definitions() -> [atom()].
 record_definitions() ->
   lists:usort(lists:flatten([record_definitions(B) || B <- all_beams()])).
