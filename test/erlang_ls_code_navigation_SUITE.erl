@@ -72,9 +72,9 @@ behaviour(Config) ->
   Thing       = {behaviour, 'behaviour_a'},
   Definition  = definition(?config(data_dir_bin, Config), Thing),
   ?assertEqual( Definition
-              , erlang_ls_server:search( FileName
-                                       , ?config(include_path, Config)
-                                       , erlang_ls_server:definition(Thing))),
+              , erlang_ls_code_navigation:search( FileName
+                                                , ?config(include_path, Config)
+                                                , erlang_ls_code_navigation:definition(Thing))),
   ok.
 
 -spec macro(config()) -> ok.
@@ -83,9 +83,9 @@ macro(Config) ->
   Thing       = {macro, 'MACRO_A'},
   Definition  = definition(?config(data_dir_bin, Config), Thing),
   ?assertEqual( Definition
-              , erlang_ls_server:search( FileName
-                                       , ?config(include_path, Config)
-                                       , erlang_ls_server:definition(Thing))),
+              , erlang_ls_code_navigation:search( FileName
+                                                , ?config(include_path, Config)
+                                                , erlang_ls_code_navigation:definition(Thing))),
   ok.
 
 -spec record(config()) -> ok.
@@ -94,9 +94,9 @@ record(Config) ->
   Thing       = {record_expr, "record_a"},
   Definition  = definition(?config(data_dir_bin, Config), Thing),
   ?assertEqual( Definition
-              , erlang_ls_server:search( FileName
-                                       , ?config(include_path, Config)
-                                       , erlang_ls_server:definition(Thing))),
+              , erlang_ls_code_navigation:search( FileName
+                                                , ?config(include_path, Config)
+                                                , erlang_ls_code_navigation:definition(Thing))),
   ok.
 
 %%==============================================================================
