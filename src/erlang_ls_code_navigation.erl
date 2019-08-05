@@ -39,7 +39,7 @@
 goto_definition(_Uri, #{ info := {application, {M, _F, _A}} = Info }) ->
   case erlang_ls_tree:annotate_file(erlang_ls_uri:filename(M), full_path()) of
     {ok, Uri, AnnotatedTree} ->
-      case erlang_ls_parser:find_poi_by_info(AnnotatedTree, definition(Info)) of
+      case erlang_ls_poi:match(AnnotatedTree, definition(Info)) of
         [#{ range := Range }] ->
           %% TODO: Use API to create types
           #{ uri => Uri
@@ -54,7 +54,7 @@ goto_definition(_Uri, #{ info := {application, {M, _F, _A}} = Info }) ->
 goto_definition(Uri, #{ info := {application, {_F, _A}} = Info }) ->
   case erlang_ls_tree:annotate_file(erlang_ls_uri:basename(Uri), full_path()) of
     {ok, Uri, AnnotatedTree} ->
-      case erlang_ls_parser:find_poi_by_info(AnnotatedTree, definition(Info)) of
+      case erlang_ls_poi:match(AnnotatedTree, definition(Info)) of
         [#{ range := Range }] ->
           %% TODO: Use API to create types
           #{ uri => Uri
@@ -144,8 +144,8 @@ search(Filename, Path, Thing) ->
     {ok, Uri, AnnotatedTree} ->
       case find(Uri, AnnotatedTree, Thing) of
         null ->
-          Includes = erlang_ls_parser:find_poi_by_info_key(AnnotatedTree, include),
-          IncludeLibs = erlang_ls_parser:find_poi_by_info_key(AnnotatedTree, include_lib),
+          Includes = erlang_ls_poi:match_key(AnnotatedTree, include),
+          IncludeLibs = erlang_ls_poi:match_key(AnnotatedTree, include_lib),
           search_in_includes(Includes ++ IncludeLibs, Thing);
         Def ->
           Def
@@ -157,7 +157,7 @@ search(Filename, Path, Thing) ->
 %% Look for a definition in a given tree
 -spec find(uri(), erlang_ls_tree:tree(), any()) -> null | map().
 find(Uri, AnnotatedTree, Thing) ->
-  case erlang_ls_parser:find_poi_by_info(AnnotatedTree, Thing) of
+  case erlang_ls_poi:match(AnnotatedTree, Thing) of
     [#{ range := Range }|_] ->
       #{ uri => Uri, range => erlang_ls_protocol:range(Range) };
     [] ->

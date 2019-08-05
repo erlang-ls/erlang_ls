@@ -13,12 +13,20 @@
                    }.
 
 -export_type([ poi/0
-             , pos/0
              , range/0
              ]).
 
-
 -export([ poi/2 ]).
+
+-export([ list/1
+        , match/2
+        , match_key/2
+        , match_pos/2
+        ]).
+
+%%==============================================================================
+%% API
+%%==============================================================================
 
 %% @edoc Constructor for a Point of Interest.
 -spec poi(erlang_ls_tree:tree(), any()) -> poi().
@@ -29,6 +37,30 @@ poi(Tree, Info) ->
    , info  => Info
    , range => Range
    }.
+
+%% @edoc List the Points of Interest for a given tree.
+-spec list(erlang_ls_tree:tree()) -> [poi()].
+list(Tree) ->
+  F = fun(T, Acc) ->
+          Annotations = erl_syntax:get_ann(T),
+          case [POI || #{ type := poi } = POI <- Annotations] of
+            [] -> Acc;
+            L -> L ++ Acc
+          end
+      end,
+  erl_syntax_lib:fold(F, [], Tree).
+
+-spec match(erlang_ls_tree:tree(), any()) -> [poi()].
+match(Tree, Info0) ->
+  [POI || #{info := Info} = POI <- list(Tree), Info0 =:= Info].
+
+-spec match_key(erlang_ls_tree:tree(), atom()) -> [poi()].
+match_key(Tree, Key0) ->
+  [POI || #{info := {Key, _}} = POI <- list(Tree), Key0 =:= Key].
+
+-spec match_pos(erlang_ls_tree:tree(), pos()) -> [poi()].
+match_pos(Tree, Pos) ->
+  [POI || #{range := Range} = POI <- list(Tree), matches_pos(Pos, Range)].
 
 %%==============================================================================
 %% Internal Functions
@@ -90,3 +122,7 @@ get_range({_Line, _Column}, {spec, _Spec}) ->
   %% TODO: The location information for the arity qualifiers are lost during
   %%       parsing in `epp_dodger`. This requires fixing.
   #{ from => {0, 0}, to => {0, 0} }.
+
+-spec matches_pos(pos(), range()) -> boolean().
+matches_pos(Pos, #{from := From, to := To}) ->
+  (From =< Pos) andalso (Pos =< To).

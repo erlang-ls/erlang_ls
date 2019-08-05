@@ -1,10 +1,6 @@
 -module(erlang_ls_parser).
 
--export([ find_poi_by_info/2
-        , find_poi_by_info_key/2
-        , find_poi_by_pos/2
-        , list_poi/1
-        , parse/1
+-export([ parse/1
         , parse_file/1
         ]).
 
@@ -36,34 +32,3 @@ parse_file(Path) ->
     {error, Error} ->
       {error, Error}
   end.
-
--spec find_poi_by_info(erlang_ls_tree:tree(), any()) ->
-   [erlang_ls_poi:poi()].
-find_poi_by_info(Tree, Info0) ->
-  [POI || #{info := Info} = POI <- list_poi(Tree), Info0 =:= Info].
-
-%% TODO: Rename
--spec find_poi_by_info_key(erlang_ls_tree:tree(), atom()) ->
-   [erlang_ls_poi:poi()].
-find_poi_by_info_key(Tree, Key0) ->
-  [POI || #{info := {Key, _}} = POI <- list_poi(Tree), Key0 =:= Key].
-
--spec find_poi_by_pos(erlang_ls_tree:tree(), erlang_ls_poi:pos()) ->
-   [erlang_ls_poi:poi()].
-find_poi_by_pos(Tree, Pos) ->
-  [POI || #{range := Range} = POI <- list_poi(Tree), matches_pos(Pos, Range)].
-
--spec list_poi(erlang_ls_tree:tree()) -> [erlang_ls_poi:poi()].
-list_poi(Tree) ->
-  F = fun(T, Acc) ->
-          Annotations = erl_syntax:get_ann(T),
-          case [POI || #{ type := poi } = POI <- Annotations] of
-            [] -> Acc;
-            L -> L ++ Acc
-          end
-      end,
-  erl_syntax_lib:fold(F, [], Tree).
-
--spec matches_pos(erlang_ls_poi:pos(), erlang_ls_poi:range()) -> boolean().
-matches_pos(Pos, #{from := From, to := To}) ->
-  (From =< Pos) andalso (Pos =< To).
