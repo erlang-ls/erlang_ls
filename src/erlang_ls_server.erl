@@ -208,7 +208,7 @@ send_notification(Socket, Method, Params) ->
   gen_tcp:send(Socket, Notification).
 
 %% TODO: definition/2 should probably not take the Uri, but a path.
--spec definition(uri(), erlang_ls_parser:poi()) -> null | map().
+-spec definition(uri(), erlang_ls_poi:poi()) -> null | map().
 definition(_Uri, #{ info := {application, {M, _F, _A}} = Info }) ->
   case annotated_tree(erlang_ls_uri:filename(M)) of
     {ok, Uri, AnnotatedTree} ->
@@ -291,12 +291,12 @@ definition({record_expr, Record}) ->
   {record, Record}.
 
 -spec annotated_tree(binary()) ->
-   {ok, uri(), erlang_ls_parser:syntax_tree()} | {error, any()}.
+   {ok, uri(), erlang_ls_tree:tree()} | {error, any()}.
 annotated_tree(Filename) ->
   annotated_tree(Filename, full_path()).
 
 -spec annotated_tree(binary(), [string()]) ->
-   {ok, uri(), erlang_ls_parser:syntax_tree()} | {error, any()}.
+   {ok, uri(), erlang_ls_tree:tree()} | {error, any()}.
 annotated_tree(Filename, Path) ->
   case file:path_open(Path, Filename, [read]) of
     {ok, IoDevice, FullName} ->
@@ -304,7 +304,7 @@ annotated_tree(Filename, Path) ->
       file:close(IoDevice),
       {ok, Tree} = erlang_ls_parser:parse_file(FullName),
       Uri = erlang_ls_uri:uri(FullName),
-      {ok, Uri, erlang_ls_parser:annotate(Tree)};
+      {ok, Uri, erlang_ls_tree:annotate(Tree)};
     {error, Error} ->
       {error, Error}
   end.
@@ -346,7 +346,7 @@ search(Filename, Path, Thing) ->
   end.
 
 %% Look for a definition in a given tree
--spec find(uri(), erlang_ls_parser:syntax_tree(), any()) -> null | map().
+-spec find(uri(), erlang_ls_tree:tree(), any()) -> null | map().
 find(Uri, AnnotatedTree, Thing) ->
   case erlang_ls_parser:find_poi_by_info(AnnotatedTree, Thing) of
     [#{ range := Range }|_] ->
@@ -355,7 +355,7 @@ find(Uri, AnnotatedTree, Thing) ->
       null
   end.
 
--spec search_in_includes([erlang_ls_parser:poi()], string()) -> null | map().
+-spec search_in_includes([erlang_ls_poi:poi()], string()) -> null | map().
 search_in_includes([], _Thing) ->
   null;
 search_in_includes([#{info := Info}|T], Thing) ->
