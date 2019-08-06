@@ -151,7 +151,7 @@ find(AnnotatedTree, Thing) ->
       {error, not_found}
   end.
 
--spec search_in_includes([erlang_ls_poi:poi()], [string()], string()) ->
+-spec search_in_includes([erlang_ls_poi:poi()], [string()], any()) ->
    {ok, binary(), erlang_ls_poi:range()} | {error, any()}.
 search_in_includes([], _Path, _Thing) ->
   {error, not_found};
