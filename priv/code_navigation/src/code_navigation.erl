@@ -7,6 +7,8 @@
 %% behaviour_a callbacks
 -export([ callback_a/0 ]).
 
+-include("code_navigation.hrl").
+
 -record(record_a, {field_a, field_b}).
 
 -define(MACRO_A, macro_a).
