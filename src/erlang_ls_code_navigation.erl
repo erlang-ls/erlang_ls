@@ -112,7 +112,7 @@ app_path() ->
   [ filename:join([?TEST_APP_PATH, "src"])
   , filename:join([?TEST_APP_PATH, "include"])
   , filename:join([?ERLANG_LS_PATH, "src"])
-  , filename:join([?TEST_APP_PATH, "include"])
+  , filename:join([?ERLANG_LS_PATH, "include"])
   ].
 
 -spec deps_path() -> [string()].
