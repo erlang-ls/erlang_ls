@@ -8,6 +8,7 @@
 -export([ callback_a/0 ]).
 
 -include("code_navigation.hrl").
+-include_lib("code_navigation/include/code_navigation.hrl").
 
 -record(record_a, {field_a, field_b}).
 
@@ -22,3 +23,7 @@ function_b() ->
 
 callback_a() ->
   ok.
+
+function_c() ->
+  code_navigation_extra:do(test),
+  length([1, 2, 3]).

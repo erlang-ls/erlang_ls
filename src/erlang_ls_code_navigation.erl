@@ -132,7 +132,7 @@ search(Filename, Path, Thing) ->
         {error, not_found} ->
           Includes = erlang_ls_poi:match_key(AnnotatedTree, include),
           IncludeLibs = erlang_ls_poi:match_key(AnnotatedTree, include_lib),
-          search_in_includes(Includes ++ IncludeLibs, Thing);
+          search_in_includes(Includes ++ IncludeLibs, Path, Thing);
         {ok, Range} ->
           {ok, FullName, Range}
       end;
@@ -151,14 +151,14 @@ find(AnnotatedTree, Thing) ->
       {error, not_found}
   end.
 
--spec search_in_includes([erlang_ls_poi:poi()], string()) ->
+-spec search_in_includes([erlang_ls_poi:poi()], [string()], string()) ->
    {ok, binary(), erlang_ls_poi:range()} | {error, any()}.
-search_in_includes([], _Thing) ->
+search_in_includes([], _Path, _Thing) ->
   {error, not_found};
-search_in_includes([#{info := Info}|T], Thing) ->
+search_in_includes([#{info := Info}|T], Path, Thing) ->
   Include = normalize_include(Info),
-  case search(list_to_binary(Include), app_path(), Thing) of
-    {error, not_found} -> search_in_includes(T, Thing);
+  case search(list_to_binary(Include), Path, Thing) of
+    {error, _Error} -> search_in_includes(T, Path, Thing);
     {ok, FullName, Range} -> {ok, FullName, Range}
   end.
 
