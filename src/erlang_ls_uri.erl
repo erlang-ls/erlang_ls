@@ -8,8 +8,7 @@
 %%==============================================================================
 %% Exports
 %%==============================================================================
--export([ filename/1
-        , module/1
+-export([ module/1
         , path/1
         , uri/1
         ]).
@@ -18,10 +17,6 @@
 %% Includes
 %%==============================================================================
 -include("erlang_ls.hrl").
-
--spec filename(atom()) -> binary().
-filename(Module) ->
-  list_to_binary(atom_to_list(Module) ++ ".erl").
 
 -spec module(uri()) -> atom().
 module(Uri) ->

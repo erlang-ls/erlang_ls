@@ -178,7 +178,14 @@ handle_method(<<"textDocument/definition">>, Params) ->
   case erlang_ls_buffer:get_element_at_pos(Buffer, Line + 1, Character + 1) of
     [POI|_] ->
       Filename = erlang_ls_uri:path(Uri),
-      {response, erlang_ls_code_navigation:goto_definition(Filename, POI)};
+      case erlang_ls_code_navigation:goto_definition(Filename, POI) of
+        {error, _Error} ->
+          {response, null};
+        {ok, FullName, Range} ->
+          {response, #{ uri => erlang_ls_uri:uri(FullName)
+                      , range => erlang_ls_protocol:range(Range)
+                      }}
+      end;
     [] ->
       {response, null}
   end;

@@ -65,59 +65,50 @@ all() ->
 %%==============================================================================
 %% Testcases
 %%==============================================================================
-%% TODO: Refactor API
 -spec behaviour(config()) -> ok.
 behaviour(Config) ->
-  FileName    = <<"behaviour_a.erl">>,
-  Thing       = {behaviour, 'behaviour_a'},
-  Definition  = definition(?config(data_dir_bin, Config), Thing),
-  ?assertEqual( Definition
-              , erlang_ls_code_navigation:search( FileName
-                                                , ?config(include_path, Config)
-                                                , erlang_ls_code_navigation:definition(Thing))),
+  FileName = <<"behaviour_a.erl">>,
+  Thing    = #{ info => {behaviour, 'behaviour_a'} },
+  Path     = ?config(include_path, Config),
+  {ok, FullName, Range} = goto_definition(FileName, Thing, Path),
+  ?assertEqual(full_path(src, FileName, Config), FullName),
+  ?assertEqual(#{from => {0, 1}, to => {0, 1}}, Range),
   ok.
 
 -spec macro(config()) -> ok.
 macro(Config) ->
-  FileName    = <<"code_navigation.erl">>,
-  Thing       = {macro, 'MACRO_A'},
-  Definition  = definition(?config(data_dir_bin, Config), Thing),
-  ?assertEqual( Definition
-              , erlang_ls_code_navigation:search( FileName
-                                                , ?config(include_path, Config)
-                                                , erlang_ls_code_navigation:definition(Thing))),
+  FileName = <<"code_navigation.erl">>,
+  Thing    = #{ info => {macro, 'MACRO_A'} },
+  Path     = ?config(include_path, Config),
+  {ok, FullName, Range} = goto_definition(FileName, Thing, Path),
+  ?assertEqual(full_path(src, FileName, Config), FullName),
+  ?assertEqual(#{from => {11, 0}, to => {11, 0}}, Range),
   ok.
 
+%% TODO: Additional constructors for POI
+%% TODO: Navigation should return POI, not range
 -spec record(config()) -> ok.
 record(Config) ->
-  FileName    = <<"code_navigation.erl">>,
-  Thing       = {record_expr, "record_a"},
-  Definition  = definition(?config(data_dir_bin, Config), Thing),
-  ?assertEqual( Definition
-              , erlang_ls_code_navigation:search( FileName
-                                                , ?config(include_path, Config)
-                                                , erlang_ls_code_navigation:definition(Thing))),
+  FileName = <<"code_navigation.erl">>,
+  Thing    = #{ info => {record_expr, "record_a"} },
+  Path     = ?config(include_path, Config),
+  {ok, FullName, Range} = goto_definition(FileName, Thing, Path),
+  ?assertEqual(full_path(src, FileName, Config), FullName),
+  ?assertEqual(#{from => {9, 0}, to => {9, 0}}, Range),
   ok.
 
 %%==============================================================================
 %% Internal Functions
 %%==============================================================================
-definition(DataDir, {behaviour, 'behaviour_a'}) ->
-  FilePath = filename:join([DataDir, <<"src">>, <<"behaviour_a.erl">>]),
-  #{ range => erlang_ls_protocol:range(#{from => {0, 1}, to => {0, 1}})
-   , uri   => erlang_ls_uri:uri(FilePath)
-   };
-definition(DataDir, {macro, 'MACRO_A'}) ->
-  FilePath = filename:join([DataDir, <<"src">>, <<"code_navigation.erl">>]),
-  #{ range => erlang_ls_protocol:range(#{from => {11, 0}, to => {11, 0}})
-   , uri   => erlang_ls_uri:uri(FilePath)
-   };
-definition(DataDir, {record_expr, "record_a"}) ->
-  FilePath = filename:join([DataDir, <<"src">>, <<"code_navigation.erl">>]),
-  #{ range => erlang_ls_protocol:range(#{from => {9, 0}, to => {9, 0}})
-   , uri   => erlang_ls_uri:uri(FilePath)
-   }.
-%% TODO: API should be refactored. I should search for something, not the definition.
+full_path(Dir, FileName, Config) ->
+  filename:join([ ?config(data_dir_bin, Config)
+                , atom_to_binary(Dir, utf8)
+                , FileName
+                ]).
+
+goto_definition(FileName, Thing, Path) ->
+  erlang_ls_code_navigation:goto_definition(FileName, Thing, Path).
+
 %% TODO: include
 %% TODO: include_lib
 %% TODO: recursive record

@@ -8,11 +8,8 @@
 %%==============================================================================
 
 %% API
--export([ goto_definition/2 ]).
-
-%% TODO: Refactor API
--export([ definition/1
-        , search/3
+-export([ goto_definition/2
+        , goto_definition/3
         ]).
 
 %%==============================================================================
@@ -33,74 +30,66 @@
 %% API
 %%==============================================================================
 
-%% TODO: Specify type instead of generic map
--spec goto_definition(binary(), erlang_ls_poi:poi()) -> null | map().
-goto_definition(_Filename, #{ info := {application, {M, _F, _A}} = Info }) ->
-  case erlang_ls_tree:annotate_file(erlang_ls_uri:filename(M), full_path()) of
+-spec goto_definition(binary(), erlang_ls_poi:poi()) ->
+   {ok, binary(), erlang_ls_poi:range()} | {error, any()}.
+goto_definition(Filename, POI) ->
+  goto_definition(Filename, POI, full_path()).
+
+-spec goto_definition(binary(), erlang_ls_poi:poi(), [string()]) ->
+   {ok, binary(), erlang_ls_poi:range()} | {error, any()}.
+goto_definition( _Filename
+               , #{ info := {application, {M, _F, _A}} = Info }
+               , Path) ->
+  case erlang_ls_tree:annotate_file(filename(M), Path) of
     {ok, FullName, AnnotatedTree} ->
       case erlang_ls_poi:match(AnnotatedTree, definition(Info)) of
         [#{ range := Range }] ->
-          %% TODO: Use API to create types
-          #{ uri => erlang_ls_uri:uri(FullName)
-           , range => erlang_ls_protocol:range(Range)
-           };
+          {ok, FullName, Range};
         [] ->
-          null
+          {error, not_found}
       end;
-    {error, _Error} ->
-      null
+    {error, Error} ->
+      {error, Error}
   end;
-goto_definition(Filename, #{ info := {application, {_F, _A}} = Info }) ->
-  case erlang_ls_tree:annotate_file(filename:basename(Filename), full_path()) of
+goto_definition( Filename
+               , #{ info := {application, {_F, _A}} = Info }
+               , Path) ->
+  case erlang_ls_tree:annotate_file(filename:basename(Filename), Path) of
     {ok, FullName, AnnotatedTree} ->
       case erlang_ls_poi:match(AnnotatedTree, definition(Info)) of
         [#{ range := Range }] ->
-          %% TODO: Use API to create types
-          #{ uri => erlang_ls_uri:uri(FullName)
-           , range => erlang_ls_protocol:range(Range)
-           };
+          {ok, FullName, Range};
         [] ->
-          null
+          {error, not_found}
       end;
-    {error, _Error} ->
-      null
+    {error, Error} ->
+      {error, Error}
   end;
-goto_definition(_Filename, #{ info := {behaviour, Behaviour} = Info }) ->
-  Filename = erlang_ls_uri:filename(Behaviour),
-  search(Filename, full_path(), definition(Info));
+goto_definition(_Filename, #{ info := {behaviour, Behaviour} = Info }, Path) ->
+  search(filename(Behaviour), Path, definition(Info));
 %% TODO: Eventually search everywhere and suggest a code lens to include a file
-goto_definition(Filename, #{ info := {macro, _Define} = Info }) ->
-  search(filename:basename(Filename), app_path(), definition(Info));
-goto_definition(Filename, #{ info := {record_expr, _Record} = Info }) ->
-  search(filename:basename(Filename), app_path(), Info);
-goto_definition(_Filename, #{ info := {include, Include0} }) ->
+goto_definition(Filename, #{ info := {macro, _Define} = Info }, Path) ->
+  search(filename:basename(Filename), Path, definition(Info));
+goto_definition(Filename, #{ info := {record_expr, _Record} = Info }, Path) ->
+  search(filename:basename(Filename), Path, definition(Info));
+goto_definition(_Filename, #{ info := {include, Include0} }, Path) ->
   Include = list_to_binary(string:trim(Include0, both, [$"])),
-  case erlang_ls_tree:annotate_file(Include, full_path()) of
+  case erlang_ls_tree:annotate_file(Include, Path) of
     {ok, FullName, _AnnotatedTree} ->
-      #{ uri => erlang_ls_uri:uri(FullName)
-         %% TODO: We could point to the module attribute, instead
-       , range => erlang_ls_protocol:range(#{ from => {0, 0}
-                                            , to   => {0, 0}
-                                            })
-       };
-    {error, _Error} ->
-      null
+      {ok, FullName, #{ from => {0, 0}, to => {0, 0} }};
+    {error, Error} ->
+      {error, Error}
   end;
-goto_definition(_Filename, #{ info := {include_lib, Include0} }) ->
+goto_definition(_Filename, #{ info := {include_lib, Include0} }, Path) ->
   Include = list_to_binary(lists:last(filename:split(string:trim(Include0, both, [$"])))),
-  case erlang_ls_tree:annotate_file(Include, full_path()) of
+  case erlang_ls_tree:annotate_file(Include, Path) of
     {ok, FullName, _AnnotatedTree} ->
-      #{ uri => erlang_ls_uri:uri(FullName)
-         %% TODO: We could point to the module attribute, instead
-       , range => erlang_ls_protocol:range(#{ from => {0, 0}
-                                            , to   => {0, 0}
-                                            })
-       };
-    {error, _Error} ->
-      null
+      {ok, FullName, #{ from => {0, 0}, to => {0, 0} }};
+    {error, Error} ->
+      {error, Error}
   end;
-goto_definition(_Filename, _) ->
-  null.
+goto_definition(_Filename, _, _Path) ->
+  {error, not_found}.
 
 -spec definition({atom(), any()}) -> {atom(), any()}.
 definition({application, {_M, F, A}}) ->
@@ -113,7 +102,6 @@ definition({macro, Define}) ->
   {define, Define};
 definition({record_expr, Record}) ->
   {record, Record}.
-
 
 -spec otp_path() -> [string()].
 otp_path() ->
@@ -135,41 +123,43 @@ full_path() ->
   lists:append( [ app_path() , deps_path() , otp_path() ]).
 
 %% Look for a definition recursively in a file and its includes.
--spec search(binary(), [string()], any()) -> null | map().
+-spec search(binary(), [string()], any()) ->
+   {ok, binary(), erlang_ls_poi:range()} | {error, any()}.
 search(Filename, Path, Thing) ->
   case erlang_ls_tree:annotate_file(Filename, Path) of
     {ok, FullName, AnnotatedTree} ->
-      Uri = erlang_ls_uri:uri(FullName),
-      case find(Uri, AnnotatedTree, Thing) of
-        null ->
+      case find(AnnotatedTree, Thing) of
+        {error, not_found} ->
           Includes = erlang_ls_poi:match_key(AnnotatedTree, include),
           IncludeLibs = erlang_ls_poi:match_key(AnnotatedTree, include_lib),
           search_in_includes(Includes ++ IncludeLibs, Thing);
-        Def ->
-          Def
+        {ok, Range} ->
+          {ok, FullName, Range}
       end;
-    {error, _Error} ->
-      null
+    {error, Error} ->
+      {error, Error}
   end.
 
 %% Look for a definition in a given tree
--spec find(uri(), erlang_ls_tree:tree(), any()) -> null | map().
-find(Uri, AnnotatedTree, Thing) ->
+-spec find(erlang_ls_tree:tree(), any()) ->
+   {ok, erlang_ls_poi:range()} | {error, any()}.
+find(AnnotatedTree, Thing) ->
   case erlang_ls_poi:match(AnnotatedTree, Thing) of
     [#{ range := Range }|_] ->
-      #{ uri => Uri, range => erlang_ls_protocol:range(Range) };
+      {ok, Range};
     [] ->
-      null
+      {error, not_found}
   end.
 
--spec search_in_includes([erlang_ls_poi:poi()], string()) -> null | map().
+-spec search_in_includes([erlang_ls_poi:poi()], string()) ->
+   {ok, binary(), erlang_ls_poi:range()} | {error, any()}.
 search_in_includes([], _Thing) ->
-  null;
+  {error, not_found};
 search_in_includes([#{info := Info}|T], Thing) ->
   Include = normalize_include(Info),
   case search(list_to_binary(Include), app_path(), Thing) of
-    null -> search_in_includes(T, Thing);
-    Def  -> Def
+    {error, not_found} -> search_in_includes(T, Thing);
+    {ok, FullName, Range} -> {ok, FullName, Range}
   end.
 
 -spec normalize_include({atom(), string()}) -> string().
@@ -177,3 +167,7 @@ normalize_include({include, Include}) ->
   string:trim(Include, both, [$"]);
 normalize_include({include_lib, Include}) ->
   lists:last(filename:split(string:trim(Include, both, [$"]))).
+
+-spec filename(atom()) -> binary().
+filename(Module) ->
+  list_to_binary(atom_to_list(Module) ++ ".erl").
