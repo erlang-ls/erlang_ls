@@ -119,6 +119,7 @@ app_path() ->
 deps_path() ->
   filelib:wildcard(filename:join([?DEPS_PATH, "*/src"])).
 
+-spec full_path() -> [string()].
 full_path() ->
   lists:append( [ app_path() , deps_path() , otp_path() ]).
 
