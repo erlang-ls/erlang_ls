@@ -21,10 +21,6 @@
 %% Macros
 %%==============================================================================
 -define(OTP_INCLUDE_PATH, "/usr/local/Cellar/erlang/21.2.4/lib/erlang/lib").
-%% TODO: Implement support for workspaces
--define(ERLANG_LS_PATH, "/Users/robert.aloi/git/github/erlang-ls/erlang_ls").
--define(TEST_APP_PATH, "/Users/robert.aloi/git/github/erlang-ls/test").
--define(DEPS_PATH, "/Users/robert.aloi/git/github/erlang-ls/erlang_ls/_build/debug/lib").
 
 %%==============================================================================
 %% API
@@ -109,19 +105,15 @@ otp_path() ->
 
 -spec app_path() -> [string()].
 app_path() ->
-  [ filename:join([?TEST_APP_PATH, "src"])
-  , filename:join([?TEST_APP_PATH, "include"])
-  , filename:join([?ERLANG_LS_PATH, "src"])
-  , filename:join([?ERLANG_LS_PATH, "include"])
+  {ok, RootUri} = erlang_ls_buffer_server:get_root_uri(),
+  RootPath = erlang_ls_uri:path(RootUri),
+  [ filename:join([RootPath, "src"])
+  , filename:join([RootPath, "include"])
   ].
-
--spec deps_path() -> [string()].
-deps_path() ->
-  filelib:wildcard(filename:join([?DEPS_PATH, "*/src"])).
 
 -spec full_path() -> [string()].
 full_path() ->
-  lists:append( [ app_path() , deps_path() , otp_path() ]).
+  lists:append( [ app_path(), otp_path() ]).
 
 %% Look for a definition recursively in a file and its includes.
 -spec search(binary(), [string()], any()) ->

@@ -123,7 +123,9 @@ handle_request(Socket, Request) ->
 
 -spec handle_method(binary(), map()) ->
   {response, map()} | {} | {notification, binary(), map()}.
-handle_method(<<"initialize">>, _Params) ->
+handle_method(<<"initialize">>, Params) ->
+  RootUri = maps:get(<<"rootUri">>, Params),
+  ok = erlang_ls_buffer_server:set_root_uri(RootUri),
   Result = #{ capabilities =>
                 #{ hoverProvider => false
                  , completionProvider =>

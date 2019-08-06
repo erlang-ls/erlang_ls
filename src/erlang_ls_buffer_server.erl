@@ -15,7 +15,9 @@
 -export([ start_link/0
         , add_buffer/2
         , get_buffer/1
+        , get_root_uri/0
         , remove_buffer/1
+        , set_root_uri/1
         , stop/0
         ]).
 
@@ -41,7 +43,7 @@
 %%==============================================================================
 %% Record Definitions
 %%==============================================================================
--record(state, { buffers }).
+-record(state, { buffers, root_uri }).
 
 %%==============================================================================
 %% Type Definitions
@@ -64,9 +66,17 @@ add_buffer(Uri, Buffer) ->
 get_buffer(Uri) ->
   gen_server:call(?SERVER, {get_buffer, Uri}).
 
+-spec get_root_uri() -> {ok, uri() | undefined}.
+get_root_uri() ->
+  gen_server:call(?SERVER, {get_root_uri}).
+
 -spec remove_buffer(uri()) -> ok.
 remove_buffer(Uri) ->
   gen_server:call(?SERVER, {remove_buffer, Uri}).
+
+-spec set_root_uri(uri()) -> ok.
+set_root_uri(Uri) ->
+  gen_server:call(?SERVER, {set_root_uri, Uri}).
 
 -spec stop() -> ok.
 stop() ->
@@ -85,9 +95,14 @@ handle_call({add_buffer, Uri, Buffer}, _From, State) ->
 handle_call({get_buffer, Uri}, _From, State) ->
   Buffer = proplists:get_value(Uri, State#state.buffers),
   {reply, {ok, Buffer}, State};
+handle_call({get_root_uri}, _From, State) ->
+  RootUri = State#state.root_uri,
+  {reply, {ok, RootUri}, State};
 handle_call({remove_buffer, Uri}, _From, State) ->
   Buffers = proplists:delete(Uri, State#state.buffers),
-  {reply, ok, State#state{buffers = Buffers}}.
+  {reply, ok, State#state{buffers = Buffers}};
+handle_call({set_root_uri, Uri}, _From, State) ->
+  {reply, ok, State#state{root_uri = Uri}}.
 
 -spec handle_cast(any(), state()) -> {noreply, state()}.
 handle_cast(_Msg, State) -> {noreply, State}.
