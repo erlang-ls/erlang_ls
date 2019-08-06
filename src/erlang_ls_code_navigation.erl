@@ -34,9 +34,8 @@
 %%==============================================================================
 
 %% TODO: Specify type instead of generic map
-%% TODO: goto_definition/2 should probably not take the Uri, but a path.
--spec goto_definition(uri(), erlang_ls_poi:poi()) -> null | map().
-goto_definition(_Uri, #{ info := {application, {M, _F, _A}} = Info }) ->
+-spec goto_definition(binary(), erlang_ls_poi:poi()) -> null | map().
+goto_definition(_Filename, #{ info := {application, {M, _F, _A}} = Info }) ->
   case erlang_ls_tree:annotate_file(erlang_ls_uri:filename(M), full_path()) of
     {ok, Uri, AnnotatedTree} ->
       case erlang_ls_poi:match(AnnotatedTree, definition(Info)) of
@@ -51,8 +50,8 @@ goto_definition(_Uri, #{ info := {application, {M, _F, _A}} = Info }) ->
     {error, _Error} ->
       null
   end;
-goto_definition(Uri, #{ info := {application, {_F, _A}} = Info }) ->
-  case erlang_ls_tree:annotate_file(erlang_ls_uri:basename(Uri), full_path()) of
+goto_definition(Filename, #{ info := {application, {_F, _A}} = Info }) ->
+  case erlang_ls_tree:annotate_file(filename:basename(Filename), full_path()) of
     {ok, Uri, AnnotatedTree} ->
       case erlang_ls_poi:match(AnnotatedTree, definition(Info)) of
         [#{ range := Range }] ->
@@ -66,17 +65,15 @@ goto_definition(Uri, #{ info := {application, {_F, _A}} = Info }) ->
     {error, _Error} ->
       null
   end;
-goto_definition(_Uri, #{ info := {behaviour, Behaviour} = Info }) ->
+goto_definition(_Filename, #{ info := {behaviour, Behaviour} = Info }) ->
   Filename = erlang_ls_uri:filename(Behaviour),
   search(Filename, full_path(), definition(Info));
 %% TODO: Eventually search everywhere and suggest a code lens to include a file
-goto_definition(Uri, #{ info := {macro, _Define} = Info }) ->
-  Filename = erlang_ls_uri:basename(Uri),
-  search(Filename, app_path(), definition(Info));
-goto_definition(Uri, #{ info := {record_expr, _Record} = Info }) ->
-  Filename = erlang_ls_uri:basename(Uri),
-  search(Filename, app_path(), Info);
-goto_definition(_Uri, #{ info := {include, Include0} }) ->
+goto_definition(Filename, #{ info := {macro, _Define} = Info }) ->
+  search(filename:basename(Filename), app_path(), definition(Info));
+goto_definition(Filename, #{ info := {record_expr, _Record} = Info }) ->
+  search(filename:basename(Filename), app_path(), Info);
+goto_definition(_Filename, #{ info := {include, Include0} }) ->
   Include = list_to_binary(string:trim(Include0, both, [$"])),
   case erlang_ls_tree:annotate_file(Include, full_path()) of
     {ok, Uri, _AnnotatedTree} ->
@@ -89,7 +86,7 @@ goto_definition(_Uri, #{ info := {include, Include0} }) ->
     {error, _Error} ->
       null
   end;
-goto_definition(_Uri, #{ info := {include_lib, Include0} }) ->
+goto_definition(_Filename, #{ info := {include_lib, Include0} }) ->
   Include = list_to_binary(lists:last(filename:split(string:trim(Include0, both, [$"])))),
   case erlang_ls_tree:annotate_file(Include, full_path()) of
     {ok, Uri, _AnnotatedTree} ->
@@ -102,7 +99,7 @@ goto_definition(_Uri, #{ info := {include_lib, Include0} }) ->
     {error, _Error} ->
       null
   end;
-goto_definition(_Uri, _) ->
+goto_definition(_Filename, _) ->
   null.
 
 -spec definition({atom(), any()}) -> {atom(), any()}.
