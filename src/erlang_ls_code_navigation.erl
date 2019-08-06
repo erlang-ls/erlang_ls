@@ -37,11 +37,11 @@
 -spec goto_definition(binary(), erlang_ls_poi:poi()) -> null | map().
 goto_definition(_Filename, #{ info := {application, {M, _F, _A}} = Info }) ->
   case erlang_ls_tree:annotate_file(erlang_ls_uri:filename(M), full_path()) of
-    {ok, Uri, AnnotatedTree} ->
+    {ok, FullName, AnnotatedTree} ->
       case erlang_ls_poi:match(AnnotatedTree, definition(Info)) of
         [#{ range := Range }] ->
           %% TODO: Use API to create types
-          #{ uri => Uri
+          #{ uri => erlang_ls_uri:uri(FullName)
            , range => erlang_ls_protocol:range(Range)
            };
         [] ->
@@ -52,11 +52,11 @@ goto_definition(_Filename, #{ info := {application, {M, _F, _A}} = Info }) ->
   end;
 goto_definition(Filename, #{ info := {application, {_F, _A}} = Info }) ->
   case erlang_ls_tree:annotate_file(filename:basename(Filename), full_path()) of
-    {ok, Uri, AnnotatedTree} ->
+    {ok, FullName, AnnotatedTree} ->
       case erlang_ls_poi:match(AnnotatedTree, definition(Info)) of
         [#{ range := Range }] ->
           %% TODO: Use API to create types
-          #{ uri => Uri
+          #{ uri => erlang_ls_uri:uri(FullName)
            , range => erlang_ls_protocol:range(Range)
            };
         [] ->
@@ -76,8 +76,8 @@ goto_definition(Filename, #{ info := {record_expr, _Record} = Info }) ->
 goto_definition(_Filename, #{ info := {include, Include0} }) ->
   Include = list_to_binary(string:trim(Include0, both, [$"])),
   case erlang_ls_tree:annotate_file(Include, full_path()) of
-    {ok, Uri, _AnnotatedTree} ->
-      #{ uri => Uri
+    {ok, FullName, _AnnotatedTree} ->
+      #{ uri => erlang_ls_uri:uri(FullName)
          %% TODO: We could point to the module attribute, instead
        , range => erlang_ls_protocol:range(#{ from => {0, 0}
                                             , to   => {0, 0}
@@ -89,8 +89,8 @@ goto_definition(_Filename, #{ info := {include, Include0} }) ->
 goto_definition(_Filename, #{ info := {include_lib, Include0} }) ->
   Include = list_to_binary(lists:last(filename:split(string:trim(Include0, both, [$"])))),
   case erlang_ls_tree:annotate_file(Include, full_path()) of
-    {ok, Uri, _AnnotatedTree} ->
-      #{ uri => Uri
+    {ok, FullName, _AnnotatedTree} ->
+      #{ uri => erlang_ls_uri:uri(FullName)
          %% TODO: We could point to the module attribute, instead
        , range => erlang_ls_protocol:range(#{ from => {0, 0}
                                             , to   => {0, 0}
@@ -138,7 +138,8 @@ full_path() ->
 -spec search(binary(), [string()], any()) -> null | map().
 search(Filename, Path, Thing) ->
   case erlang_ls_tree:annotate_file(Filename, Path) of
-    {ok, Uri, AnnotatedTree} ->
+    {ok, FullName, AnnotatedTree} ->
+      Uri = erlang_ls_uri:uri(FullName),
       case find(Uri, AnnotatedTree, Thing) of
         null ->
           Includes = erlang_ls_poi:match_key(AnnotatedTree, include),
