@@ -52,7 +52,7 @@ response(RequestId, Result) ->
 %%==============================================================================
 %% Data Structures
 %%==============================================================================
--spec range(erlang_ls_parser:range()) -> range().
+-spec range(erlang_ls_poi:range()) -> range().
 range(#{ from := {FromL, FromC}, to := {ToL, ToC} }) ->
   #{ start => #{line => FromL, character => FromC}
    , 'end' => #{line => ToL,   character => ToC}
