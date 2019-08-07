@@ -15,7 +15,7 @@
 -export([ did_open/4
         , did_save/1
         , did_close/1
-        , initialize/0
+        , initialize/1
         , start_link/2
         , stop/0
         ]).
@@ -70,9 +70,9 @@ did_save(Uri) ->
 did_close(Uri) ->
   gen_server:call(?SERVER, {did_close, Uri}).
 
--spec initialize() -> ok.
-initialize() ->
-  gen_server:call(?SERVER, {initialize}).
+-spec initialize(uri()) -> ok.
+initialize(RootUri) ->
+  gen_server:call(?SERVER, {initialize, RootUri}).
 
 -spec start_link(hostname(), port_no()) -> {ok, pid()}.
 start_link(Host, Port) ->
@@ -117,11 +117,11 @@ handle_call({did_close, Uri}, _From, State) ->
   Content = erlang_ls_protocol:notification(Method, Params),
   ok = gen_tcp:send(State#state.socket, Content),
   {reply, ok, State};
-handle_call({initialize}, From, #state{ request_id = RequestId
-                                      , socket     = Socket
-                                      } = State) ->
+handle_call({initialize, RootUri}, From, #state{ request_id = RequestId
+                                               , socket     = Socket
+                                               } = State) ->
   Method  = <<"initialize">>,
-  Params  = #{},
+  Params  = #{ <<"rootUri">> => RootUri },
   Content = erlang_ls_protocol:request(RequestId, Method, Params),
   gen_tcp:send(Socket, Content),
   {noreply, State#state{ request_id = RequestId + 1

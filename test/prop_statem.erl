@@ -62,11 +62,11 @@ connect_post(_S, _Args, Res) ->
 %%------------------------------------------------------------------------------
 %% Initialize
 %%------------------------------------------------------------------------------
-initialize() ->
-  erlang_ls_client:initialize().
+initialize(RootUri) ->
+  erlang_ls_client:initialize(RootUri).
 
 initialize_args(_S) ->
-  [].
+  [erlang_ls_proper_gen:root_uri()].
 
 initialize_pre(#{connected := Connected} = _S) ->
   Connected.
