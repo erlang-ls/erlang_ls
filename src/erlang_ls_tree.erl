@@ -7,10 +7,13 @@
 %% Exports
 %%==============================================================================
 -export([ annotate/1
+        , annotate/2
         , annotate_file/2
         , annotate_node/1
-        , postorder_update/2
+        , annotate_node/2
+        , postorder_update/3
         , points_of_interest/1
+        , points_of_interest/2
         ]).
 
 %%==============================================================================
@@ -23,19 +26,16 @@
 %%==============================================================================
 -type tree() :: erl_syntax:syntaxTree().
 -type annotated_tree() :: tree().
+-type extra() :: map(). %% TODO: Refine type
 
 -export_type([ annotated_tree/0
+             , extra/0
              , tree/0
              ]).
 
 %%==============================================================================
 %% API
 %%==============================================================================
-%% @edoc Given a syntax tree, it returns a new one, annotated with all
-%% the identified _points of interest_ (a.k.a. _poi_).
--spec annotate(tree()) -> tree().
-annotate(Tree) ->
-  postorder_update(fun annotate_node/1, Tree).
 
 -spec annotate_file(binary(), [string()]) ->
    {ok, binary(), annotated_tree()} | {error, any()}.
@@ -44,37 +44,61 @@ annotate_file(Filename, Path) ->
     {ok, IoDevice, FullName} ->
       %% TODO: Avoid opening file twice
       file:close(IoDevice),
-      {ok, Tree} = erlang_ls_parser:parse_file(FullName),
-      {ok, FullName, annotate(Tree)};
+      {ok, Tree, Extra} = erlang_ls_parser:parse_file(FullName),
+      {ok, FullName, annotate(Tree, Extra)};
     {error, Error} ->
       {error, Error}
   end.
 
+%% @edoc Given a syntax tree, it returns a new one, annotated with all
+%% the identified _points of interest_ (a.k.a. _poi_).
+-spec annotate(tree()) -> tree().
+annotate(Tree) ->
+  annotate(Tree, #{}).
+
+%% @edoc Given a syntax tree, it returns a new one, annotated with all
+%% the identified _points of interest_ (a.k.a. _poi_).
+-spec annotate(tree(), extra()) -> tree().
+annotate(Tree, Extra) ->
+  postorder_update(fun annotate_node/2, Tree, Extra).
 
 %% @edoc Add an annotation to the root of the given `Tree` for each
 %% point of interest found.
 -spec annotate_node(tree()) -> tree().
 annotate_node(Tree) ->
-  lists:foldl(fun erl_syntax:add_ann/2, Tree, points_of_interest(Tree)).
+  annotate_node(Tree, #{}).
+
+%% @edoc Add an annotation to the root of the given `Tree` for each
+%% point of interest found.
+-spec annotate_node(tree(), extra()) -> tree().
+annotate_node(Tree, Extra) ->
+  lists:foldl( fun erl_syntax:add_ann/2
+             , Tree
+             , points_of_interest(Tree, Extra)).
 
 %% @edoc Traverse the given `Tree`, applying the function `F` to all
-%% nodes in the tree, in post-order. Extracted from the `erl_syntax`
+%% nodes in the tree, in post-order. Adapted from the `erl_syntax`
 %% documentation.
--spec postorder_update(fun(), tree()) -> tree().
-postorder_update(F, Tree) ->
+-spec postorder_update(fun(), tree(), extra()) -> tree().
+postorder_update(F, Tree, Extra) ->
   F(case erl_syntax:subtrees(Tree) of
       [] -> Tree;
       List -> erl_syntax:update_tree(Tree,
-                                     [[postorder_update(F, Subtree)
+                                     [[postorder_update(F, Subtree, Extra)
                                        || Subtree <- Group]
                                       || Group <- List])
-    end).
+    end, Extra).
 
 %% @edoc Return the list of points of interest for a given `Tree`.
 -spec points_of_interest(tree()) -> [erlang_ls_poi:poi()].
 points_of_interest(Tree) ->
+  points_of_interest(Tree, #{}).
+
+%% @edoc Return the list of points of interest for a given `Tree`.
+-spec points_of_interest(tree(), extra()) -> [erlang_ls_poi:poi()].
+points_of_interest(Tree, Extra) ->
   Type = erl_syntax:type(Tree),
-  try points_of_interest(Tree, Type)
+  try points_of_interest(Tree, Type, Extra)
   catch
     Class:Reason ->
       lager:warning("Could not analyze tree: ~p:~p", [Class, Reason]),
@@ -83,20 +107,20 @@ points_of_interest(Tree) ->
 
 %% @edoc Return the list of points of interest of a specific `Type`
 %% for a given `Tree`.
--spec points_of_interest(tree(), any()) -> [erlang_ls_poi:poi()].
-points_of_interest(Tree, application) ->
+-spec points_of_interest(tree(), any(), [[erlang_ls_poi:pos()]]) -> [erlang_ls_poi:poi()].
+points_of_interest(Tree, application, Extra) ->
   case erl_syntax_lib:analyze_application(Tree) of
     {M, {F, A}} ->
       %% Remote call
-      [erlang_ls_poi:poi(Tree, {application, {M, F, A}})];
+      [erlang_ls_poi:poi(Tree, {application, {M, F, A}}, Extra)];
     {F, A} ->
       case lists:member({F, A}, erlang:module_info(exports)) of
         true ->
           %% Call to a function from the `erlang` module
-          [erlang_ls_poi:poi(Tree, {application, {erlang, F, A}})];
+          [erlang_ls_poi:poi(Tree, {application, {erlang, F, A}}, Extra)];
         false ->
           %% Local call
-          [erlang_ls_poi:poi(Tree, {application, {F, A}})]
+          [erlang_ls_poi:poi(Tree, {application, {F, A}}, Extra)]
       end;
     A when is_integer(A) ->
       %% If the function is not explicitly named (e.g. a variable is
@@ -112,55 +136,58 @@ points_of_interest(Tree, application) ->
               erl_syntax:module_qualifier_body(Operator))
           } of
           {'MODULE', F} ->
-          [erlang_ls_poi:poi(Tree, {application, {'MODULE', F, A}})]
+          [erlang_ls_poi:poi(Tree, {application, {'MODULE', F, A}}, Extra)]
       catch _:_ ->
           []
       end
   end;
-points_of_interest(Tree, attribute) ->
+points_of_interest(Tree, attribute, Extra) ->
   case erl_syntax_lib:analyze_attribute(Tree) of
     %% Yes, Erlang allows both British and American spellings for
     %% keywords.
     {behavior, {behavior, Behaviour}} ->
-      [erlang_ls_poi:poi(Tree, {behaviour, Behaviour})];
+      [erlang_ls_poi:poi(Tree, {behaviour, Behaviour}, Extra)];
     {behaviour, {behaviour, Behaviour}} ->
-      [erlang_ls_poi:poi(Tree, {behaviour, Behaviour})];
+      [erlang_ls_poi:poi(Tree, {behaviour, Behaviour}, Extra)];
     {export, Exports} ->
-      [erlang_ls_poi:poi(Tree, {exports_entry, {F, A}}) || {F, A} <- Exports];
+      [erlang_ls_poi:poi(Tree, {exports_entry, {F, A}}, Extra) || {F, A} <- Exports];
     {module, {Module, _Args}} ->
-      [erlang_ls_poi:poi(Tree, {module, Module})];
+      [erlang_ls_poi:poi(Tree, {module, Module}, Extra)];
     {module, Module} ->
-      [erlang_ls_poi:poi(Tree, {module, Module})];
+      [erlang_ls_poi:poi(Tree, {module, Module}, Extra)];
     preprocessor ->
       Name = erl_syntax:atom_value(erl_syntax:attribute_name(Tree)),
       case {Name, erl_syntax:attribute_arguments(Tree)} of
         {define, [Define|_]} ->
           [erlang_ls_poi:poi( Tree
-                            , {define, erl_syntax:variable_name(Define)})];
+                            , {define, erl_syntax:variable_name(Define)}
+                            , Extra )];
         {include, [String]} ->
           [erlang_ls_poi:poi( Tree
-                            , {include, erl_syntax:string_literal(String)})];
+                            , {include, erl_syntax:string_literal(String)}
+                            , Extra )];
         {include_lib, [String]} ->
           [erlang_ls_poi:poi( Tree
-                            , {include_lib, erl_syntax:string_literal(String)})];
+                            , {include_lib, erl_syntax:string_literal(String)}
+                            , Extra )];
         _ ->
           []
       end;
     {record, {Record, _Fields}} ->
-      [erlang_ls_poi:poi(Tree, {record, atom_to_list(Record)})];
+      [erlang_ls_poi:poi(Tree, {record, atom_to_list(Record)}, Extra)];
     {spec, Spec} ->
-      [erlang_ls_poi:poi(Tree, {spec, Spec})];
+      [erlang_ls_poi:poi(Tree, {spec, Spec}, Extra)];
     _ ->
       []
   end;
-points_of_interest(Tree, function) ->
+points_of_interest(Tree, function, Extra) ->
   {F, A} = erl_syntax_lib:analyze_function(Tree),
-  [erlang_ls_poi:poi(Tree, {function, {F, A}})];
-points_of_interest(Tree, macro) ->
+  [erlang_ls_poi:poi(Tree, {function, {F, A}}, Extra)];
+points_of_interest(Tree, macro, Extra) ->
   Macro = erl_syntax:variable_name(erl_syntax:macro_name(Tree)),
-  [erlang_ls_poi:poi(Tree, {macro, Macro})];
-points_of_interest(Tree, record_expr) ->
+  [erlang_ls_poi:poi(Tree, {macro, Macro}, Extra)];
+points_of_interest(Tree, record_expr, Extra) ->
   Record = erl_syntax:atom_name(erl_syntax:record_expr_type(Tree)),
-  [erlang_ls_poi:poi(Tree, {record_expr, Record})];
-points_of_interest(_Tree, _) ->
+  [erlang_ls_poi:poi(Tree, {record_expr, Record}, Extra)];
+points_of_interest(_Tree, _Type, _Extra) ->
   [].

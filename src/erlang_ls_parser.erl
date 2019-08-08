@@ -2,14 +2,13 @@
 
 -export([ parse/1
         , parse_file/1
-        , parse_exports/1
         ]).
 
 %% TODO: Generate random filename
 %% TODO: Ideally avoid writing to file at all (require epp changes)
 -define(TMP_PATH, <<"/tmp/erlang_ls_tmp">>).
 
--spec parse(binary()) -> {ok, erlang_ls_tree:tree()}.
+-spec parse(binary()) -> {ok, erlang_ls_tree:tree(), erlang_ls_tree:extra()}.
 parse(Text) ->
   %% epp_dodger only works with source files,
   %% so let's use a temporary file.
@@ -17,7 +16,7 @@ parse(Text) ->
   parse_file(?TMP_PATH).
 
 -spec parse_file(binary()) ->
-   {ok, erlang_ls_tree:tree()} | {error, any()}.
+   {ok, erlang_ls_tree:tree(), erlang_ls_tree:extra()} | {error, any()}.
 parse_file(Path) ->
   case file:open(Path, [read]) of
     {ok, IoDevice} ->
@@ -29,47 +28,64 @@ parse_file(Path) ->
       {ok, Forms} = erlang:apply(epp_dodger, parse, [IoDevice, {1, 1}]),
       Tree = erl_syntax:form_list(Forms),
       ok = file:close(IoDevice),
-      {ok, Tree};
+      {ok, Extra} = parse_extra(Path),
+      {ok, Tree, Extra};
     {error, Error} ->
       {error, Error}
   end.
 
--spec parse_exports(binary()) ->
-   {ok, [[erlang_ls_poi:pos()]]} | {error, any()}.
-parse_exports(Path) ->
+-spec parse_extra(binary()) ->
+   {ok, erlang_ls_tree:extra()} | {error, any()}.
+parse_extra(Path) ->
   case file:open(Path, [read]) of
     {ok, IoDevice} ->
-      Res = parse_exports(IoDevice, [], {1, 1}),
+      Res = parse_extra(IoDevice, #{}, {1, 1}),
       ok = file:close(IoDevice),
       {ok, Res};
     {error, Error} ->
       {error, Error}
   end.
 
--spec parse_exports(io:device(), [any()], erlang_ls_poi:pos()) ->
-   {ok, [[erlang_ls_poi:pos()]]} | {error, any()}.
-parse_exports(IoDevice, Acc, StartLocation) ->
+-spec parse_extra(io:device(), erlang_ls_tree:extra(), erl_anno:location()) ->
+   {ok, erlang_ls_tree:extra()} | {error, any()}.
+parse_extra(IoDevice, Extra, StartLocation) ->
   case io:scan_erl_form(IoDevice, "", StartLocation) of
     {ok, Tokens, EndLocation} ->
       case erl_parse:parse_form(Tokens) of
         {ok, Form} ->
-          case erl_syntax:type(Form) of
-            attribute ->
-              case erl_syntax_lib:analyze_attribute(Form) of
-                {export, Exports} ->
-                  Locations = [L || {atom, L, F} <- Tokens, F =/= export],
-                  parse_exports(IoDevice, [lists:zip(Exports, Locations)|Acc], EndLocation);
-                _ ->
-                  parse_exports(IoDevice, Acc, EndLocation)
-              end;
-            _ ->
-              parse_exports(IoDevice, Acc, EndLocation)
-          end;
+          parse_extra(IoDevice, extra(Form, Tokens, Extra), EndLocation);
         {error, _Error} ->
-          parse_exports(IoDevice, Acc, EndLocation)
+          parse_extra(IoDevice, Extra, EndLocation)
       end;
     {eof, _} ->
-      lists:reverse(Acc);
+      Extra;
     {error, Error} ->
       {error, Error}
   end.
+
+-spec extra( erl_parse:abstract_form()
+           , [erl_scan:token()]
+           , erlang_ls_tree:extra()) -> erlang_ls_tree:extra().
+extra(Form, Tokens, Extra) ->
+  Type = erl_syntax:type(Form),
+  extra(Form, Tokens, Extra, Type).
+
+-spec extra(erl_parse:abstract_form(), [erl_scan:token()], erlang_ls_tree:extra(), atom()) ->
+   erlang_ls_tree:extra().
+extra(Form, Tokens, Extra, attribute) ->
+  case erl_syntax_lib:analyze_attribute(Form) of
+    {export, Exports} ->
+      %% TODO: Move to function
+      OldLocations = maps:get(exports_locations, Extra, []),
+      Locations = [L || {atom, L, F} <- Tokens, F =/= export],
+      NewLocations = lists:append( OldLocations
+                                 , lists:zip(Exports, Locations)
+                                 ),
+      maps:put(exports_locations, NewLocations, Extra);
+    _ ->
+      Extra
+  end;
+extra(_Form, _Tokens, Extra, _Type) ->
+  Extra.
+
+%% TODO: Add with_file

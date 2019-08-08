@@ -63,6 +63,20 @@ goto_definition( Filename
   end;
 goto_definition(_Filename, #{ info := {behaviour, Behaviour} = Info }, Path) ->
   search(filename(Behaviour), Path, definition(Info));
+goto_definition( Filename
+               , #{ info := {exports_entry, {_F, _A}} = Info }
+               , Path) ->
+  case erlang_ls_tree:annotate_file(filename:basename(Filename), Path) of
+    {ok, FullName, AnnotatedTree} ->
+      case erlang_ls_poi:match(AnnotatedTree, definition(Info)) of
+        [#{ range := Range }] ->
+          {ok, FullName, Range};
+        [] ->
+          {error, not_found}
+      end;
+    {error, Error} ->
+      {error, Error}
+  end;
 %% TODO: Eventually search everywhere and suggest a code lens to include a file
 goto_definition(Filename, #{ info := {macro, _Define} = Info }, Path) ->
   search(filename:basename(Filename), Path, definition(Info));
@@ -94,6 +108,8 @@ definition({application, {F, A}}) ->
   {function, {F, A}};
 definition({behaviour, Behaviour}) ->
   {module, Behaviour};
+definition({exports_entry, {F, A}}) ->
+  {function, {F, A}};
 definition({macro, Define}) ->
   {define, Define};
 definition({record_expr, Record}) ->
