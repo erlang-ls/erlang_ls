@@ -1,0 +1,417 @@
+code navigation
+
+Add intro about Syntax Trees from Scalameta
+
+source-under-point M-.
+source-unwind M-,
+problem: element at pos (line, column)
+EDTS:
+edts-navigate.el
+(defun edts-find-source-under-point ()
+Function borrowed from Distel and erlang-mode
+Drawback: specific to Emacs
+e.g. header-at-point regexp, local or remote call
+edts_code.erl edts_syntax.erl
+What is under point?
+((edts-header-under-point-p)    (edts-find-header-source))
+   ((edts-macro-under-point-p)     (edts-find-macro-source))
+   ((edts-record-under-point-p)    (edts-find-record-source))
+   ((edts-behaviour-under-point-p) (edts-find-behaviour-source))
+   ;; look for a M:F/A
+   ((apply #'edts-find-source
+           (or (edts-mfa-at (point)) (error "No call at point."))))))
+
+Feature parity with EDTS
+The complete list I want:
+
+- behaviour DONE DONE
+- include / include_lib DONE DONE
+- export list entry PROBLEMATIC
+- import list entry PROBLEMATIC
+- record definition DONE DONE
+- local function DONE DONE
+- MFA DONE DONE
+- Macro DONE DONE
+- type PROBLEMATIC
+- bifs DONE DONE
+- (gen_server:call -> handle_call)
+
+beginning of line
+looking-at and regexps
+
+get_function_info(M, F, A) ->
+  ensure_module_loaded(true, M),
+  {M, Bin, _File}                   = code:get_object_code(M),
+  {ok, {M, Chunks}}                 = beam_lib:chunks(Bin, [abstract_code]),
+  {abstract_code, {_Vsn, Abstract}} = lists:keyfind(abstract_code, 1, Chunks),
+  ExportedP = lists:member({F, A}, M:module_info(exports)),
+  {ok, ModSrc} = get_module_source(M, M:module_info()),
+  case get_file_and_line(M, F, A, ModSrc, Abstract) of
+    {error, _} = Err   ->
+      case ExportedP of
+        false -> Err;
+        true  -> make_function_info(M, F, A, ExportedP, ModSrc, is_bif, ModSrc)
+      end;
+    {ok, {FunSrc, Line}} ->
+      make_function_info(M, F, A, ExportedP, FunSrc, Line, ModSrc)
+  end.
+
+Any library to help with this?
+
+"Thing at point" (thingatpt.el) Use a lisp package -> emacs specific -> matches regexp
+
+current line from buffer -> bunch of regex to identify MFAs, record, field, attribute, atom, etc
+Can we do better?
+
+Index all this info?
+
+LSP -> Directly in Erlang
+Full-text sync
+one process for each buffer (not necessarily same version as on disk)
+
+vscode_erlang
+
+lsp_handlers -> lsp_navigation:goto_definition(File, Line, Column)
+
+lsp_syntax -> AST (via EPP)
+
+Sourcer
+
+sourcer_operations:definition(data_file("aaa.erl"), {2, 1}, DB))
+
+How is it the DB populated? Pre-indexed (nice), but custom parser.
+
+In Erlang, how to get the element at current pos?
+Syntax tools
+scanner -> parser
+epp -> only from source, inconvenient
+epp_dodger
+
+-module(test).
+
+-export([a/1, b/0, c/0]).
+
+Add this define later, to show parser limitations
+-define(X, fun() -> ok end).
+
+a(Foo) ->
+ erlang:now().
+
+b() ->
+  ok.
+
+c() ->
+  ok.
+
+Notice: Unused variable, deprecated function, macro.
+
+{ok, B} = file:read_file("/tmp/test.erl").
+L = binary_to_list(B).
+{ok, Tokens, _} = erl_scan:string(L, {1,1}).
+
+epp separate from compiler -> see blog post and official doc
+
+12> erl_parse:parse_form(Tokens).
+{error,{3,erl_parse,["syntax error before: ","'-'"]}}
+
+{ok, E} = epp:open("/tmp/test.erl", [], []).
+Epp = epp:parse_file(E).
+[{attribute,1,file,{"/tmp/test.erl",1}},
+ {attribute,1,module,test},
+ {attribute,3,export,[{a,1},{b,0},{c,0}]},
+ {function,7,a,1,
+           [{clause,7,
+                    [{var,7,'Foo'}],
+                    [],
+                    [{call,8,{remote,8,{atom,8,erlang},{atom,8,now}},[]}]}]},
+ {function,10,b,0,[{clause,10,[],[],[{atom,11,ok}]}]},
+ {function,13,c,0,[{clause,13,[],[],[{atom,14,ok}]}]},
+ {eof,15}]
+
+compiler interface only works for files without parse errors. This is rarely the case for files being edited.
+need an alternative
+
+epp:parse_erl_form(E). -> one by one
+
+25> epp:parse_erl_form(E).
+{ok,{function,7,a,1,
+              [{clause,7,
+                       [{var,7,'Foo'}],
+                       [],
+                       [{call,8,{remote,8,{atom,8,erlang},{atom,8,now}},[]}]}]}}
+
+Undocumented: epp:open/5 for column numbers and epp:scan_erl_form
+
+26> epp:scan_erl_form(E).
+{ok,[{atom,10,b},
+     {'(',10},
+     {')',10},
+     {'->',10},
+     {atom,11,ok},
+     {dot,11}]}
+
+30> erl_parse:parse_form(T).
+{ok,{function,13,c,0,[{clause,13,[],[],[{atom,14,ok}]}]}}
+
+Aleppo -> Alternative preprocessor
+Aleppo will operate directly on tokens returned by erl_scan.
+
+ {ok, D} = epp_dodger:parse_file("/tmp/test.erl"). <- erl_syntax form ({tree, ...})
+
+Bypasses the Erlang preprocessor - avoids macro expansion, file
+inclusion, conditional compilation, etc. Allows you to find/modify particular
+definitions/applications of macros, and other things previously not possible.
+
+beam_lib:chunks(code:which(Path), [abstract_code]).
+
+erl_syntax -> ADT for representing code as syntax trees
+backward compatible with erl_parse (referred as parse trees)
+This means: all parse trees are valid AST, but ASTs can't be used as input to erl_parse
+revert/1 transforms it into parse trees
+
+{ok, F} = file:open("/tmp/test.erl", [read]).
+epp_dodger:parse(F, {1,1}).
+
+aleppo
+http://erlang.org/pipermail/erlang-questions/2010-June/052025.html
+Built with Yecc (LALR-1 Parser Generator)
+
+erl_parse:map_anno(fun(X) -> erlang:display(erl_anno:location(X)), X end, Epp).
+
+http://erlang.org/pipermail/erlang-questions/2013-February/072279.html
+erl_syntax:form_list(Tree).
+
+erl_syntax:get_pos({attribute,{3,2},export,[{a,1},{b,0}]}).
+
+https://github.com/efcasado/forms/blob/master/src/forms.erl
+katana
+
+
+10> File = "/tmp/test.erl".
+"/tmp/test.erl"
+11> F = file:open(File, [read]).
+{ok,<0.77.0>}
+12> f(F).
+ok
+13> {ok, F} = file:open(File, [read]).
+{ok,<0.80.0>}
+14> {ok, E} = epp:open(File, F, {1,1}, [], []).
+{ok,<0.82.0>}
+15> Epp = epp:parse_file(E).
+[{attribute,1,file,{"/tmp/test.erl",1}},
+ {attribute,{1,2},module,test},
+ {attribute,{3,2},export,[{a,1},{b,0}]},
+ {function,{5,1},
+           a,1,
+           [{clause,{5,1},
+                    [{var,{5,3},'_Foo'}],
+                    [],
+                    [{call,{6,8},
+                           {remote,{6,8},{atom,{6,2},erlang},{atom,{6,9},now}},
+                           []}]}]},
+ {function,{8,1},
+           b,0,
+           [{clause,{8,1},[],[],[{atom,{9,3},ok}]}]},
+ {eof,{11,1}}]
+
+Erlang is not homoiconic
+
+https://vimeo.com/43903954 <- Richard
+http://www.erlang-factory.com/upload/presentations/633/Metaprogramming.pdf
+
+AST (as required by the compiler) different from the erl_syntax -> revert/1 to the rescue
+
+http://erlang.org/doc/man/merl.html
+
+Metaprogramming in Erlang. Merl is a more user friendly interface to the erl_syntax module, making it easy both to build new ASTs from scratch and to match and decompose existing ASTs. For details that are outside the scope of Merl itself, please see the documentation of erl_syntax.
+
+https://github.com/seancribbs/neotoma
+
+     -include_lib("syntax_tools/include/merl.hrl").
+Then, you can use the ?Q(Text) macros in your code to create ASTs or match on existing ASTs.
+This avoids cascading of cases and problems.
+
+[{attribute,1,file,{"/tmp/test.erl",1}},
+ {attribute,{1,2},module,test},
+ {error,{{3,13},erl_parse,["syntax error before: ","']'"]}},
+ {function,{7,1},
+           a,1,
+           [{clause,{7,1},
+                    [{var,{7,3},'Foo'}],
+                    [],
+                    [{call,{8,8},
+                           {remote,{8,8},{atom,{8,2},erlang},{atom,{8,9},now}},
+                           []}]}]},
+ {function,{10,1},
+           b,0,
+           [{clause,{10,1},[],[],[{atom,{11,3},ok}]}]},
+ {function,{13,1},
+           c,0,
+           [{clause,{13,1},[],[],[{atom,{14,3},ok}]}]},
+ {eof,{15,1}}]
+
+What about filtering away errors?
+
+[{attribute,1,file,{"/tmp/test.erl",1}},
+ {attribute,{1,2},module,test},
+ {function,{7,1},
+           a,1,
+           [{clause,{7,1},
+                    [{var,{7,3},'Foo'}],
+                    [],
+                    [{call,{8,8},
+                           {remote,{8,8},{atom,{8,2},erlang},{atom,{8,9},now}},
+                           []}]}]},
+ {function,{10,1},
+           b,0,
+           [{clause,{10,1},[],[],[{atom,{11,3},ok}]}]},
+ {function,{13,1},
+           c,0,
+           [{clause,{13,1},[],[],[{atom,{14,3},ok}]}]},
+ {eof,{15,1}}]
+
+
+Non trivial to find the current element (notice 6,2 reverted)
+
+tree() ->
+  [{attribute,1,file,{"/tmp/test.erl",1}},
+   {attribute,{1,2},module,test},
+   {attribute,{3,2},export,[{a,1},{b,0}]},
+   {function,{5,1},
+    a,1,
+    [{clause,{5,1},
+      [{var,{5,3},'_Foo'}],
+      [],
+      [{call,{6,8},
+        {remote,{6,8},{atom,{6,2},erlang},{atom,{6,9},now}},
+        []}]}]},
+   {function,{8,1},
+    b,0,
+    [{clause,{8,1},[],[],[{atom,{9,3},ok}]}]},
+   {eof,{11,1}}].
+
+Better to calculate begin/end?
+
+http://erlang.org/doc/apps/erts/absform.html#types
+
+erl_scan:reserved_word -> handy list of keywords
+
+erl_scan:tokens location {1,1}
+
+===
+-module(test).
+
+-export([a/1, b/0, c/0]).
+
+-define(X, fun() -> ok end).
+
+a(Foo) ->
+ erlang:now().
+
+b() ->
+  ok
+
+c() ->
+  ok.
+
+epp_dodger -> clever option
+
+merl:show(Tree).
+
+erl_syntax_lib
+
+https://bugs.erlang.org/browse/ERL-1005
+https://bugs.erlang.org/browse/ERL-1006
+
+https://github.com/efcasado/forms/blob/master/src/forms.erl
+
+rp(T) -> Show full
+rr(erl_syntax) -> See records.
+
+This section describes the standard representation of parse trees for Erlang programs as Erlang terms. This representation is known as the abstract format.
+
+http://erlang.org/doc/apps/erts/absform.html
+
+^ Explains possibilities
+
+erlang abstract form and syntax tree?
+abstract forms are a subset of syntax trees?
+
+Yes, an abstract form is also an AST that can be used with e.g. 
+erl_syntax:subtrees(). However, a *list* of abstract forms is not a 
+tree. What you can do is to give your list to erl_syntax:form_list(Fs) 
+to get a single AST that represents all the forms, and then pass that 
+tree to your traversal function.
+
+Richard
+
+http://erlang.org/doc/man/erl_syntax.html#subtrees-1 contains postorder
+
+Groups?
+
+Two approaches:
+
+1. on load, index all points of interest and calculate ranges
+2. on navigate, find form of interest, navigate the tree understanding point of interest (more complex)
+
+arity qualifiers in export list do not have a position set :(
+
+io:scan_erl_form(Dev, "", 2).
+{ok,[{'-',3},
+     {atom,3,export},
+     {'(',3},
+     {'[',3},
+     {atom,3,init},
+     {'/',3},
+     {integer,3,1},
+     {',',6},
+     {atom,6,sum},
+     {'/',6},
+     {integer,6,2},
+     {']',7},
+     {')',7},
+     {dot,7}],
+    8}
+
+Ts = [{'-',{5,1}},
+ {atom,{5,2},export},
+ {'(',{5,8}},
+ {'[',{5,9}},
+ {atom,{5,10},init},
+ {'/',{5,14}},
+ {integer,{5,15},1},
+ {',',{8,3}},
+ {atom,{8,5},sum},
+ {'/',{8,8}},
+ {integer,{8,9},2},
+ {']',{9,1}},
+ {')',{9,2}},
+ {dot,{9,3}}].
+
+erl_parse:parse_form(Ts).
+{ok,{attribute,{5,2},export,[{init,1},{sum,2}]}}
+
+Ts = [{'-',{5,1}},
+ {atom,{5,2},exports},
+ {'(',{5,8}},
+ {'[',{5,9}},
+ {atom,{5,10},init},
+ {'/',{5,14}},
+ {integer,{5,15},1},
+ {',',{8,3}},
+ {atom,{8,5},sum},
+ {'/',{8,8}},
+ {integer,{8,9},2},
+ {']',{9,1}},
+ {')',{9,2}},
+ {dot,{9,3}}].
+
+Parser for Dialyzer specs?
+constrained_function_types and guards.
+
+-spec spawn_link(Module, Function, Args) -> pid() when
+      Module :: module(),
+      Function :: atom(),
+      Args :: [term()].
+
+analyze spec attribute -> "wild"
