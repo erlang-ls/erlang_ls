@@ -108,9 +108,15 @@ extra(_Form, _Tokens, Extra, _Type) ->
 %% TODO: Refine any() type
 -spec spec_locations(any()) -> [{atom(), erl_anno:location()}].
 spec_locations(FT) ->
-  FTR = erl_syntax:function_type_return(FT),
-  FTA = erl_syntax:function_type_arguments(FT),
-  do_spec_locations([FTR | FTA], []).
+  case erl_syntax:type(FT) of
+    function_type ->
+      FTR = erl_syntax:function_type_return(FT),
+      FTA = erl_syntax:function_type_arguments(FT),
+      do_spec_locations([FTR | FTA], []);
+    constrained_function_type ->
+      %% TODO
+      []
+  end.
 
 -spec do_spec_locations([any()], [{atom(), erl_anno:location()}]) ->
    [{atom(), erl_anno:location()}].
