@@ -88,5 +88,3 @@ extra(Form, Tokens, Extra, attribute) ->
   end;
 extra(_Form, _Tokens, Extra, _Type) ->
   Extra.
-
-%% TODO: Add with_file
