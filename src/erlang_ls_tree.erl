@@ -151,6 +151,8 @@ points_of_interest(Tree, attribute, Extra) ->
       [erlang_ls_poi:poi(Tree, {behaviour, Behaviour}, Extra)];
     {export, Exports} ->
       [erlang_ls_poi:poi(Tree, {exports_entry, {F, A}}, Extra) || {F, A} <- Exports];
+    {import, {M, Imports}} ->
+      [erlang_ls_poi:poi(Tree, {import_entry, {M, F, A}}, Extra) || {F, A} <- Imports];
     {module, {Module, _Args}} ->
       [erlang_ls_poi:poi(Tree, {module, Module}, Extra)];
     {module, Module} ->
@@ -175,8 +177,14 @@ points_of_interest(Tree, attribute, Extra) ->
       end;
     {record, {Record, _Fields}} ->
       [erlang_ls_poi:poi(Tree, {record, atom_to_list(Record)}, Extra)];
-    {spec, Spec} ->
-      [erlang_ls_poi:poi(Tree, {spec, Spec}, Extra)];
+    {spec, {spec, {{F, A}, _}}} ->
+      SpecLocations = maps:get(spec_locations, Extra, []),
+      Locations = proplists:get_value({F, A}, SpecLocations),
+      [erlang_ls_poi:poi(Tree, {type_application, {T, L}}, Extra) || {T, L} <- Locations];
+    {type, {type, Type}} ->
+      %% TODO: Support type usages in type definitions
+      TypeName = element(1, Type),
+      [erlang_ls_poi:poi(Tree, {type_definition, TypeName}, Extra)];
     _ ->
       []
   end;

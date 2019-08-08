@@ -82,12 +82,9 @@ get_range({Line, Column}, {behaviour, Behaviour}, _Extra) ->
   To = {Line, Column + length("behaviour") + length(atom_to_list(Behaviour))},
   #{ from => From, to => To };
 get_range({_Line, _Column}, {exports_entry, {F, A}}, Extra) ->
-  ExportsLocations = maps:get(exports_locations, Extra, []),
-  {FromLine, FromColumn} = proplists:get_value({F, A}, ExportsLocations),
-  From = {FromLine, FromColumn - 1},
-  Length = length(atom_to_list(F)) + length(integer_to_list(A)) + 1,
-  To = {FromLine, FromColumn + Length - 1},
-  #{ from => From, to => To };
+  get_entry_range(exports_locations, F, A, Extra);
+get_range({_Line, _Column}, {import_entry, {_M, F, A}}, Extra) ->
+  get_entry_range(import_locations, F, A, Extra);
 get_range({Line, Column}, {function, {F, _A}}, _Extra) ->
   From = {Line - 1, Column - 1},
   To = {Line - 1, Column + length(atom_to_list(F)) - 1},
@@ -121,11 +118,26 @@ get_range({Line, _Column}, {record, _Record}, _Extra) ->
   From = {Line - 1, 0},
   To = From,
   #{ from => From, to => To };
-get_range({_Line, _Column}, {spec, _Spec}, _Extra) ->
-  %% TODO: The location information for the arity qualifiers are lost during
-  %%       parsing in `epp_dodger`. This requires fixing.
-  #{ from => {0, 0}, to => {0, 0} }.
+%% TODO: Do we really need the StartLocation there?
+get_range({_Line, _Column}, {type_application, {Type, StartLocation}}, _Extra) ->
+  {FromLine, FromColumn} = From = StartLocation,
+  Length = length(atom_to_list(Type)),
+  To = {FromLine, FromColumn + Length - 1},
+  #{ from => From, to => To };
+get_range({Line, Column}, {type_definition, _Type}, _Extra) ->
+  From = {Line - 1, Column - 1},
+  To = From,
+  #{ from => From, to => To }.
 
 -spec matches_pos(pos(), range()) -> boolean().
 matches_pos(Pos, #{from := From, to := To}) ->
   (From =< Pos) andalso (Pos =< To).
+
+-spec get_entry_range(atom(), atom(), non_neg_integer(), erlang_ls_tree:extra()) -> range().
+get_entry_range(Key, F, A, Extra) ->
+  Locations = maps:get(Key, Extra, []),
+  {FromLine, FromColumn} = proplists:get_value({F, A}, Locations),
+  From = {FromLine, FromColumn - 1},
+  Length = length(atom_to_list(F)) + length(integer_to_list(A)) + 1,
+  To = {FromLine, FromColumn + Length - 1},
+  #{ from => From, to => To }.

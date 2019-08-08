@@ -76,15 +76,68 @@ extra(Form, Tokens, Extra) ->
 extra(Form, Tokens, Extra, attribute) ->
   case erl_syntax_lib:analyze_attribute(Form) of
     {export, Exports} ->
-      %% TODO: Move to function
+      %% TODO: Use maps:update_with
       OldLocations = maps:get(exports_locations, Extra, []),
-      Locations = [L || {atom, L, F} <- Tokens, F =/= export],
+      %% Hackity-hack. The first atom is the attribute name.
+      %% We should find a nicer way to parse the export list.
+      [_|Locations] = [L || {atom, L, _F} <- Tokens],
       NewLocations = lists:append( OldLocations
                                  , lists:zip(Exports, Locations)
                                  ),
       maps:put(exports_locations, NewLocations, Extra);
+    {import, {_M, Imports}} ->
+      %% Hackity-hack. The first two atoms are the attribute name and
+      %% the import module. We should find a nicer way to parse the
+      %% import list.
+      OldLocations = maps:get(import_locations, Extra, []),
+      [_, _|Locations] = [L || {atom, L, _F} <- Tokens],
+      NewLocations = lists:append( OldLocations
+                                 , lists:zip(Imports, Locations)
+                                 ),
+      maps:put(import_locations, NewLocations, Extra);
+    {spec, {spec, {{F, A}, [FT]}}} ->
+      OldLocations = maps:get(spec_locations, Extra, []),
+      NewLocations = [{{F, A}, spec_locations(FT)}|OldLocations],
+      maps:put(spec_locations, NewLocations, Extra);
     _ ->
       Extra
   end;
 extra(_Form, _Tokens, Extra, _Type) ->
   Extra.
+
+%% TODO: Refine any() type
+-spec spec_locations(any()) -> [{atom(), erl_anno:location()}].
+spec_locations(FT) ->
+  case erl_syntax:type(FT) of
+    function_type ->
+      FTR = erl_syntax:function_type_return(FT),
+      FTA = erl_syntax:function_type_arguments(FT),
+      do_spec_locations([FTR | FTA], []);
+    constrained_function_type ->
+      %% TODO
+      []
+  end.
+
+-spec do_spec_locations([any()], [{atom(), erl_anno:location()}]) ->
+   [{atom(), erl_anno:location()}].
+do_spec_locations(any, Acc) ->
+  Acc;
+do_spec_locations([], Acc) ->
+  Acc;
+do_spec_locations([{type, StartLocation, Type, any}|T], Acc) ->
+  do_spec_locations(T, [{Type, StartLocation}|Acc]);
+do_spec_locations([{type, StartLocation, Type, Args}|T], Acc) ->
+  do_spec_locations(T ++ Args, [{Type, StartLocation}|Acc]);
+do_spec_locations([{user_type, StartLocation, Type, any}|T], Acc) ->
+  do_spec_locations(T, [{Type, StartLocation}|Acc]);
+do_spec_locations([{user_type, StartLocation, Type, Args}|T], Acc) ->
+  do_spec_locations(T ++ Args, [{Type, StartLocation}|Acc]);
+do_spec_locations([_Else|T], Acc) ->
+  do_spec_locations(T, Acc).
+
+%% TODO: Support type
+%% TODO: Support remote_type
+%% TODO: Support tuple
+%% TODO: Support union
+%% TODO: Add arity to type_definition
+%% TODO: Check why proc_lib fails to parse

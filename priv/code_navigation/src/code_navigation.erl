@@ -7,6 +7,8 @@
 %% behaviour_a callbacks
 -export([ callback_a/0 ]).
 
+-import(code_navigation_extra, [ do/1 ]).
+
 -include("code_navigation.hrl").
 -include_lib("code_navigation/include/code_navigation.hrl").
 
@@ -27,3 +29,5 @@ callback_a() ->
 function_c() ->
   code_navigation_extra:do(test),
   length([1, 2, 3]).
+
+-type type_a() :: any().

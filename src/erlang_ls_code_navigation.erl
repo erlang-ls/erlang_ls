@@ -31,6 +31,7 @@
 goto_definition(Filename, POI) ->
   goto_definition(Filename, POI, full_path()).
 
+%% TODO: Abstract pattern
 -spec goto_definition(binary(), erlang_ls_poi:poi(), [string()]) ->
    {ok, binary(), erlang_ls_poi:range()} | {error, any()}.
 goto_definition( _Filename
@@ -77,6 +78,10 @@ goto_definition( Filename
     {error, Error} ->
       {error, Error}
   end;
+goto_definition( _Filename
+               , #{ info := {import_entry, {M, _F, _A}} = Info }
+               , Path) ->
+  search(filename(M), Path, definition(Info));
 %% TODO: Eventually search everywhere and suggest a code lens to include a file
 goto_definition(Filename, #{ info := {macro, _Define} = Info }, Path) ->
   search(filename:basename(Filename), Path, definition(Info));
@@ -98,6 +103,8 @@ goto_definition(_Filename, #{ info := {include_lib, Include0} }, Path) ->
     {error, Error} ->
       {error, Error}
   end;
+goto_definition(Filename, #{ info := {type_application, _Type} = Info }, Path) ->
+  search(filename:basename(Filename), Path, definition(Info));
 goto_definition(_Filename, _, _Path) ->
   {error, not_found}.
 
@@ -110,10 +117,14 @@ definition({behaviour, Behaviour}) ->
   {module, Behaviour};
 definition({exports_entry, {F, A}}) ->
   {function, {F, A}};
+definition({import_entry, {_M, F, A}}) ->
+  {function, {F, A}};
 definition({macro, Define}) ->
   {define, Define};
 definition({record_expr, Record}) ->
-  {record, Record}.
+  {record, Record};
+definition({type_application, {Type, _}}) ->
+  {type_definition, Type}.
 
 -spec otp_path() -> [string()].
 otp_path() ->
