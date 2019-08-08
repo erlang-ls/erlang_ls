@@ -78,6 +78,10 @@ goto_definition( Filename
     {error, Error} ->
       {error, Error}
   end;
+goto_definition( _Filename
+               , #{ info := {import_entry, {M, _F, _A}} = Info }
+               , Path) ->
+  search(filename(M), Path, definition(Info));
 %% TODO: Eventually search everywhere and suggest a code lens to include a file
 goto_definition(Filename, #{ info := {macro, _Define} = Info }, Path) ->
   search(filename:basename(Filename), Path, definition(Info));
@@ -112,6 +116,8 @@ definition({application, {F, A}}) ->
 definition({behaviour, Behaviour}) ->
   {module, Behaviour};
 definition({exports_entry, {F, A}}) ->
+  {function, {F, A}};
+definition({import_entry, {_M, F, A}}) ->
   {function, {F, A}};
 definition({macro, Define}) ->
   {define, Define};

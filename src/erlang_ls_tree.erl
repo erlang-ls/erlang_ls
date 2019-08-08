@@ -151,6 +151,8 @@ points_of_interest(Tree, attribute, Extra) ->
       [erlang_ls_poi:poi(Tree, {behaviour, Behaviour}, Extra)];
     {export, Exports} ->
       [erlang_ls_poi:poi(Tree, {exports_entry, {F, A}}, Extra) || {F, A} <- Exports];
+    {import, {M, Imports}} ->
+      [erlang_ls_poi:poi(Tree, {import_entry, {M, F, A}}, Extra) || {F, A} <- Imports];
     {module, {Module, _Args}} ->
       [erlang_ls_poi:poi(Tree, {module, Module}, Extra)];
     {module, Module} ->

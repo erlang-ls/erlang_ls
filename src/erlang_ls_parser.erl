@@ -78,11 +78,23 @@ extra(Form, Tokens, Extra, attribute) ->
     {export, Exports} ->
       %% TODO: Use maps:update_with
       OldLocations = maps:get(exports_locations, Extra, []),
-      Locations = [L || {atom, L, F} <- Tokens, F =/= export],
+      %% Hackity-hack. The first atom is the attribute name.
+      %% We should find a nicer way to parse the export list.
+      [_|Locations] = [L || {atom, L, _F} <- Tokens],
       NewLocations = lists:append( OldLocations
                                  , lists:zip(Exports, Locations)
                                  ),
       maps:put(exports_locations, NewLocations, Extra);
+    {import, {_M, Imports}} ->
+      %% Hackity-hack. The first two atoms are the attribute name and
+      %% the import module. We should find a nicer way to parse the
+      %% import list.
+      OldLocations = maps:get(import_locations, Extra, []),
+      [_, _|Locations] = [L || {atom, L, _F} <- Tokens],
+      NewLocations = lists:append( OldLocations
+                                 , lists:zip(Imports, Locations)
+                                 ),
+      maps:put(import_locations, NewLocations, Extra);
     {spec, {spec, {{F, A}, [FT]}}} ->
       OldLocations = maps:get(spec_locations, Extra, []),
       NewLocations = [{{F, A}, spec_locations(FT)}|OldLocations],
