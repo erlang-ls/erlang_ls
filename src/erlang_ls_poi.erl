@@ -16,7 +16,7 @@
              , range/0
              ]).
 
--export([ poi/2 ]).
+-export([ poi/3 ]).
 
 -export([ list/1
         , match/2
@@ -29,10 +29,10 @@
 %%==============================================================================
 
 %% @edoc Constructor for a Point of Interest.
--spec poi(erlang_ls_tree:tree(), any()) -> poi().
-poi(Tree, Info) ->
+-spec poi(erlang_ls_tree:tree(), any(), erlang_ls_tree:extra()) -> poi().
+poi(Tree, Info, Extra) ->
   Pos = erl_syntax:get_pos(Tree),
-  Range = get_range(Pos, Info),
+  Range = get_range(Pos, Info, Extra),
   #{ type  => poi
    , info  => Info
    , range => Range
@@ -66,59 +66,62 @@ match_pos(Tree, Pos) ->
 %% Internal Functions
 %%==============================================================================
 
--spec get_range(pos(), {atom(), any()}) -> range().
-get_range({Line, Column}, {application, {M, F, _A}}) ->
+-spec get_range(pos(), {atom(), any()}, erlang_ls_tree:extra()) -> range().
+get_range({Line, Column}, {application, {M, F, _A}}, _Extra) ->
   CFrom = Column - length(atom_to_list(M)),
   From = {Line, CFrom},
   CTo = Column + length(atom_to_list(F)),
   To = {Line, CTo},
   #{ from => From, to => To };
-get_range({Line, Column}, {application, {F, _A}}) ->
+get_range({Line, Column}, {application, {F, _A}}, _Extra) ->
   From = {Line, Column},
   To = {Line, Column + length(atom_to_list(F))},
   #{ from => From, to => To };
-get_range({Line, Column}, {behaviour, Behaviour}) ->
+get_range({Line, Column}, {behaviour, Behaviour}, _Extra) ->
   From = {Line, Column - 1},
   To = {Line, Column + length("behaviour") + length(atom_to_list(Behaviour))},
   #{ from => From, to => To };
-get_range({_Line, _Column}, {exports_entry, {_F, _A}}) ->
-  %% TODO: The location information for the arity qualifiers are lost during
-  %%       parsing in `epp_dodger`. This requires fixing.
-  #{ from => {0, 0}, to => {0, 0} };
-get_range({Line, Column}, {function, {F, _A}}) ->
+get_range({_Line, _Column}, {exports_entry, {F, A}}, Extra) ->
+  ExportsLocations = maps:get(exports_locations, Extra, []),
+  {FromLine, FromColumn} = proplists:get_value({F, A}, ExportsLocations),
+  From = {FromLine, FromColumn - 1},
+  Length = length(atom_to_list(F)) + length(integer_to_list(A)) + 1,
+  To = {FromLine, FromColumn + Length - 1},
+  #{ from => From, to => To };
+get_range({Line, Column}, {function, {F, _A}}, _Extra) ->
   From = {Line - 1, Column - 1},
   To = {Line - 1, Column + length(atom_to_list(F)) - 1},
   #{ from => From, to => To };
-get_range({Line, _Column}, {define, _Define}) ->
+get_range({Line, _Column}, {define, _Define}, _Extra) ->
   From = {Line - 1, 0},
   To = From,
   #{ from => From, to => To };
-get_range({Line, Column}, {include, Include}) ->
+get_range({Line, Column}, {include, Include}, _Extra) ->
   From = {Line, Column - 1},
   To = {Line, Column + length("include") + length(Include)},
   #{ from => From, to => To };
-get_range({Line, Column}, {include_lib, Include}) ->
+get_range({Line, Column}, {include_lib, Include}, _Extra) ->
   From = {Line, Column - 1},
   To = {Line, Column + length("include_lib") + length(Include)},
   #{ from => From, to => To };
-get_range({Line, Column}, {macro, Macro}) ->
+get_range({Line, Column}, {macro, Macro}, _Extra) ->
   From = {Line, Column},
   To = {Line, Column + length(atom_to_list(Macro))},
   #{ from => From, to => To };
-get_range({Line, Column}, {module, _}) ->
+get_range({Line, Column}, {module, _}, _Extra) ->
   From = {Line - 1, Column - 1},
   To = From,
   #{ from => From, to => To };
-get_range({Line, Column}, {record_expr, Record}) ->
+get_range({Line, Column}, {record_expr, Record}, _Extra) ->
   From = {Line, Column - 1},
   To = {Line, Column + length(Record) - 1},
   #{ from => From, to => To };
 %% TODO: Distinguish between usage poi and definition poi
-get_range({Line, _Column}, {record, _Record}) ->
+get_range({Line, _Column}, {record, _Record}, _Extra) ->
   From = {Line - 1, 0},
   To = From,
   #{ from => From, to => To };
-get_range({_Line, _Column}, {spec, _Spec}) ->
+get_range({_Line, _Column}, {spec, _Spec}, _Extra) ->
   %% TODO: The location information for the arity qualifiers are lost during
   %%       parsing in `epp_dodger`. This requires fixing.
   #{ from => {0, 0}, to => {0, 0} }.

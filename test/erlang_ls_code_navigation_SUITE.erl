@@ -16,6 +16,7 @@
 -export([ application_local/1
         , application_remote/1
         , behaviour/1
+        , export_entry/1
         , include/1
         , include_lib/1
         , macro/1
@@ -74,6 +75,7 @@ all() ->
   [ application_local
   , application_remote
   , behaviour
+  , export_entry
   , include
   , include_lib
   , macro
@@ -110,6 +112,15 @@ behaviour(Config) ->
   {ok, FullName, Range} = goto_def(<<"code_navigation.erl">>, Thing, Path),
   ?assertEqual(full_path(src, <<"behaviour_a.erl">>, Config), FullName),
   ?assertEqual(#{from => {0, 1}, to => {0, 1}}, Range),
+  ok.
+
+-spec export_entry(config()) -> ok.
+export_entry(Config) ->
+  Thing = #{info => {exports_entry, {callback_a, 0}}},
+  Path  = ?config(include_path, Config),
+  {ok, FullName, Range} = goto_def(<<"code_navigation.erl">>, Thing, Path),
+  ?assertEqual(full_path(src, <<"code_navigation.erl">>, Config), FullName),
+  ?assertEqual(#{from => {23, 0}, to => {23, 10}}, Range),
   ok.
 
 -spec include(config()) -> ok.
