@@ -8,7 +8,8 @@
 %% TODO: Ideally avoid writing to file at all (require epp changes)
 -define(TMP_PATH, <<"/tmp/erlang_ls_tmp">>).
 
--spec parse(binary()) -> {ok, erlang_ls_tree:tree(), erlang_ls_tree:extra()}.
+-spec parse(binary()) ->
+   {ok, erlang_ls_tree:tree(), erlang_ls_tree:extra()} | {error, any()}.
 parse(Text) ->
   %% epp_dodger only works with source files,
   %% so let's use a temporary file.
@@ -39,9 +40,9 @@ parse_file(Path) ->
 parse_extra(Path) ->
   case file:open(Path, [read]) of
     {ok, IoDevice} ->
-      Res = parse_extra(IoDevice, #{}, {1, 1}),
+      {ok, Extra} = parse_extra(IoDevice, #{}, {1, 1}),
       ok = file:close(IoDevice),
-      {ok, Res};
+      {ok, Extra};
     {error, Error} ->
       {error, Error}
   end.
@@ -58,7 +59,7 @@ parse_extra(IoDevice, Extra, StartLocation) ->
           parse_extra(IoDevice, Extra, EndLocation)
       end;
     {eof, _} ->
-      Extra;
+      {ok, Extra};
     {error, Error} ->
       {error, Error}
   end.
