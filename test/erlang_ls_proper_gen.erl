@@ -22,5 +22,8 @@ uri() ->
       , <<"file:///tmp/", B/binary, ".erl">>
       ).
 
+root_uri() ->
+  <<"file:///tmp">>.
+
 buffer() ->
   elements([<<"a">>, <<"b">>, <<"c">>]).
