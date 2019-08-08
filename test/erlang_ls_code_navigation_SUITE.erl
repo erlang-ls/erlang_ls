@@ -23,6 +23,7 @@
         , macro_included/1
         , record/1
         , record_included/1
+        , type_application/1
         ]).
 
 %%==============================================================================
@@ -82,6 +83,7 @@ all() ->
   , macro_included
   , record
   , record_included
+  , type_application
   ].
 
 %%==============================================================================
@@ -177,6 +179,15 @@ record_included(Config) ->
   {ok, FullName, Range} = goto_def(<<"code_navigation.erl">>, Thing, Path),
   ?assertEqual(full_path(include, <<"code_navigation.hrl">>, Config), FullName),
   ?assertEqual(#{from => {0, 0}, to => {0, 0}}, Range),
+  ok.
+
+-spec type_application(config()) -> ok.
+type_application(Config) ->
+  Thing = #{info => {type_application, {'type_a', undefined}}},
+  Path  = ?config(include_path, Config),
+  {ok, FullName, Range} = goto_def(<<"code_navigation.erl">>, Thing, Path),
+  ?assertEqual(full_path(src, <<"code_navigation.erl">>, Config), FullName),
+  ?assertEqual(#{from => {30, 1}, to => {30, 1}}, Range),
   ok.
 
 %%==============================================================================

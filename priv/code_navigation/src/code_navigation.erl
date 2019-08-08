@@ -27,3 +27,5 @@ callback_a() ->
 function_c() ->
   code_navigation_extra:do(test),
   length([1, 2, 3]).
+
+-type type_a() :: any().

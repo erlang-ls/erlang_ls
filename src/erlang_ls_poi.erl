@@ -121,10 +121,16 @@ get_range({Line, _Column}, {record, _Record}, _Extra) ->
   From = {Line - 1, 0},
   To = From,
   #{ from => From, to => To };
-get_range({_Line, _Column}, {spec, _Spec}, _Extra) ->
-  %% TODO: The location information for the arity qualifiers are lost during
-  %%       parsing in `epp_dodger`. This requires fixing.
-  #{ from => {0, 0}, to => {0, 0} }.
+%% TODO: Do we really need the StartLocation there?
+get_range({_Line, _Column}, {type_application, {Type, StartLocation}}, _Extra) ->
+  {FromLine, FromColumn} = From = StartLocation,
+  Length = length(atom_to_list(Type)),
+  To = {FromLine, FromColumn + Length - 1},
+  #{ from => From, to => To };
+get_range({Line, Column}, {type_definition, _Type}, _Extra) ->
+  From = {Line - 1, Column - 1},
+  To = From,
+  #{ from => From, to => To }.
 
 -spec matches_pos(pos(), range()) -> boolean().
 matches_pos(Pos, #{from := From, to := To}) ->

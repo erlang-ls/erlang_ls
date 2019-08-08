@@ -76,15 +76,50 @@ extra(Form, Tokens, Extra) ->
 extra(Form, Tokens, Extra, attribute) ->
   case erl_syntax_lib:analyze_attribute(Form) of
     {export, Exports} ->
-      %% TODO: Move to function
+      %% TODO: Use maps:update_with
       OldLocations = maps:get(exports_locations, Extra, []),
       Locations = [L || {atom, L, F} <- Tokens, F =/= export],
       NewLocations = lists:append( OldLocations
                                  , lists:zip(Exports, Locations)
                                  ),
       maps:put(exports_locations, NewLocations, Extra);
+    {spec, {spec, {{F, A}, [FT]}}} ->
+      OldLocations = maps:get(spec_locations, Extra, []),
+      NewLocations = [{{F, A}, spec_locations(FT)}|OldLocations],
+      maps:put(spec_locations, NewLocations, Extra);
     _ ->
       Extra
   end;
 extra(_Form, _Tokens, Extra, _Type) ->
   Extra.
+
+%% TODO: Refine any() type
+-spec spec_locations(any()) -> [{atom(), erl_anno:location()}].
+spec_locations(FT) ->
+  FTR = erl_syntax:function_type_return(FT),
+  FTA = erl_syntax:function_type_arguments(FT),
+  do_spec_locations([FTR | FTA], []).
+
+-spec do_spec_locations([any()], [{atom(), erl_anno:location()}]) ->
+   [{atom(), erl_anno:location()}].
+do_spec_locations(any, Acc) ->
+  Acc;
+do_spec_locations([], Acc) ->
+  Acc;
+do_spec_locations([{type, StartLocation, Type, any}|T], Acc) ->
+  do_spec_locations(T, [{Type, StartLocation}|Acc]);
+do_spec_locations([{type, StartLocation, Type, Args}|T], Acc) ->
+  do_spec_locations(T ++ Args, [{Type, StartLocation}|Acc]);
+do_spec_locations([{user_type, StartLocation, Type, any}|T], Acc) ->
+  do_spec_locations(T, [{Type, StartLocation}|Acc]);
+do_spec_locations([{user_type, StartLocation, Type, Args}|T], Acc) ->
+  do_spec_locations(T ++ Args, [{Type, StartLocation}|Acc]);
+do_spec_locations([_Else|T], Acc) ->
+  do_spec_locations(T, Acc).
+
+%% TODO: Support type
+%% TODO: Support remote_type
+%% TODO: Support tuple
+%% TODO: Support union
+%% TODO: Add arity to type_definition
+%% TODO: Check why proc_lib fails to parse

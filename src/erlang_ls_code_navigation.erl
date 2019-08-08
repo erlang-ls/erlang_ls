@@ -31,6 +31,7 @@
 goto_definition(Filename, POI) ->
   goto_definition(Filename, POI, full_path()).
 
+%% TODO: Abstract pattern
 -spec goto_definition(binary(), erlang_ls_poi:poi(), [string()]) ->
    {ok, binary(), erlang_ls_poi:range()} | {error, any()}.
 goto_definition( _Filename
@@ -98,6 +99,8 @@ goto_definition(_Filename, #{ info := {include_lib, Include0} }, Path) ->
     {error, Error} ->
       {error, Error}
   end;
+goto_definition(Filename, #{ info := {type_application, _Type} = Info }, Path) ->
+  search(filename:basename(Filename), Path, definition(Info));
 goto_definition(_Filename, _, _Path) ->
   {error, not_found}.
 
@@ -113,7 +116,9 @@ definition({exports_entry, {F, A}}) ->
 definition({macro, Define}) ->
   {define, Define};
 definition({record_expr, Record}) ->
-  {record, Record}.
+  {record, Record};
+definition({type_application, {Type, _}}) ->
+  {type_definition, Type}.
 
 -spec otp_path() -> [string()].
 otp_path() ->
