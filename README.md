@@ -5,12 +5,72 @@
 
 An Erlang server implementing Microsoft's Language Server Protocol 3.0.
 
+## Disclaimer
+
+This project is still under heavy development and it is therefore not
+still suitable as a fully-functional language server for daily usage.
+Said that, contributors and early users are extremely welcome.
+
+If you have any issues or questions about the project, feel free to
+open a new issue. You can also join the #language-server channel in
+the _Erlanger_ Slack if you would like to get involved or if you
+prefer a more informal mean of communication.
+
+## Minimum Requirements
+
+* Erlang OTP 21+
+* rebar3 3.9.1+
+
+## Quickstart
+
+Compile the project:
+
+    rebar3 escriptize
+
+### Emacs Setup
+
+The official `lsp-mode` package already includea a client for the
+Erlang Language Server, so simply add the following to your `.emacs`
+file:
+
+    ```elisp
+    ;; Require the official lsp-mode package
+    (require 'lsp-mode)
+    ;; Configure the location of the Erlang language server
+    (setq lsp-erlang-server-install-dir "/path/to/erlang_ls")
+    ;; Enable LSP automatically for Erlang files
+    (add-hook 'erlang-mode-hook #'lsp)
+    ```
+
+    Ensure you have Erlang (i.e. `erl`, `escript` and friends) as part
+    of your Emacs path. If you don't, you can try the following:
+
+    ```elisp
+    ;; Ensure your Emacs environment looks like your user's shell one
+    (package-require 'exec-path-from-shell)
+    (exec-path-from-shell-initialize)
+    ```
+
 ## Features
 
-This section summarizes the functionalities implemented and available
-via the LSP protocol.
+This section summarizes the functionalities currently implemented by
+the `erlang_ls` server.
 
-### Code Completion
+### Code Navigation
+
+Code navigation is currently available for the following elements:
+
+* Function applications (both local and remote)
+* BIFs
+* Behaviour attributes
+* Included files
+* Type definitions
+* Record definitions
+* Macro definitions
+* Export list entries
+* Import list entries
+
+### Code Completion (incomplete)
 
 Completion requests are sent from the client to the server to compute
 completion items at a given cursor position. Completion items are
@@ -31,53 +91,6 @@ Code completion is available for the following elements:
 * Record fields
 * Atom names
 * Module attributes
-
-### Code Snippets
-
-
-
-## Get in Touch
-
-This project is still in a very early stage. To get
-in touch, feel free to join the #language-server channel in the
-Erlanger Slack.
-
-## Dev Quickstart
-
-    $ rebar3 shell
-    > lager:set_loglevel(lager_console_backend, debug).
-
-## Running the Tests
-
-    $ rebar3 as eqc ct
-
-## Coverage Reports
-
-    $  rebar3 as eqc cover --verbose
-
-## Emacs Setup
-
-The official `lsp-mode` package already includea a client for the
-Erlang Language Server, so simply add the following to your `.emacs`
-file:
-
-    ```elisp
-    ;; Require the official lsp-mode package
-    (require 'lsp-mode)
-    ;; Configure the location of the Erlang language server
-    (setq lsp-erlang-server-install-dir "/path/to/erlang_ls")
-    ;; Enable LSP automatically for Erlang files
-    (add-hook 'erlang-mode-hook #'lsp)
-    ```
-
-    Ensure you have Erlang (i.e. `erl`, `escript` and friends) as part of your Emacs path.
-    If you don't, you can try the following:
-
-    ```elisp
-    ;; Ensure your Emacs environment looks like your user's shell one
-    (package-require 'exec-path-from-shell)
-    (exec-path-from-shell-initialize)
-    ```
 
 ## References
 
