@@ -16,6 +16,10 @@ open a new issue. You can also join the #language-server channel in
 the _Erlanger_ Slack if you would like to get involved or if you
 prefer a more informal mean of communication.
 
+A [wiki](https://github.com/erlang-ls/erlang_ls/wiki) is also
+available and I occasionally blog about the project on
+[Medium](https://medium.com/about-erlang).
+
 ## Minimum Requirements
 
 * Erlang OTP 21+
