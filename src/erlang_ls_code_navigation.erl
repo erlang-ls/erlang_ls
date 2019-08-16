@@ -18,11 +18,6 @@
 -include("erlang_ls.hrl").
 
 %%==============================================================================
-%% Macros
-%%==============================================================================
--define(OTP_INCLUDE_PATH, "/usr/local/Cellar/erlang/21.2.4/lib/erlang/lib").
-
-%%==============================================================================
 %% API
 %%==============================================================================
 
@@ -128,7 +123,10 @@ definition({type_application, {Type, _}}) ->
 
 -spec otp_path() -> [string()].
 otp_path() ->
-  filelib:wildcard(filename:join([?OTP_INCLUDE_PATH, "*/src"])).
+  Parts0 = filename:split(code:which(lists)),
+  Parts1 = lists:sublist(Parts0, length(Parts0) - 3),
+  Path   = filename:join(Parts1 ++ ["*", "src"]),
+  filelib:wildcard(Path).
 
 -spec app_path() -> [string()].
 app_path() ->
