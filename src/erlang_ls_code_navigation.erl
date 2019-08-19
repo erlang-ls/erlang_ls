@@ -123,10 +123,10 @@ definition({type_application, {Type, _}}) ->
 
 -spec otp_path() -> [string()].
 otp_path() ->
-  Parts0 = filename:split(code:which(lists)),
-  Parts1 = lists:sublist(Parts0, length(Parts0) - 3),
-  Path   = filename:join(Parts1 ++ ["*", "src"]),
-  filelib:wildcard(Path).
+  Root = code:root_dir(),
+  lists:append([ filename:join([Root, "lib", "*", "src"])
+               , filename:join([Root, "lib", "*", "include"])
+               ]).
 
 -spec app_path() -> [string()].
 app_path() ->
