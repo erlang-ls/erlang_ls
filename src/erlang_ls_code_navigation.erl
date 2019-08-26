@@ -124,8 +124,10 @@ definition({type_application, {Type, _}}) ->
 -spec otp_path() -> [string()].
 otp_path() ->
   Root = code:root_dir(),
-  lists:append([ filename:join([Root, "lib", "*", "src"])
-               , filename:join([Root, "lib", "*", "include"])
+  Sources = filename:join([Root, "lib", "*", "src"]),
+  Includes = filename:join([Root, "lib", "*", "include"]),
+  lists:append([ filelib:wildcard(Sources)
+               , filelib:wildcard(Includes)
                ]).
 
 -spec app_path() -> [string()].
