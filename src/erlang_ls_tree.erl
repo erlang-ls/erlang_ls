@@ -192,7 +192,10 @@ points_of_interest(Tree, function, Extra) ->
   {F, A} = erl_syntax_lib:analyze_function(Tree),
   [erlang_ls_poi:poi(Tree, {function, {F, A}}, Extra)];
 points_of_interest(Tree, macro, Extra) ->
-  Macro = erl_syntax:variable_name(erl_syntax:macro_name(Tree)),
+  Macro = case erl_syntax:macro_name(Tree) of
+            {atom, _, Macro_} -> Macro_;
+            Macro_ -> erl_syntax:variable_name(Macro_)
+          end,
   [erlang_ls_poi:poi(Tree, {macro, Macro}, Extra)];
 points_of_interest(Tree, record_expr, Extra) ->
   Record = erl_syntax:atom_name(erl_syntax:record_expr_type(Tree)),
