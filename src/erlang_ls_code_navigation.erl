@@ -123,12 +123,7 @@ definition({type_application, {Type, _}}) ->
 
 -spec otp_path() -> [string()].
 otp_path() ->
-  Root = code:root_dir(),
-  Sources = filename:join([Root, "lib", "*", "src"]),
-  Includes = filename:join([Root, "lib", "*", "include"]),
-  lists:append([ filelib:wildcard(Sources)
-               , filelib:wildcard(Includes)
-               ]).
+  paths(code:root_dir()).
 
 -spec app_path() -> [string()].
 app_path() ->
@@ -136,7 +131,18 @@ app_path() ->
   RootPath = erlang_ls_uri:path(RootUri),
   [ filename:join([RootPath, "src"])
   , filename:join([RootPath, "include"])
+  | paths(RootPath)
   ].
+
+-spec paths(binary() | string()) -> [string()].
+paths(Root) when is_binary(Root) ->
+  paths(erlang:binary_to_list(Root));
+paths(Root) ->
+  Sources = filename:join([Root, "lib", "*", "src"]),
+  Includes = filename:join([Root, "lib", "*", "include"]),
+  lists:append([ filelib:wildcard(Sources)
+               , filelib:wildcard(Includes)
+               ]).
 
 -spec full_path() -> [string()].
 full_path() ->
