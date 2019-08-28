@@ -212,19 +212,16 @@ define_name(Tree) ->
   case erl_syntax:type(Tree) of
     application ->
       Operator = erl_syntax:application_operator(Tree),
-      case erl_syntax:type(Operator) of
-        atom     -> erl_syntax:atom_value(Operator);
-        variable -> erl_syntax:variable_name(Operator)
-      end;
+      macro_name(Operator);
     variable ->
       erl_syntax:variable_name(Tree)
   end.
 
--spec macro_name(tree()) -> string().
+-spec macro_name(tree()) -> atom().
 macro_name(Tree) ->
   case erl_syntax:type(Tree) of
     atom ->
-      erl_syntax:atom_name(Tree);
+      erl_syntax:atom_value(Tree);
     variable ->
       erl_syntax:variable_name(Tree)
   end.
