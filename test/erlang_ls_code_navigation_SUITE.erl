@@ -137,7 +137,6 @@ export_entry(Config) ->
   ?assertEqual(#{from => {27, 0}, to => {27, 10}}, Range),
   ok.
 
-
 -spec fun_local(config()) -> ok.
 fun_local(Config) ->
   Thing = #{info => {implicit_fun, {function_b, 0}}},
