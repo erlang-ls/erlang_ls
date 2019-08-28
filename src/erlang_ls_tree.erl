@@ -100,8 +100,9 @@ points_of_interest(Tree, Extra) ->
   Type = erl_syntax:type(Tree),
   try points_of_interest(Tree, Type, Extra)
   catch
-    Class:Reason ->
-      lager:warning("Could not analyze tree: ~p:~p", [Class, Reason]),
+    Class:Reason:Stacktrace ->
+      lager:warning( "Could not analyze tree: ~p:~p ~P"
+                   , [Class, Reason, Stacktrace]),
       []
   end.
 
