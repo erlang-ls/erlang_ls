@@ -206,7 +206,7 @@ points_of_interest(Tree, record_expr, Extra) ->
 points_of_interest(_Tree, _Type, _Extra) ->
   [].
 
--spec define_name(tree()) -> string().
+-spec define_name(tree()) -> atom().
 define_name(Tree) ->
   case erl_syntax:type(Tree) of
     application ->
