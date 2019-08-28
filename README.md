@@ -41,7 +41,7 @@ file:
     ;; Require the official lsp-mode package
     (require 'lsp-mode)
     ;; Configure the location of the Erlang language server
-    (setq lsp-erlang-server-install-dir "/path/to/erlang_ls")
+    (setq lsp-erlang-server-path "/path/to/erlang_ls/_build/default/bin/erlang_ls")
     ;; Enable LSP automatically for Erlang files
     (add-hook 'erlang-mode-hook #'lsp)
     ```
