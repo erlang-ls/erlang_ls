@@ -30,8 +30,10 @@ goto_definition(Filename, POI) ->
 -spec goto_definition(binary(), erlang_ls_poi:poi(), [string()]) ->
    {ok, binary(), erlang_ls_poi:range()} | {error, any()}.
 goto_definition( _Filename
-               , #{ info := {application, {M, _F, _A}} = Info }
-               , Path) ->
+               , #{ info := {Type, {M, _F, _A}} = Info }
+               , Path
+               ) when Type =:= application;
+                      Type =:= implicit_fun ->
   case erlang_ls_tree:annotate_file(filename(M), Path) of
     {ok, FullName, AnnotatedTree} ->
       case erlang_ls_poi:match(AnnotatedTree, definition(Info)) of
@@ -44,8 +46,10 @@ goto_definition( _Filename
       {error, Error}
   end;
 goto_definition( Filename
-               , #{ info := {application, {_F, _A}} = Info }
-               , Path) ->
+               , #{ info := {Type, {_F, _A}} = Info }
+               , Path
+               ) when Type =:= application;
+                      Type =:= implicit_fun ->
   case erlang_ls_tree:annotate_file(filename:basename(Filename), Path) of
     {ok, FullName, AnnotatedTree} ->
       case erlang_ls_poi:match(AnnotatedTree, definition(Info)) of
@@ -107,6 +111,10 @@ goto_definition(_Filename, _, _Path) ->
 definition({application, {_M, F, A}}) ->
   {function, {F, A}};
 definition({application, {F, A}}) ->
+  {function, {F, A}};
+definition({implicit_fun, {_M, F, A}}) ->
+  {function, {F, A}};
+definition({implicit_fun, {F, A}}) ->
   {function, {F, A}};
 definition({behaviour, Behaviour}) ->
   {module, Behaviour};
