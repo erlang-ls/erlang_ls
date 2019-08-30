@@ -15,6 +15,8 @@
 %% Test cases
 -export([ application_local/1
         , application_remote/1
+        , fun_local/1
+        , fun_remote/1
         , behaviour/1
         , export_entry/1
         , import_entry/1
@@ -76,6 +78,8 @@ end_per_testcase(_TestCase, _Config) ->
 all() ->
   [ application_local
   , application_remote
+  , fun_local
+  , fun_remote
   , behaviour
   , export_entry
   , import_entry
@@ -103,6 +107,24 @@ application_local(Config) ->
 -spec application_remote(config()) -> ok.
 application_remote(Config) ->
   Thing = #{info => {application, {code_navigation_extra, do, 1}}},
+  Path  = ?config(include_path, Config),
+  {ok, FullName, Range} = goto_def(<<"code_navigation.erl">>, Thing, Path),
+  ?assertEqual(full_path(src, <<"code_navigation_extra.erl">>, Config), FullName),
+  ?assertEqual(#{from => {4, 0}, to => {4, 2}}, Range),
+  ok.
+
+-spec fun_local(config()) -> ok.
+fun_local(Config) ->
+  Thing = #{info => {implicit_fun, {function_b, 0}}},
+  Path  = ?config(include_path, Config),
+  {ok, FullName, Range} = goto_def(<<"code_navigation.erl">>, Thing, Path),
+  ?assertEqual(full_path(src, <<"code_navigation.erl">>, Config), FullName),
+  ?assertEqual(#{from => {22, 0}, to => {22, 10}}, Range),
+  ok.
+
+-spec fun_remote(config()) -> ok.
+fun_remote(Config) ->
+  Thing = #{info => {implicit_fun, {code_navigation_extra, do, 1}}},
   Path  = ?config(include_path, Config),
   {ok, FullName, Range} = goto_def(<<"code_navigation.erl">>, Thing, Path),
   ?assertEqual(full_path(src, <<"code_navigation_extra.erl">>, Config), FullName),
