@@ -191,6 +191,12 @@ handle_method(<<"textDocument/definition">>, Params) ->
     [] ->
       {response, null}
   end;
+handle_method(<<"shutdown">>, _Params) ->
+  %% TODO: keep in the state that we got a shutdown
+  {response, null};
+handle_method(<<"exit">>, _Params) ->
+  %% TODO: exit with 1 if shutdown wasn't sent before
+  erlang:halt(0);
 handle_method(Method, _Params) ->
   lager:warning("[Method not implemented] [method=~s]", [Method]),
   Message = <<"Method not implemented: ", Method/binary>>,
