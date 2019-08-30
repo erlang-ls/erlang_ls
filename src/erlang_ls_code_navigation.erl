@@ -49,7 +49,8 @@ goto_definition( Filename
                , #{ info := {Type, {_F, _A}} = Info }
                , Path
                ) when Type =:= application;
-                      Type =:= implicit_fun ->
+                      Type =:= implicit_fun;
+                      Type =:= exports_entry ->
   case erlang_ls_tree:annotate_file(filename:basename(Filename), Path) of
     {ok, FullName, AnnotatedTree} ->
       case erlang_ls_poi:match(AnnotatedTree, definition(Info)) of
@@ -63,20 +64,6 @@ goto_definition( Filename
   end;
 goto_definition(_Filename, #{ info := {behaviour, Behaviour} = Info }, Path) ->
   search(filename(Behaviour), Path, definition(Info));
-goto_definition( Filename
-               , #{ info := {exports_entry, {_F, _A}} = Info }
-               , Path) ->
-  case erlang_ls_tree:annotate_file(filename:basename(Filename), Path) of
-    {ok, FullName, AnnotatedTree} ->
-      case erlang_ls_poi:match(AnnotatedTree, definition(Info)) of
-        [#{ range := Range }] ->
-          {ok, FullName, Range};
-        [] ->
-          {error, not_found}
-      end;
-    {error, Error} ->
-      {error, Error}
-  end;
 goto_definition( _Filename
                , #{ info := {import_entry, {M, _F, _A}} = Info }
                , Path) ->
