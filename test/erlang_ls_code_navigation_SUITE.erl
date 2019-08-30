@@ -23,6 +23,7 @@
         , include/1
         , include_lib/1
         , macro/1
+        , macro_lowercase/1
         , macro_included/1
         , macro_with_args/1
         , macro_with_args_included/1
@@ -90,6 +91,7 @@ all() ->
   , include
   , include_lib
   , macro
+  , macro_lowercase
   , macro_included
   , macro_with_args
   , macro_with_args_included
@@ -189,6 +191,15 @@ macro(Config) ->
   {ok, FullName, Range} = goto_def(<<"code_navigation.erl">>, Thing, Path),
   ?assertEqual(full_path(src, <<"code_navigation.erl">>, Config), FullName),
   ?assertEqual(#{from => {17, 0}, to => {17, 0}}, Range),
+  ok.
+
+-spec macro_lowercase(config()) -> ok.
+macro_lowercase(Config) ->
+  Thing = #{info => {macro, 'macro_A'}},
+  Path  = ?config(include_path, Config),
+  {ok, FullName, Range} = goto_def(<<"code_navigation.erl">>, Thing, Path),
+  ?assertEqual(full_path(src, <<"code_navigation.erl">>, Config), FullName),
+  ?assertEqual(#{from => {42, 0}, to => {42, 0}}, Range),
   ok.
 
 -spec macro_included(config()) -> ok.

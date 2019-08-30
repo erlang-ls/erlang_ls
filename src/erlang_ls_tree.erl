@@ -214,7 +214,9 @@ define_name(Tree) ->
       Operator = erl_syntax:application_operator(Tree),
       macro_name(Operator);
     variable ->
-      erl_syntax:variable_name(Tree)
+      erl_syntax:variable_name(Tree);
+    atom ->
+      erl_syntax:atom_value(Tree)
   end.
 
 -spec macro_name(tree()) -> atom().
