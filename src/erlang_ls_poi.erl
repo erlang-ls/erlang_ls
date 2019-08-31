@@ -77,6 +77,18 @@ get_range({Line, Column}, {application, {F, _A}}, _Extra) ->
   From = {Line, Column},
   To = {Line, Column + length(atom_to_list(F))},
   #{ from => From, to => To };
+get_range({Line, Column}, {implicit_fun, {M, F, A}}, _Extra) ->
+  From = {Line, Column},
+  %% Assumes "fun M:F/A"
+  Length = 6 + length(atom_to_list(M) ++ atom_to_list(F) ++ integer_to_list(A)),
+  To = {Line, Column + Length},
+  #{ from => From, to => To };
+get_range({Line, Column}, {implicit_fun, {F, A}}, _Extra) ->
+  From = {Line, Column},
+  %% Assumes "fun F/A"
+  Length = 5 + length(atom_to_list(F) ++ integer_to_list(A)),
+  To = {Line, Column + Length},
+  #{ from => From, to => To };
 get_range({Line, Column}, {behaviour, Behaviour}, _Extra) ->
   From = {Line, Column - 1},
   To = {Line, Column + length("behaviour") + length(atom_to_list(Behaviour))},

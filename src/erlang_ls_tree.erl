@@ -191,6 +191,12 @@ points_of_interest(Tree, attribute, Extra) ->
 points_of_interest(Tree, function, Extra) ->
   {F, A} = erl_syntax_lib:analyze_function(Tree),
   [erlang_ls_poi:poi(Tree, {function, {F, A}}, Extra)];
+points_of_interest(Tree, implicit_fun, Extra) ->
+  FunSpec = case erl_syntax_lib:analyze_implicit_fun(Tree) of
+              {M, {F, A}} -> {M, F, A};
+              {F, A} -> {F, A}
+            end,
+  [erlang_ls_poi:poi(Tree, {implicit_fun, FunSpec}, Extra)];
 points_of_interest(Tree, macro, Extra) ->
   Macro = erl_syntax:variable_name(erl_syntax:macro_name(Tree)),
   [erlang_ls_poi:poi(Tree, {macro, Macro}, Extra)];
