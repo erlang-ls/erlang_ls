@@ -35,25 +35,23 @@ Compile the project:
 
 The official `lsp-mode` package already includea a client for the
 Erlang Language Server, so simply add the following to your `.emacs`
-file:
+file (assuming the `erlang_ls` executable is available in your `PATH`:
 
-    ```elisp
     ;; Require the official lsp-mode package
     (require 'lsp-mode)
-    ;; Configure the location of the Erlang language server
-    (setq lsp-erlang-server-path "/path/to/erlang_ls/_build/default/bin/erlang_ls")
     ;; Enable LSP automatically for Erlang files
     (add-hook 'erlang-mode-hook #'lsp)
-    ```
 
-    Ensure you have Erlang (i.e. `erl`, `escript` and friends) as part
-    of your Emacs path. If you don't, you can try the following:
+Ensure you have Erlang (i.e. `erl`, `escript` and friends) as part
+of your Emacs path. If you don't, you can try the following:
 
-    ```elisp
     ;; Ensure your Emacs environment looks like your user's shell one
     (package-require 'exec-path-from-shell)
     (exec-path-from-shell-initialize)
-    ```
+
+To enable logging on the client-side, just:
+
+    (setq lsp-log-io t)
 
 ## Features
 
