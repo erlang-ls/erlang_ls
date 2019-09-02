@@ -37,8 +37,10 @@ The official `lsp-mode` package already includea a client for the
 Erlang Language Server, so simply add the following to your `.emacs`
 file (assuming the `erlang_ls` executable is available in your `PATH`:
 
-    ;; Require the official lsp-mode package
-    (require 'lsp-mode)
+    ;; Install the yasnippet dependency
+    (package-install 'yasnippet)
+    ;; Install the official lsp-mode package
+    (package-install 'lsp-mode)
     ;; Enable LSP automatically for Erlang files
     (add-hook 'erlang-mode-hook #'lsp)
 
