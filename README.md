@@ -94,6 +94,24 @@ Code completion is available for the following elements:
 * Atom names
 * Module attributes
 
+## Troubleshooting
+
+It is possible to compile and start the language server in _debug mode_:
+
+    rebar3 as debug escriptize
+
+Ensure you update your `PATH` to include the new executable which now
+resides in:
+
+    /path/to/erlang_ls/_build/debug/bin/erlang_ls
+
+Once an instance of the server is running you can connect to it via:
+
+    erl -sname debug -remsh erlang_ls@[HOSTNAME]
+
+The [redbug](https://github.com/massemanet/redbug) application is
+included in _debug mode_, so feel free to use it.
+
 ## References
 
 https://microsoft.github.io/language-server-protocol/
