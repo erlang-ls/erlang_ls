@@ -1,0 +1,47 @@
+{
+    "name": "erlang_ls",
+    "version": "0.0.1",
+    "description": "Erlang Language Server",
+    "homepage": "https://github.com/erlang-ls/erlang_ls#readme",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/erlang-ls/erlang_ls.git"
+    },
+    "bugs": {
+        "url": "https://github.com/erlang-ls/erlang_ls/issues"
+    },
+    "main": "./vscode/out/client.js",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1",
+        "vscode:prepublish": "cd vscode && npm run update-vscode && cd .. && npm run compile",
+        "compile": "rebar3 release && cd vscode && npm run compile",
+        "watch": "cd vscode && npm run watch",
+        "postinstall": "cd vscode && npm install"
+    },
+    "author": "erlang_ls",
+    "license": "MIT",
+    "engines": {
+        "vscode": "^1.22.0"
+    },
+    "activationEvents": [
+        "onLanguage:erlang"
+    ],
+    "contributes": {
+        "languages": [
+            {
+                "id": "erlang",
+                "aliases": [
+                    "Erlang"
+                ],
+                "extensions": [
+                    ".erl",
+                    ".hrl",
+                    ".src"
+                ]
+            }
+        ]
+    },
+    "files": [
+        "_build"
+    ]
+}
