@@ -1,5 +1,7 @@
 # erlang_ls
 
+![erlang_ls](images/erlang-ls-logo-small.png?raw=true "Erlang LS")
+
 [![Build Status](https://travis-ci.org/erlang-ls/erlang_ls.svg?branch=master)](https://travis-ci.org/erlang-ls/erlang_ls)
 [![Coverage Status](https://coveralls.io/repos/github/erlang-ls/erlang_ls/badge.svg?branch=master)](https://coveralls.io/github/erlang-ls/erlang_ls?branch=master)
 
