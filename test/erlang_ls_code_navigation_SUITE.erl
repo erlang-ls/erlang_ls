@@ -144,7 +144,7 @@ fun_local(Config) ->
   Path  = ?config(include_path, Config),
   {ok, FullName, Range} = goto_def(<<"code_navigation.erl">>, Thing, Path),
   ?assertEqual(full_path(src, <<"code_navigation.erl">>, Config), FullName),
-  ?assertEqual(#{from => {22, 0}, to => {22, 10}}, Range),
+  ?assertEqual(#{from => {24, 0}, to => {24, 10}}, Range),
   ok.
 
 -spec fun_remote(config()) -> ok.
