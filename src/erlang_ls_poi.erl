@@ -113,7 +113,7 @@ get_range({Line, Column}, {include_lib, Include}, _Extra) ->
   From = {Line, Column - 1},
   To = {Line, Column + length("include_lib") + length(Include)},
   #{ from => From, to => To };
-get_range({Line, Column}, {macro, Macro}, _Extra) ->
+get_range({Line, Column}, {macro, Macro}, _Extra) when is_atom(Macro) ->
   From = {Line, Column},
   To = {Line, Column + length(atom_to_list(Macro))},
   #{ from => From, to => To };

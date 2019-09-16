@@ -39,3 +39,8 @@ function_d() ->
 
 function_e() ->
   ?assertEqual(2.0, 4/2).
+
+-define(macro_A, macro_A).
+
+function_f() ->
+  ?macro_A.
