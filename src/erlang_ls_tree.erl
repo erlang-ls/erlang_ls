@@ -201,6 +201,11 @@ points_of_interest(Tree, implicit_fun, Extra) ->
 points_of_interest(Tree, macro, Extra) ->
   Name = erl_syntax:macro_name(Tree),
   [erlang_ls_poi:poi(Tree, {macro, macro_name(Name)}, Extra)];
+points_of_interest(Tree, record_access, Extra) ->
+  Record = erl_syntax:atom_name(erl_syntax:record_access_type(Tree)),
+  Var = erl_syntax:variable_literal(
+          erl_syntax:record_access_argument(Tree)),
+  [erlang_ls_poi:poi(Tree, {record_access, {Record, Var}}, Extra)];
 points_of_interest(Tree, record_expr, Extra) ->
   Record = erl_syntax:atom_name(erl_syntax:record_expr_type(Tree)),
   [erlang_ls_poi:poi(Tree, {record_expr, Record}, Extra)];

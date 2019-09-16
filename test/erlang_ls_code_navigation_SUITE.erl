@@ -27,8 +27,10 @@
         , macro_included/1
         , macro_with_args/1
         , macro_with_args_included/1
-        , record/1
-        , record_included/1
+        , record_access/1
+        , record_access_included/1
+        , record_expr/1
+        , record_expr_included/1
         , type_application/1
         ]).
 
@@ -95,8 +97,10 @@ all() ->
   , macro_included
   , macro_with_args
   , macro_with_args_included
-  , record
-  , record_included
+  , record_access
+  , record_access_included
+  , record_expr
+  , record_expr_included
   , type_application
   ].
 
@@ -199,7 +203,7 @@ macro_lowercase(Config) ->
   Path  = ?config(include_path, Config),
   {ok, FullName, Range} = goto_def(<<"code_navigation.erl">>, Thing, Path),
   ?assertEqual(full_path(src, <<"code_navigation.erl">>, Config), FullName),
-  ?assertEqual(#{from => {42, 0}, to => {42, 0}}, Range),
+  ?assertEqual(#{from => {44, 0}, to => {44, 0}}, Range),
   ok.
 
 -spec macro_included(config()) -> ok.
@@ -229,10 +233,28 @@ macro_with_args_included(Config) ->
   %% Do not assert on line number to avoid binding to a specific OTP version
   ok.
 
+-spec record_access(config()) -> ok.
+record_access(Config) ->
+  Thing = #{info => {record_access, {"record_a", "_X"}}},
+  Path  = ?config(include_path, Config),
+  {ok, FullName, Range} = goto_def(<<"code_navigation.erl">>, Thing, Path),
+  ?assertEqual(full_path(src, <<"code_navigation.erl">>, Config), FullName),
+  ?assertEqual(#{from => {15, 0}, to => {15, 0}}, Range),
+  ok.
+
+-spec record_access_included(config()) -> ok.
+record_access_included(Config) ->
+  Thing = #{info => {record_access, {"included_record_a", "_X"}}},
+  Path  = ?config(include_path, Config),
+  {ok, FullName, Range} = goto_def(<<"code_navigation.erl">>, Thing, Path),
+  ?assertEqual(full_path(include, <<"code_navigation.hrl">>, Config), FullName),
+  ?assertEqual(#{from => {0, 0}, to => {0, 0}}, Range),
+  ok.
+
 %% TODO: Additional constructors for POI
 %% TODO: Navigation should return POI, not range
--spec record(config()) -> ok.
-record(Config) ->
+-spec record_expr(config()) -> ok.
+record_expr(Config) ->
   Thing = #{info => {record_expr, "record_a"}},
   Path  = ?config(include_path, Config),
   {ok, FullName, Range} = goto_def(<<"code_navigation.erl">>, Thing, Path),
@@ -240,8 +262,8 @@ record(Config) ->
   ?assertEqual(#{from => {15, 0}, to => {15, 0}}, Range),
   ok.
 
--spec record_included(config()) -> ok.
-record_included(Config) ->
+-spec record_expr_included(config()) -> ok.
+record_expr_included(Config) ->
   Thing = #{info => {record_expr, "included_record_a"}},
   Path  = ?config(include_path, Config),
   {ok, FullName, Range} = goto_def(<<"code_navigation.erl">>, Thing, Path),
@@ -256,7 +278,7 @@ type_application(Config) ->
   {ok, FullName, Range} = goto_def(<<"code_navigation.erl">>, Thing, Path),
   ?assertEqual( full_path(src, <<"code_navigation.erl">>, Config)
               , FullName),
-  ?assertEqual(#{from => {34, 1}, to => {34, 1}}, Range),
+  ?assertEqual(#{from => {36, 1}, to => {36, 1}}, Range),
   ok.
 
 %%==============================================================================

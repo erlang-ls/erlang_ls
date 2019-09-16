@@ -121,6 +121,8 @@ get_range({Line, Column}, {module, _}, _Extra) ->
   From = {Line - 1, Column - 1},
   To = From,
   #{ from => From, to => To };
+get_range(Pos, {record_access, {Record, Var}}, _Extra) ->
+  #{ from => minus(Pos, Var), to => plus(Pos, Record) };
 get_range({Line, Column}, {record_expr, Record}, _Extra) ->
   From = {Line, Column - 1},
   To = {Line, Column + length(Record) - 1},
@@ -153,3 +155,11 @@ get_entry_range(Key, F, A, Extra) ->
   Length = length(atom_to_list(F)) + length(integer_to_list(A)) + 1,
   To = {FromLine, FromColumn + Length - 1},
   #{ from => From, to => To }.
+
+-spec minus(pos(), string()) -> pos().
+minus({Line, Column}, String) ->
+  {Line, Column - length(String) - 1}.
+
+-spec plus(pos(), string()) -> pos().
+plus({Line, Column}, String) ->
+  {Line, Column + length(String)}.

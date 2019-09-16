@@ -30,6 +30,8 @@ callback_a() ->
 
 function_c() ->
   code_navigation_extra:do(test),
+  A = #record_a{},
+  _X = A#record_a.field_a,
   length([1, 2, 3]).
 
 -type type_a() :: any().
