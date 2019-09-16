@@ -125,7 +125,7 @@ definition({type_application, {Type, _}}) ->
 
 -spec otp_path() -> [string()].
 otp_path() ->
-  Root = code:root_dir(),
+  {ok, Root} = erlang_ls_buffer_server:get_otp_path(),
   Sources = filename:join([Root, "lib", "*", "src"]),
   Includes = filename:join([Root, "lib", "*", "include"]),
   lists:append([ filelib:wildcard(Sources)

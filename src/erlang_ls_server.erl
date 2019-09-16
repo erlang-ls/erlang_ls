@@ -124,7 +124,12 @@ handle_request(Socket, Request) ->
 -spec handle_method(binary(), map()) ->
   {response, map()} | {} | {notification, binary(), map()}.
 handle_method(<<"initialize">>, Params) ->
-  RootUri = maps:get(<<"rootUri">>, Params),
+  #{ <<"rootUri">> := RootUri
+   , <<"initializationOptions">> := InitOptions
+   } = Params,
+  Config = erlang_config(InitOptions, RootUri),
+  OtpPath = proplists:get_value(otp_path, Config, code:root_dir()),
+  ok = erlang_ls_buffer_server:set_otp_path(OtpPath),
   ok = erlang_ls_buffer_server:set_root_uri(RootUri),
   Result = #{ capabilities =>
                 #{ hoverProvider => false
@@ -211,3 +216,14 @@ send_notification(Socket, Method, Params) ->
   Notification = erlang_ls_protocol:notification(Method, Params),
   lager:debug("[SERVER] Sending notification [notification=~p]", [Notification]),
   gen_tcp:send(Socket, Notification).
+
+-spec erlang_config(map(), binary()) -> [term()].
+erlang_config(#{<<"erlang">> := #{<<"config">> := Filename}}, RootUri) ->
+  RootPath = erlang_ls_uri:path(RootUri),
+  Path = filename:join([RootPath, Filename]),
+  lager:info("Reading config file from ~p", [Path]),
+  %% TODO: check the file exits
+  {ok, Terms} = file:consult(Path),
+  Terms;
+erlang_config(_, _) ->
+  [].
