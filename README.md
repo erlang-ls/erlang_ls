@@ -111,7 +111,7 @@ resides in:
 
 Once an instance of the server is running you can connect to it via:
 
-    erl -sname debug -remsh erlang_ls@[HOSTNAME]
+    erl -sname debug -remsh erlang_ls@`HOSTNAME`
 
 The [redbug](https://github.com/massemanet/redbug) application is
 included in _debug mode_, so feel free to use it.
