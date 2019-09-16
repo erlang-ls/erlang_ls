@@ -24,6 +24,8 @@
         , include_lib/1
         , macro/1
         , macro_included/1
+        , macro_with_args/1
+        , macro_with_args_included/1
         , record/1
         , record_included/1
         , type_application/1
@@ -54,11 +56,13 @@ suite() ->
 
 -spec init_per_suite(config()) -> config().
 init_per_suite(Config) ->
-  RootDir = code:priv_dir(erlang_ls),
-  AppDir  = filename:join([list_to_binary(RootDir), ?TEST_APP]),
+  RootDir   = code:priv_dir(erlang_ls),
+  AppDir    = filename:join([list_to_binary(RootDir), ?TEST_APP]),
+  OtpPath   = erlang_ls_code_navigation:otp_path(),
   [ {app_dir, AppDir}
   , {include_path, [ filename:join([AppDir, "src"])
                    , filename:join([AppDir, "include"])
+                   | OtpPath
                    ]}
     |Config].
 
@@ -87,6 +91,8 @@ all() ->
   , include_lib
   , macro
   , macro_included
+  , macro_with_args
+  , macro_with_args_included
   , record
   , record_included
   , type_application
@@ -101,7 +107,7 @@ application_local(Config) ->
   Path  = ?config(include_path, Config),
   {ok, FullName, Range} = goto_def(<<"code_navigation.erl">>, Thing, Path),
   ?assertEqual(full_path(src, <<"code_navigation.erl">>, Config), FullName),
-  ?assertEqual(#{from => {22, 0}, to => {22, 10}}, Range),
+  ?assertEqual(#{from => {24, 0}, to => {24, 10}}, Range),
   ok.
 
 -spec application_remote(config()) -> ok.
@@ -128,7 +134,7 @@ export_entry(Config) ->
   Path  = ?config(include_path, Config),
   {ok, FullName, Range} = goto_def(<<"code_navigation.erl">>, Thing, Path),
   ?assertEqual(full_path(src, <<"code_navigation.erl">>, Config), FullName),
-  ?assertEqual(#{from => {25, 0}, to => {25, 10}}, Range),
+  ?assertEqual(#{from => {27, 0}, to => {27, 10}}, Range),
   ok.
 
 
@@ -138,7 +144,7 @@ fun_local(Config) ->
   Path  = ?config(include_path, Config),
   {ok, FullName, Range} = goto_def(<<"code_navigation.erl">>, Thing, Path),
   ?assertEqual(full_path(src, <<"code_navigation.erl">>, Config), FullName),
-  ?assertEqual(#{from => {22, 0}, to => {22, 10}}, Range),
+  ?assertEqual(#{from => {24, 0}, to => {24, 10}}, Range),
   ok.
 
 -spec fun_remote(config()) -> ok.
@@ -183,7 +189,7 @@ macro(Config) ->
   Path  = ?config(include_path, Config),
   {ok, FullName, Range} = goto_def(<<"code_navigation.erl">>, Thing, Path),
   ?assertEqual(full_path(src, <<"code_navigation.erl">>, Config), FullName),
-  ?assertEqual(#{from => {16, 0}, to => {16, 0}}, Range),
+  ?assertEqual(#{from => {17, 0}, to => {17, 0}}, Range),
   ok.
 
 -spec macro_included(config()) -> ok.
@@ -195,6 +201,24 @@ macro_included(Config) ->
   ?assertEqual(#{from => {2, 0}, to => {2, 0}}, Range),
   ok.
 
+-spec macro_with_args(config()) -> ok.
+macro_with_args(Config) ->
+  Thing = #{info => {macro, 'MACRO_WITH_ARGS'}},
+  Path  = ?config(include_path, Config),
+  {ok, FullName, Range} = goto_def(<<"code_navigation.erl">>, Thing, Path),
+  ?assertEqual(full_path(src, <<"code_navigation.erl">>, Config), FullName),
+  ?assertEqual(#{from => {18, 0}, to => {18, 0}}, Range),
+  ok.
+
+-spec macro_with_args_included(config()) -> ok.
+macro_with_args_included(Config) ->
+  Thing = #{info => {macro, 'assertEqual'}},
+  Path  = ?config(include_path, Config),
+  {ok, FullName, _Range} = goto_def(<<"code_navigation.erl">>, Thing, Path),
+  ?assertEqual(otp_app_path("stdlib", "include", "assert.hrl"), FullName),
+  %% Do not assert on line number to avoid binding to a specific OTP version
+  ok.
+
 %% TODO: Additional constructors for POI
 %% TODO: Navigation should return POI, not range
 -spec record(config()) -> ok.
@@ -203,7 +227,7 @@ record(Config) ->
   Path  = ?config(include_path, Config),
   {ok, FullName, Range} = goto_def(<<"code_navigation.erl">>, Thing, Path),
   ?assertEqual(full_path(src, <<"code_navigation.erl">>, Config), FullName),
-  ?assertEqual(#{from => {14, 0}, to => {14, 0}}, Range),
+  ?assertEqual(#{from => {15, 0}, to => {15, 0}}, Range),
   ok.
 
 -spec record_included(config()) -> ok.
@@ -220,8 +244,9 @@ type_application(Config) ->
   Thing = #{info => {type_application, {'type_a', undefined}}},
   Path  = ?config(include_path, Config),
   {ok, FullName, Range} = goto_def(<<"code_navigation.erl">>, Thing, Path),
-  ?assertEqual(full_path(src, <<"code_navigation.erl">>, Config), FullName),
-  ?assertEqual(#{from => {32, 1}, to => {32, 1}}, Range),
+  ?assertEqual( full_path(src, <<"code_navigation.erl">>, Config)
+              , FullName),
+  ?assertEqual(#{from => {34, 1}, to => {34, 1}}, Range),
   ok.
 
 %%==============================================================================
@@ -233,6 +258,15 @@ full_path(Dir, FileName, Config) ->
                 , atom_to_binary(Dir, utf8)
                 , FileName
                 ]).
+
+-spec otp_app_path(string(), string(), string()) -> binary().
+otp_app_path(App, Dir, FileName) ->
+  list_to_binary(filelib:wildcard(filename:join([ code:root_dir()
+                                                , "lib"
+                                                , App ++ "*"
+                                                , Dir
+                                                , FileName
+                                                ]))).
 
 -spec goto_def(binary(), erlang_ls_poi:poi(), [string()]) ->
    {ok, binary(), erlang_ls_poi:range()} | {error, any()}.

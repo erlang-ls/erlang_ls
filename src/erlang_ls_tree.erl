@@ -100,8 +100,9 @@ points_of_interest(Tree, Extra) ->
   Type = erl_syntax:type(Tree),
   try points_of_interest(Tree, Type, Extra)
   catch
-    Class:Reason ->
-      lager:warning("Could not analyze tree: ~p:~p", [Class, Reason]),
+    Class:Reason:Stacktrace ->
+      lager:warning( "Could not analyze tree: ~p:~p ~P"
+                   , [Class, Reason, Stacktrace]),
       []
   end.
 
@@ -162,7 +163,7 @@ points_of_interest(Tree, attribute, Extra) ->
       case {Name, erl_syntax:attribute_arguments(Tree)} of
         {define, [Define|_]} ->
           [erlang_ls_poi:poi( Tree
-                            , {define, erl_syntax:variable_name(Define)}
+                            , {define, define_name(Define)}
                             , Extra )];
         {include, [String]} ->
           [erlang_ls_poi:poi( Tree
@@ -198,10 +199,29 @@ points_of_interest(Tree, implicit_fun, Extra) ->
             end,
   [erlang_ls_poi:poi(Tree, {implicit_fun, FunSpec}, Extra)];
 points_of_interest(Tree, macro, Extra) ->
-  Macro = erl_syntax:variable_name(erl_syntax:macro_name(Tree)),
-  [erlang_ls_poi:poi(Tree, {macro, Macro}, Extra)];
+  Name = erl_syntax:macro_name(Tree),
+  [erlang_ls_poi:poi(Tree, {macro, macro_name(Name)}, Extra)];
 points_of_interest(Tree, record_expr, Extra) ->
   Record = erl_syntax:atom_name(erl_syntax:record_expr_type(Tree)),
   [erlang_ls_poi:poi(Tree, {record_expr, Record}, Extra)];
 points_of_interest(_Tree, _Type, _Extra) ->
   [].
+
+-spec define_name(tree()) -> atom().
+define_name(Tree) ->
+  case erl_syntax:type(Tree) of
+    application ->
+      Operator = erl_syntax:application_operator(Tree),
+      macro_name(Operator);
+    variable ->
+      erl_syntax:variable_name(Tree)
+  end.
+
+-spec macro_name(tree()) -> atom().
+macro_name(Tree) ->
+  case erl_syntax:type(Tree) of
+    atom ->
+      erl_syntax:atom_value(Tree);
+    variable ->
+      erl_syntax:variable_name(Tree)
+  end.
