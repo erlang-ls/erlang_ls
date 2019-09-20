@@ -19,9 +19,9 @@
 -type path() :: binary().
 -type uri()  :: binary().
 
--export_types([ path/0
-              , uri/0
-              ]).
+-export_type([ path/0
+             , uri/0
+             ]).
 
 %%==============================================================================
 %% Includes

@@ -15,7 +15,7 @@
 -export([ did_open/4
         , did_save/1
         , did_close/1
-        , initialize/1
+        , initialize/2
         , start_link/2
         , stop/0
         ]).
@@ -51,9 +51,10 @@
 %%==============================================================================
 %% Type Definitions
 %%==============================================================================
--type state()    :: #state{}.
--type hostname() :: tuple().
--type port_no()  :: pos_integer().
+-type state()        :: #state{}.
+-type hostname()     :: tuple().
+-type port_no()      :: pos_integer().
+-type init_options() :: [].
 
 %%==============================================================================
 %% API
@@ -70,9 +71,9 @@ did_save(Uri) ->
 did_close(Uri) ->
   gen_server:call(?SERVER, {did_close, Uri}).
 
--spec initialize(erlang_ls_uri:uri()) -> ok.
-initialize(RootUri) ->
-  gen_server:call(?SERVER, {initialize, RootUri}).
+-spec initialize(erlang_ls_uri:uri(), init_options()) -> ok.
+initialize(RootUri, InitOptions) ->
+  gen_server:call(?SERVER, {initialize, RootUri, InitOptions}).
 
 -spec start_link(hostname(), port_no()) -> {ok, pid()}.
 start_link(Host, Port) ->
@@ -117,11 +118,14 @@ handle_call({did_close, Uri}, _From, State) ->
   Content = erlang_ls_protocol:notification(Method, Params),
   ok = gen_tcp:send(State#state.socket, Content),
   {reply, ok, State};
-handle_call({initialize, RootUri}, From, #state{ request_id = RequestId
-                                               , socket     = Socket
-                                               } = State) ->
+handle_call({initialize, RootUri, InitOptions}, From, State) ->
+  #state{ request_id = RequestId
+        , socket     = Socket
+        } = State,
   Method  = <<"initialize">>,
-  Params  = #{ <<"rootUri">> => RootUri },
+  Params  = #{ <<"rootUri">> => RootUri
+             , <<"initializationOptions">> => InitOptions
+             },
   Content = erlang_ls_protocol:request(RequestId, Method, Params),
   gen_tcp:send(Socket, Content),
   {noreply, State#state{ request_id = RequestId + 1
