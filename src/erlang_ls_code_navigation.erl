@@ -10,9 +10,6 @@
 %% API
 -export([ goto_definition/2 ]).
 
--export([ otp_path/0
-        ]).
-
 %%==============================================================================
 %% Includes
 %%==============================================================================
@@ -138,9 +135,24 @@ app_path() ->
   , filename:join([RootPath, "include"])
   ].
 
+-spec deps_path() -> [string()].
+deps_path() ->
+  {ok, RootUri} = erlang_ls_buffer_server:get_root_uri(),
+  RootPath = binary_to_list(erlang_ls_uri:path(RootUri)),
+  {ok, Dirs} = erlang_ls_buffer_server:get_deps_dirs(),
+  lists:foldl(fun(Dir, Acc) ->
+                  Sources  = filename:join([RootPath, Dir, "src"]),
+                  Includes = filename:join([RootPath, Dir, "include"]),
+                  lists:append([ filelib:wildcard(Sources)
+                               , filelib:wildcard(Includes)
+                               , Acc
+                               ])
+              end
+             , [], Dirs).
+
 -spec include_path() -> [string()].
 include_path() ->
-  lists:append( [ app_path(), otp_path() ]).
+  lists:append( [ app_path(), otp_path(), deps_path() ]).
 
 %% Look for a definition recursively in a file and its includes.
 -spec search(binary(), [string()], any()) ->

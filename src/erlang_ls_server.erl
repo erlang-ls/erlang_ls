@@ -136,8 +136,10 @@ handle_method(<<"initialize">>, Params) ->
   Config = consult_config(filename:join([ erlang_ls_uri:path(RootUri)
                                         , config_path(InitOptions)
                                         ])),
-  OtpPath = maps:get(<<"otp_path">>, Config, code:root_dir()),
+  OtpPath = maps:get("otp_path", Config, code:root_dir()),
+  DepsDirs = maps:get("deps_dirs", Config, []),
   ok = erlang_ls_buffer_server:set_otp_path(OtpPath),
+  ok = erlang_ls_buffer_server:set_deps_dirs(DepsDirs),
   Result = #{ capabilities =>
                 #{ hoverProvider => false
                  , completionProvider =>
@@ -230,12 +232,13 @@ config_path(#{<<"erlang">> := #{<<"config_path">> := ConfigPath}}) ->
 config_path(_) ->
   ?DEFAULT_CONFIG_PATH.
 
--spec consult_config(erlang_ls_uri:path()) -> [any()].
+-spec consult_config(erlang_ls_uri:path()) -> map().
 consult_config(Path) ->
   lager:info("Reading config file. path=~p", [Path]),
   Options = [{map_node_format, map}],
   try yamerl:decode_file(Path, Options) of
-    [Config] -> Config
+      [] -> #{};
+      [Config] -> Config
   catch
     Class:Error ->
       lager:warning( "Error reading config file. path=~p class=~p error=~p"
