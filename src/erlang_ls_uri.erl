@@ -14,6 +14,16 @@
         ]).
 
 %%==============================================================================
+%% Types
+%%==============================================================================
+-type path() :: binary().
+-type uri()  :: binary().
+
+-export_type([ path/0
+             , uri/0
+             ]).
+
+%%==============================================================================
 %% Includes
 %%==============================================================================
 -include("erlang_ls.hrl").
@@ -22,10 +32,10 @@
 module(Uri) ->
   binary_to_atom(filename:basename(path(Uri), <<".erl">>), utf8).
 
--spec path(uri()) -> uri_path().
+-spec path(uri()) -> path().
 path(<<"file://", Path/binary>>) ->
   Path.
 
--spec uri(uri_path()) -> uri().
+-spec uri(path()) -> uri().
 uri(Path) ->
   <<"file://", Path/binary>>.

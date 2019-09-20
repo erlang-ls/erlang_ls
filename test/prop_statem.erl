@@ -62,11 +62,13 @@ connect_post(_S, _Args, Res) ->
 %%------------------------------------------------------------------------------
 %% Initialize
 %%------------------------------------------------------------------------------
-initialize(RootUri) ->
-  erlang_ls_client:initialize(RootUri).
+initialize(RootUri, InitOptions) ->
+  erlang_ls_client:initialize(RootUri, InitOptions).
 
 initialize_args(_S) ->
-  [erlang_ls_proper_gen:root_uri()].
+  [ erlang_ls_proper_gen:root_uri()
+  , erlang_ls_proper_gen:init_options()
+  ].
 
 initialize_pre(#{connected := Connected} = _S) ->
   Connected.
@@ -183,6 +185,7 @@ setup() ->
   meck:expect(erlang_ls_compiler_diagnostics, diagnostics, 1, []),
   meck:expect(erlang_ls_dialyzer_diagnostics, diagnostics, 1, []),
   application:ensure_all_started(erlang_ls),
+  file:write_file("/tmp/erlang_ls.config", <<"">>),
   lager:set_loglevel(lager_console_backend, warning),
   ok.
 

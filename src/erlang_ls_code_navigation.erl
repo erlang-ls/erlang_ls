@@ -8,12 +8,7 @@
 %%==============================================================================
 
 %% API
--export([ goto_definition/2
-        , goto_definition/3
-        ]).
-
--export([ otp_path/0
-        ]).
+-export([ goto_definition/2 ]).
 
 %%==============================================================================
 %% Includes
@@ -27,7 +22,7 @@
 -spec goto_definition(binary(), erlang_ls_poi:poi()) ->
    {ok, binary(), erlang_ls_poi:range()} | {error, any()}.
 goto_definition(Filename, POI) ->
-  goto_definition(Filename, POI, full_path()).
+  goto_definition(Filename, POI, include_path()).
 
 %% TODO: Abstract pattern
 -spec goto_definition(binary(), erlang_ls_poi:poi(), [string()]) ->
@@ -125,7 +120,7 @@ definition({type_application, {Type, _}}) ->
 
 -spec otp_path() -> [string()].
 otp_path() ->
-  Root = code:root_dir(),
+  {ok, Root} = erlang_ls_buffer_server:get_otp_path(),
   Sources = filename:join([Root, "lib", "*", "src"]),
   Includes = filename:join([Root, "lib", "*", "include"]),
   lists:append([ filelib:wildcard(Sources)
@@ -140,9 +135,24 @@ app_path() ->
   , filename:join([RootPath, "include"])
   ].
 
--spec full_path() -> [string()].
-full_path() ->
-  lists:append( [ app_path(), otp_path() ]).
+-spec deps_path() -> [string()].
+deps_path() ->
+  {ok, RootUri} = erlang_ls_buffer_server:get_root_uri(),
+  RootPath = binary_to_list(erlang_ls_uri:path(RootUri)),
+  {ok, Dirs} = erlang_ls_buffer_server:get_deps_dirs(),
+  lists:foldl(fun(Dir, Acc) ->
+                  Sources  = filename:join([RootPath, Dir, "src"]),
+                  Includes = filename:join([RootPath, Dir, "include"]),
+                  lists:append([ filelib:wildcard(Sources)
+                               , filelib:wildcard(Includes)
+                               , Acc
+                               ])
+              end
+             , [], Dirs).
+
+-spec include_path() -> [string()].
+include_path() ->
+  lists:append( [ app_path(), otp_path(), deps_path() ]).
 
 %% Look for a definition recursively in a file and its includes.
 -spec search(binary(), [string()], any()) ->

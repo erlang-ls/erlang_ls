@@ -25,5 +25,8 @@ uri() ->
 root_uri() ->
   <<"file:///tmp">>.
 
+init_options() ->
+  [].
+
 buffer() ->
   elements([<<"a">>, <<"b">>, <<"c">>]).
