@@ -52,7 +52,7 @@
 %%==============================================================================
 -type state()  :: #state{}.
 -type buffer() :: pid().
--type path()   :: filename:filename().
+-type path()   :: binary().
 
 %%%=============================================================================
 %%% API
@@ -120,8 +120,6 @@ handle_call({set_root_uri, Uri}, _From, State) ->
   {reply, ok, State#state{root_uri = Uri}};
 handle_call({set_otp_path, Path}, _From, State) ->
   {reply, ok, State#state{otp_path = Path}}.
-
-
 
 -spec handle_cast(any(), state()) -> {noreply, state()}.
 handle_cast(_Msg, State) -> {noreply, State}.

@@ -8,9 +8,7 @@
 %%==============================================================================
 
 %% API
--export([ goto_definition/2
-        , goto_definition/3
-        ]).
+-export([ goto_definition/2 ]).
 
 -export([ otp_path/0
         ]).
@@ -27,7 +25,7 @@
 -spec goto_definition(binary(), erlang_ls_poi:poi()) ->
    {ok, binary(), erlang_ls_poi:range()} | {error, any()}.
 goto_definition(Filename, POI) ->
-  goto_definition(Filename, POI, full_path()).
+  goto_definition(Filename, POI, include_path()).
 
 %% TODO: Abstract pattern
 -spec goto_definition(binary(), erlang_ls_poi:poi(), [string()]) ->
@@ -140,8 +138,8 @@ app_path() ->
   , filename:join([RootPath, "include"])
   ].
 
--spec full_path() -> [string()].
-full_path() ->
+-spec include_path() -> [string()].
+include_path() ->
   lists:append( [ app_path(), otp_path() ]).
 
 %% Look for a definition recursively in a file and its includes.
