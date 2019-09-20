@@ -11,6 +11,7 @@
    , jsx
    , cowlib
    , lager
+   , yamerl
    ]},
   {env,[]},
   {modules, []},

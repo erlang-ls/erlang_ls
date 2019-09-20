@@ -42,6 +42,11 @@
 -type state() :: #state{}.
 
 %%==============================================================================
+%% Macros
+%%==============================================================================
+-define(DEFAULT_CONFIG_PATH, "erlang_ls.config").
+
+%%==============================================================================
 %% ranch_protocol callbacks
 %%==============================================================================
 -spec start_link(ranch:ref(), any(), module(), any()) -> {ok, pid()}.
@@ -127,10 +132,12 @@ handle_method(<<"initialize">>, Params) ->
   #{ <<"rootUri">> := RootUri
    , <<"initializationOptions">> := InitOptions
    } = Params,
-  Config = erlang_config(InitOptions, RootUri),
-  OtpPath = proplists:get_value(otp_path, Config, code:root_dir()),
-  ok = erlang_ls_buffer_server:set_otp_path(OtpPath),
   ok = erlang_ls_buffer_server:set_root_uri(RootUri),
+  Config = consult_config(filename:join([ erlang_ls_uri:path(RootUri)
+                                        , config_path(InitOptions)
+                                        ])),
+  OtpPath = maps:get(<<"otp_path">>, Config, code:root_dir()),
+  ok = erlang_ls_buffer_server:set_otp_path(OtpPath),
   Result = #{ capabilities =>
                 #{ hoverProvider => false
                  , completionProvider =>
@@ -217,13 +224,21 @@ send_notification(Socket, Method, Params) ->
   lager:debug("[SERVER] Sending notification [notification=~p]", [Notification]),
   gen_tcp:send(Socket, Notification).
 
--spec erlang_config(map(), binary()) -> [term()].
-erlang_config(#{<<"erlang">> := #{<<"config">> := Filename}}, RootUri) ->
-  RootPath = erlang_ls_uri:path(RootUri),
-  Path = filename:join([RootPath, Filename]),
-  lager:info("Reading config file from ~p", [Path]),
-  %% TODO: check the file exits
-  {ok, Terms} = file:consult(Path),
-  Terms;
-erlang_config(_, _) ->
-  [].
+-spec config_path(map()) -> erlang_ls_uri:path().
+config_path(#{<<"erlang">> := #{<<"config_path">> := ConfigPath}}) ->
+  ConfigPath;
+config_path(_) ->
+  ?DEFAULT_CONFIG_PATH.
+
+-spec consult_config(erlang_ls_uri:path()) -> [any()].
+consult_config(Path) ->
+  lager:info("Reading config file. path=~p", [Path]),
+  Options = [{map_node_format, map}],
+  try yamerl:decode_file(Path, Options) of
+    [Config] -> Config
+  catch
+    Class:Error ->
+      lager:warning( "Error reading config file. path=~p class=~p error=~p"
+                   , [Path, Class, Error]),
+      #{}
+  end.

@@ -98,6 +98,22 @@ Code completion is available for the following elements:
 * Atom names
 * Module attributes
 
+## Customization
+
+It is possible to customize the behaviour of the `erlang_ls` server by
+adding a `erlang_ls.config` file to the root of your projects.
+
+A sample `erlang_ls.config` file would look like the following:
+
+    otp_path: "/path/to/otp/lib/erlang"
+
+Currently, the following customizations are possible:
+
+| Parameter | Description                  |
+|-----------|------------------------------|
+| otp_path  | Path to the OTP installation |
+|           |                              |
+
 ## Troubleshooting
 
 It is possible to compile and start the language server in _debug mode_:
