@@ -72,12 +72,6 @@
 %%==============================================================================
 
 %%------------------------------------------------------------------------------
-%% URI
-%%------------------------------------------------------------------------------
--type uri() :: binary().
--type uri_path() :: binary().
-
-%%------------------------------------------------------------------------------
 %% Position
 %%------------------------------------------------------------------------------
 -type position() :: #{ line      := number()
@@ -156,12 +150,12 @@
 %%------------------------------------------------------------------------------
 %% Text Document Identifier
 %%------------------------------------------------------------------------------
--type text_document_id() :: #{ uri := uri() }.
+-type text_document_id() :: #{ uri := erlang_ls_uri:uri() }.
 
 %%------------------------------------------------------------------------------
 %% Text Document Item
 %%------------------------------------------------------------------------------
--type text_document_item() :: #{ uri        := uri()
+-type text_document_item() :: #{ uri        := erlang_ls_uri:uri()
                                , languageId := binary()
                                , version    := number()
                                , text       := binary()
@@ -210,7 +204,7 @@
 %%------------------------------------------------------------------------------
 %% Initialize Request
 %%------------------------------------------------------------------------------
--type workspace_folder() :: #{ uri  => uri()
+-type workspace_folder() :: #{ uri  => erlang_ls_uri:uri()
                              , name => binary()
                              }.
 
@@ -225,7 +219,7 @@
 
 -type initialize_params() :: #{ processId             := number() | null
                               , rootPath              => binary() | null
-                              , rootUri               := uri() | null
+                              , rootUri               := erlang_ls_uri:uri() | null
                               , initializationOptions => any()
                               , capabilities          := client_capabilities()
                               , trace                 => off

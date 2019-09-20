@@ -58,19 +58,19 @@
 %%==============================================================================
 %% API
 %%==============================================================================
--spec did_open(uri(), binary(), number(), binary()) -> ok.
+-spec did_open(erlang_ls_uri:uri(), binary(), number(), binary()) -> ok.
 did_open(Uri, LanguageId, Version, Text) ->
   gen_server:call(?SERVER, {did_open, Uri, LanguageId, Version, Text}).
 
--spec did_save(uri()) -> ok.
+-spec did_save(erlang_ls_uri:uri()) -> ok.
 did_save(Uri) ->
   gen_server:call(?SERVER, {did_save, Uri}).
 
--spec did_close(uri()) -> ok.
+-spec did_close(erlang_ls_uri:uri()) -> ok.
 did_close(Uri) ->
   gen_server:call(?SERVER, {did_close, Uri}).
 
--spec initialize(uri()) -> ok.
+-spec initialize(erlang_ls_uri:uri()) -> ok.
 initialize(RootUri) ->
   gen_server:call(?SERVER, {initialize, RootUri}).
 

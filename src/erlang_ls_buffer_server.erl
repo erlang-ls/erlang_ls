@@ -52,7 +52,7 @@
 %%==============================================================================
 -type state()  :: #state{}.
 -type buffer() :: pid().
--type path()   :: binary().
+-type path()   :: file:filename().
 
 %%%=============================================================================
 %%% API
@@ -61,15 +61,15 @@
 start_link() ->
   gen_server:start_link({local, ?SERVER}, ?MODULE, {}, []).
 
--spec add_buffer(uri(), buffer()) -> ok.
+-spec add_buffer(erlang_ls_uri:uri(), buffer()) -> ok.
 add_buffer(Uri, Buffer) ->
   gen_server:call(?SERVER, {add_buffer, Uri, Buffer}).
 
--spec get_buffer(uri()) -> {ok, buffer() | undefined}.
+-spec get_buffer(erlang_ls_uri:uri()) -> {ok, buffer() | undefined}.
 get_buffer(Uri) ->
   gen_server:call(?SERVER, {get_buffer, Uri}).
 
--spec get_root_uri() -> {ok, uri() | undefined}.
+-spec get_root_uri() -> {ok, erlang_ls_uri:uri() | undefined}.
 get_root_uri() ->
   gen_server:call(?SERVER, {get_root_uri}).
 
@@ -77,16 +77,16 @@ get_root_uri() ->
 get_otp_path() ->
   gen_server:call(?SERVER, {get_otp_path}).
 
--spec remove_buffer(uri()) -> ok.
+-spec remove_buffer(erlang_ls_uri:uri()) -> ok.
 remove_buffer(Uri) ->
   gen_server:call(?SERVER, {remove_buffer, Uri}).
 
--spec set_root_uri(uri()) -> ok.
+-spec set_root_uri(erlang_ls_uri:uri()) -> ok.
 set_root_uri(Uri) ->
   gen_server:call(?SERVER, {set_root_uri, Uri}).
 
 %% TODO: move it to a separate config server
--spec set_otp_path(uri()) -> ok.
+-spec set_otp_path(erlang_ls_uri:uri()) -> ok.
 set_otp_path(Uri) ->
   gen_server:call(?SERVER, {set_otp_path, Uri}).
 

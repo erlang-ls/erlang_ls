@@ -11,4 +11,4 @@
 %%==============================================================================
 %% Callback Functions Definitions
 %%==============================================================================
--callback diagnostics(uri()) -> [diagnostic()].
+-callback diagnostics(erlang_ls_uri:uri()) -> [diagnostic()].
