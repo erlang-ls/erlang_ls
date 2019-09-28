@@ -137,3 +137,7 @@ included in _debug mode_, so feel free to use it.
 ## References
 
 https://microsoft.github.io/language-server-protocol/
+
+## License
+
+The `erlang_ls` project is licensed under the Apache License 2.0. Please refer to the `LICENSE` file for details.
