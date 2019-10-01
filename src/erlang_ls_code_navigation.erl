@@ -121,34 +121,62 @@ definition({type_application, {Type, _}}) ->
 -spec otp_path() -> [string()].
 otp_path() ->
   {ok, Root} = erlang_ls_buffer_server:get_otp_path(),
-  Sources = filename:join([Root, "lib", "*", "src"]),
-  Includes = filename:join([Root, "lib", "*", "include"]),
-  lists:append([ filelib:wildcard(Sources)
-               , filelib:wildcard(Includes)
-               ]).
+  resolve_paths( [ [Root, "lib", "*", "src"]
+                 , [Root, "lib", "*", "include"]
+                 ]).
 
 -spec app_path() -> [string()].
 app_path() ->
   {ok, RootUri} = erlang_ls_buffer_server:get_root_uri(),
-  RootPath = erlang_ls_uri:path(RootUri),
-  [ filename:join([RootPath, "src"])
-  , filename:join([RootPath, "include"])
-  ].
+  RootPath = binary_to_list(erlang_ls_uri:path(RootUri)),
+  resolve_paths( [ [RootPath, "src"]
+                 , [RootPath, "include"]
+                 ]).
 
 -spec deps_path() -> [string()].
 deps_path() ->
   {ok, RootUri} = erlang_ls_buffer_server:get_root_uri(),
   RootPath = binary_to_list(erlang_ls_uri:path(RootUri)),
   {ok, Dirs} = erlang_ls_buffer_server:get_deps_dirs(),
-  lists:foldl(fun(Dir, Acc) ->
-                  Sources  = filename:join([RootPath, Dir, "src"]),
-                  Includes = filename:join([RootPath, Dir, "include"]),
-                  lists:append([ filelib:wildcard(Sources)
-                               , filelib:wildcard(Includes)
-                               , Acc
-                               ])
-              end
-             , [], Dirs).
+  Paths = [ resolve_paths( [ [RootPath, Dir, "src"]
+                           , [RootPath, Dir, "include"]
+                           ])
+            || Dir <- Dirs
+          ],
+  lists:append(Paths).
+
+-spec resolve_paths([[string()]]) -> [[string()]].
+resolve_paths(PathSpecs) ->
+  lists:append([resolve_path(PathSpec) || PathSpec <- PathSpecs]).
+
+-spec resolve_path([string()]) -> [string()].
+resolve_path(PathSpec) ->
+  Path = filename:join(PathSpec),
+  Paths = [[P | subdirs(P)] || P <- filelib:wildcard(Path)],
+  lists:append(Paths).
+
+%% Returns all subdirectories for the provided path
+-spec subdirs(string()) -> [string()].
+subdirs(Path) ->
+  subdirs(Path, []).
+
+-spec subdirs(string(), [string()]) -> [string()].
+subdirs(Path, Subdirs) ->
+  case file:list_dir(Path) of
+    {ok, Files}     -> subdirs_(Path, Files, Subdirs);
+    {error, enoent} -> Subdirs
+  end.
+
+-spec subdirs_(string(), [string()], [string()]) -> [string()].
+subdirs_(Path, Files, Subdirs) ->
+  Fold = fun(F, Acc) ->
+             FullPath = filename:join([Path, F]),
+             case filelib:is_dir(FullPath) of
+               true  -> subdirs(FullPath, [FullPath | Acc]);
+               false -> Acc
+             end
+         end,
+  lists:foldl(Fold, Subdirs, Files).
 
 -spec include_path() -> [string()].
 include_path() ->
