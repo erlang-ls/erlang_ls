@@ -38,6 +38,8 @@ initialize(Params) ->
   DepsDirs = maps:get("deps_dirs", Config, []),
   ok = erlang_ls_buffer_server:set_otp_path(OtpPath),
   ok = erlang_ls_buffer_server:set_deps_dirs(DepsDirs),
+  [erlang_ls_provider:start_provider(Provider, Config) ||
+    Provider <- erlang_ls_provider:enabled_providers()],
   Result = #{ capabilities =>
                 #{ hoverProvider => false
                  , completionProvider =>
@@ -45,7 +47,7 @@ initialize(Params) ->
                       , triggerCharacters => [<<":">>, <<"#">>]
                       }
                  , textDocumentSync => 1
-                 , definitionProvider => true
+                 , definitionProvider => erlang_ls_definition_provider:is_enabled()
                  }
             },
   {response, Result}.
@@ -174,23 +176,7 @@ textdocument_completion(Params) ->
 
 -spec textdocument_definition(map()) -> {response, map() | null}.
 textdocument_definition(Params) ->
-  Position     = maps:get(<<"position">>    , Params),
-  Line         = maps:get(<<"line">>        , Position),
-  Character    = maps:get(<<"character">>   , Position),
-  TextDocument = maps:get(<<"textDocument">>, Params),
-  Uri          = maps:get(<<"uri">>         , TextDocument),
-  {ok, Buffer} = erlang_ls_buffer_server:get_buffer(Uri),
-  case erlang_ls_buffer:get_element_at_pos(Buffer, Line + 1, Character + 1) of
-    [POI|_] ->
-      Filename = erlang_ls_uri:path(Uri),
-      case erlang_ls_code_navigation:goto_definition(Filename, POI) of
-        {error, _Error} ->
-          {response, null};
-        {ok, FullName, Range} ->
-          {response, #{ uri => erlang_ls_uri:uri(FullName)
-                      , range => erlang_ls_protocol:range(Range)
-                      }}
-      end;
-    [] ->
-      {response, null}
-  end.
+  Provider = erlang_ls_definition_provider,
+  Request  = {definition, Params},
+  Response = erlang_ls_provider:handle_request(Provider, Request),
+  {response, Response}.

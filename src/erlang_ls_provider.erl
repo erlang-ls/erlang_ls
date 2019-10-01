@@ -13,7 +13,7 @@
         ]).
 
 -type config()   :: any().
--type provider() :: atom().
+-type provider() :: erlang_ls_definition_provider.
 -type request()  :: any().
 -type state()    :: any().
 -export_type([ config/0
@@ -23,6 +23,7 @@
 
 %% API
 -export([ start_link/2
+        , start_provider/2
         , handle_request/2
         ]).
 
@@ -34,7 +35,7 @@
 
 -spec providers() -> [provider()].
 providers() ->
-  [].
+  [erlang_ls_definition_provider].
 
 -spec enabled_providers() -> [provider()].
 enabled_providers() ->
@@ -52,6 +53,10 @@ teardown(Provider, Config) ->
 start_link(Provider, Config) ->
   Args = [#{provider => Provider, config => Config}],
   gen_server:start_link({local, Provider}, ?MODULE, Args, []).
+
+-spec start_provider(provider(), config()) -> ok.
+start_provider(Provider, Config) ->
+  supervisor:start_child(erlang_ls_providers_sup, [Provider, Config]).
 
 -spec handle_request(provider(), request()) -> any().
 handle_request(Provider, Request) ->
