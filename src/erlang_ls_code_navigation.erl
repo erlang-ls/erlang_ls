@@ -35,10 +35,10 @@ goto_definition( _Filename
   case erlang_ls_tree:annotate_file(filename(M), Path) of
     {ok, FullName, AnnotatedTree} ->
       case erlang_ls_poi:match(AnnotatedTree, definition(Info)) of
-        [#{ range := Range }] ->
-          {ok, FullName, Range};
-        [] ->
-          {error, not_found}
+        [] -> {error, not_found};
+        Matches ->
+          #{range := Range} = erlang_ls_poi:first(Matches),
+          {ok, FullName, Range}
       end;
     {error, Error} ->
       {error, Error}
@@ -52,10 +52,10 @@ goto_definition( Filename
   case erlang_ls_tree:annotate_file(filename:basename(Filename), Path) of
     {ok, FullName, AnnotatedTree} ->
       case erlang_ls_poi:match(AnnotatedTree, definition(Info)) of
-        [#{ range := Range }] ->
-          {ok, FullName, Range};
-        [] ->
-          {error, not_found}
+        [] -> {error, not_found};
+        Matches ->
+          #{range := Range} = erlang_ls_poi:first(Matches),
+          {ok, FullName, Range}
       end;
     {error, Error} ->
       {error, Error}

@@ -22,6 +22,7 @@
         , match/2
         , match_key/2
         , match_pos/2
+        , first/1
         ]).
 
 %%==============================================================================
@@ -61,6 +62,13 @@ match_key(Tree, Key0) ->
 -spec match_pos(erlang_ls_tree:tree(), pos()) -> [poi()].
 match_pos(Tree, Pos) ->
   [POI || #{range := Range} = POI <- list(Tree), matches_pos(Pos, Range)].
+
+-spec first([poi()]) -> poi().
+first([]) ->
+  error(badarg);
+first(POIs) ->
+  [First | _] = lists:sort(fun compare_pos/2, POIs),
+  First.
 
 %%==============================================================================
 %% Internal Functions
@@ -146,6 +154,10 @@ get_range({Line, Column}, {type_definition, _Type}, _Extra) ->
 -spec matches_pos(pos(), range()) -> boolean().
 matches_pos(Pos, #{from := From, to := To}) ->
   (From =< Pos) andalso (Pos =< To).
+
+-spec compare_pos(pos(), pos()) -> boolean().
+compare_pos(#{range := #{from := From1}}, #{range := #{from := From2}}) ->
+  (From1 =< From2).
 
 -spec get_entry_range(atom(), atom(), non_neg_integer(), erlang_ls_tree:extra()) -> range().
 get_entry_range(Key, F, A, Extra) ->
