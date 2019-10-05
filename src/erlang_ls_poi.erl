@@ -155,7 +155,7 @@ get_range({Line, Column}, {type_definition, _Type}, _Extra) ->
 matches_pos(Pos, #{from := From, to := To}) ->
   (From =< Pos) andalso (Pos =< To).
 
--spec compare_pos(pos(), pos()) -> boolean().
+-spec compare_pos(poi(), poi()) -> boolean().
 compare_pos(#{range := #{from := From1}}, #{range := #{from := From2}}) ->
   (From1 =< From2).
 
