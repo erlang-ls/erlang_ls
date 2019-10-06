@@ -42,11 +42,6 @@
 -type state() :: #state{}.
 
 %%==============================================================================
-%% Macros
-%%==============================================================================
--define(DEFAULT_CONFIG_PATH, "erlang_ls.config").
-
-%%==============================================================================
 %% ranch_protocol callbacks
 %%==============================================================================
 -spec start_link(ranch:ref(), any(), module(), any()) -> {ok, pid()}.
@@ -126,92 +121,18 @@ handle_request(Socket, Request) ->
       send_notification(Socket, M, P)
   end.
 
+%% @doc Dispatch the handling of the method to erlang_ls_protocol_impl
 -spec handle_method(binary(), map()) ->
+  {response, map() | null} | {} | {notification, binary(), map()}.
+handle_method(Method, Params) ->
+  Function = method_to_function_name(Method),
+  try erlang_ls_protocol_impl:Function(Params)
+  catch error:undef -> not_implemented_method(Method)
+  end.
+
+-spec not_implemented_method(binary()) ->
   {response, map()} | {} | {notification, binary(), map()}.
-handle_method(<<"initialize">>, Params) ->
-  #{ <<"rootUri">> := RootUri
-   , <<"initializationOptions">> := InitOptions
-   } = Params,
-  ok = erlang_ls_buffer_server:set_root_uri(RootUri),
-  Config = consult_config(filename:join([ erlang_ls_uri:path(RootUri)
-                                        , config_path(InitOptions)
-                                        ])),
-  OtpPath = maps:get("otp_path", Config, code:root_dir()),
-  DepsDirs = maps:get("deps_dirs", Config, []),
-  ok = erlang_ls_buffer_server:set_otp_path(OtpPath),
-  ok = erlang_ls_buffer_server:set_deps_dirs(DepsDirs),
-  Result = #{ capabilities =>
-                #{ hoverProvider => false
-                 , completionProvider =>
-                     #{ resolveProvider => false
-                      , triggerCharacters => [<<":">>, <<"#">>]
-                      }
-                 , textDocumentSync => 1
-                 , definitionProvider => true
-                 }
-            },
-  {response, Result};
-handle_method(<<"initialized">>, _) ->
-  {};
-handle_method(<<"textDocument/didOpen">>, Params) ->
-  ok = erlang_ls_text_synchronization:did_open(Params),
-  {};
-handle_method(<<"textDocument/didChange">>, Params) ->
-  ContentChanges = maps:get(<<"contentChanges">>, Params),
-  TextDocument   = maps:get(<<"textDocument">>  , Params),
-  Uri            = maps:get(<<"uri">>           , TextDocument),
-  case ContentChanges of
-    []                      -> ok;
-    [#{<<"text">> := Text}] ->
-      {ok, Buffer} = erlang_ls_buffer_server:get_buffer(Uri),
-      ok = erlang_ls_buffer:set_text(Buffer, Text)
-  end,
-  {};
-handle_method(<<"textDocument/hover">>, _Params) ->
-  {response, null};
-handle_method(<<"textDocument/completion">>, Params) ->
-  Position     = maps:get(<<"position">> , Params),
-  Line         = maps:get(<<"line">>     , Position),
-  Character    = maps:get(<<"character">>, Position),
-  TextDocument = maps:get(<<"textDocument">>  , Params),
-  Uri          = maps:get(<<"uri">>      , TextDocument),
-  {ok, Buffer} = erlang_ls_buffer_server:get_buffer(Uri),
-  Result       = erlang_ls_buffer:get_completions(Buffer, Line, Character),
-  {response, Result};
-handle_method(<<"textDocument/didSave">>, Params) ->
-  spawn(erlang_ls_text_synchronization, did_save, [Params, self()]),
-  {};
-handle_method(<<"textDocument/didClose">>, Params) ->
-  ok = erlang_ls_text_synchronization:did_close(Params),
-  {};
-handle_method(<<"textDocument/definition">>, Params) ->
-  Position     = maps:get(<<"position">>    , Params),
-  Line         = maps:get(<<"line">>        , Position),
-  Character    = maps:get(<<"character">>   , Position),
-  TextDocument = maps:get(<<"textDocument">>, Params),
-  Uri          = maps:get(<<"uri">>         , TextDocument),
-  {ok, Buffer} = erlang_ls_buffer_server:get_buffer(Uri),
-  case erlang_ls_buffer:get_element_at_pos(Buffer, Line + 1, Character + 1) of
-    [POI|_] ->
-      Filename = erlang_ls_uri:path(Uri),
-      case erlang_ls_code_navigation:goto_definition(Filename, POI) of
-        {error, _Error} ->
-          {response, null};
-        {ok, FullName, Range} ->
-          {response, #{ uri => erlang_ls_uri:uri(FullName)
-                      , range => erlang_ls_protocol:range(Range)
-                      }}
-      end;
-    [] ->
-      {response, null}
-  end;
-handle_method(<<"shutdown">>, _Params) ->
-  %% TODO: keep in the state that we got a shutdown
-  {response, null};
-handle_method(<<"exit">>, _Params) ->
-  %% TODO: exit with 1 if shutdown wasn't sent before
-  erlang:halt(0);
-handle_method(Method, _Params) ->
+not_implemented_method(Method) ->
   lager:warning("[Method not implemented] [method=~s]", [Method]),
   Message = <<"Method not implemented: ", Method/binary>>,
   Method1 = <<"window/showMessage">>,
@@ -226,22 +147,9 @@ send_notification(Socket, Method, Params) ->
   lager:debug("[SERVER] Sending notification [notification=~p]", [Notification]),
   gen_tcp:send(Socket, Notification).
 
--spec config_path(map()) -> erlang_ls_uri:path().
-config_path(#{<<"erlang">> := #{<<"config_path">> := ConfigPath}}) ->
-  ConfigPath;
-config_path(_) ->
-  ?DEFAULT_CONFIG_PATH.
-
--spec consult_config(erlang_ls_uri:path()) -> map().
-consult_config(Path) ->
-  lager:info("Reading config file. path=~p", [Path]),
-  Options = [{map_node_format, map}],
-  try yamerl:decode_file(Path, Options) of
-      [] -> #{};
-      [Config] -> Config
-  catch
-    Class:Error ->
-      lager:warning( "Error reading config file. path=~p class=~p error=~p"
-                   , [Path, Class, Error]),
-      #{}
-  end.
+-spec method_to_function_name(binary()) -> atom().
+method_to_function_name(Method) ->
+  Replaced = string:replace(Method, <<"/">>, <<"_">>),
+  Lower    = string:lowercase(Replaced),
+  Binary   = erlang:iolist_to_binary(Lower),
+  binary_to_atom(Binary, utf8).
