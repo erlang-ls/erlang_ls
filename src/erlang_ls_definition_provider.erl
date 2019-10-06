@@ -8,6 +8,10 @@
         , teardown/0
         ]).
 
+%%==============================================================================
+%% erlang_ls_provider functions
+%%==============================================================================
+
 -spec is_enabled() -> boolean().
 is_enabled() ->
   true.
@@ -19,11 +23,11 @@ setup(_Config) ->
 -spec handle_request(any(), erlang_ls_provider:state()) ->
   {any(), erlang_ls_provider:state()}.
 handle_request({definition, Params}, State) ->
-  Position     = maps:get(<<"position">>    , Params),
-  Line         = maps:get(<<"line">>        , Position),
-  Character    = maps:get(<<"character">>   , Position),
-  TextDocument = maps:get(<<"textDocument">>, Params),
-  Uri          = maps:get(<<"uri">>         , TextDocument),
+  #{ <<"position">>     := #{ <<"line">>      := Line
+                            , <<"character">> := Character
+                            }
+   , <<"textDocument">> := #{<<"uri">> := Uri}
+   } = Params,
   {ok, Document} = erlang_ls_db:find(erlang_ls_documents, Uri),
   case
     erlang_ls_document:get_element_at_pos(Document, Line + 1, Character + 1)

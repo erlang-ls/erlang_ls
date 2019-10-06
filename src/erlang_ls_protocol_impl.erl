@@ -13,6 +13,7 @@
         , textdocument_hover/1
         , textdocument_completion/1
         , textdocument_definition/1
+        , textdocument_references/1
         ]).
 
 %%==============================================================================
@@ -40,16 +41,18 @@ initialize(Params) ->
   ok = erlang_ls_config:set(deps_dirs, DepsDirs),
   [erlang_ls_provider:start_provider(Provider, Config) ||
     Provider <- erlang_ls_provider:enabled_providers()],
-  Result = #{ capabilities =>
-                #{ hoverProvider => false
-                 , completionProvider =>
-                     #{ resolveProvider => false
-                      , triggerCharacters => [<<":">>, <<"#">>]
-                      }
-                 , textDocumentSync => 1
-                 , definitionProvider => erlang_ls_definition_provider:is_enabled()
-                 }
-            },
+  Result =
+    #{ capabilities =>
+         #{ hoverProvider => false
+          , completionProvider =>
+              #{ resolveProvider => false
+               , triggerCharacters => [<<":">>, <<"#">>]
+               }
+          , textDocumentSync => 1
+          , definitionProvider => erlang_ls_definition_provider:is_enabled()
+          , referencesProvider => erlang_ls_references_provider:is_enabled()
+          }
+     },
   {response, Result}.
 
 -spec config_path(map()) -> erlang_ls_uri:path().
@@ -178,5 +181,15 @@ textdocument_completion(Params) ->
 -spec textdocument_definition(map()) -> {response, map() | null}.
 textdocument_definition(Params) ->
   Provider = erlang_ls_definition_provider,
+  Response = erlang_ls_provider:handle_request(Provider, {definition, Params}),
+  {response, Response}.
+
+%%==============================================================================
+%% textdocument_references
+%%==============================================================================
+
+-spec textdocument_references(map()) -> {response, map() | null}.
+textdocument_references(Params) ->
+  Provider = erlang_ls_references_provider,
   Response = erlang_ls_provider:handle_request(Provider, {definition, Params}),
   {response, Response}.
