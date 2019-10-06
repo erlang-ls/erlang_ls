@@ -32,34 +32,14 @@ goto_definition( _Filename
                , Path
                ) when Type =:= application;
                       Type =:= implicit_fun ->
-  case erlang_ls_tree:annotate_file(filename(M), Path) of
-    {ok, FullName, AnnotatedTree} ->
-      case erlang_ls_poi:match(AnnotatedTree, definition(Info)) of
-        [#{ range := Range }] ->
-          {ok, FullName, Range};
-        [] ->
-          {error, not_found}
-      end;
-    {error, Error} ->
-      {error, Error}
-  end;
+  goto_fun_definition(filename(M), Path, Info);
 goto_definition( Filename
                , #{ info := {Type, {_F, _A}} = Info }
                , Path
                ) when Type =:= application;
                       Type =:= implicit_fun;
                       Type =:= exports_entry ->
-  case erlang_ls_tree:annotate_file(filename:basename(Filename), Path) of
-    {ok, FullName, AnnotatedTree} ->
-      case erlang_ls_poi:match(AnnotatedTree, definition(Info)) of
-        [#{ range := Range }] ->
-          {ok, FullName, Range};
-        [] ->
-          {error, not_found}
-      end;
-    {error, Error} ->
-      {error, Error}
-  end;
+  goto_fun_definition(filename:basename(Filename), Path, Info);
 goto_definition(_Filename, #{ info := {behaviour, Behaviour} = Info }, Path) ->
   search(filename(Behaviour), Path, definition(Info));
 goto_definition( _Filename
@@ -93,6 +73,21 @@ goto_definition(Filename, #{ info := {type_application, _Type} = Info }, Path) -
   search(filename:basename(Filename), Path, definition(Info));
 goto_definition(_Filename, _, _Path) ->
   {error, not_found}.
+
+-spec goto_fun_definition(file:name_all(), [string()], any()) ->
+  {ok, binary(), erlang_ls_poi:range()} | {error, any()}.
+goto_fun_definition(Filename, Path, Info)  ->
+  case erlang_ls_tree:annotate_file(Filename, Path) of
+    {ok, FullName, AnnotatedTree} ->
+      case erlang_ls_poi:match(AnnotatedTree, definition(Info)) of
+        [] -> {error, not_found};
+        Matches ->
+          #{range := Range} = erlang_ls_poi:first(Matches),
+          {ok, FullName, Range}
+      end;
+    {error, Error} ->
+      {error, Error}
+  end.
 
 -spec definition({atom(), any()}) -> {atom(), any()}.
 definition({application, {_M, F, A}}) ->
