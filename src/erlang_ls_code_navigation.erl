@@ -130,6 +130,7 @@ app_path() ->
   {ok, RootUri} = erlang_ls_buffer_server:get_root_uri(),
   RootPath = binary_to_list(erlang_ls_uri:path(RootUri)),
   resolve_paths( [ [RootPath, "src"]
+                 , [RootPath, "test"]
                  , [RootPath, "include"]
                  ]).
 
@@ -139,6 +140,7 @@ deps_path() ->
   RootPath = binary_to_list(erlang_ls_uri:path(RootUri)),
   {ok, Dirs} = erlang_ls_buffer_server:get_deps_dirs(),
   Paths = [ resolve_paths( [ [RootPath, Dir, "src"]
+                           , [RootPath, Dir, "test"]
                            , [RootPath, Dir, "include"]
                            ])
             || Dir <- Dirs
