@@ -56,7 +56,8 @@ start_link(Provider, Config) ->
 
 -spec start_provider(provider(), config()) -> ok.
 start_provider(Provider, Config) ->
-  supervisor:start_child(erlang_ls_providers_sup, [Provider, Config]).
+  supervisor:start_child(erlang_ls_providers_sup, [Provider, Config]),
+  ok.
 
 -spec handle_request(provider(), request()) -> any().
 handle_request(Provider, Request) ->

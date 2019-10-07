@@ -12,7 +12,7 @@
 is_enabled() ->
   true.
 
--spec setup(erlang_ls:config()) -> erlang_ls_provider:state().
+-spec setup(map()) -> erlang_ls_provider:state().
 setup(_Config) ->
   #{}.
 
