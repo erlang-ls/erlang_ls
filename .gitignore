@@ -1,3 +1,4 @@
+.DS_Store
 .rebar3
 _*
 .eunit
@@ -20,3 +21,5 @@ rebar3.crashdump
 .edts
 current_counterexample.eqc
 *.coverdata
+*.log
+*.log.*
