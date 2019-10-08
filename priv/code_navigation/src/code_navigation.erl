@@ -54,4 +54,10 @@ function_g(X) ->
 
 -spec function_h() -> type_a().
 function_h() ->
-  ok.
+  function_i().
+
+-ifdef(foo).
+function_i() -> one.
+-else.
+function_i() -> two.
+-endif.
