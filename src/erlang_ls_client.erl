@@ -12,7 +12,8 @@
 %% Exports
 %%==============================================================================
 %% API
--export([ did_open/4
+-export([ definition/3
+        , did_open/4
         , did_save/1
         , did_close/1
         , initialize/2
@@ -59,6 +60,11 @@
 %%==============================================================================
 %% API
 %%==============================================================================
+%% TODO: More accurate and consistent parameters list
+-spec definition(erlang_ls_uri:uri(), non_neg_integer(), non_neg_integer()) -> ok.
+definition(Uri, Line, Char) ->
+  gen_server:call(?SERVER, {definition, Uri, Line, Char}).
+
 -spec did_open(erlang_ls_uri:uri(), binary(), number(), binary()) -> ok.
 did_open(Uri, LanguageId, Version, Text) ->
   gen_server:call(?SERVER, {did_open, Uri, LanguageId, Version, Text}).
@@ -92,7 +98,25 @@ init({Host, Port}) ->
   {ok, Socket} = gen_tcp:connect(Host, Port, Opts),
   {ok, #state{socket = Socket}}.
 
+%% TODO: Refactor request function
 -spec handle_call(any(), any(), state()) -> {reply, any(), state()}.
+handle_call({definition, Uri, Line, Char}, From, State) ->
+  #state{ request_id = RequestId
+        , socket     = Socket
+        } = State,
+  Method = <<"textDocument/definition">>,
+  TextDocument = #{ uri  => Uri },
+  Position = #{ line      => Line - 1
+              , character => Char - 1
+              },
+  Params = #{ position     => Position
+            , textDocument => TextDocument
+            },
+  Content = erlang_ls_protocol:request(RequestId, Method, Params),
+  gen_tcp:send(Socket, Content),
+  {noreply, State#state{ request_id = RequestId + 1
+                       , pending    = [{RequestId, From} | State#state.pending]
+                       }};
 handle_call({did_open, Uri, LanguageId, Version, Text}, _From, State) ->
   Method = <<"textDocument/didOpen">>,
   TextDocument = #{ uri        => Uri
