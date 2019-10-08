@@ -2,7 +2,7 @@
 
 -behaviour(behaviour_a).
 
--export([ function_a/0 ]).
+-export([ function_a/0, function_g/1 ]).
 
 %% behaviour_a callbacks
 -export([ callback_a/0 ]).
@@ -46,3 +46,12 @@ function_e() ->
 
 function_f() ->
   ?macro_A.
+
+function_g(X) ->
+  F = fun function_b/0,
+  G = {fun code_navigation_extra:do/1, X#included_record_a.field_b},
+  {?INCLUDED_MACRO_A, #included_record_a{}, F, G}.
+
+-spec function_h() -> type_a().
+function_h() ->
+  ok.

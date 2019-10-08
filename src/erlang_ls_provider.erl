@@ -14,7 +14,7 @@
 
 -type config()   :: any().
 -type provider() :: erlang_ls_definition_provider.
--type request()  :: any().
+-type request()  :: {atom(), map()}.
 -type state()    :: any().
 -export_type([ config/0
              , provider/0
@@ -61,7 +61,7 @@ start_provider(Provider, Config) ->
 
 -spec handle_request(provider(), request()) -> any().
 handle_request(Provider, Request) ->
-  gen_server:call(Provider, {handle_request, Request}).
+  gen_server:call(Provider, {handle_request, Provider, Request}).
 
 -spec init([#{provider := atom(), config := map()}]) -> {ok, state()}.
 init([#{provider := Provider, config := Config}]) ->
@@ -70,8 +70,8 @@ init([#{provider := Provider, config := Config}]) ->
 
 -spec handle_call(any(), {pid(), any()}, state()) ->
   {reply, any(), state()}.
-handle_call({handle_request, Provider, Request, Params}, _From, State) ->
-  {Reply, NewState} = Provider:handle_request(Request, Params, State),
+handle_call({handle_request, Provider, Request}, _From, State) ->
+  {Reply, NewState} = Provider:handle_request(Request, State),
   {reply, Reply, NewState}.
 
 -spec handle_cast(any(), any()) ->

@@ -44,6 +44,8 @@
 %% Defines
 %%==============================================================================
 -define(TEST_APP, <<"code_navigation">>).
+-define(HOSTNAME, {127,0,0,1}).
+-define(PORT    , 10000).
 
 %%==============================================================================
 %% Types
@@ -60,8 +62,6 @@ suite() ->
 -spec init_per_suite(config()) -> config().
 init_per_suite(Config) ->
   {ok, Started} = application:ensure_all_started(erlang_ls),
-  erlang_ls_buffer_server:set_otp_path(code:root_dir()),
-  erlang_ls_buffer_server:set_root_uri(erlang_ls_uri:uri(root_path())),
   [{started, Started}|Config].
 
 -spec end_per_suite(config()) -> ok.
@@ -71,7 +71,34 @@ end_per_suite(Config) ->
 
 -spec init_per_testcase(atom(), config()) -> config().
 init_per_testcase(_TestCase, Config) ->
-  Config.
+  {ok, _}       = erlang_ls_client:start_link(?HOSTNAME, ?PORT),
+  RootPath      = filename:join([ list_to_binary(code:priv_dir(erlang_ls))
+                                , ?TEST_APP]),
+  RootUri       = erlang_ls_uri:uri(RootPath),
+  erlang_ls_client:initialize(RootUri, []),
+  Path          = filename:join([ RootPath
+                             , <<"src">>
+                             , <<"code_navigation.erl">>]),
+  ExtraPath     = filename:join([ RootPath
+                             , <<"src">>
+                             , <<"code_navigation_extra.erl">>]),
+  BehaviourPath = filename:join([ RootPath
+                                , <<"src">>
+                                , <<"behaviour_a.erl">>]),
+  IncludePath   = filename:join([ RootPath
+                                , <<"include">>
+                                , <<"code_navigation.hrl">>]),
+  Uri           = erlang_ls_uri:uri(Path),
+  ExtraUri      = erlang_ls_uri:uri(ExtraPath),
+  BehaviourUri  = erlang_ls_uri:uri(BehaviourPath),
+  IncludeUri    = erlang_ls_uri:uri(IncludePath),
+  {ok, Text}    = file:read_file(Path),
+  erlang_ls_client:did_open(Uri, erlang, 1, Text),
+  [ {code_navigation_uri, Uri}
+  , {code_navigation_extra_uri, ExtraUri}
+  , {behaviour_uri, BehaviourUri}
+  , {include_uri, IncludeUri}
+    |Config].
 
 -spec end_per_testcase(atom(), config()) -> ok.
 end_per_testcase(_TestCase, _Config) ->
@@ -104,183 +131,193 @@ all() ->
 %% Testcases
 %%==============================================================================
 -spec application_local(config()) -> ok.
-application_local(_Config) ->
-  Thing = #{info => {application, {function_b, 0}}},
-  {ok, FullName, Range} = goto_def(<<"code_navigation.erl">>, Thing),
-  ?assertEqual(full_path(src, <<"code_navigation.erl">>), FullName),
-  ?assertEqual(#{from => {24, 0}, to => {24, 10}}, Range),
+application_local(Config) ->
+  Uri = ?config(code_navigation_uri, Config),
+  Def = erlang_ls_client:definition(Uri, 22, 5),
+  #{result := #{range := Range, uri := DefUri}} = Def,
+  ?assertEqual(Uri, DefUri),
+  ?assertEqual( erlang_ls_protocol:range(#{from => {24, 0}, to => {24, 10}})
+              , Range),
   ok.
 
 -spec application_remote(config()) -> ok.
-application_remote(_Config) ->
-  Thing = #{info => {application, {code_navigation_extra, do, 1}}},
-  {ok, FullName, Range} = goto_def(<<"code_navigation.erl">>, Thing),
-  ?assertEqual(full_path(src, <<"code_navigation_extra.erl">>), FullName),
-  ?assertEqual(#{from => {4, 0}, to => {4, 2}}, Range),
+application_remote(Config) ->
+  Uri = ?config(code_navigation_uri, Config),
+  Def = erlang_ls_client:definition(Uri, 32, 13),
+  #{result := #{range := Range, uri := DefUri}} = Def,
+  ?assertEqual(?config(code_navigation_extra_uri, Config), DefUri),
+  ?assertEqual( erlang_ls_protocol:range(#{from => {4, 0}, to => {4, 2}})
+              , Range),
   ok.
 
 -spec behaviour(config()) -> ok.
-behaviour(_Config) ->
-  Thing = #{info => {behaviour, 'behaviour_a'}},
-  {ok, FullName, Range} = goto_def(<<"code_navigation.erl">>, Thing),
-  ?assertEqual(full_path(src, <<"behaviour_a.erl">>), FullName),
-  ?assertEqual(#{from => {0, 1}, to => {0, 1}}, Range),
+behaviour(Config) ->
+  Uri = ?config(code_navigation_uri, Config),
+  Def = erlang_ls_client:definition(Uri, 3, 16),
+  #{result := #{range := Range, uri := DefUri}} = Def,
+  ?assertEqual(?config(behaviour_uri, Config), DefUri),
+  ?assertEqual( erlang_ls_protocol:range(#{from => {0, 1}, to => {0, 1}})
+              , Range),
   ok.
 
 -spec export_entry(config()) -> ok.
-export_entry(_Config) ->
-  Thing = #{info => {exports_entry, {callback_a, 0}}},
-  {ok, FullName, Range} = goto_def(<<"code_navigation.erl">>, Thing),
-  ?assertEqual(full_path(src, <<"code_navigation.erl">>), FullName),
-  ?assertEqual(#{from => {27, 0}, to => {27, 10}}, Range),
+export_entry(Config) ->
+  Uri = ?config(code_navigation_uri, Config),
+  Def = erlang_ls_client:definition(Uri, 8, 15),
+  #{result := #{range := Range, uri := DefUri}} = Def,
+  ?assertEqual(Uri, DefUri),
+  ?assertEqual( erlang_ls_protocol:range(#{from => {27, 0}, to => {27, 10}})
+              , Range),
   ok.
 
 -spec fun_local(config()) -> ok.
-fun_local(_Config) ->
-  Thing = #{info => {implicit_fun, {function_b, 0}}},
-  {ok, FullName, Range} = goto_def(<<"code_navigation.erl">>, Thing),
-  ?assertEqual(full_path(src, <<"code_navigation.erl">>), FullName),
-  ?assertEqual(#{from => {24, 0}, to => {24, 10}}, Range),
+fun_local(Config) ->
+  Uri = ?config(code_navigation_uri, Config),
+  Def = erlang_ls_client:definition(Uri, 51, 16),
+  #{result := #{range := Range, uri := DefUri}} = Def,
+  ?assertEqual(Uri, DefUri),
+  ?assertEqual( erlang_ls_protocol:range(#{from => {24, 0}, to => {24, 10}})
+              , Range),
   ok.
 
 -spec fun_remote(config()) -> ok.
-fun_remote(_Config) ->
-  Thing = #{info => {implicit_fun, {code_navigation_extra, do, 1}}},
-  {ok, FullName, Range} = goto_def(<<"code_navigation.erl">>, Thing),
-  ?assertEqual(full_path(src, <<"code_navigation_extra.erl">>), FullName),
-  ?assertEqual(#{from => {4, 0}, to => {4, 2}}, Range),
+fun_remote(Config) ->
+  Uri = ?config(code_navigation_uri, Config),
+  Def = erlang_ls_client:definition(Uri, 52, 14),
+  #{result := #{range := Range, uri := DefUri}} = Def,
+  ?assertEqual(?config(code_navigation_extra_uri, Config), DefUri),
+  ?assertEqual( erlang_ls_protocol:range(#{from => {4, 0}, to => {4, 2}})
+              , Range),
   ok.
 
 -spec import_entry(config()) -> ok.
-import_entry(_Config) ->
-  Thing = #{info => {import_entry, {code_navigation_extra, do, 1}}},
-  {ok, FullName, Range} = goto_def(<<"code_navigation.erl">>, Thing),
-  ?assertEqual(full_path(src, <<"code_navigation_extra.erl">>), FullName),
-  ?assertEqual(#{from => {4, 0}, to => {4, 2}}, Range),
+import_entry(Config) ->
+  Uri = ?config(code_navigation_uri, Config),
+  Def = erlang_ls_client:definition(Uri, 10, 34),
+  #{result := #{range := Range, uri := DefUri}} = Def,
+  ?assertEqual(?config(code_navigation_extra_uri, Config), DefUri),
+  ?assertEqual( erlang_ls_protocol:range(#{from => {4, 0}, to => {4, 2}})
+              , Range),
   ok.
 
 -spec include(config()) -> ok.
-include(_Config) ->
-  Thing = #{info => {include, "code_navigation.hrl"}},
-  {ok, FullName, Range} = goto_def(<<"code_navigation.erl">>, Thing),
-  ?assertEqual(full_path(include, <<"code_navigation.hrl">>), FullName),
-  ?assertEqual(#{from => {0, 0}, to => {0, 0}}, Range),
+include(Config) ->
+  Uri = ?config(code_navigation_uri, Config),
+  Def = erlang_ls_client:definition(Uri, 12, 20),
+  #{result := #{range := Range, uri := DefUri}} = Def,
+  ?assertEqual(?config(include_uri, Config), DefUri),
+  ?assertEqual( erlang_ls_protocol:range(#{from => {0, 0}, to => {0, 0}})
+              , Range),
   ok.
 
 -spec include_lib(config()) -> ok.
-include_lib(_Config) ->
-  Thing = #{info => {include_lib, "code_navigation/include/code_navigation.hrl"}},
-  {ok, FullName, Range} = goto_def(<<"code_navigation.erl">>, Thing),
-  ?assertEqual(full_path(include, <<"code_navigation.hrl">>), FullName),
-  ?assertEqual(#{from => {0, 0}, to => {0, 0}}, Range),
+include_lib(Config) ->
+  Uri = ?config(code_navigation_uri, Config),
+  Def = erlang_ls_client:definition(Uri, 13, 22),
+  #{result := #{range := Range, uri := DefUri}} = Def,
+  ?assertEqual(?config(include_uri, Config), DefUri),
+  ?assertEqual( erlang_ls_protocol:range(#{from => {0, 0}, to => {0, 0}})
+              , Range),
   ok.
 
 -spec macro(config()) -> ok.
-macro(_Config) ->
-  Thing = #{info => {macro, 'MACRO_A'}},
-  {ok, FullName, Range} = goto_def(<<"code_navigation.erl">>, Thing),
-  ?assertEqual(full_path(src, <<"code_navigation.erl">>), FullName),
-  ?assertEqual(#{from => {17, 0}, to => {17, 0}}, Range),
+macro(Config) ->
+  Uri = ?config(code_navigation_uri, Config),
+  Def = erlang_ls_client:definition(Uri, 26, 5),
+  #{result := #{range := Range, uri := DefUri}} = Def,
+  ?assertEqual(Uri, DefUri),
+  ?assertEqual( erlang_ls_protocol:range(#{from => {17, 0}, to => {17, 0}})
+              , Range),
   ok.
 
 -spec macro_lowercase(config()) -> ok.
-macro_lowercase(_Config) ->
-  Thing = #{info => {macro, 'macro_A'}},
-  {ok, FullName, Range} = goto_def(<<"code_navigation.erl">>, Thing),
-  ?assertEqual(full_path(src, <<"code_navigation.erl">>), FullName),
-  ?assertEqual(#{from => {44, 0}, to => {44, 0}}, Range),
+macro_lowercase(Config) ->
+  Uri = ?config(code_navigation_uri, Config),
+  Def = erlang_ls_client:definition(Uri, 48, 3),
+  #{result := #{range := Range, uri := DefUri}} = Def,
+  ?assertEqual(Uri, DefUri),
+  ?assertEqual( erlang_ls_protocol:range(#{from => {44, 0}, to => {44, 0}})
+              , Range),
   ok.
 
 -spec macro_included(config()) -> ok.
-macro_included(_Config) ->
-  Thing = #{info => {macro, 'INCLUDED_MACRO_A'}},
-  {ok, FullName, Range} = goto_def(<<"code_navigation.erl">>, Thing),
-  ?assertEqual(full_path(include, <<"code_navigation.hrl">>), FullName),
-  ?assertEqual(#{from => {2, 0}, to => {2, 0}}, Range),
+macro_included(Config) ->
+  Uri = ?config(code_navigation_uri, Config),
+  Def = erlang_ls_client:definition(Uri, 53, 19),
+  #{result := #{range := Range, uri := DefUri}} = Def,
+  ?assertEqual(?config(include_uri, Config), DefUri),
+  ?assertEqual( erlang_ls_protocol:range(#{from => {2, 0}, to => {2, 0}})
+              , Range),
   ok.
 
 -spec macro_with_args(config()) -> ok.
-macro_with_args(_Config) ->
-  Thing = #{info => {macro, 'MACRO_WITH_ARGS'}},
-  {ok, FullName, Range} = goto_def(<<"code_navigation.erl">>, Thing),
-  ?assertEqual(full_path(src, <<"code_navigation.erl">>), FullName),
-  ?assertEqual(#{from => {18, 0}, to => {18, 0}}, Range),
+macro_with_args(Config) ->
+  Uri = ?config(code_navigation_uri, Config),
+  Def = erlang_ls_client:definition(Uri, 40, 9),
+  #{result := #{range := Range, uri := DefUri}} = Def,
+  ?assertEqual(Uri, DefUri),
+  ?assertEqual( erlang_ls_protocol:range(#{from => {18, 0}, to => {18, 0}})
+              , Range),
   ok.
 
 -spec macro_with_args_included(config()) -> ok.
-macro_with_args_included(_Config) ->
-  Thing = #{info => {macro, 'assertEqual'}},
-  {ok, FullName, _Range} = goto_def(<<"code_navigation.erl">>, Thing),
-  ?assertEqual(otp_app_path("stdlib", "include", "assert.hrl"), FullName),
+macro_with_args_included(Config) ->
+  Uri = ?config(code_navigation_uri, Config),
+  Def = erlang_ls_client:definition(Uri, 43, 9),
+  #{result := #{uri := DefUri}} = Def,
+  ?assertEqual (<<"assert.hrl">>
+              , filename:basename(erlang_ls_uri:path(DefUri))),
   %% Do not assert on line number to avoid binding to a specific OTP version
   ok.
 
 -spec record_access(config()) -> ok.
-record_access(_Config) ->
-  Thing = #{info => {record_access, {"record_a", "_X"}}},
-  {ok, FullName, Range} = goto_def(<<"code_navigation.erl">>, Thing),
-  ?assertEqual(full_path(src, <<"code_navigation.erl">>), FullName),
-  ?assertEqual(#{from => {15, 0}, to => {15, 0}}, Range),
+record_access(Config) ->
+  Uri = ?config(code_navigation_uri, Config),
+  Def = erlang_ls_client:definition(Uri, 33, 11),
+  #{result := #{range := Range, uri := DefUri}} = Def,
+  ?assertEqual(Uri, DefUri),
+  ?assertEqual( erlang_ls_protocol:range(#{from => {15, 0}, to => {15, 0}})
+              , Range),
   ok.
 
 -spec record_access_included(config()) -> ok.
-record_access_included(_Config) ->
-  Thing = #{info => {record_access, {"included_record_a", "_X"}}},
-  {ok, FullName, Range} = goto_def(<<"code_navigation.erl">>, Thing),
-  ?assertEqual(full_path(include, <<"code_navigation.hrl">>), FullName),
-  ?assertEqual(#{from => {0, 0}, to => {0, 0}}, Range),
+record_access_included(Config) ->
+  Uri = ?config(code_navigation_uri, Config),
+  Def = erlang_ls_client:definition(Uri, 53, 30),
+  #{result := #{range := Range, uri := DefUri}} = Def,
+  ?assertEqual(?config(include_uri, Config), DefUri),
+  ?assertEqual( erlang_ls_protocol:range(#{from => {0, 0}, to => {0, 0}})
+              , Range),
   ok.
 
 %% TODO: Additional constructors for POI
 %% TODO: Navigation should return POI, not range
 -spec record_expr(config()) -> ok.
-record_expr(_Config) ->
-  Thing = #{info => {record_expr, "record_a"}},
-  {ok, FullName, Range} = goto_def(<<"code_navigation.erl">>, Thing),
-  ?assertEqual(full_path(src, <<"code_navigation.erl">>), FullName),
-  ?assertEqual(#{from => {15, 0}, to => {15, 0}}, Range),
+record_expr(Config) ->
+  Uri = ?config(code_navigation_uri, Config),
+  Def = erlang_ls_client:definition(Uri, 34, 13),
+  #{result := #{range := Range, uri := DefUri}} = Def,
+  ?assertEqual(Uri, DefUri),
+  ?assertEqual( erlang_ls_protocol:range(#{from => {15, 0}, to => {15, 0}})
+              , Range),
   ok.
 
 -spec record_expr_included(config()) -> ok.
-record_expr_included(_Config) ->
-  Thing = #{info => {record_expr, "included_record_a"}},
-  {ok, FullName, Range} = goto_def(<<"code_navigation.erl">>, Thing),
-  ?assertEqual(full_path(include, <<"code_navigation.hrl">>), FullName),
-  ?assertEqual(#{from => {0, 0}, to => {0, 0}}, Range),
+record_expr_included(Config) ->
+  Uri = ?config(code_navigation_uri, Config),
+  Def = erlang_ls_client:definition(Uri, 52, 43),
+  #{result := #{range := Range, uri := DefUri}} = Def,
+  ?assertEqual(?config(include_uri, Config), DefUri),
+  ?assertEqual( erlang_ls_protocol:range(#{from => {0, 0}, to => {0, 0}})
+              , Range),
   ok.
 
 -spec type_application(config()) -> ok.
-type_application(_Config) ->
-  Thing = #{info => {type_application, {'type_a', undefined}}},
-  {ok, FullName, Range} = goto_def(<<"code_navigation.erl">>, Thing),
-  ?assertEqual( full_path(src, <<"code_navigation.erl">>), FullName),
-  ?assertEqual(#{from => {36, 1}, to => {36, 1}}, Range),
+type_application(Config) ->
+  Uri = ?config(code_navigation_uri, Config),
+  Def = erlang_ls_client:definition(Uri, 55, 25),
+  #{result := #{range := Range, uri := DefUri}} = Def,
+  ?assertEqual(Uri, DefUri),
+  ?assertEqual( erlang_ls_protocol:range(#{from => {36, 1}, to => {36, 1}})
+              , Range),
   ok.
-
-%%==============================================================================
-%% Internal Functions
-%%==============================================================================
--spec full_path(binary(), binary()) -> binary().
-full_path(Dir, FileName) ->
-  filename:join([ root_path()
-                , atom_to_binary(Dir, utf8)
-                , FileName
-                ]).
-
--spec otp_app_path(string(), string(), string()) -> binary().
-otp_app_path(App, Dir, FileName) ->
-  list_to_binary(filelib:wildcard(filename:join([ code:root_dir()
-                                                , "lib"
-                                                , App ++ "*"
-                                                , Dir
-                                                , FileName
-                                                ]))).
-
--spec goto_def(binary(), erlang_ls_poi:poi()) ->
-   {ok, binary(), erlang_ls_poi:range()} | {error, any()}.
-goto_def(FileName, Thing) ->
-  erlang_ls_code_navigation:goto_definition(FileName, Thing).
-
--spec root_path() -> file:filename().
-root_path() ->
-  filename:join([list_to_binary(code:priv_dir(erlang_ls)), ?TEST_APP]).

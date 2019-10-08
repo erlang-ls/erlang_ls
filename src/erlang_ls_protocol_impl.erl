@@ -177,6 +177,5 @@ textdocument_completion(Params) ->
 -spec textdocument_definition(map()) -> {response, map() | null}.
 textdocument_definition(Params) ->
   Provider = erlang_ls_definition_provider,
-  Request  = {definition, Params},
-  Response = erlang_ls_provider:handle_request(Provider, Request),
+  Response = erlang_ls_provider:handle_request(Provider, {definition, Params}),
   {response, Response}.
