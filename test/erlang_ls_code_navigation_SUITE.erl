@@ -16,6 +16,7 @@
 -export([ application_local/1
         , application_remote/1
         , behaviour/1
+        , duplicate_definition/1
         , export_entry/1
         , fun_local/1
         , fun_remote/1
@@ -109,6 +110,7 @@ all() ->
   [ application_local
   , application_remote
   , behaviour
+  , duplicate_definition
   , export_entry
   , fun_local
   , fun_remote
@@ -157,6 +159,16 @@ behaviour(Config) ->
   #{result := #{range := Range, uri := DefUri}} = Def,
   ?assertEqual(?config(behaviour_uri, Config), DefUri),
   ?assertEqual( erlang_ls_protocol:range(#{from => {0, 1}, to => {0, 1}})
+              , Range),
+  ok.
+
+-spec duplicate_definition(config()) -> ok.
+duplicate_definition(Config) ->
+  Uri = ?config(code_navigation_uri, Config),
+  Def = erlang_ls_client:definition(Uri, 57, 5),
+  #{result := #{range := Range, uri := DefUri}} = Def,
+  ?assertEqual(Uri, DefUri),
+  ?assertEqual( erlang_ls_protocol:range(#{from => {59, 0}, to => {59, 10}})
               , Range),
   ok.
 
