@@ -39,8 +39,8 @@ initialize(Params) ->
   ok = erlang_ls_config:set(root_uri, RootUri),
   ok = erlang_ls_config:set(otp_path, OtpPath),
   ok = erlang_ls_config:set(deps_dirs, DepsDirs),
-  [erlang_ls_provider:start_provider(Provider, Config) ||
-    Provider <- erlang_ls_provider:enabled_providers()],
+  ok = erlang_ls_index:initialize(Config),
+  ok = erlang_ls_provider:initialize(Config),
   Result =
     #{ capabilities =>
          #{ hoverProvider => false
@@ -127,9 +127,9 @@ textdocument_didchange(Params) ->
   case ContentChanges of
     []                      -> ok;
     [#{<<"text">> := Text}] ->
-      {ok, Document0} = erlang_ls_db:find(erlang_ls_documents, Uri),
+      {ok, Document0} = erlang_ls_db:find(documents, Uri),
       Document = erlang_ls_document:set_text(Document0, Text),
-      ok = erlang_ls_db:store(erlang_ls_documents, Uri, Document)
+      ok = erlang_ls_db:store(documents, Uri, Document)
   end,
   {}.
 
@@ -170,7 +170,7 @@ textdocument_completion(Params) ->
   Character    = maps:get(<<"character">>, Position),
   TextDocument = maps:get(<<"textDocument">>  , Params),
   Uri          = maps:get(<<"uri">>      , TextDocument),
-  {ok, Document} = erlang_ls_db:find(erlang_ls_documents, Uri),
+  {ok, Document} = erlang_ls_db:find(documents, Uri),
   Result       = erlang_ls_document:get_completions(Document, Line, Character),
   {response, maps:from_list(Result)}.
 
@@ -191,5 +191,5 @@ textdocument_definition(Params) ->
 -spec textdocument_references(map()) -> {response, map() | null}.
 textdocument_references(Params) ->
   Provider = erlang_ls_references_provider,
-  Response = erlang_ls_provider:handle_request(Provider, {definition, Params}),
+  Response = erlang_ls_provider:handle_request(Provider, {references, Params}),
   {response, Response}.

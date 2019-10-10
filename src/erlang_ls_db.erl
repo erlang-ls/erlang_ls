@@ -14,7 +14,10 @@
         ]).
 
 -define(SERVER, ?MODULE).
--define(TABLES, [erlang_ls_documents]).
+-define( TABLES
+       ,  [ documents
+          , references_index
+          ]).
 
 -type state() :: #{}.
 -type table() :: atom().

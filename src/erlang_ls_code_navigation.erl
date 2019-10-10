@@ -10,7 +10,10 @@
 %% API
 -export([ goto_definition/2 ]).
 
--export([ include_path/0 ]).
+-export([ app_path/0
+        , deps_path/0
+        , otp_path/0
+        ]).
 
 %%==============================================================================
 %% Includes

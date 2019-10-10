@@ -28,7 +28,7 @@ handle_request({definition, Params}, State) ->
                             }
    , <<"textDocument">> := #{<<"uri">> := Uri}
    } = Params,
-  {ok, Document} = erlang_ls_db:find(erlang_ls_documents, Uri),
+  {ok, Document} = erlang_ls_db:find(documents, Uri),
   case
     erlang_ls_document:get_element_at_pos(Document, Line + 1, Character + 1)
   of
