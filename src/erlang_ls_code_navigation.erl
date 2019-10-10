@@ -57,7 +57,7 @@ goto_definition(_Filename, #{ info := {include, Include0} }, Path) ->
   Include = list_to_binary(string:trim(Include0, both, [$"])),
   case erlang_ls_tree:annotate_file(Include, Path) of
     {ok, FullName, _AnnotatedTree} ->
-      {ok, FullName, #{ from => {0, 0}, to => {0, 0} }};
+      {ok, FullName, #{ from => {1, 1}, to => {1, 1} }};
     {error, Error} ->
       {error, Error}
   end;
@@ -65,7 +65,7 @@ goto_definition(_Filename, #{ info := {include_lib, Include0} }, Path) ->
   Include = list_to_binary(lists:last(filename:split(string:trim(Include0, both, [$"])))),
   case erlang_ls_tree:annotate_file(Include, Path) of
     {ok, FullName, _AnnotatedTree} ->
-      {ok, FullName, #{ from => {0, 0}, to => {0, 0} }};
+      {ok, FullName, #{ from => {1, 1}, to => {1, 1} }};
     {error, Error} ->
       {error, Error}
   end;
