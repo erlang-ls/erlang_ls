@@ -138,7 +138,7 @@ application_local(Config) ->
   Def = erlang_ls_client:definition(Uri, 22, 5),
   #{result := #{range := Range, uri := DefUri}} = Def,
   ?assertEqual(Uri, DefUri),
-  ?assertEqual( erlang_ls_protocol:range(#{from => {24, 0}, to => {24, 10}})
+  ?assertEqual( erlang_ls_protocol:range(#{from => {25, 1}, to => {25, 11}})
               , Range),
   ok.
 
@@ -148,7 +148,7 @@ application_remote(Config) ->
   Def = erlang_ls_client:definition(Uri, 32, 13),
   #{result := #{range := Range, uri := DefUri}} = Def,
   ?assertEqual(?config(code_navigation_extra_uri, Config), DefUri),
-  ?assertEqual( erlang_ls_protocol:range(#{from => {4, 0}, to => {4, 2}})
+  ?assertEqual( erlang_ls_protocol:range(#{from => {5, 1}, to => {5, 3}})
               , Range),
   ok.
 
@@ -158,7 +158,7 @@ behaviour(Config) ->
   Def = erlang_ls_client:definition(Uri, 3, 16),
   #{result := #{range := Range, uri := DefUri}} = Def,
   ?assertEqual(?config(behaviour_uri, Config), DefUri),
-  ?assertEqual( erlang_ls_protocol:range(#{from => {0, 1}, to => {0, 1}})
+  ?assertEqual( erlang_ls_protocol:range(#{from => {1, 2}, to => {1, 2}})
               , Range),
   ok.
 
@@ -168,7 +168,7 @@ duplicate_definition(Config) ->
   Def = erlang_ls_client:definition(Uri, 57, 5),
   #{result := #{range := Range, uri := DefUri}} = Def,
   ?assertEqual(Uri, DefUri),
-  ?assertEqual( erlang_ls_protocol:range(#{from => {59, 0}, to => {59, 10}})
+  ?assertEqual( erlang_ls_protocol:range(#{from => {60, 1}, to => {60, 11}})
               , Range),
   ok.
 
@@ -178,7 +178,7 @@ export_entry(Config) ->
   Def = erlang_ls_client:definition(Uri, 8, 15),
   #{result := #{range := Range, uri := DefUri}} = Def,
   ?assertEqual(Uri, DefUri),
-  ?assertEqual( erlang_ls_protocol:range(#{from => {27, 0}, to => {27, 10}})
+  ?assertEqual( erlang_ls_protocol:range(#{from => {28, 1}, to => {28, 11}})
               , Range),
   ok.
 
@@ -188,7 +188,7 @@ fun_local(Config) ->
   Def = erlang_ls_client:definition(Uri, 51, 16),
   #{result := #{range := Range, uri := DefUri}} = Def,
   ?assertEqual(Uri, DefUri),
-  ?assertEqual( erlang_ls_protocol:range(#{from => {24, 0}, to => {24, 10}})
+  ?assertEqual( erlang_ls_protocol:range(#{from => {25, 1}, to => {25, 11}})
               , Range),
   ok.
 
@@ -198,7 +198,7 @@ fun_remote(Config) ->
   Def = erlang_ls_client:definition(Uri, 52, 14),
   #{result := #{range := Range, uri := DefUri}} = Def,
   ?assertEqual(?config(code_navigation_extra_uri, Config), DefUri),
-  ?assertEqual( erlang_ls_protocol:range(#{from => {4, 0}, to => {4, 2}})
+  ?assertEqual( erlang_ls_protocol:range(#{from => {5, 1}, to => {5, 3}})
               , Range),
   ok.
 
@@ -208,7 +208,7 @@ import_entry(Config) ->
   Def = erlang_ls_client:definition(Uri, 10, 34),
   #{result := #{range := Range, uri := DefUri}} = Def,
   ?assertEqual(?config(code_navigation_extra_uri, Config), DefUri),
-  ?assertEqual( erlang_ls_protocol:range(#{from => {4, 0}, to => {4, 2}})
+  ?assertEqual( erlang_ls_protocol:range(#{from => {5, 1}, to => {5, 3}})
               , Range),
   ok.
 
@@ -218,7 +218,7 @@ include(Config) ->
   Def = erlang_ls_client:definition(Uri, 12, 20),
   #{result := #{range := Range, uri := DefUri}} = Def,
   ?assertEqual(?config(include_uri, Config), DefUri),
-  ?assertEqual( erlang_ls_protocol:range(#{from => {0, 0}, to => {0, 0}})
+  ?assertEqual( erlang_ls_protocol:range(#{from => {1, 1}, to => {1, 1}})
               , Range),
   ok.
 
@@ -228,7 +228,7 @@ include_lib(Config) ->
   Def = erlang_ls_client:definition(Uri, 13, 22),
   #{result := #{range := Range, uri := DefUri}} = Def,
   ?assertEqual(?config(include_uri, Config), DefUri),
-  ?assertEqual( erlang_ls_protocol:range(#{from => {0, 0}, to => {0, 0}})
+  ?assertEqual( erlang_ls_protocol:range(#{from => {1, 1}, to => {1, 1}})
               , Range),
   ok.
 
@@ -238,7 +238,7 @@ macro(Config) ->
   Def = erlang_ls_client:definition(Uri, 26, 5),
   #{result := #{range := Range, uri := DefUri}} = Def,
   ?assertEqual(Uri, DefUri),
-  ?assertEqual( erlang_ls_protocol:range(#{from => {17, 0}, to => {17, 0}})
+  ?assertEqual( erlang_ls_protocol:range(#{from => {18, 1}, to => {18, 1}})
               , Range),
   ok.
 
@@ -248,7 +248,7 @@ macro_lowercase(Config) ->
   Def = erlang_ls_client:definition(Uri, 48, 3),
   #{result := #{range := Range, uri := DefUri}} = Def,
   ?assertEqual(Uri, DefUri),
-  ?assertEqual( erlang_ls_protocol:range(#{from => {44, 0}, to => {44, 0}})
+  ?assertEqual( erlang_ls_protocol:range(#{from => {45, 1}, to => {45, 1}})
               , Range),
   ok.
 
@@ -258,7 +258,7 @@ macro_included(Config) ->
   Def = erlang_ls_client:definition(Uri, 53, 19),
   #{result := #{range := Range, uri := DefUri}} = Def,
   ?assertEqual(?config(include_uri, Config), DefUri),
-  ?assertEqual( erlang_ls_protocol:range(#{from => {2, 0}, to => {2, 0}})
+  ?assertEqual( erlang_ls_protocol:range(#{from => {3, 1}, to => {3, 1}})
               , Range),
   ok.
 
@@ -268,7 +268,7 @@ macro_with_args(Config) ->
   Def = erlang_ls_client:definition(Uri, 40, 9),
   #{result := #{range := Range, uri := DefUri}} = Def,
   ?assertEqual(Uri, DefUri),
-  ?assertEqual( erlang_ls_protocol:range(#{from => {18, 0}, to => {18, 0}})
+  ?assertEqual( erlang_ls_protocol:range(#{from => {19, 1}, to => {19, 1}})
               , Range),
   ok.
 
@@ -288,7 +288,7 @@ record_access(Config) ->
   Def = erlang_ls_client:definition(Uri, 33, 11),
   #{result := #{range := Range, uri := DefUri}} = Def,
   ?assertEqual(Uri, DefUri),
-  ?assertEqual( erlang_ls_protocol:range(#{from => {15, 0}, to => {15, 0}})
+  ?assertEqual( erlang_ls_protocol:range(#{from => {16, 1}, to => {16, 1}})
               , Range),
   ok.
 
@@ -298,7 +298,7 @@ record_access_included(Config) ->
   Def = erlang_ls_client:definition(Uri, 53, 30),
   #{result := #{range := Range, uri := DefUri}} = Def,
   ?assertEqual(?config(include_uri, Config), DefUri),
-  ?assertEqual( erlang_ls_protocol:range(#{from => {0, 0}, to => {0, 0}})
+  ?assertEqual( erlang_ls_protocol:range(#{from => {1, 1}, to => {1, 1}})
               , Range),
   ok.
 
@@ -310,7 +310,7 @@ record_expr(Config) ->
   Def = erlang_ls_client:definition(Uri, 34, 13),
   #{result := #{range := Range, uri := DefUri}} = Def,
   ?assertEqual(Uri, DefUri),
-  ?assertEqual( erlang_ls_protocol:range(#{from => {15, 0}, to => {15, 0}})
+  ?assertEqual( erlang_ls_protocol:range(#{from => {16, 1}, to => {16, 1}})
               , Range),
   ok.
 
@@ -320,7 +320,7 @@ record_expr_included(Config) ->
   Def = erlang_ls_client:definition(Uri, 52, 43),
   #{result := #{range := Range, uri := DefUri}} = Def,
   ?assertEqual(?config(include_uri, Config), DefUri),
-  ?assertEqual( erlang_ls_protocol:range(#{from => {0, 0}, to => {0, 0}})
+  ?assertEqual( erlang_ls_protocol:range(#{from => {1, 1}, to => {1, 1}})
               , Range),
   ok.
 
@@ -330,6 +330,6 @@ type_application(Config) ->
   Def = erlang_ls_client:definition(Uri, 55, 25),
   #{result := #{range := Range, uri := DefUri}} = Def,
   ?assertEqual(Uri, DefUri),
-  ?assertEqual( erlang_ls_protocol:range(#{from => {36, 1}, to => {36, 1}})
+  ?assertEqual( erlang_ls_protocol:range(#{from => {37, 2}, to => {37, 2}})
               , Range),
   ok.

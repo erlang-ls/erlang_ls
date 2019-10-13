@@ -106,19 +106,19 @@ get_range({_Line, _Column}, {exports_entry, {F, A}}, Extra) ->
 get_range({_Line, _Column}, {import_entry, {_M, F, A}}, Extra) ->
   get_entry_range(import_locations, F, A, Extra);
 get_range({Line, Column}, {function, {F, _A}}, _Extra) ->
-  From = {Line - 1, Column - 1},
-  To = {Line - 1, Column + length(atom_to_list(F)) - 1},
+  From = {Line, Column},
+  To = {Line, Column + length(atom_to_list(F))},
   #{ from => From, to => To };
 get_range({Line, _Column}, {define, _Define}, _Extra) ->
-  From = {Line - 1, 0},
+  From = {Line, 1},
   To = From,
   #{ from => From, to => To };
 get_range({Line, Column}, {include, Include}, _Extra) ->
-  From = {Line, Column - 1},
+  From = {Line, Column},
   To = {Line, Column + length("include") + length(Include)},
   #{ from => From, to => To };
 get_range({Line, Column}, {include_lib, Include}, _Extra) ->
-  From = {Line, Column - 1},
+  From = {Line, Column},
   To = {Line, Column + length("include_lib") + length(Include)},
   #{ from => From, to => To };
 get_range({Line, Column}, {macro, Macro}, _Extra) when is_atom(Macro) ->
@@ -126,7 +126,7 @@ get_range({Line, Column}, {macro, Macro}, _Extra) when is_atom(Macro) ->
   To = {Line, Column + length(atom_to_list(Macro))},
   #{ from => From, to => To };
 get_range({Line, Column}, {module, _}, _Extra) ->
-  From = {Line - 1, Column - 1},
+  From = {Line, Column},
   To = From,
   #{ from => From, to => To };
 get_range(Pos, {record_access, {Record, Var}}, _Extra) ->
@@ -137,7 +137,7 @@ get_range({Line, Column}, {record_expr, Record}, _Extra) ->
   #{ from => From, to => To };
 %% TODO: Distinguish between usage poi and definition poi
 get_range({Line, _Column}, {record, _Record}, _Extra) ->
-  From = {Line - 1, 0},
+  From = {Line, 1},
   To = From,
   #{ from => From, to => To };
 %% TODO: Do we really need the StartLocation there?
@@ -147,7 +147,7 @@ get_range({_Line, _Column}, {type_application, {Type, StartLocation}}, _Extra) -
   To = {FromLine, FromColumn + Length - 1},
   #{ from => From, to => To };
 get_range({Line, Column}, {type_definition, _Type}, _Extra) ->
-  From = {Line - 1, Column - 1},
+  From = {Line, Column},
   To = From,
   #{ from => From, to => To }.
 
