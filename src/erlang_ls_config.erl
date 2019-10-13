@@ -18,8 +18,12 @@
 -type path()   :: file:filename().
 -type state() :: #{ deps_dirs => [path()]
                   , otp_path  => path()
-                  , root_uri  => elang_ls_uri:uri()
+                  , root_uri  => erlang_ls_uri:uri()
                   }.
+
+%%==============================================================================
+%% Exported functions
+%%==============================================================================
 
 -spec start_link() -> {ok, pid()}.
 start_link() ->

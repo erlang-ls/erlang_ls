@@ -124,8 +124,9 @@ textdocument_didchange(Params) ->
   case ContentChanges of
     []                      -> ok;
     [#{<<"text">> := Text}] ->
-      {ok, Buffer} = erlang_ls_buffer_server:get_buffer(Uri),
-      ok = erlang_ls_buffer:set_text(Buffer, Text)
+      {ok, Buffer0} = erlang_ls_db:find(erlang_ls_files, Uri),
+      Buffer = erlang_ls_buffer:set_text(Buffer0, Text),
+      ok = erlang_ls_db:store(erlang_ls_files, Uri, Buffer)
   end,
   {}.
 
@@ -166,7 +167,7 @@ textdocument_completion(Params) ->
   Character    = maps:get(<<"character">>, Position),
   TextDocument = maps:get(<<"textDocument">>  , Params),
   Uri          = maps:get(<<"uri">>      , TextDocument),
-  {ok, Buffer} = erlang_ls_buffer_server:get_buffer(Uri),
+  {ok, Buffer} = erlang_ls_db:find(erlang_ls_files, Uri),
   Result       = erlang_ls_buffer:get_completions(Buffer, Line, Character),
   {response, maps:from_list(Result)}.
 
