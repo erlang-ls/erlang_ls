@@ -30,14 +30,14 @@ initialize(Params) ->
   #{ <<"rootUri">> := RootUri
    , <<"initializationOptions">> := InitOptions
    } = Params,
-  ok = erlang_ls_buffer_server:set_root_uri(RootUri),
   Config = consult_config(filename:join([ erlang_ls_uri:path(RootUri)
                                         , config_path(InitOptions)
                                         ])),
   OtpPath = maps:get("otp_path", Config, code:root_dir()),
   DepsDirs = maps:get("deps_dirs", Config, []),
-  ok = erlang_ls_buffer_server:set_otp_path(OtpPath),
-  ok = erlang_ls_buffer_server:set_deps_dirs(DepsDirs),
+  ok = erlang_ls_config:set(root_uri, RootUri),
+  ok = erlang_ls_config:set(otp_path, OtpPath),
+  ok = erlang_ls_config:set(deps_dirs, DepsDirs),
   [erlang_ls_provider:start_provider(Provider, Config) ||
     Provider <- erlang_ls_provider:enabled_providers()],
   Result = #{ capabilities =>

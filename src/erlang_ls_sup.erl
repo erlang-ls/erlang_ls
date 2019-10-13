@@ -39,7 +39,11 @@ init([]) ->
               , intensity => 5
               , period    => 60
               },
-  ChildSpecs = [ #{ id       => erlang_ls_buffer_server
+  ChildSpecs = [ #{ id       => erlang_ls_config
+                  , start    => {erlang_ls_config, start_link, []}
+                  , shutdown => brutal_kill
+                  }
+               , #{ id       => erlang_ls_buffer_server
                   , start    => {erlang_ls_buffer_server, start_link, []}
                   , shutdown => brutal_kill
                   }

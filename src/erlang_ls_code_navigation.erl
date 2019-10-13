@@ -115,14 +115,14 @@ definition({type_application, {Type, _}}) ->
 
 -spec otp_path() -> [string()].
 otp_path() ->
-  {ok, Root} = erlang_ls_buffer_server:get_otp_path(),
+  {ok, Root} = erlang_ls_config:get(otp_path),
   resolve_paths( [ [Root, "lib", "*", "src"]
                  , [Root, "lib", "*", "include"]
                  ]).
 
 -spec app_path() -> [string()].
 app_path() ->
-  {ok, RootUri} = erlang_ls_buffer_server:get_root_uri(),
+  {ok, RootUri} = erlang_ls_config:get(root_uri),
   RootPath = binary_to_list(erlang_ls_uri:path(RootUri)),
   resolve_paths( [ [RootPath, "src"]
                  , [RootPath, "test"]
@@ -131,9 +131,9 @@ app_path() ->
 
 -spec deps_path() -> [string()].
 deps_path() ->
-  {ok, RootUri} = erlang_ls_buffer_server:get_root_uri(),
+  {ok, RootUri} = erlang_ls_config:get(root_uri),
   RootPath = binary_to_list(erlang_ls_uri:path(RootUri)),
-  {ok, Dirs} = erlang_ls_buffer_server:get_deps_dirs(),
+  {ok, Dirs} = erlang_ls_config:get(deps_dirs),
   Paths = [ resolve_paths( [ [RootPath, Dir, "src"]
                            , [RootPath, Dir, "test"]
                            , [RootPath, Dir, "include"]
