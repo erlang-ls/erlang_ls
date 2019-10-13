@@ -30,3 +30,15 @@ init_options() ->
 
 buffer() ->
   elements([<<"a">>, <<"b">>, <<"c">>]).
+
+tokens() ->
+  ?LET( Tokens
+      , vector(10, token())
+      , begin
+          Concatenated = [string:join(Tokens, ","), "."],
+          iolist_to_binary(Concatenated)
+        end
+      ).
+
+token() ->
+  elements(["foo", "Bar", "\"baz\""]).
