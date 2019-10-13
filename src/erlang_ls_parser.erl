@@ -28,21 +28,10 @@ parse_file(Path) ->
       %% Meanwhile, let's trick Dialyzer with an apply.
       {ok, Forms} = erlang:apply(epp_dodger, parse, [IoDevice, {1, 1}]),
       Tree = erl_syntax:form_list(Forms),
-      ok = file:close(IoDevice),
-      {ok, Extra} = parse_extra(Path),
-      {ok, Tree, Extra};
-    {error, Error} ->
-      {error, Error}
-  end.
-
--spec parse_extra(binary()) ->
-   {ok, erlang_ls_tree:extra()} | {error, any()}.
-parse_extra(Path) ->
-  case file:open(Path, [read]) of
-    {ok, IoDevice} ->
+      {ok, 0} = file:position(IoDevice, 0),
       {ok, Extra} = parse_extra(IoDevice, #{}, {1, 1}),
       ok = file:close(IoDevice),
-      {ok, Extra};
+      {ok, Tree, Extra};
     {error, Error} ->
       {error, Error}
   end.
