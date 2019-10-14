@@ -24,8 +24,10 @@ handle_request({definition, Params}, State) ->
   Character    = maps:get(<<"character">>   , Position),
   TextDocument = maps:get(<<"textDocument">>, Params),
   Uri          = maps:get(<<"uri">>         , TextDocument),
-  {ok, Buffer} = erlang_ls_db:find(erlang_ls_files, Uri),
-  case erlang_ls_buffer:get_element_at_pos(Buffer, Line + 1, Character + 1) of
+  {ok, Document} = erlang_ls_db:find(erlang_ls_documents, Uri),
+  case
+    erlang_ls_document:get_element_at_pos(Document, Line + 1, Character + 1)
+  of
     [POI|_] ->
       Filename = erlang_ls_uri:path(Uri),
       case erlang_ls_code_navigation:goto_definition(Filename, POI) of

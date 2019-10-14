@@ -34,7 +34,7 @@
 %%==============================================================================
 %% Record Definitions
 %%==============================================================================
--record(state, {socket, buffer}).
+-record(state, {socket, document}).
 
 %%==============================================================================
 %% Type Definitions
@@ -65,7 +65,7 @@ init({Ref, Socket, Transport, _Opts}) ->
                        , []
                        , connected
                        , #state{ socket = Socket
-                               , buffer = <<>>
+                               , document = <<>>
                                }
                        ).
 
@@ -83,14 +83,14 @@ terminate(_Reason, _StateName, #state{socket = Socket}) ->
 %%==============================================================================
 -spec connected(gen_statem:event_type(), any(), state()) -> any().
 connected(info, {tcp, Socket, Packet}, #state{ socket = Socket
-                                             , buffer = Buffer
+                                             , document = Document
                                              } = State) ->
-  lager:debug("[SERVER] TCP Packet [buffer=~p] [packet=~p] ", [Buffer, Packet]),
-  Data = <<Buffer/binary, Packet/binary>>,
-  {Requests, NewBuffer} = erlang_ls_jsonrpc:split(Data, [return_maps]),
+  lager:debug("[SERVER] TCP Packet [document=~p] [packet=~p] ", [Document, Packet]),
+  Data = <<Document/binary, Packet/binary>>,
+  {Requests, NewDocument} = erlang_ls_jsonrpc:split(Data, [return_maps]),
   [handle_request(Socket, Request) || Request <- Requests],
   inet:setopts(Socket, [{active, once}]),
-  {keep_state, State#state{ buffer = NewBuffer }};
+  {keep_state, State#state{ document = NewDocument }};
 connected(info, {tcp_closed, _Socket}, _State) ->
   {stop, normal};
 connected(info, {'EXIT', _, normal}, _State) ->

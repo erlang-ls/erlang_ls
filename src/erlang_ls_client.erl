@@ -46,7 +46,7 @@
 -record(state, { socket
                , request_id = 1
                , pending    = []
-               , buffer     = <<>>
+               , document   = <<>>
                }).
 
 %%==============================================================================
@@ -161,16 +161,16 @@ handle_cast(_Msg, State) ->
   {noreply, State}.
 
 -spec handle_info(any(), state()) -> {noreply, state()}.
-handle_info({tcp, _Socket, Packet}, #state{ buffer  = Buffer
-                                          , socket  = Socket
-                                          , pending = Pending
+handle_info({tcp, _Socket, Packet}, #state{ document  = Document
+                                          , socket    = Socket
+                                          , pending   = Pending
                                           } = State) ->
-  lager:debug("[SERVER] TCP Packet [buffer=~p] [packet=~p] ", [Buffer, Packet]),
-  Data = <<Buffer/binary, Packet/binary>>,
-  {Responses, NewBuffer} = erlang_ls_jsonrpc:split(Data, [return_maps, {labels, atom}]),
+  lager:debug("[SERVER] TCP Packet [document=~p] [packet=~p] ", [Document, Packet]),
+  Data = <<Document/binary, Packet/binary>>,
+  {Responses, NewDocument} = erlang_ls_jsonrpc:split(Data, [return_maps, {labels, atom}]),
   Pending1 = handle_responses(Socket, Responses, Pending),
   inet:setopts(Socket, [{active, once}]),
-  {noreply, State#state{ buffer = NewBuffer, pending = Pending1 }};
+  {noreply, State#state{ document = NewDocument, pending = Pending1 }};
 handle_info({tcp_closed, _Socket}, State) ->
   lager:debug("[CLIENT] TCP closed", []),
   {noreply, State};
