@@ -60,8 +60,8 @@ parse_extra(IoDevice, Extra, StartLocation) ->
       end;
     {eof, _} ->
       {ok, Extra};
-    {error, Error} ->
-      {error, Error}
+    {error, ErrorInfo, EndLocation} ->
+      {error, {ErrorInfo, EndLocation}}
   end.
 
 -spec extra( erl_parse:abstract_form()

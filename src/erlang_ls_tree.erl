@@ -101,7 +101,7 @@ points_of_interest(Tree, Extra) ->
   try points_of_interest(Tree, Type, Extra)
   catch
     Class:Reason:Stacktrace ->
-      lager:warning( "Could not analyze tree: ~p:~p ~P"
+      lager:warning( "Could not analyze tree: ~p:~p ~p"
                    , [Class, Reason, Stacktrace]),
       []
   end.

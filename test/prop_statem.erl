@@ -97,7 +97,7 @@ did_open(Uri, LanguageId, Version, Text) ->
   erlang_ls_client:did_open(Uri, LanguageId, Version, Text).
 
 did_open_args(_S) ->
-  [erlang_ls_proper_gen:uri(), <<"erlang">>, 0, utf8()].
+  [erlang_ls_proper_gen:uri(), <<"erlang">>, 0, erlang_ls_proper_gen:tokens()].
 
 did_open_pre(#{connected := Connected} = _S) ->
   Connected.

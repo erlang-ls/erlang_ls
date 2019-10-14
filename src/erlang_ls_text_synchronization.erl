@@ -10,8 +10,8 @@ did_open(Params) ->
   TextDocument = maps:get(<<"textDocument">>, Params),
   Uri          = maps:get(<<"uri">>         , TextDocument),
   Text         = maps:get(<<"text">>        , TextDocument),
-  {ok, Pid}    = supervisor:start_child(erlang_ls_buffer_sup, [Text]),
-  ok           = erlang_ls_buffer_server:add_buffer(Uri, Pid).
+  Buffer       = erlang_ls_buffer:create(Uri, Text),
+  ok           = erlang_ls_db:store(erlang_ls_files, Uri, Buffer).
 
 -spec did_save(map(), pid()) -> ok.
 did_save(Params, Server) ->
@@ -30,12 +30,10 @@ did_save(Params, Server) ->
 did_close(Params) ->
   TextDocument = maps:get(<<"textDocument">>, Params),
   Uri          = maps:get(<<"uri">>         , TextDocument),
-  {ok, Buffer} = erlang_ls_buffer_server:get_buffer(Uri),
-  case Buffer of
-    undefined ->
+  case erlang_ls_db:find(erlang_ls_files, Uri) of
+    not_found ->
       lager:debug("[SERVER] Attempting to close un-opened text document, ignoring [uri=~p]", [Uri]);
-    B when is_pid(B) ->
-      ok = erlang_ls_buffer_server:remove_buffer(Uri),
-      ok = supervisor:terminate_child(erlang_ls_buffer_sup, Buffer)
+    {ok, _} ->
+      ok = erlang_ls_db:delete(erlang_ls_files, Uri)
   end,
   ok.

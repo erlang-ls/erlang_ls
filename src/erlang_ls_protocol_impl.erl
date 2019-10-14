@@ -30,14 +30,14 @@ initialize(Params) ->
   #{ <<"rootUri">> := RootUri
    , <<"initializationOptions">> := InitOptions
    } = Params,
-  ok = erlang_ls_buffer_server:set_root_uri(RootUri),
   Config = consult_config(filename:join([ erlang_ls_uri:path(RootUri)
                                         , config_path(InitOptions)
                                         ])),
   OtpPath = maps:get("otp_path", Config, code:root_dir()),
   DepsDirs = maps:get("deps_dirs", Config, []),
-  ok = erlang_ls_buffer_server:set_otp_path(OtpPath),
-  ok = erlang_ls_buffer_server:set_deps_dirs(DepsDirs),
+  ok = erlang_ls_config:set(root_uri, RootUri),
+  ok = erlang_ls_config:set(otp_path, OtpPath),
+  ok = erlang_ls_config:set(deps_dirs, DepsDirs),
   [erlang_ls_provider:start_provider(Provider, Config) ||
     Provider <- erlang_ls_provider:enabled_providers()],
   Result = #{ capabilities =>
@@ -124,8 +124,9 @@ textdocument_didchange(Params) ->
   case ContentChanges of
     []                      -> ok;
     [#{<<"text">> := Text}] ->
-      {ok, Buffer} = erlang_ls_buffer_server:get_buffer(Uri),
-      ok = erlang_ls_buffer:set_text(Buffer, Text)
+      {ok, Buffer0} = erlang_ls_db:find(erlang_ls_files, Uri),
+      Buffer = erlang_ls_buffer:set_text(Buffer0, Text),
+      ok = erlang_ls_db:store(erlang_ls_files, Uri, Buffer)
   end,
   {}.
 
@@ -166,7 +167,7 @@ textdocument_completion(Params) ->
   Character    = maps:get(<<"character">>, Position),
   TextDocument = maps:get(<<"textDocument">>  , Params),
   Uri          = maps:get(<<"uri">>      , TextDocument),
-  {ok, Buffer} = erlang_ls_buffer_server:get_buffer(Uri),
+  {ok, Buffer} = erlang_ls_db:find(erlang_ls_files, Uri),
   Result       = erlang_ls_buffer:get_completions(Buffer, Line, Character),
   {response, maps:from_list(Result)}.
 
