@@ -33,7 +33,7 @@
 %%==============================================================================
 initial_state() ->
   #{ connected => false
-   , buffers   => []
+   , documents   => []
    }.
 
 %%==============================================================================
@@ -103,7 +103,7 @@ did_open_pre(#{connected := Connected} = _S) ->
   Connected.
 
 did_open_next(S, _R, [Uri, _, _, _]) ->
-  maps:put(buffers, maps:get(buffers, S) ++ [Uri], S).
+  maps:put(documents, maps:get(documents, S) ++ [Uri], S).
 
 did_open_post(_S, _Args, Res) ->
   ?assertEqual(ok, Res),

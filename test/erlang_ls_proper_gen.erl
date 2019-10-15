@@ -18,7 +18,7 @@
 %%==============================================================================
 uri() ->
   ?LET( B
-      , buffer()
+      , document()
       , <<"file:///tmp/", B/binary, ".erl">>
       ).
 
@@ -28,7 +28,7 @@ root_uri() ->
 init_options() ->
   [].
 
-buffer() ->
+document() ->
   elements([<<"a">>, <<"b">>, <<"c">>]).
 
 tokens() ->

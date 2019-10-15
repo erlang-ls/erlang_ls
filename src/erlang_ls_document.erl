@@ -1,7 +1,7 @@
 %%==============================================================================
-%% Buffer gen_server
+%% Document gen_server
 %%==============================================================================
--module(erlang_ls_buffer).
+-module(erlang_ls_document).
 
 %%==============================================================================
 %% Exports
@@ -19,17 +19,17 @@
 %% Type Definitions
 %%==============================================================================
 
--type buffer() :: #{ uri  := erlang_ls_uri:uri()
-                   , text := binary()
-                   , tree := any()
-                   , pois := [erlang_ls_poi:poi()]
-                   }.
+-type document() :: #{ uri  := erlang_ls_uri:uri()
+                     , text := binary()
+                     , tree := any()
+                     , pois := [erlang_ls_poi:poi()]
+                     }.
 
-%%%===================================================================
+%%%=============================================================================
 %%% API
-%%%===================================================================
+%%%=============================================================================
 
--spec create(erlang_ls_uri:uri(), binary()) -> buffer().
+-spec create(erlang_ls_uri:uri(), binary()) -> document().
 create(Uri, Text) ->
   {ok, Tree, Extra} = erlang_ls_parser:parse(Text),
   AnnotatedTree = erlang_ls_tree:annotate(Tree, Extra),
@@ -40,14 +40,14 @@ create(Uri, Text) ->
    , pois => POIs
    }.
 
--spec set_text(buffer(), binary()) -> buffer().
-set_text(Buffer, Text) ->
-  Buffer#{text := Text}.
+-spec set_text(document(), binary()) -> document().
+set_text(Document, Text) ->
+  Document#{text := Text}.
 
--spec get_completions(buffer(), non_neg_integer(), non_neg_integer()) ->
+-spec get_completions(document(), non_neg_integer(), non_neg_integer()) ->
   [map()].
-get_completions(Buffer, Line, Column) ->
-  Text            = maps:get(text, Buffer),
+get_completions(Document, Line, Column) ->
+  Text            = maps:get(text, Document),
   LineText        = get_line_text(Text, Line),
   LineBeforeChar  = binary:part(LineText, {0, Column - 1}),
   Trigger         = binary:part(LineText, {Column - 1, 1}),
@@ -66,24 +66,24 @@ get_completions(Buffer, Line, Column) ->
       []
   end.
 
--spec get_mfa(buffer(), non_neg_integer(), non_neg_integer()) ->
+-spec get_mfa(document(), non_neg_integer(), non_neg_integer()) ->
   {module(), atom(), non_neg_integer()}.
-get_mfa(Buffer, Line, _Column) ->
-  Text            = maps:get(text, Buffer),
+get_mfa(Document, Line, _Column) ->
+  Text            = maps:get(text, Document),
   LineText        = get_line_text(Text, Line),
   {ok, Tokens, _} = erl_scan:string(binary_to_list(LineText)),
   [{atom, _, M}, {':', _}, {atom, _, F}, {'/', _}, {integer, _, A}] = Tokens,
   {M, F, A}.
 
--spec get_element_at_pos(buffer(), non_neg_integer(), non_neg_integer()) ->
+-spec get_element_at_pos(document(), non_neg_integer(), non_neg_integer()) ->
   [any()].
-get_element_at_pos(Buffer, Line, Column) ->
-  AnnotatedTree = maps:get(tree, Buffer),
+get_element_at_pos(Document, Line, Column) ->
+  AnnotatedTree = maps:get(tree, Document),
   erlang_ls_poi:match_pos(AnnotatedTree, {Line, Column}).
 
-%%%===================================================================
+%%%=============================================================================
 %%% Internal functions
-%%%===================================================================
+%%%=============================================================================
 
 -spec get_line_text(binary(), integer()) -> binary().
 get_line_text(Text, Line) ->
