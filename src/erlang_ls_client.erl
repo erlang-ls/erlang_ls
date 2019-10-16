@@ -61,7 +61,8 @@
 %% API
 %%==============================================================================
 %% TODO: More accurate and consistent parameters list
--spec definition(erlang_ls_uri:uri(), non_neg_integer(), non_neg_integer()) -> ok.
+-spec definition(erlang_ls_uri:uri(), non_neg_integer(), non_neg_integer()) ->
+  ok.
 definition(Uri, Line, Char) ->
   gen_server:call(?SERVER, {definition, Uri, Line, Char}).
 

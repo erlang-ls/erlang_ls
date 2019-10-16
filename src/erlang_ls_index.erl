@@ -2,7 +2,7 @@
 
 -behaviour(gen_server).
 
--callback index(binary(), any()) -> ok.
+-callback index(erlang_ls_document:document()) -> ok.
 -callback setup() -> atom().
 
 -export([ initialize/1
@@ -37,14 +37,20 @@ initialize(_Config) ->
   erlang:spawn(fun indexer/0),
   ok.
 
+-spec index(erlang_ls_document:document()) -> ok.
+index(Document) ->
+  [gen_server:cast(Index, {index, Index, Document}) || Index <- ?INDEXES],
+  ok.
+
 -spec index_file(file:name_all()) -> ok.
 index_file(File) ->
   try
-    {ok, Tree, Extra} = erlang_ls_parser:parse_file(File),
-    AnnotatedTree = erlang_ls_tree:annotate(Tree, Extra),
-    Uri = erlang_ls_uri:uri(File),
-    [Index:index(Uri, AnnotatedTree) || Index <- ?INDEXES],
-    ok
+    lager:debug("Indexing ~s", [File]),
+    {ok, Text} = file:read_file(File),
+    Uri        = erlang_ls_uri:uri(File),
+    Document   = erlang_ls_document:create(Uri, Text),
+    ok         = erlang_ls_db:store(documents, Uri, Document),
+    ok         = index(Document)
   catch Type:Reason:St ->
       lager:error("Error indexing ~s: ~p", [File, Reason]),
       erlang:raise(Type, Reason, St)
@@ -70,7 +76,8 @@ handle_call(_Message, _From, State) ->
 
 -spec handle_cast(any(), any()) ->
   {noreply, state()}.
-handle_cast(_Request, State) ->
+handle_cast({index, Index, Document}, State) ->
+  Index:index(Document),
   {noreply, State}.
 
 %%==============================================================================

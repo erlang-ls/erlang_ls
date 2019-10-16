@@ -127,8 +127,7 @@ textdocument_didchange(Params) ->
   case ContentChanges of
     []                      -> ok;
     [#{<<"text">> := Text}] ->
-      {ok, Document0} = erlang_ls_db:find(documents, Uri),
-      Document = erlang_ls_document:set_text(Document0, Text),
+      Document = erlang_ls_document:create(Uri, Text),
       ok = erlang_ls_db:store(documents, Uri, Document)
   end,
   {}.

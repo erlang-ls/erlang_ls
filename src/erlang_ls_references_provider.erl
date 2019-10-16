@@ -32,8 +32,10 @@ handle_request({references, Params}, State) ->
                             }
    , <<"textDocument">> := #{<<"uri">> := Uri}
    } = Params,
-  {ok, Buffer} = erlang_ls_db:find(documents, Uri),
-  case erlang_ls_document:get_element_at_pos(Buffer, Line + 1, Character + 1) of
+  {ok, Document} = erlang_ls_db:find(documents, Uri),
+  case
+    erlang_ls_document:get_element_at_pos(Document, Line + 1, Character + 1)
+  of
     [POI | _] -> {find_references(Uri, POI), State};
     []        -> {null, State}
   end.

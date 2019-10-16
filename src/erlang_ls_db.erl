@@ -14,10 +14,7 @@
         ]).
 
 -define(SERVER, ?MODULE).
--define( TABLES
-       ,  [ documents
-          , references_index
-          ]).
+-define(TABLES, [documents, references_index]).
 
 -type state() :: #{}.
 -type table() :: atom().

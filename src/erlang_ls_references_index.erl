@@ -4,7 +4,7 @@
 
 -compile({no_auto_import, [get/1]}).
 
--export([ index/2
+-export([ index/1
         , setup/0
         ]).
 
@@ -23,9 +23,11 @@
 setup() ->
   ok.
 
--spec index(erlang_ls_uri:uri(), any()) -> ok.
-index(Uri, AnnotatedTree) ->
-  [register_usage(Uri, POI) || POI <- erlang_ls_poi:list(AnnotatedTree)],
+-spec index(erlang_ls_document:document()) -> ok.
+index(Document) ->
+  Uri  = erlang_ls_document:uri(Document),
+  POIs = erlang_ls_document:points_of_interest(Document),
+  [register_usage(Uri, POI) || POI <- POIs],
   ok.
 
 %%==============================================================================
