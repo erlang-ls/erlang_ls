@@ -5,8 +5,8 @@
 -callback index(erlang_ls_document:document()) -> ok.
 -callback setup() -> atom().
 
--export([ initialize/1
-        , index_file/1
+-export([ index/1
+        , initialize/1
         , start_link/1
         ]).
 
@@ -39,22 +39,10 @@ initialize(_Config) ->
 
 -spec index(erlang_ls_document:document()) -> ok.
 index(Document) ->
+  Uri = erlang_ls_document:uri(Document),
+  ok  = erlang_ls_db:store(documents, Uri, Document),
   [gen_server:cast(Index, {index, Index, Document}) || Index <- ?INDEXES],
   ok.
-
--spec index_file(file:name_all()) -> ok.
-index_file(File) ->
-  try
-    lager:debug("Indexing ~s", [File]),
-    {ok, Text} = file:read_file(File),
-    Uri        = erlang_ls_uri:uri(File),
-    Document   = erlang_ls_document:create(Uri, Text),
-    ok         = erlang_ls_db:store(documents, Uri, Document),
-    ok         = index(Document)
-  catch Type:Reason:St ->
-      lager:error("Error indexing ~s: ~p", [File, Reason]),
-      erlang:raise(Type, Reason, St)
-  end.
 
 -spec start_link(index()) -> {ok, pid()}.
 start_link(Index) ->
@@ -92,3 +80,16 @@ indexer() ->
     || Path <- Paths
   ],
   ok.
+
+-spec index_file(file:name_all()) -> ok.
+index_file(File) ->
+  try
+    lager:debug("Indexing ~s", [File]),
+    {ok, Text} = file:read_file(File),
+    Uri        = erlang_ls_uri:uri(File),
+    Document   = erlang_ls_document:create(Uri, Text),
+    ok         = index(Document)
+  catch Type:Reason:St ->
+      lager:error("Error indexing ~s: ~p", [File, Reason]),
+      erlang:raise(Type, Reason, St)
+  end.

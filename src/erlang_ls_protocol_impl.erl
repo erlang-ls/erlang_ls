@@ -128,7 +128,7 @@ textdocument_didchange(Params) ->
     []                      -> ok;
     [#{<<"text">> := Text}] ->
       Document = erlang_ls_document:create(Uri, Text),
-      ok = erlang_ls_db:store(documents, Uri, Document)
+      erlang_ls_index:index(Document)
   end,
   {}.
 

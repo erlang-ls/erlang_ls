@@ -11,7 +11,7 @@ did_open(Params) ->
   Uri          = maps:get(<<"uri">>         , TextDocument),
   Text         = maps:get(<<"text">>        , TextDocument),
   Document     = erlang_ls_document:create(Uri, Text),
-  ok           = erlang_ls_db:store(documents, Uri, Document).
+  ok           = erlang_ls_index:index(Document).
 
 -spec did_save(map(), pid()) -> ok.
 did_save(Params, Server) ->
