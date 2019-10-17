@@ -38,7 +38,7 @@ index(Document) ->
 get(Uri, #{info := {Type, MFA}})
   when Type =:= application; Type =:= implicit_fun; Type =:= function ->
   Key = key(Uri, MFA),
-  get(Key);
+  ordsets:to_list(get(Key));
 get(_, _) ->
   [].
 
@@ -56,17 +56,17 @@ register_usage(Uri, #{info := {Type, MFA}, range := Range})
 register_usage(_File, _POI) ->
   ok.
 
--spec get(key()) -> [ref()].
+-spec get(key()) -> ordsets:ordset(ref()).
 get(Key) ->
   case erlang_ls_db:find(references_index, Key) of
-    not_found  -> [];
+    not_found  -> ordsets:new();
     {ok, Refs} -> Refs
   end.
 
 -spec add(key(), ref()) -> ok.
 add(Key, Value) ->
-  Refs = get(Key),
-  ok = erlang_ls_db:store(references_index, Key, [Value | Refs]).
+  Refs = ordsets:add_element(Value, get(Key)),
+  ok = erlang_ls_db:store(references_index, Key, Refs).
 
 -spec key(erlang_ls_uri:uri(), {module(), atom(), arity()} | {atom(), arity()}) ->
   key().
