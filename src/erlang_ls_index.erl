@@ -16,11 +16,14 @@
         , handle_cast/2
         ]).
 
--type index() :: erlang_ls_references_index.
+-type index() :: erlang_ls_completion_index
+               | erlang_ls_references_index.
 -type state() :: any().
 
 -define( INDEXES
-       , [erlang_ls_references_index]
+       , [ erlang_ls_completion_index
+         , erlang_ls_references_index
+         ]
        ).
 
 %%==============================================================================
@@ -33,8 +36,10 @@ initialize(_Config) ->
   [  supervisor:start_child(erlang_ls_indexes_sup, [Index])
      || Index <- ?INDEXES
   ],
-  %% Start indexing process
-  erlang:spawn(fun indexer/0),
+  %% TODO: This could be done asynchronously,
+  %%       but we need a way to know when indexing is done,
+  %%       or the tests will be flaky.
+  indexer(),
   ok.
 
 -spec index(erlang_ls_document:document()) -> ok.

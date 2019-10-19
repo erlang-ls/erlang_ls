@@ -14,7 +14,11 @@
         ]).
 
 -define(SERVER, ?MODULE).
--define(TABLES, [documents, references_index]).
+%% TODO: Get table names via provider callbacks
+-define(TABLES, [ completion_index
+                , documents
+                , references_index
+                ]).
 
 -type state() :: #{}.
 -type table() :: atom().
