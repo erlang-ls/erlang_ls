@@ -16,11 +16,14 @@
         , handle_cast/2
         ]).
 
--type index() :: erlang_ls_references_index.
+-type index() :: erlang_ls_completion_index
+               | erlang_ls_references_index.
 -type state() :: any().
 
 -define( INDEXES
-       , [erlang_ls_references_index]
+       , [ erlang_ls_completion_index
+         , erlang_ls_references_index
+         ]
        ).
 
 %%==============================================================================

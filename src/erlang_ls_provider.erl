@@ -20,7 +20,8 @@
 -callback teardown()      -> ok.
 
 -type config()   :: any().
--type provider() :: erlang_ls_definition_provider
+-type provider() :: erlang_ls_completion_provider
+                  | erlang_ls_definition_provider
                   | erlang_ls_references_provider.
 -type request()  :: {atom(), map()}.
 -type state()    :: any().
@@ -85,7 +86,8 @@ start_provider(Provider, Config) ->
 
 -spec providers() -> [provider()].
 providers() ->
-  [ erlang_ls_definition_provider
+  [ erlang_ls_completion_provider
+  , erlang_ls_definition_provider
   , erlang_ls_references_provider
   ].
 

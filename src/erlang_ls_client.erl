@@ -12,7 +12,8 @@
 %% Exports
 %%==============================================================================
 %% API
--export([ definition/3
+-export([ completion/5
+        , definition/3
         , did_open/4
         , did_save/1
         , did_close/1
@@ -62,6 +63,18 @@
 %% API
 %%==============================================================================
 %% TODO: More accurate and consistent parameters list
+-spec completion( erlang_ls_uri:uri()
+                , non_neg_integer()
+                , non_neg_integer()
+                , integer()
+                , binary()
+                ) ->
+  ok.
+completion(Uri, Line, Char, TriggerKind, TriggerCharacter) ->
+  gen_server:call( ?SERVER
+                 , {completion, Uri, Line, Char, TriggerKind, TriggerCharacter}
+                 ).
+
 -spec definition(erlang_ls_uri:uri(), non_neg_integer(), non_neg_integer()) ->
   ok.
 definition(Uri, Line, Char) ->
@@ -107,6 +120,24 @@ init({Host, Port}) ->
 
 %% TODO: Refactor request function
 -spec handle_call(any(), any(), state()) -> {reply, any(), state()}.
+handle_call({completion, Uri, Line, Char, TriggerKind, TriggerCharacter}, From, State) ->
+  #state{ request_id = RequestId
+        , socket     = Socket
+        } = State,
+  Method = <<"textDocument/completion">>,
+  Params = #{ position     => #{ line      => Line - 1
+                               , character => Char - 1
+                               }
+            , textDocument => #{ uri  => Uri }
+            , context      => #{ triggerKind      => TriggerKind
+                               , triggerCharacter => TriggerCharacter
+                               }
+            },
+  Content = erlang_ls_protocol:request(RequestId, Method, Params),
+  gen_tcp:send(Socket, Content),
+  {noreply, State#state{ request_id = RequestId + 1
+                       , pending    = [{RequestId, From} | State#state.pending]
+                       }};
 handle_call({definition, Uri, Line, Char}, From, State) ->
   #state{ request_id = RequestId
         , socket     = Socket
@@ -171,6 +202,12 @@ handle_call({initialize, RootUri, InitOptions}, From, State) ->
   Method  = <<"initialize">>,
   Params  = #{ <<"rootUri">> => RootUri
              , <<"initializationOptions">> => InitOptions
+             , <<"capabilities">> =>
+                 #{ <<"textDocument">> =>
+                      #{ <<"completion">> =>
+                           #{ <<"contextSupport">> => 'true' }
+                       }
+                  }
              },
   Content = erlang_ls_protocol:request(RequestId, Method, Params),
   gen_tcp:send(Socket, Content),
