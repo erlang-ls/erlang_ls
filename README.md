@@ -76,27 +76,18 @@ Code navigation is currently available for the following elements:
 * Export list entries
 * Import list entries
 
-### Code Completion (incomplete)
+### Code Completion
 
 Completion requests are sent from the client to the server to compute
 completion items at a given cursor position. Completion items are
 presented to the user for easy selection.
 
-Code completion are typically triggered by one of the following
-characters: `: # . ?`.
+Code completion are currently triggered by one of the following
+characters: `:`.
 
 Code completion is available for the following elements:
 
-* Erlang keywords (e.g. `case`, `receive`)
-* Variables in the current scope
-* Local function names
-* Built-in functions (e.g. `now()`)
-* Module names
-* Macros
-* Record names
-* Record fields
-* Atom names
-* Module attributes
+* Exported functions
 
 ## Customization
 

@@ -6,12 +6,12 @@
         , exit/1
         ]).
 
--export([ textdocument_didopen/1
+-export([ textdocument_completion/1
+        , textdocument_didopen/1
         , textdocument_didchange/1
         , textdocument_didsave/1
         , textdocument_didclose/1
         , textdocument_hover/1
-        , textdocument_completion/1
         , textdocument_definition/1
         , textdocument_references/1
         ]).
@@ -30,6 +30,9 @@
 initialize(Params) ->
   #{ <<"rootUri">> := RootUri
    , <<"initializationOptions">> := InitOptions
+     %% TODO: Store client capabilities, use them in completion_provider
+     %%       to verify when Context is present
+   , <<"capabilities">> := _ClientCapabilities
    } = Params,
   Config = consult_config(filename:join([ erlang_ls_uri:path(RootUri)
                                         , config_path(InitOptions)
@@ -164,14 +167,9 @@ textdocument_hover(_Params) ->
 
 -spec textdocument_completion(map()) -> {response, map()}.
 textdocument_completion(Params) ->
-  Position     = maps:get(<<"position">> , Params),
-  Line         = maps:get(<<"line">>     , Position),
-  Character    = maps:get(<<"character">>, Position),
-  TextDocument = maps:get(<<"textDocument">>  , Params),
-  Uri          = maps:get(<<"uri">>      , TextDocument),
-  {ok, Document} = erlang_ls_db:find(documents, Uri),
-  Result       = erlang_ls_document:get_completions(Document, Line, Character),
-  {response, maps:from_list(Result)}.
+  Provider = erlang_ls_completion_provider,
+  Response = erlang_ls_provider:handle_request(Provider, {completion, Params}),
+  {response, Response}.
 
 %%==============================================================================
 %% textdocument_definition
