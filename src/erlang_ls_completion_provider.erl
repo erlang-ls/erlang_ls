@@ -2,6 +2,8 @@
 
 -behaviour(erlang_ls_provider).
 
+-include("erlang_ls.hrl").
+
 -export([ handle_request/2
         , is_enabled/0
         , setup/1
@@ -64,7 +66,9 @@ find_completion(Prefix, ?TRIGGER_CHARACTER, <<":">>) ->
         {ok, Uri} ->
           {ok, Document} = erlang_ls_db:find(documents, Uri),
           POIs = erlang_ls_document:points_of_interest(Document),
-          [#{ label => list_to_binary(io_lib:format("~p/~p", [F, A]))
+          [#{ label            => list_to_binary(io_lib:format("~p/~p", [F, A]))
+            , insertText       => snippet_function_call(F, A)
+            , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
             } || #{info := {exports_entry, {F, A}}} <- POIs];
         not_found ->
           null
@@ -74,3 +78,9 @@ find_completion(Prefix, ?TRIGGER_CHARACTER, <<":">>) ->
   end;
 find_completion(_Prefix, _TriggerKind, _TriggerCharacter) ->
   null.
+
+-spec snippet_function_call(atom(), non_neg_integer()) -> binary().
+snippet_function_call(Function, Arity) ->
+  Args = ["$" ++ integer_to_list(N) || N <- lists:seq(1, Arity)],
+  Format = "~p(" ++ string:join(Args, ", ") ++ ")",
+  list_to_binary(io_lib:format(Format, [Function])).

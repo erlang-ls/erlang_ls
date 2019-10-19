@@ -1,5 +1,7 @@
 -module(erlang_ls_completion_SUITE).
 
+-include("erlang_ls.hrl").
+
 %% CT Callbacks
 -export([ suite/0
         , init_per_suite/1
@@ -61,8 +63,14 @@ exported_functions(Config) ->
   Uri = ?config(code_navigation_uri, Config),
   #{result := Completion} =
     erlang_ls_client:completion(Uri, 32, 25, 2, <<":">>),
-  ExpectedCompletion = [ #{ label => <<"do_2/0">> }
-                       , #{ label => <<"do/1">> }
+  ExpectedCompletion = [ #{ label            => <<"do_2/0">>
+                          , insertText       => <<"do_2()">>
+                          , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+                          }
+                       , #{ label            => <<"do/1">>
+                          , insertText       => <<"do($1)">>
+                          , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+                          }
                        ],
   ?assertEqual(Completion, ExpectedCompletion),
   ok.
