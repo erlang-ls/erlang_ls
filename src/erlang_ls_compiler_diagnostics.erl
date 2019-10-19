@@ -53,11 +53,12 @@ diagnostics(List, Severity) ->
 
 -spec diagnostic(integer(), module(), string(), integer()) -> diagnostic().
 diagnostic(Line, Module, Desc, Severity) ->
-  Range   = erlang_ls_protocol:range(#{ from => {Line - 1, 0}
-                                      , to   => {Line - 1, 0}
-                                      }),
+  Range   = case is_integer(Line) of
+              true  -> #{from => {Line, 1}, to => {Line, 1}};
+              false -> #{from => {1, 1}, to => {1, 1}}
+            end,
   Message = list_to_binary(lists:flatten(Module:format_error(Desc))),
-  #{ range    => Range
+  #{ range    => erlang_ls_protocol:range(Range)
    , message  => Message
    , severity => Severity
    }.
