@@ -85,6 +85,7 @@ initialize_post(_S, _Args, Res) ->
                         }
                    , textDocumentSync => 1
                    , definitionProvider => true
+                   , referencesProvider => true
                    }
               },
   ?assertEqual(Expected, maps:get(result, Res)),

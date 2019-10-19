@@ -1,8 +1,7 @@
 %%==============================================================================
-%% Top Level Supervisor
+%% Providers Supervisor
 %%==============================================================================
--module(erlang_ls_sup).
-
+-module(erlang_ls_indexes_sup).
 %%==============================================================================
 %% Behaviours
 %%==============================================================================
@@ -35,25 +34,12 @@ start_link() ->
 %%==============================================================================
 -spec init([]) -> {ok, {supervisor:sup_flags(), [supervisor:child_spec()]}}.
 init([]) ->
-  SupFlags = #{ strategy  => rest_for_one
-              , intensity => 5
-              , period    => 60
+  SupFlags = #{ strategy  => simple_one_for_one
+              , intensity => 0
+              , period    => 1
               },
-  ChildSpecs = [ #{ id       => erlang_ls_config
-                  , start    => {erlang_ls_config, start_link, []}
-                  , shutdown => brutal_kill
-                  }
-               , #{ id       => erlang_ls_db
-                  , start    => {erlang_ls_db, start_link, []}
-                  , shutdown => brutal_kill
-                  }
-               , #{ id       => erlang_ls_providers_sup
-                  , start    => {erlang_ls_providers_sup, start_link, []}
-                  , shutdown => brutal_kill
-                  }
-               , #{ id       => erlang_ls_indexes_sup
-                  , start    => {erlang_ls_indexes_sup, start_link, []}
-                  , shutdown => brutal_kill
-                  }
-               ],
+  ChildSpecs = [#{ id       => erlang_ls_index
+                 , start    => {erlang_ls_index, start_link, []}
+                 , shutdown => brutal_kill
+                 }],
   {ok, {SupFlags, ChildSpecs}}.

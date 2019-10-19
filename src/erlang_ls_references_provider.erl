@@ -1,4 +1,4 @@
--module(erlang_ls_definition_provider).
+-module(erlang_ls_references_provider).
 
 -behaviour(erlang_ls_provider).
 
@@ -18,11 +18,15 @@ is_enabled() ->
 
 -spec setup(map()) -> erlang_ls_provider:state().
 setup(_Config) ->
-  #{}.
+  ok.
+
+-spec teardown() -> ok.
+teardown() ->
+  ok.
 
 -spec handle_request(any(), erlang_ls_provider:state()) ->
   {any(), erlang_ls_provider:state()}.
-handle_request({definition, Params}, State) ->
+handle_request({references, Params}, State) ->
   #{ <<"position">>     := #{ <<"line">>      := Line
                             , <<"character">> := Character
                             }
@@ -32,22 +36,23 @@ handle_request({definition, Params}, State) ->
   case
     erlang_ls_document:get_element_at_pos(Document, Line + 1, Character + 1)
   of
-    [POI|_] ->
-      Filename = erlang_ls_uri:path(Uri),
-      case erlang_ls_code_navigation:goto_definition(Filename, POI) of
-        {error, _Error} ->
-          {null, State};
-        {ok, FullName, Range} ->
-          { #{ uri => erlang_ls_uri:uri(FullName)
-             , range => erlang_ls_protocol:range(Range)
-             }
-          , State
-          }
-      end;
-    [] ->
-      {null, State}
+    [POI | _] -> {find_references(Uri, POI), State};
+    []        -> {null, State}
   end.
 
--spec teardown() -> ok.
-teardown() ->
-  ok.
+%%==============================================================================
+%% Internal functions
+%%==============================================================================
+
+-spec find_references(binary(), erlang_ls_poi:poi()) -> any().
+find_references(Uri, POI) ->
+  case erlang_ls_references_index:get(Uri, POI) of
+    []   -> null;
+    Refs -> [location(U, R) || #{uri := U, range := R} <- Refs]
+  end.
+
+-spec location(erlang_ls_uri:uri(), erlang_ls_poi:range()) -> map().
+location(Uri, Range) ->
+  #{ uri   => Uri
+   , range => erlang_ls_protocol:range(Range)
+   }.

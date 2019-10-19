@@ -42,13 +42,6 @@
 -include_lib("stdlib/include/assert.hrl").
 
 %%==============================================================================
-%% Defines
-%%==============================================================================
--define(TEST_APP, <<"code_navigation">>).
--define(HOSTNAME, {127,0,0,1}).
--define(PORT    , 10000).
-
-%%==============================================================================
 %% Types
 %%==============================================================================
 -type config() :: [{atom(), any()}].
@@ -71,35 +64,8 @@ end_per_suite(Config) ->
   ok.
 
 -spec init_per_testcase(atom(), config()) -> config().
-init_per_testcase(_TestCase, Config) ->
-  {ok, _}       = erlang_ls_client:start_link(?HOSTNAME, ?PORT),
-  RootPath      = filename:join([ list_to_binary(code:priv_dir(erlang_ls))
-                                , ?TEST_APP]),
-  RootUri       = erlang_ls_uri:uri(RootPath),
-  erlang_ls_client:initialize(RootUri, []),
-  Path          = filename:join([ RootPath
-                             , <<"src">>
-                             , <<"code_navigation.erl">>]),
-  ExtraPath     = filename:join([ RootPath
-                             , <<"src">>
-                             , <<"code_navigation_extra.erl">>]),
-  BehaviourPath = filename:join([ RootPath
-                                , <<"src">>
-                                , <<"behaviour_a.erl">>]),
-  IncludePath   = filename:join([ RootPath
-                                , <<"include">>
-                                , <<"code_navigation.hrl">>]),
-  Uri           = erlang_ls_uri:uri(Path),
-  ExtraUri      = erlang_ls_uri:uri(ExtraPath),
-  BehaviourUri  = erlang_ls_uri:uri(BehaviourPath),
-  IncludeUri    = erlang_ls_uri:uri(IncludePath),
-  {ok, Text}    = file:read_file(Path),
-  erlang_ls_client:did_open(Uri, erlang, 1, Text),
-  [ {code_navigation_uri, Uri}
-  , {code_navigation_extra_uri, ExtraUri}
-  , {behaviour_uri, BehaviourUri}
-  , {include_uri, IncludeUri}
-    |Config].
+init_per_testcase(TestCase, Config) ->
+  erlang_ls_test_utils:init_per_testcase(TestCase, Config).
 
 -spec end_per_testcase(atom(), config()) -> ok.
 end_per_testcase(_TestCase, _Config) ->
@@ -107,27 +73,7 @@ end_per_testcase(_TestCase, _Config) ->
 
 -spec all() -> [atom()].
 all() ->
-  [ application_local
-  , application_remote
-  , behaviour
-  , duplicate_definition
-  , export_entry
-  , fun_local
-  , fun_remote
-  , import_entry
-  , include
-  , include_lib
-  , macro
-  , macro_lowercase
-  , macro_included
-  , macro_with_args
-  , macro_with_args_included
-  , record_access
-  , record_access_included
-  , record_expr
-  , record_expr_included
-  , type_application
-  ].
+  erlang_ls_test_utils:all(?MODULE).
 
 %%==============================================================================
 %% Testcases

@@ -9,7 +9,10 @@
 
 %% API
 -export([ create/2
-        , set_text/2
+        , uri/1
+        , text/1
+        , tree/1
+        , points_of_interest/1
         , get_completions/3
         , get_mfa/3
         , get_element_at_pos/3
@@ -21,9 +24,11 @@
 
 -type document() :: #{ uri  := erlang_ls_uri:uri()
                      , text := binary()
-                     , tree := any()
+                     , tree := erlang_ls_tree:tree()
                      , pois := [erlang_ls_poi:poi()]
                      }.
+
+-export_type([document/0]).
 
 %%%=============================================================================
 %%% API
@@ -33,16 +38,28 @@
 create(Uri, Text) ->
   {ok, Tree, Extra} = erlang_ls_parser:parse(Text),
   AnnotatedTree = erlang_ls_tree:annotate(Tree, Extra),
-  POIs = erlang_ls_tree:points_of_interest(AnnotatedTree),
+  POIs = erlang_ls_poi:list(AnnotatedTree),
   #{ uri  => Uri
    , text => Text
    , tree => AnnotatedTree
    , pois => POIs
    }.
 
--spec set_text(document(), binary()) -> document().
-set_text(Document, Text) ->
-  Document#{text := Text}.
+-spec uri(document()) -> erlang_ls_uri:uri().
+uri(#{uri := Uri}) ->
+  Uri.
+
+-spec text(document()) -> binary().
+text(#{text := Text}) ->
+  Text.
+
+-spec tree(document()) -> erlang_ls_tree:tree().
+tree(#{tree := Tree}) ->
+  Tree.
+
+-spec points_of_interest(document()) -> [erlang_ls_poi:poi()].
+points_of_interest(#{pois := POIs}) ->
+  POIs.
 
 -spec get_completions(document(), non_neg_integer(), non_neg_integer()) ->
   [map()].

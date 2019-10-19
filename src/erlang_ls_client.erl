@@ -17,6 +17,7 @@
         , did_save/1
         , did_close/1
         , initialize/2
+        , references/3
         , start_link/2
         , stop/0
         ]).
@@ -61,9 +62,15 @@
 %% API
 %%==============================================================================
 %% TODO: More accurate and consistent parameters list
--spec definition(erlang_ls_uri:uri(), non_neg_integer(), non_neg_integer()) -> ok.
+-spec definition(erlang_ls_uri:uri(), non_neg_integer(), non_neg_integer()) ->
+  ok.
 definition(Uri, Line, Char) ->
   gen_server:call(?SERVER, {definition, Uri, Line, Char}).
+
+-spec references(erlang_ls_uri:uri(), non_neg_integer(), non_neg_integer()) ->
+  ok.
+references(Uri, Line, Char) ->
+  gen_server:call(?SERVER, {references, Uri, Line, Char}).
 
 -spec did_open(erlang_ls_uri:uri(), binary(), number(), binary()) -> ok.
 did_open(Uri, LanguageId, Version, Text) ->
@@ -111,6 +118,21 @@ handle_call({definition, Uri, Line, Char}, From, State) ->
               },
   Params = #{ position     => Position
             , textDocument => TextDocument
+            },
+  Content = erlang_ls_protocol:request(RequestId, Method, Params),
+  gen_tcp:send(Socket, Content),
+  {noreply, State#state{ request_id = RequestId + 1
+                       , pending    = [{RequestId, From} | State#state.pending]
+                       }};
+handle_call({references, Uri, Line, Char}, From, State) ->
+  #state{ request_id = RequestId
+        , socket     = Socket
+        } = State,
+  Method = <<"textDocument/references">>,
+  Params = #{ position     => #{ line      => Line - 1
+                               , character => Char - 1
+                               }
+            , textDocument => #{ uri  => Uri }
             },
   Content = erlang_ls_protocol:request(RequestId, Method, Params),
   gen_tcp:send(Socket, Content),

@@ -4,17 +4,19 @@
         , parse_file/1
         ]).
 
-%% TODO: Generate random filename
-%% TODO: Ideally avoid writing to file at all (require epp changes)
--define(TMP_PATH, <<"/tmp/erlang_ls_tmp">>).
-
 -spec parse(binary()) ->
    {ok, erlang_ls_tree:tree(), erlang_ls_tree:extra()} | {error, any()}.
 parse(Text) ->
   %% epp_dodger only works with source files,
   %% so let's use a temporary file.
-  ok = file:write_file(?TMP_PATH, Text),
-  parse_file(?TMP_PATH).
+  %% TODO: Ideally avoid writing to file at all (require epp changes)
+  TmpPath = tmp_path(),
+  try
+    ok = file:write_file(TmpPath, Text),
+    parse_file(TmpPath)
+  after
+    file:delete(TmpPath)
+  end.
 
 -spec parse_file(binary()) ->
    {ok, erlang_ls_tree:tree(), erlang_ls_tree:extra()} | {error, any()}.
@@ -28,21 +30,11 @@ parse_file(Path) ->
       %% Meanwhile, let's trick Dialyzer with an apply.
       {ok, Forms} = erlang:apply(epp_dodger, parse, [IoDevice, {1, 1}]),
       Tree = erl_syntax:form_list(Forms),
-      ok = file:close(IoDevice),
-      {ok, Extra} = parse_extra(Path),
-      {ok, Tree, Extra};
-    {error, Error} ->
-      {error, Error}
-  end.
-
--spec parse_extra(binary()) ->
-   {ok, erlang_ls_tree:extra()} | {error, any()}.
-parse_extra(Path) ->
-  case file:open(Path, [read]) of
-    {ok, IoDevice} ->
+      %% Reset file pointer position.
+      {ok, 0} = file:position(IoDevice, 0),
       {ok, Extra} = parse_extra(IoDevice, #{}, {1, 1}),
       ok = file:close(IoDevice),
-      {ok, Extra};
+      {ok, Tree, Extra};
     {error, Error} ->
       {error, Error}
   end.
@@ -134,6 +126,11 @@ do_spec_locations([{user_type, StartLocation, Type, Args}|T], Acc) ->
   do_spec_locations(T ++ Args, [{Type, StartLocation}|Acc]);
 do_spec_locations([_Else|T], Acc) ->
   do_spec_locations(T, Acc).
+
+-spec tmp_path() -> binary().
+tmp_path() ->
+  RandBin = integer_to_binary(erlang:unique_integer([positive, monotonic])),
+  <<"/tmp/erlang_ls_tmp_", RandBin/binary>>.
 
 %% TODO: Support type
 %% TODO: Support remote_type
