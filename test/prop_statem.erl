@@ -12,6 +12,7 @@
 %%==============================================================================
 %% Includes
 %%==============================================================================
+-include("erlang_ls.hrl").
 -include_lib("proper/include/proper.hrl").
 -include_lib("stdlib/include/assert.hrl").
 -include_lib("proper_contrib/include/proper_contrib_statem.hrl").
@@ -83,7 +84,11 @@ initialize_post(_S, _Args, Res) ->
                        #{ resolveProvider => false
                         , triggerCharacters => [<<":">>, <<"#">>]
                         }
-                   , textDocumentSync => 1
+                   , textDocumentSync =>
+                       #{ openClose => true
+                        , change    => ?TEXT_DOCUMENT_SYNC_KIND_FULL
+                        , save      => true
+                        }
                    , definitionProvider => true
                    , referencesProvider => true
                    }

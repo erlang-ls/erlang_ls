@@ -1,5 +1,7 @@
 -module(erlang_ls_protocol_impl).
 
+-include("erlang_ls.hrl").
+
 -export([ initialize/1
         , initialized/1
         , shutdown/1
@@ -51,7 +53,11 @@ initialize(Params) ->
               #{ resolveProvider => false
                , triggerCharacters => [<<":">>, <<"#">>]
                }
-          , textDocumentSync => 1
+          , textDocumentSync =>
+              #{ openClose => true
+               , change    => ?TEXT_DOCUMENT_SYNC_KIND_FULL
+               , save      => true
+               }
           , definitionProvider => erlang_ls_definition_provider:is_enabled()
           , referencesProvider => erlang_ls_references_provider:is_enabled()
           }
