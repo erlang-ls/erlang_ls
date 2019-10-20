@@ -169,6 +169,14 @@
                                }.
 
 %%------------------------------------------------------------------------------
+%% Text Document Sync Kind
+%%------------------------------------------------------------------------------
+
+-define(TEXT_DOCUMENT_SYNC_KIND_NONE, 0).
+-define(TEXT_DOCUMENT_SYNC_KIND_FULL, 1).
+-define(TEXT_DOCUMENT_SYNC_KIND_INCREMENTAL, 2).
+
+%%------------------------------------------------------------------------------
 %% Versioned Text Document Identifier
 %%------------------------------------------------------------------------------
 -type versioned_text_document_id() :: #{ version := number() | null
