@@ -73,4 +73,9 @@ exported_functions(Config) ->
                           }
                        ],
   ?assertEqual(Completion, ExpectedCompletion),
+
+  #{result := Completion} =
+    erlang_ls_client:completion(Uri, 52, 34, 2, <<":">>),
+  ?assertEqual(Completion, ExpectedCompletion),
+
   ok.
