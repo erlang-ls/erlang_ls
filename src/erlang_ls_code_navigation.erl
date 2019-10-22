@@ -54,7 +54,7 @@ goto_definition( _Filename
 %% TODO: Eventually search everywhere and suggest a code lens to include a file
 goto_definition(Filename, #{ info := {macro, _Define} = Info }, Path) ->
   search(filename:basename(Filename), Path, definition(Info));
-goto_definition(Filename, #{ info := {record_access, {_Record, _Var}} = Info }, Path) ->
+goto_definition(Filename, #{ info := {record_access, {_Record, _Field}} = Info }, Path) ->
   search(filename:basename(Filename), Path, definition(Info));
 goto_definition(Filename, #{ info := {record_expr, _Record} = Info }, Path) ->
   search(filename:basename(Filename), Path, definition(Info));
@@ -111,7 +111,7 @@ definition({import_entry, {_M, F, A}}) ->
   {function, {F, A}};
 definition({macro, Define}) ->
   {define, Define};
-definition({record_access, {Record, _Variable}}) ->
+definition({record_access, {Record, _Field}}) ->
   {record, Record};
 definition({record_expr, Record}) ->
   {record, Record};

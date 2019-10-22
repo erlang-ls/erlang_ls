@@ -129,8 +129,8 @@ get_range({Line, Column}, {module, _}, _Extra) ->
   From = {Line, Column},
   To = From,
   #{ from => From, to => To };
-get_range(Pos, {record_access, {Record, Var}}, _Extra) ->
-  #{ from => minus(Pos, Var), to => plus(Pos, Record) };
+get_range(Pos, {record_access, {Record, Field}}, _Extra) ->
+  #{ from => minus(Pos, "#"), to => plus(Pos, Record ++ "." ++ Field) };
 get_range({Line, Column}, {record_expr, Record}, _Extra) ->
   From = {Line, Column - 1},
   To = {Line, Column + length(Record) - 1},
