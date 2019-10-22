@@ -119,31 +119,35 @@ points_of_interest(Tree, Extra) ->
 
 -spec application(tree(), extra()) -> [erlang_ls_poi:poi()].
 application(Tree, Extra) ->
-  MFA = case erl_syntax_lib:analyze_application(Tree) of
-          %% Remote call
-          {M, {F, A}} -> {M, F, A};
-          {F, A} ->
-            case lists:member({F, A}, erlang:module_info(exports)) of
-              %% Call to a function from the `erlang` module
-              true -> {erlang, F, A};
-              %% Local call
-              false -> {F, A}
-            end;
-          A when is_integer(A) ->
-            %% If the function is not explicitly named (e.g. a variable is
-            %% used as the module qualifier or the function name), only the
-            %% arity A is returned.
-            %% In the special case where the macro `?MODULE` is used as the
-            %% module qualifier, we can consider it as a local call.
-            Operator = erl_syntax:application_operator(Tree),
-            case erl_syntax:type(Operator) of
-              module_qualifier -> application_with_variable(Operator, A);
-              _                -> undefined
-            end
-        end,
-  case MFA of
+  case application_mfa(Tree) of
     undefined -> [];
-    _ -> [erlang_ls_poi:poi(Tree, {application, MFA}, Extra)]
+    MFA -> [erlang_ls_poi:poi(Tree, {application, MFA}, Extra)]
+  end.
+
+-spec application_mfa(tree()) ->
+  {module(), atom(), arity()} | {atom(), arity()} | undefined.
+application_mfa(Tree) ->
+  case erl_syntax_lib:analyze_application(Tree) of
+    %% Remote call
+    {M, {F, A}} -> {M, F, A};
+    {F, A} ->
+      case lists:member({F, A}, erlang:module_info(exports)) of
+        %% Call to a function from the `erlang` module
+              true -> {erlang, F, A};
+        %% Local call
+        false -> {F, A}
+      end;
+    A when is_integer(A) ->
+      %% If the function is not explicitly named (e.g. a variable is
+      %% used as the module qualifier or the function name), only the
+      %% arity A is returned.
+      %% In the special case where the macro `?MODULE` is used as the
+      %% module qualifier, we can consider it as a local call.
+      Operator = erl_syntax:application_operator(Tree),
+      case erl_syntax:type(Operator) of
+        module_qualifier -> application_with_variable(Operator, A);
+        _                -> undefined
+      end
   end.
 
 -spec application_with_variable(tree(), arity()) ->
@@ -152,7 +156,9 @@ application_with_variable(Operator, A) ->
   Module   = erl_syntax:module_qualifier_argument(Operator),
   Function = erl_syntax:module_qualifier_body(Operator),
   case {erl_syntax:type(Module), erl_syntax:type(Function)} of
-    %% Only in the case of ?MODULE:foo we return something
+    %% The usage of the ?MODULE macro as the module name for
+    %% fully qualified calls is so common that it is worth a
+    %% specific clause.
     {macro, atom} ->
       ModuleName   = node_name(Module),
       FunctionName = node_name(Function),
