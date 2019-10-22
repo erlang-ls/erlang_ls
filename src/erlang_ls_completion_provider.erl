@@ -58,23 +58,24 @@ handle_request({completion, Params}, State) ->
 -spec find_completion(binary(), binary(), binary()) ->
    any().
 find_completion(Prefix, ?TRIGGER_CHARACTER, <<":">>) ->
-  Pattern = <<"\s+(?<MODULE>.*):">>,
-  Options = [{capture, ['MODULE'], binary}],
-  case re:run(Prefix, Pattern, Options) of
-    {match, [Module]} ->
-      case erlang_ls_completion_index:find(binary_to_atom(Module, utf8)) of
+  {ok, Tokens, _} = erl_scan:string(binary_to_list(Prefix)),
+  [{':', _}, Token | _] = lists:reverse(Tokens),
+  case Token of
+    {atom, _, Module} ->
+      case erlang_ls_completion_index:find(Module) of
         {ok, Uri} ->
           {ok, Document} = erlang_ls_db:find(documents, Uri),
           POIs = erlang_ls_document:points_of_interest(Document),
-          [#{ label            => list_to_binary(io_lib:format("~p/~p", [F, A]))
-            , insertText       => snippet_function_call(F, A)
-            , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
-            } || #{info := {exports_entry, {F, A}}} <- POIs];
+          [ #{ label            => list_to_binary(io_lib:format("~p/~p", [F, A]))
+             , insertText       => snippet_function_call(F, A)
+             , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+             }
+            || #{info := {exports_entry, {F, A}}} <- POIs
+          ];
         not_found ->
           null
       end;
-    nomatch ->
-      null
+    _ -> null
   end;
 find_completion(_Prefix, _TriggerKind, _TriggerCharacter) ->
   null.
