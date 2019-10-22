@@ -61,7 +61,7 @@ handle_request({completion, Params}, State) ->
    any().
 find_completion(Prefix, ?TRIGGER_CHARACTER, <<":">>) ->
   Token = erlang_ls_text:last_token(Prefix),
-  case erl_syntax:type(Token) of
+  try erl_syntax:type(Token) of
     atom ->
       Module = erl_syntax:atom_value(Token),
       case erlang_ls_completion_index:find(Module) of
@@ -77,7 +77,9 @@ find_completion(Prefix, ?TRIGGER_CHARACTER, <<":">>) ->
         not_found ->
           null
       end;
-    _ -> null
+      _ -> null
+  catch error:{badarg, _} ->
+      null
   end;
 find_completion(_Prefix, _TriggerKind, _TriggerCharacter) ->
   null.
