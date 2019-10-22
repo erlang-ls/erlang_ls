@@ -11,7 +11,6 @@
 -export([ create/2
         , uri/1
         , text/1
-        , text_line/2
         , tree/1
         , points_of_interest/1
           %% TODO: Implement points_of_interest/2 which takes a list of types
@@ -52,11 +51,6 @@ uri(#{uri := Uri}) ->
 -spec text(document()) -> binary().
 text(#{text := Text}) ->
   Text.
-
--spec text_line(document(), non_neg_integer()) -> binary().
-text_line(#{text := Text}, Line) ->
-  Lines = binary:split(Text, <<"\n">>, [global]),
-  lists:nth(Line + 1, Lines).
 
 -spec tree(document()) -> erlang_ls_tree:tree().
 tree(#{tree := Tree}) ->

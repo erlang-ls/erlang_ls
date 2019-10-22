@@ -39,13 +39,14 @@ handle_request({completion, Params}, State) ->
    , <<"textDocument">> := #{<<"uri">> := Uri
                             }
    } = Params,
-  {ok, Document} = erlang_ls_db:find(documents, Uri),
+  {ok, #{text := Text}} = erlang_ls_db:find(documents, Uri),
   case maps:find(<<"context">>, Params) of
     {ok, Context} ->
       TriggerKind = maps:get(<<"triggerKind">>, Context),
       TriggerCharacter = maps:get(<<"triggerCharacter">>, Context, undefined),
-      TextLine = erlang_ls_document:text_line(Document, Line),
-      Prefix = binary:part(TextLine, {0, Character}),
+      %% We subtract 1 to strip the character that triggered the
+      %% completion from the string.
+      Prefix = erlang_ls_text:line(Text, Line, Character - 1),
       {find_completion(Prefix, TriggerKind, TriggerCharacter), State};
     error ->
       {null, State}
@@ -58,10 +59,10 @@ handle_request({completion, Params}, State) ->
 -spec find_completion(binary(), binary(), binary()) ->
    any().
 find_completion(Prefix, ?TRIGGER_CHARACTER, <<":">>) ->
-  {ok, Tokens, _} = erl_scan:string(binary_to_list(Prefix)),
-  [{':', _}, Token | _] = lists:reverse(Tokens),
-  case Token of
-    {atom, _, Module} ->
+  Token = erlang_ls_text:last_token(Prefix),
+  case erl_syntax:type(Token) of
+    atom ->
+      Module = erl_syntax:atom_value(Token),
       case erlang_ls_completion_index:find(Module) of
         {ok, Uri} ->
           {ok, Document} = erlang_ls_db:find(documents, Uri),
