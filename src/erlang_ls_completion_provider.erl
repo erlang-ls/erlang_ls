@@ -39,7 +39,8 @@ handle_request({completion, Params}, State) ->
    , <<"textDocument">> := #{<<"uri">> := Uri
                             }
    } = Params,
-  {ok, #{text := Text}} = erlang_ls_db:find(documents, Uri),
+  {ok, Document} = erlang_ls_db:find(documents, Uri),
+  Text = erlang_ls_document:text(Document),
   case maps:find(<<"context">>, Params) of
     {ok, Context} ->
       TriggerKind = maps:get(<<"triggerKind">>, Context),
