@@ -27,7 +27,7 @@ setup(_Config) ->
 handle_request({document_symbol, Params}, State) ->
   #{ <<"textDocument">> := #{ <<"uri">> := Uri}} = Params,
   {ok, Document} = erlang_ls_db:find(documents, Uri),
-  POIs = erlang_ls_document:points_of_interest(Document),
+  POIs = erlang_ls_document:points_of_interest(Document, [function]),
   case POIs of
     [] -> {null, State};
     _ ->
@@ -37,7 +37,7 @@ handle_request({document_symbol, Params}, State) ->
                          , range => erlang_ls_protocol:range(Range)
                          }
           }
-         || #{ info := {function, {F, A}}
+         || #{ info := {_, {F, A}}
              , range := Range
              } <- POIs ], State}
   end.
