@@ -208,13 +208,8 @@ attribute(Tree, Extra) ->
       [erlang_ls_poi:poi(Tree, {record, atom_to_list(Record)}, Extra)];
     {spec, {spec, {{F, A}, _}}} ->
       SpecLocations = maps:get(spec_locations, Extra, []),
-      case proplists:get_value({F, A}, SpecLocations) of
-        undefined ->
-          lager:warning("Spec location not found for ~p/~p", [F, A]),
-          [];
-        Locations ->
-          [erlang_ls_poi:poi(Tree, {type_application, {T, L}}, Extra) || {T, L} <- Locations]
-      end;
+      Locations     = proplists:get_value({F, A}, SpecLocations),
+      [erlang_ls_poi:poi(Tree, {type_application, {T, L}}, Extra) || {T, L} <- Locations];
     {type, {type, Type}} ->
       %% TODO: Support type usages in type definitions
       TypeName = element(1, Type),
