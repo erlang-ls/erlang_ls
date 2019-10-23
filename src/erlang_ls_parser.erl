@@ -87,9 +87,10 @@ extra(Form, Tokens, Extra, attribute) ->
                                  , lists:zip(Imports, Locations)
                                  ),
       maps:put(import_locations, NewLocations, Extra);
-    {spec, {spec, {{F, A}, [FT]}}} ->
-      OldLocations = maps:get(spec_locations, Extra, []),
-      NewLocations = [{{F, A}, spec_locations(FT)}|OldLocations],
+    {spec, {spec, {{F, A}, FTs}}} ->
+      SpecLocations = [spec_locations(FT) || FT <- FTs],
+      OldLocations  = maps:get(spec_locations, Extra, []),
+      NewLocations  = [{{F, A}, lists:append(SpecLocations)} | OldLocations],
       maps:put(spec_locations, NewLocations, Extra);
     _ ->
       Extra
@@ -97,8 +98,7 @@ extra(Form, Tokens, Extra, attribute) ->
 extra(_Form, _Tokens, Extra, _Type) ->
   Extra.
 
-%% TODO: Refine any() type
--spec spec_locations(any()) -> [{atom(), erl_anno:location()}].
+-spec spec_locations(erl_syntax:syntaxTree()) -> [{atom(), erl_anno:location()}].
 spec_locations(FT) ->
   case erl_syntax:type(FT) of
     function_type ->
