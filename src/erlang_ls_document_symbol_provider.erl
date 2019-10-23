@@ -37,7 +37,7 @@ handle_request({document_symbol, Params}, State) ->
                          , range => erlang_ls_protocol:range(Range)
                          }
           }
-         || #{ info := {_, {F, A}}
+         || #{ data := {F, A}
              , range := Range
              } <- POIs ], State}
   end.

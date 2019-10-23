@@ -36,7 +36,7 @@ index(Document) ->
 %%==============================================================================
 
 -spec get(erlang_ls_uri:uri(), erlang_ls_poi:poi()) -> [ref()].
-get(Uri, #{info := {Kind, MFA}})
+get(Uri, #{kind := Kind, data := MFA})
   when Kind =:= application; Kind =:= implicit_fun; Kind =:= function ->
   Key = key(Uri, MFA),
   ordsets:to_list(get(Key));
@@ -48,7 +48,7 @@ get(_, _) ->
 %%==============================================================================
 
 -spec register_usage(erlang_ls_uri:uri(), erlang_ls_poi:poi()) -> ok.
-register_usage(Uri, #{info := {_Kind, MFA}, range := Range}) ->
+register_usage(Uri, #{data := MFA, range := Range}) ->
   Key = key(Uri, MFA),
   Ref = #{uri => Uri, range => Range},
   add(Key, Ref),

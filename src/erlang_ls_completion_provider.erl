@@ -72,7 +72,7 @@ find_completion(Prefix, ?TRIGGER_CHARACTER, <<":">>) ->
              , insertText       => snippet_function_call(F, A)
              , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
              }
-            || #{info := {_, {F, A}}} <- POIs
+            || #{data := {F, A}} <- POIs
           ];
         not_found ->
           null

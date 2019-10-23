@@ -62,7 +62,7 @@ points_of_interest(#{pois := POIs}) ->
 
 -spec points_of_interest(document(), [erlang_ls_poi:kind()]) -> [erlang_ls_poi:poi()].
 points_of_interest(#{pois := POIs}, Kinds) ->
-  [POI || #{ info := {Kind, _} } = POI <- POIs, lists:member(Kind, Kinds)].
+  [POI || #{ kind := Kind } = POI <- POIs, lists:member(Kind, Kinds)].
 
 -spec get_element_at_pos(document(), non_neg_integer(), non_neg_integer()) ->
   [any()].
