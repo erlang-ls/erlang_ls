@@ -226,9 +226,6 @@
 -define(COMPLETION_ITEM_KIND_TEXT, 1).
 -type completion_item_kind() :: ?COMPLETION_ITEM_KIND_TEXT.
 
--define(SYMBOL_KIND_FILE, 1).
--type symbol_kind() :: ?SYMBOL_KIND_FILE.
-
 -define(CODE_ACTION_KIND_QUICKFIX, 1).
 -type code_action_kind() :: ?CODE_ACTION_KIND_QUICKFIX.
 
@@ -400,6 +397,64 @@
                            | ?MESSAGE_TYPE_LOG.
 
 %%------------------------------------------------------------------------------
+%% Symbol Kinds
+%%------------------------------------------------------------------------------
+
+-define(SYMBOLKIND_FILE           , 1).
+-define(SYMBOLKIND_MODULE         , 2).
+-define(SYMBOLKIND_NAMESPACE      , 3).
+-define(SYMBOLKIND_PACKAGE        , 4).
+-define(SYMBOLKIND_CLASS          , 5).
+-define(SYMBOLKIND_METHOD         , 6).
+-define(SYMBOLKIND_PROPERTY       , 7).
+-define(SYMBOLKIND_FIELD          , 8).
+-define(SYMBOLKIND_CONSTRUCTOR    , 9).
+-define(SYMBOLKIND_ENUM           , 10).
+-define(SYMBOLKIND_INTERFACE      , 11).
+-define(SYMBOLKIND_FUNCTION       , 12).
+-define(SYMBOLKIND_VARIABLE       , 13).
+-define(SYMBOLKIND_CONSTANT       , 14).
+-define(SYMBOLKIND_STRING         , 15).
+-define(SYMBOLKIND_NUMBER         , 16).
+-define(SYMBOLKIND_BOOLEAN        , 17).
+-define(SYMBOLKIND_ARRAY          , 18).
+-define(SYMBOLKIND_OBJECT         , 19).
+-define(SYMBOLKIND_KEY            , 20).
+-define(SYMBOLKIND_NULL           , 21).
+-define(SYMBOLKIND_ENUM_MEMBER    , 22).
+-define(SYMBOLKIND_STRUCT         , 23).
+-define(SYMBOLKIND_EVENT          , 24).
+-define(SYMBOLKIND_OPERATOR       , 25).
+-define(SYMBOLKIND_TYPE_PARAMETER , 26).
+
+-type symbol_kind() :: ?SYMBOLKIND_FILE
+                     | ?SYMBOLKIND_MODULE
+                     | ?SYMBOLKIND_NAMESPACE
+                     | ?SYMBOLKIND_PACKAGE
+                     | ?SYMBOLKIND_CLASS
+                     | ?SYMBOLKIND_METHOD
+                     | ?SYMBOLKIND_PROPERTY
+                     | ?SYMBOLKIND_FIELD
+                     | ?SYMBOLKIND_CONSTRUCTOR
+                     | ?SYMBOLKIND_ENUM
+                     | ?SYMBOLKIND_INTERFACE
+                     | ?SYMBOLKIND_FUNCTION
+                     | ?SYMBOLKIND_VARIABLE
+                     | ?SYMBOLKIND_CONSTANT
+                     | ?SYMBOLKIND_STRING
+                     | ?SYMBOLKIND_NUMBER
+                     | ?SYMBOLKIND_BOOLEAN
+                     | ?SYMBOLKIND_ARRAY
+                     | ?SYMBOLKIND_OBJECT
+                     | ?SYMBOLKIND_KEY
+                     | ?SYMBOLKIND_NULL
+                     | ?SYMBOLKIND_ENUM_MEMBER
+                     | ?SYMBOLKIND_STRUCT
+                     | ?SYMBOLKIND_EVENT
+                     | ?SYMBOLKIND_OPERATOR
+                     | ?SYMBOLKIND_TYPE_PARAMETER.
+
+%%------------------------------------------------------------------------------
 %% Internals
-%%-----------------------------------------------------------------------------
+%%------------------------------------------------------------------------------
 -type pos() :: {integer(), integer()}.

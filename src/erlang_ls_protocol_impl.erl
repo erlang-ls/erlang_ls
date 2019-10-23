@@ -13,6 +13,7 @@
         , textdocument_didchange/1
         , textdocument_didsave/1
         , textdocument_didclose/1
+        , textdocument_documentsymbol/1
         , textdocument_hover/1
         , textdocument_definition/1
         , textdocument_references/1
@@ -48,6 +49,8 @@ initialize(Params) ->
                }
           , definitionProvider => erlang_ls_definition_provider:is_enabled()
           , referencesProvider => erlang_ls_references_provider:is_enabled()
+          , documentSymbolProvider =>
+              erlang_ls_document_symbol_provider:is_enabled()
           }
      },
   {response, Result}.
@@ -126,6 +129,17 @@ textdocument_didsave(Params) ->
 textdocument_didclose(Params) ->
   ok = erlang_ls_text_synchronization:did_close(Params),
   {}.
+
+%%==============================================================================
+%% textdocument/documentSymbol
+%%==============================================================================
+
+-spec textdocument_documentsymbol(map()) -> {response, map()}.
+textdocument_documentsymbol(Params) ->
+  Provider = erlang_ls_document_symbol_provider,
+  Request  = {document_symbol, Params},
+  Response = erlang_ls_provider:handle_request(Provider, Request),
+  {response, Response}.
 
 %%==============================================================================
 %% textdocument_hover

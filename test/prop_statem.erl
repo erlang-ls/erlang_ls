@@ -89,8 +89,9 @@ initialize_post(_S, _Args, Res) ->
                         , change    => ?TEXT_DOCUMENT_SYNC_KIND_FULL
                         , save      => true
                         }
-                   , definitionProvider => true
-                   , referencesProvider => true
+                   , definitionProvider     => true
+                   , referencesProvider     => true
+                   , documentSymbolProvider => true
                    }
               },
   ?assertEqual(Expected, maps:get(result, Res)),
