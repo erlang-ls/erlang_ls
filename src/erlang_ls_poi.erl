@@ -7,12 +7,29 @@
 -type column() :: non_neg_integer().
 -type pos()    :: {line(), column()}.
 -type range()  :: #{ from := pos(), to := pos() }.
--type poi()    :: #{ type := atom()
-                   , info => any()
+-type kind()   :: application
+                | behaviour
+                | define
+                | exports_entry
+                | function
+                | implicit_fun
+                | import_entry
+                | include
+                | include_lib
+                | macro
+                | module
+                | record
+                | record_access
+                | record_expr
+                | type_application
+                | type_definition.
+-type poi()    :: #{ type => poi
+                   , info => {kind(), any()}
                    , range := range()
                    }.
 
--export_type([ poi/0
+-export_type([ kind/0
+             , poi/0
              , range/0
              ]).
 
