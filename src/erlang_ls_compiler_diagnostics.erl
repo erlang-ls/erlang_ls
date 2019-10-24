@@ -32,7 +32,7 @@
 %%==============================================================================
 %% Callback Functions
 %%==============================================================================
--spec diagnostics(erlang_ls_uri:uri()) -> [diagnostic()].
+-spec diagnostics(uri()) -> [diagnostic()].
 diagnostics(Uri) ->
   Path = erlang_ls_uri:path(Uri),
   case compile:file(binary_to_list(Path), ?COMPILER_OPTS) of
