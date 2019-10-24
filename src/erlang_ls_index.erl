@@ -5,9 +5,16 @@
 -callback index(erlang_ls_document:document()) -> ok.
 -callback setup() -> atom().
 
--export([ index/1
+-export([ find_and_index_file/1
+        , index/1
+        , index_file/1
         , initialize/1
         , start_link/1
+        ]).
+
+-export([ app_path/0
+        , deps_path/0
+        , otp_path/0
         ]).
 
 %% gen_server callbacks
@@ -26,6 +33,8 @@
          ]
        ).
 
+-include("erlang_ls.hrl").
+
 %%==============================================================================
 %% External functions
 %%==============================================================================
@@ -39,7 +48,10 @@ initialize(_Config) ->
   %% TODO: This could be done asynchronously,
   %%       but we need a way to know when indexing is done,
   %%       or the tests will be flaky.
-  indexer(),
+
+  %% At initialization, we currently index only the app path.
+  %% deps and otp paths will be indexed on demand.
+  indexer(app_path()),
   ok.
 
 -spec index(erlang_ls_document:document()) -> ok.
@@ -77,24 +89,102 @@ handle_cast({index, Index, Document}, State) ->
 %% Internal functions
 %%==============================================================================
 
--spec indexer() -> ok.
-indexer() ->
-  Paths = erlang_ls_code_navigation:app_path(),
-  Fun   = fun(File, _) -> index_file(iolist_to_binary(File)) end,
-  [ filelib:fold_files(Path, ".*\\.erl$", true, Fun, ok)
+-spec indexer([string()]) -> ok.
+indexer(Paths) ->
+  Fun = fun(File, _) -> index_file(iolist_to_binary(File)) end,
+  [ filelib:fold_files(Path, ".*\\.[e,h]rl$", true, Fun, ok)
     || Path <- Paths
   ],
   ok.
 
+-spec find_and_index_file(string()) ->
+   {ok, uri()} | {error, any()}.
+find_and_index_file(FileName) ->
+  Paths = lists:append([ app_path()
+                       , deps_path()
+                       , otp_path()
+                       ]),
+  case file:path_open(Paths, list_to_binary(FileName), [read]) of
+    {ok, IoDevice, FullName} ->
+      %% TODO: Avoid opening file twice
+      file:close(IoDevice),
+      index_file(FullName),
+      {ok, erlang_ls_uri:uri(FullName)};
+    {error, Error} ->
+      {error, Error}
+  end.
+
 -spec index_file(file:name_all()) -> ok.
-index_file(File) ->
+index_file(FullName) ->
   try
-    lager:debug("Indexing ~s", [File]),
-    {ok, Text} = file:read_file(File),
-    Uri        = erlang_ls_uri:uri(File),
+    lager:debug("Indexing ~s", [FullName]),
+    {ok, Text} = file:read_file(FullName),
+    Uri        = erlang_ls_uri:uri(FullName),
     Document   = erlang_ls_document:create(Uri, Text),
     ok         = index(Document)
   catch Type:Reason:St ->
-      lager:error("Error indexing ~s: ~p", [File, Reason]),
+      lager:error("Error indexing ~s: ~p", [FullName, Reason]),
       erlang:raise(Type, Reason, St)
   end.
+
+-spec app_path() -> [string()].
+app_path() ->
+  {ok, RootUri} = erlang_ls_config:get(root_uri),
+  RootPath = binary_to_list(erlang_ls_uri:path(RootUri)),
+  resolve_paths( [ [RootPath, "src"]
+                 , [RootPath, "test"]
+                 , [RootPath, "include"]
+                 ]).
+
+-spec deps_path() -> [string()].
+deps_path() ->
+  {ok, RootUri} = erlang_ls_config:get(root_uri),
+  RootPath = binary_to_list(erlang_ls_uri:path(RootUri)),
+  {ok, Dirs} = erlang_ls_config:get(deps_dirs),
+  Paths = [ resolve_paths( [ [RootPath, Dir, "src"]
+                           , [RootPath, Dir, "test"]
+                           , [RootPath, Dir, "include"]
+                           ])
+            || Dir <- Dirs
+          ],
+  lists:append(Paths).
+
+-spec otp_path() -> [string()].
+otp_path() ->
+  {ok, Root} = erlang_ls_config:get(otp_path),
+  resolve_paths( [ [Root, "lib", "*", "src"]
+                 , [Root, "lib", "*", "include"]
+                 ]).
+
+-spec resolve_paths([[string()]]) -> [[string()]].
+resolve_paths(PathSpecs) ->
+  lists:append([resolve_path(PathSpec) || PathSpec <- PathSpecs]).
+
+-spec resolve_path([string()]) -> [string()].
+resolve_path(PathSpec) ->
+  Path = filename:join(PathSpec),
+  Paths = [[P | subdirs(P)] || P <- filelib:wildcard(Path)],
+  lists:append(Paths).
+
+%% Returns all subdirectories for the provided path
+-spec subdirs(string()) -> [string()].
+subdirs(Path) ->
+  subdirs(Path, []).
+
+-spec subdirs(string(), [string()]) -> [string()].
+subdirs(Path, Subdirs) ->
+  case file:list_dir(Path) of
+    {ok, Files}     -> subdirs_(Path, Files, Subdirs);
+    {error, enoent} -> Subdirs
+  end.
+
+-spec subdirs_(string(), [string()], [string()]) -> [string()].
+subdirs_(Path, Files, Subdirs) ->
+  Fold = fun(F, Acc) ->
+             FullPath = filename:join([Path, F]),
+             case filelib:is_dir(FullPath) of
+               true  -> subdirs(FullPath, [FullPath | Acc]);
+               false -> Acc
+             end
+         end,
+  lists:foldl(Fold, Subdirs, Files).

@@ -8,7 +8,6 @@
 %%==============================================================================
 -export([ annotate/1
         , annotate/2
-        , annotate_file/2
         , annotate_node/1
         , annotate_node/2
         , postorder_update/3
@@ -36,19 +35,6 @@
 %%==============================================================================
 %% API
 %%==============================================================================
-
--spec annotate_file(binary(), [string()]) ->
-   {ok, binary(), annotated_tree()} | {error, any()}.
-annotate_file(Filename, Path) ->
-  case file:path_open(Path, Filename, [read]) of
-    {ok, IoDevice, FullName} ->
-      %% TODO: Avoid opening file twice
-      file:close(IoDevice),
-      {ok, Tree, Extra} = erlang_ls_parser:parse_file(FullName),
-      {ok, FullName, annotate(Tree, Extra)};
-    {error, Error} ->
-      {error, Error}
-  end.
 
 %% @edoc Given a syntax tree, it returns a new one, annotated with all
 %% the identified _points of interest_ (a.k.a. _poi_).
