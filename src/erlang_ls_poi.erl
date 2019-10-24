@@ -7,20 +7,37 @@
 -type column() :: non_neg_integer().
 -type pos()    :: {line(), column()}.
 -type range()  :: #{ from := pos(), to := pos() }.
--type poi()    :: #{ type := atom()
-                   , info => any()
+-type kind()   :: application
+                | behaviour
+                | define
+                | exports_entry
+                | function
+                | implicit_fun
+                | import_entry
+                | include
+                | include_lib
+                | macro
+                | module
+                | record
+                | record_access
+                | record_expr
+                | type_application
+                | type_definition.
+-type poi()    :: #{ kind  => kind()
+                   , data  => any()
                    , range := range()
                    }.
 
--export_type([ poi/0
+-export_type([ kind/0
+             , poi/0
              , range/0
              ]).
 
--export([ poi/3 ]).
+-export([ poi/4 ]).
 
 -export([ list/1
         , match/2
-        , match_key/2
+        , match_kind/2
         , match_pos/2
         , first/1
         ]).
@@ -30,12 +47,12 @@
 %%==============================================================================
 
 %% @edoc Constructor for a Point of Interest.
--spec poi(erlang_ls_tree:tree(), any(), erlang_ls_tree:extra()) -> poi().
-poi(Tree, Info, Extra) ->
+-spec poi(erlang_ls_tree:tree(), kind(), any(), erlang_ls_tree:extra()) -> poi().
+poi(Tree, Kind, Data, Extra) ->
   Pos = erl_syntax:get_pos(Tree),
-  Range = get_range(Pos, Info, Extra),
-  #{ type  => poi
-   , info  => Info
+  Range = get_range(Pos, Kind, Data, Extra),
+  #{ kind  => Kind
+   , data  => Data
    , range => Range
    }.
 
@@ -43,21 +60,22 @@ poi(Tree, Info, Extra) ->
 -spec list(erlang_ls_tree:tree()) -> [poi()].
 list(Tree) ->
   F = fun(T, Acc) ->
-          Annotations = erl_syntax:get_ann(T),
-          case [POI || #{ type := poi } = POI <- Annotations] of
+          case erl_syntax:get_ann(T) of
             [] -> Acc;
             L -> L ++ Acc
           end
       end,
   erl_syntax_lib:fold(F, [], Tree).
 
--spec match(erlang_ls_tree:tree(), any()) -> [poi()].
-match(Tree, Info0) ->
-  [POI || #{info := Info} = POI <- list(Tree), Info0 =:= Info].
+-spec match(erlang_ls_tree:tree(), {kind(), any()}) -> [poi()].
+match(Tree, {Kind0, Data0}) ->
+  [POI || #{kind := Kind, data := Data} = POI <- list(Tree)
+            , Kind0 =:= Kind
+            , Data0 =:= Data].
 
--spec match_key(erlang_ls_tree:tree(), atom()) -> [poi()].
-match_key(Tree, Key0) ->
-  [POI || #{info := {Key, _}} = POI <- list(Tree), Key0 =:= Key].
+-spec match_kind(erlang_ls_tree:tree(), atom()) -> [poi()].
+match_kind(Tree, Kind0) ->
+  [POI || #{kind := Kind} = POI <- list(Tree), Kind0 =:= Kind].
 
 -spec match_pos(erlang_ls_tree:tree(), pos()) -> [poi()].
 match_pos(Tree, Pos) ->
@@ -74,79 +92,79 @@ first(POIs) ->
 %% Internal Functions
 %%==============================================================================
 
--spec get_range(pos(), {atom(), any()}, erlang_ls_tree:extra()) -> range().
-get_range({Line, Column}, {application, {M, F, _A}}, _Extra) ->
+-spec get_range(pos(), kind(), any(), erlang_ls_tree:extra()) -> range().
+get_range({Line, Column}, application, {M, F, _A}, _Extra) ->
   CFrom = Column - length(atom_to_list(M)),
   From = {Line, CFrom},
   CTo = Column + length(atom_to_list(F)),
   To = {Line, CTo},
   #{ from => From, to => To };
-get_range({Line, Column}, {application, {F, _A}}, _Extra) ->
+get_range({Line, Column}, application, {F, _A}, _Extra) ->
   From = {Line, Column},
   To = {Line, Column + length(atom_to_list(F))},
   #{ from => From, to => To };
-get_range({Line, Column}, {implicit_fun, {M, F, A}}, _Extra) ->
+get_range({Line, Column}, implicit_fun, {M, F, A}, _Extra) ->
   From = {Line, Column},
   %% Assumes "fun M:F/A"
   Length = 6 + length(atom_to_list(M) ++ atom_to_list(F) ++ integer_to_list(A)),
   To = {Line, Column + Length},
   #{ from => From, to => To };
-get_range({Line, Column}, {implicit_fun, {F, A}}, _Extra) ->
+get_range({Line, Column}, implicit_fun, {F, A}, _Extra) ->
   From = {Line, Column},
   %% Assumes "fun F/A"
   Length = 5 + length(atom_to_list(F) ++ integer_to_list(A)),
   To = {Line, Column + Length},
   #{ from => From, to => To };
-get_range({Line, Column}, {behaviour, Behaviour}, _Extra) ->
+get_range({Line, Column}, behaviour, Behaviour, _Extra) ->
   From = {Line, Column - 1},
   To = {Line, Column + length("behaviour") + length(atom_to_list(Behaviour))},
   #{ from => From, to => To };
-get_range({_Line, _Column}, {exports_entry, {F, A}}, Extra) ->
+get_range({_Line, _Column}, exports_entry, {F, A}, Extra) ->
   get_entry_range(exports_locations, F, A, Extra);
-get_range({_Line, _Column}, {import_entry, {_M, F, A}}, Extra) ->
+get_range({_Line, _Column}, import_entry, {_M, F, A}, Extra) ->
   get_entry_range(import_locations, F, A, Extra);
-get_range({Line, Column}, {function, {F, _A}}, _Extra) ->
+get_range({Line, Column}, function, {F, _A}, _Extra) ->
   From = {Line, Column},
   To = {Line, Column + length(atom_to_list(F))},
   #{ from => From, to => To };
-get_range({Line, _Column}, {define, _Define}, _Extra) ->
+get_range({Line, _Column}, define, _Define, _Extra) ->
   From = {Line, 1},
   To = From,
   #{ from => From, to => To };
-get_range({Line, Column}, {include, Include}, _Extra) ->
+get_range({Line, Column}, include, Include, _Extra) ->
   From = {Line, Column},
   To = {Line, Column + length("include") + length(Include)},
   #{ from => From, to => To };
-get_range({Line, Column}, {include_lib, Include}, _Extra) ->
+get_range({Line, Column}, include_lib, Include, _Extra) ->
   From = {Line, Column},
   To = {Line, Column + length("include_lib") + length(Include)},
   #{ from => From, to => To };
-get_range({Line, Column}, {macro, Macro}, _Extra) when is_atom(Macro) ->
+get_range({Line, Column}, macro, Macro, _Extra) when is_atom(Macro) ->
   From = {Line, Column},
   To = {Line, Column + length(atom_to_list(Macro))},
   #{ from => From, to => To };
-get_range({Line, Column}, {module, _}, _Extra) ->
+get_range({Line, Column}, module, _, _Extra) ->
   From = {Line, Column},
   To = From,
   #{ from => From, to => To };
-get_range(Pos, {record_access, {Record, Field}}, _Extra) ->
+get_range(Pos, record_access, {Record, Field}, _Extra) ->
   #{ from => minus(Pos, "#"), to => plus(Pos, Record ++ "." ++ Field) };
-get_range({Line, Column}, {record_expr, Record}, _Extra) ->
+get_range({Line, Column}, record_expr, Record, _Extra) ->
   From = {Line, Column - 1},
   To = {Line, Column + length(Record) - 1},
   #{ from => From, to => To };
 %% TODO: Distinguish between usage poi and definition poi
-get_range({Line, _Column}, {record, _Record}, _Extra) ->
+get_range({Line, _Column}, record, _Record, _Extra) ->
   From = {Line, 1},
   To = From,
   #{ from => From, to => To };
 %% TODO: Do we really need the StartLocation there?
-get_range({_Line, _Column}, {type_application, {Type, StartLocation}}, _Extra) ->
+get_range({_Line, _Column}, type_application, {Type, StartLocation}, _Extra) ->
   {FromLine, FromColumn} = From = StartLocation,
   Length = length(atom_to_list(Type)),
   To = {FromLine, FromColumn + Length - 1},
   #{ from => From, to => To };
-get_range({Line, Column}, {type_definition, _Type}, _Extra) ->
+get_range({Line, Column}, type_definition, _Type, _Extra) ->
   From = {Line, Column},
   To = From,
   #{ from => From, to => To }.

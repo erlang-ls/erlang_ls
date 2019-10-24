@@ -33,32 +33,40 @@ goto_definition(Filename, POI) ->
 -spec goto_definition(binary(), erlang_ls_poi:poi(), [string()]) ->
    {ok, binary(), erlang_ls_poi:range()} | {error, any()}.
 goto_definition( _Filename
-               , #{ info := {Type, {M, _F, _A}} = Info }
+               , #{ kind := Kind, data := {M, _F, _A} = Data }
                , Path
-               ) when Type =:= application;
-                      Type =:= implicit_fun ->
-  goto_fun_definition(filename(M), Path, Info);
+               ) when Kind =:= application;
+                      Kind =:= implicit_fun ->
+  goto_fun_definition(filename(M), Path, Kind, Data);
 goto_definition( Filename
-               , #{ info := {Type, {_F, _A}} = Info }
+               , #{ kind := Kind
+                  , data := {_F, _A} = Data
+                  }
                , Path
-               ) when Type =:= application;
-                      Type =:= implicit_fun;
-                      Type =:= exports_entry ->
-  goto_fun_definition(filename:basename(Filename), Path, Info);
-goto_definition(_Filename, #{ info := {behaviour, Behaviour} = Info }, Path) ->
-  search(filename(Behaviour), Path, definition(Info));
+               ) when Kind =:= application;
+                      Kind =:= implicit_fun;
+                      Kind =:= exports_entry ->
+  goto_fun_definition(filename:basename(Filename), Path, Kind, Data);
+goto_definition(_Filename, #{ kind := behaviour
+                            , data := Behaviour
+                            }, Path) ->
+  search(filename(Behaviour), Path, definition(behaviour, Behaviour));
 goto_definition( _Filename
-               , #{ info := {import_entry, {M, _F, _A}} = Info }
+               , #{ kind := import_entry
+                  , data := {M, _F, _A} = Data
+                  }
                , Path) ->
-  search(filename(M), Path, definition(Info));
+  search(filename(M), Path, definition(import_entry, Data));
 %% TODO: Eventually search everywhere and suggest a code lens to include a file
-goto_definition(Filename, #{ info := {macro, _Define} = Info }, Path) ->
-  search(filename:basename(Filename), Path, definition(Info));
-goto_definition(Filename, #{ info := {record_access, {_Record, _Field}} = Info }, Path) ->
-  search(filename:basename(Filename), Path, definition(Info));
-goto_definition(Filename, #{ info := {record_expr, _Record} = Info }, Path) ->
-  search(filename:basename(Filename), Path, definition(Info));
-goto_definition(_Filename, #{ info := {include, Include0} }, Path) ->
+goto_definition(Filename, #{ kind := macro, data := Data }, Path) ->
+  search(filename:basename(Filename), Path, definition(macro, Data));
+goto_definition(Filename, #{ kind := record_access
+                           , data := Data
+                           }, Path) ->
+  search(filename:basename(Filename), Path, definition(record_access, Data));
+goto_definition(Filename, #{ kind := record_expr, data := Data }, Path) ->
+  search(filename:basename(Filename), Path, definition(record_expr, Data));
+goto_definition(_Filename, #{ kind := include, data := Include0 }, Path) ->
   Include = list_to_binary(string:trim(Include0, both, [$"])),
   case erlang_ls_tree:annotate_file(Include, Path) of
     {ok, FullName, _AnnotatedTree} ->
@@ -66,7 +74,7 @@ goto_definition(_Filename, #{ info := {include, Include0} }, Path) ->
     {error, Error} ->
       {error, Error}
   end;
-goto_definition(_Filename, #{ info := {include_lib, Include0} }, Path) ->
+goto_definition(_Filename, #{ kind := include_lib, data := Include0 }, Path) ->
   Include = list_to_binary(lists:last(filename:split(string:trim(Include0, both, [$"])))),
   case erlang_ls_tree:annotate_file(Include, Path) of
     {ok, FullName, _AnnotatedTree} ->
@@ -74,17 +82,17 @@ goto_definition(_Filename, #{ info := {include_lib, Include0} }, Path) ->
     {error, Error} ->
       {error, Error}
   end;
-goto_definition(Filename, #{ info := {type_application, _Type} = Info }, Path) ->
-  search(filename:basename(Filename), Path, definition(Info));
+goto_definition(Filename, #{ kind := type_application, data := Data }, Path) ->
+  search(filename:basename(Filename), Path, definition(type_application, Data));
 goto_definition(_Filename, _, _Path) ->
   {error, not_found}.
 
--spec goto_fun_definition(file:name_all(), [string()], any()) ->
+-spec goto_fun_definition(file:name_all(), [string()], erlang_ls_poi:kind(), any()) ->
   {ok, binary(), erlang_ls_poi:range()} | {error, any()}.
-goto_fun_definition(Filename, Path, Info)  ->
+goto_fun_definition(Filename, Path, Kind, Data)  ->
   case erlang_ls_tree:annotate_file(Filename, Path) of
     {ok, FullName, AnnotatedTree} ->
-      case erlang_ls_poi:match(AnnotatedTree, definition(Info)) of
+      case erlang_ls_poi:match(AnnotatedTree, definition(Kind, Data)) of
         [] -> {error, not_found};
         Matches ->
           #{range := Range} = erlang_ls_poi:first(Matches),
@@ -94,28 +102,28 @@ goto_fun_definition(Filename, Path, Info)  ->
       {error, Error}
   end.
 
--spec definition({atom(), any()}) -> {atom(), any()}.
-definition({application, {_M, F, A}}) ->
+-spec definition(erlang_ls_poi:kind(), any()) -> {atom(), any()}.
+definition(application, {_M, F, A}) ->
   {function, {F, A}};
-definition({application, {F, A}}) ->
+definition(application, {F, A}) ->
   {function, {F, A}};
-definition({implicit_fun, {_M, F, A}}) ->
+definition(implicit_fun, {_M, F, A}) ->
   {function, {F, A}};
-definition({implicit_fun, {F, A}}) ->
+definition(implicit_fun, {F, A}) ->
   {function, {F, A}};
-definition({behaviour, Behaviour}) ->
+definition(behaviour, Behaviour) ->
   {module, Behaviour};
-definition({exports_entry, {F, A}}) ->
+definition(exports_entry, {F, A}) ->
   {function, {F, A}};
-definition({import_entry, {_M, F, A}}) ->
+definition(import_entry, {_M, F, A}) ->
   {function, {F, A}};
-definition({macro, Define}) ->
+definition(macro, Define) ->
   {define, Define};
-definition({record_access, {Record, _Field}}) ->
+definition(record_access, {Record, _Field}) ->
   {record, Record};
-definition({record_expr, Record}) ->
+definition(record_expr, Record) ->
   {record, Record};
-definition({type_application, {Type, _}}) ->
+definition(type_application, {Type, _}) ->
   {type_definition, Type}.
 
 -spec otp_path() -> [string()].
@@ -192,8 +200,8 @@ search(Filename, Path, Thing) ->
     {ok, FullName, AnnotatedTree} ->
       case find(AnnotatedTree, Thing) of
         {error, not_found} ->
-          Includes = erlang_ls_poi:match_key(AnnotatedTree, include),
-          IncludeLibs = erlang_ls_poi:match_key(AnnotatedTree, include_lib),
+          Includes = erlang_ls_poi:match_kind(AnnotatedTree, include),
+          IncludeLibs = erlang_ls_poi:match_kind(AnnotatedTree, include_lib),
           search_in_includes(Includes ++ IncludeLibs, Path, Thing);
         {ok, Range} ->
           {ok, FullName, Range}
@@ -217,17 +225,17 @@ find(AnnotatedTree, Thing) ->
    {ok, binary(), erlang_ls_poi:range()} | {error, any()}.
 search_in_includes([], _Path, _Thing) ->
   {error, not_found};
-search_in_includes([#{info := Info}|T], Path, Thing) ->
-  Include = normalize_include(Info),
+search_in_includes([#{kind := Kind, data := Data}|T], Path, Thing) ->
+  Include = normalize_include(Kind, Data),
   case search(list_to_binary(Include), Path, Thing) of
     {error, _Error} -> search_in_includes(T, Path, Thing);
     {ok, FullName, Range} -> {ok, FullName, Range}
   end.
 
--spec normalize_include({atom(), string()}) -> string().
-normalize_include({include, Include}) ->
+-spec normalize_include(erlang_ls_poi:kind(), string()) -> string().
+normalize_include(include, Include) ->
   string:trim(Include, both, [$"]);
-normalize_include({include_lib, Include}) ->
+normalize_include(include_lib, Include) ->
   lists:last(filename:split(string:trim(Include, both, [$"]))).
 
 -spec filename(atom()) -> binary().

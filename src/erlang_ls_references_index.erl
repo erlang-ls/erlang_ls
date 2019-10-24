@@ -25,8 +25,9 @@ setup() ->
 
 -spec index(erlang_ls_document:document()) -> ok.
 index(Document) ->
-  Uri  = erlang_ls_document:uri(Document),
-  POIs = erlang_ls_document:points_of_interest(Document),
+  Uri   = erlang_ls_document:uri(Document),
+  Kinds = [application, implicit_fun],
+  POIs  = erlang_ls_document:points_of_interest(Document, Kinds),
   [register_usage(Uri, POI) || POI <- POIs],
   ok.
 
@@ -35,8 +36,8 @@ index(Document) ->
 %%==============================================================================
 
 -spec get(erlang_ls_uri:uri(), erlang_ls_poi:poi()) -> [ref()].
-get(Uri, #{info := {Type, MFA}})
-  when Type =:= application; Type =:= implicit_fun; Type =:= function ->
+get(Uri, #{kind := Kind, data := MFA})
+  when Kind =:= application; Kind =:= implicit_fun; Kind =:= function ->
   Key = key(Uri, MFA),
   ordsets:to_list(get(Key));
 get(_, _) ->
@@ -47,13 +48,10 @@ get(_, _) ->
 %%==============================================================================
 
 -spec register_usage(erlang_ls_uri:uri(), erlang_ls_poi:poi()) -> ok.
-register_usage(Uri, #{info := {Type, MFA}, range := Range})
-  when Type =:= application; Type =:= implicit_fun ->
+register_usage(Uri, #{data := MFA, range := Range}) ->
   Key = key(Uri, MFA),
   Ref = #{uri => Uri, range => Range},
   add(Key, Ref),
-  ok;
-register_usage(_File, _POI) ->
   ok.
 
 -spec get(key()) -> ordsets:ordset(ref()).

@@ -13,7 +13,7 @@
         , text/1
         , tree/1
         , points_of_interest/1
-          %% TODO: Implement points_of_interest/2 which takes a list of types
+        , points_of_interest/2
         , get_element_at_pos/3
         ]).
 
@@ -59,6 +59,10 @@ tree(#{tree := Tree}) ->
 -spec points_of_interest(document()) -> [erlang_ls_poi:poi()].
 points_of_interest(#{pois := POIs}) ->
   POIs.
+
+-spec points_of_interest(document(), [erlang_ls_poi:kind()]) -> [erlang_ls_poi:poi()].
+points_of_interest(#{pois := POIs}, Kinds) ->
+  [POI || #{ kind := Kind } = POI <- POIs, lists:member(Kind, Kinds)].
 
 -spec get_element_at_pos(document(), non_neg_integer(), non_neg_integer()) ->
   [any()].
