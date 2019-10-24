@@ -21,7 +21,7 @@
 %%==============================================================================
 %% Callback Functions
 %%==============================================================================
--spec diagnostics(erlang_ls_uri:uri()) -> [diagnostic()].
+-spec diagnostics(uri()) -> [diagnostic()].
 diagnostics(Uri) ->
   Path = erlang_ls_uri:path(Uri),
   WS = try dialyzer:run([{files, [binary_to_list(Path)]}, {from, src_code}])

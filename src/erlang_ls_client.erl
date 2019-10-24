@@ -64,7 +64,7 @@
 %% API
 %%==============================================================================
 %% TODO: More accurate and consistent parameters list
--spec completion( erlang_ls_uri:uri()
+-spec completion( uri()
                 , non_neg_integer()
                 , non_neg_integer()
                 , integer()
@@ -76,34 +76,34 @@ completion(Uri, Line, Char, TriggerKind, TriggerCharacter) ->
                  , {completion, Uri, Line, Char, TriggerKind, TriggerCharacter}
                  ).
 
--spec definition(erlang_ls_uri:uri(), non_neg_integer(), non_neg_integer()) ->
+-spec definition(uri(), non_neg_integer(), non_neg_integer()) ->
   ok.
 definition(Uri, Line, Char) ->
   gen_server:call(?SERVER, {definition, Uri, Line, Char}).
 
--spec references(erlang_ls_uri:uri(), non_neg_integer(), non_neg_integer()) ->
+-spec references(uri(), non_neg_integer(), non_neg_integer()) ->
   ok.
 references(Uri, Line, Char) ->
   gen_server:call(?SERVER, {references, Uri, Line, Char}).
 
--spec did_open(erlang_ls_uri:uri(), binary(), number(), binary()) -> ok.
+-spec did_open(uri(), binary(), number(), binary()) -> ok.
 did_open(Uri, LanguageId, Version, Text) ->
   gen_server:call(?SERVER, {did_open, Uri, LanguageId, Version, Text}).
 
--spec did_save(erlang_ls_uri:uri()) -> ok.
+-spec did_save(uri()) -> ok.
 did_save(Uri) ->
   gen_server:call(?SERVER, {did_save, Uri}).
 
--spec did_close(erlang_ls_uri:uri()) -> ok.
+-spec did_close(uri()) -> ok.
 did_close(Uri) ->
   gen_server:call(?SERVER, {did_close, Uri}).
 
--spec document_symbol(erlang_ls_uri:uri()) ->
+-spec document_symbol(uri()) ->
   ok.
 document_symbol(Uri) ->
   gen_server:call(?SERVER, {document_symbol, Uri}).
 
--spec initialize(erlang_ls_uri:uri(), init_options()) -> ok.
+-spec initialize(uri(), init_options()) -> ok.
 initialize(RootUri, InitOptions) ->
   gen_server:call(?SERVER, {initialize, RootUri, InitOptions}).
 

@@ -11,9 +11,14 @@
 -export([get/2]).
 
 -type key() :: {module(), atom()}.
--type ref() :: #{uri := erlang_ls_uri:uri(), range := erlang_ls_poi:range()}.
+-type ref() :: #{uri := uri(), range := erlang_ls_poi:range()}.
 
 -export_type([key/0]).
+
+%%==============================================================================
+%% Includes
+%%==============================================================================
+-include("erlang_ls.hrl").
 
 %%==============================================================================
 %% erlang_ls_index functions
@@ -35,7 +40,7 @@ index(Document) ->
 %% External functions
 %%==============================================================================
 
--spec get(erlang_ls_uri:uri(), erlang_ls_poi:poi()) -> [ref()].
+-spec get(uri(), erlang_ls_poi:poi()) -> [ref()].
 get(Uri, #{kind := Kind, data := MFA})
   when Kind =:= application; Kind =:= implicit_fun; Kind =:= function ->
   Key = key(Uri, MFA),
@@ -47,7 +52,7 @@ get(_, _) ->
 %% Internal functions
 %%==============================================================================
 
--spec register_usage(erlang_ls_uri:uri(), erlang_ls_poi:poi()) -> ok.
+-spec register_usage(uri(), erlang_ls_poi:poi()) -> ok.
 register_usage(Uri, #{data := MFA, range := Range}) ->
   Key = key(Uri, MFA),
   Ref = #{uri => Uri, range => Range},
@@ -66,7 +71,7 @@ add(Key, Value) ->
   Refs = ordsets:add_element(Value, get(Key)),
   ok = erlang_ls_db:store(references_index, Key, Refs).
 
--spec key(erlang_ls_uri:uri(), {module(), atom(), arity()} | {atom(), arity()}) ->
+-spec key(uri(), {module(), atom(), arity()} | {atom(), arity()}) ->
   key().
 key(_Uri, {M, F, _A}) ->
   {M, F};

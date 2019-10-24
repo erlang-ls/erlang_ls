@@ -157,12 +157,12 @@
 %%------------------------------------------------------------------------------
 %% Text Document Identifier
 %%------------------------------------------------------------------------------
--type text_document_id() :: #{ uri := erlang_ls_uri:uri() }.
+-type text_document_id() :: #{ uri := uri() }.
 
 %%------------------------------------------------------------------------------
 %% Text Document Item
 %%------------------------------------------------------------------------------
--type text_document_item() :: #{ uri        := erlang_ls_uri:uri()
+-type text_document_item() :: #{ uri        := uri()
                                , languageId := binary()
                                , version    := number()
                                , text       := binary()
@@ -227,7 +227,7 @@
 %%------------------------------------------------------------------------------
 %% Initialize Request
 %%------------------------------------------------------------------------------
--type workspace_folder() :: #{ uri  => erlang_ls_uri:uri()
+-type workspace_folder() :: #{ uri  => uri()
                              , name => binary()
                              }.
 
@@ -239,7 +239,7 @@
 
 -type initialize_params() :: #{ processId             := number() | null
                               , rootPath              => binary() | null
-                              , rootUri               := erlang_ls_uri:uri() | null
+                              , rootUri               := uri() | null
                               , initializationOptions => any()
                               , capabilities          := client_capabilities()
                               , trace                 => off
@@ -466,3 +466,4 @@
 %% Internals
 %%------------------------------------------------------------------------------
 -type pos() :: {integer(), integer()}.
+-type uri() :: binary().
