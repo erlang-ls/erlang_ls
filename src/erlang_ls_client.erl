@@ -17,6 +17,7 @@
         , did_open/4
         , did_save/1
         , did_close/1
+        , document_symbol/1
         , initialize/2
         , references/3
         , start_link/2
@@ -97,6 +98,11 @@ did_save(Uri) ->
 did_close(Uri) ->
   gen_server:call(?SERVER, {did_close, Uri}).
 
+-spec document_symbol(erlang_ls_uri:uri()) ->
+  ok.
+document_symbol(Uri) ->
+  gen_server:call(?SERVER, {document_symbol, Uri}).
+
 -spec initialize(erlang_ls_uri:uri(), init_options()) -> ok.
 initialize(RootUri, InitOptions) ->
   gen_server:call(?SERVER, {initialize, RootUri, InitOptions}).
@@ -150,6 +156,18 @@ handle_call({definition, Uri, Line, Char}, From, State) ->
   Params = #{ position     => Position
             , textDocument => TextDocument
             },
+  Content = erlang_ls_protocol:request(RequestId, Method, Params),
+  gen_tcp:send(Socket, Content),
+  {noreply, State#state{ request_id = RequestId + 1
+                       , pending    = [{RequestId, From} | State#state.pending]
+                       }};
+handle_call({document_symbol, Uri}, From, State) ->
+  #state{ request_id = RequestId
+        , socket     = Socket
+        } = State,
+  Method = <<"textDocument/documentSymbol">>,
+  TextDocument = #{ uri  => Uri },
+  Params = #{ textDocument => TextDocument },
   Content = erlang_ls_protocol:request(RequestId, Method, Params),
   gen_tcp:send(Socket, Content),
   {noreply, State#state{ request_id = RequestId + 1
