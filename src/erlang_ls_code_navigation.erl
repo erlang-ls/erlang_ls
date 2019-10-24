@@ -24,9 +24,12 @@
 goto_definition( _Uri
                , #{ kind := Kind, data := {M, F, A} }
                ) when Kind =:= application;
-                      Kind =:= implicit_fun ->
-  {ok, Uri} = erlang_ls_db:find(completion_index, M),
-  find(Uri, function, {F, A});
+                      Kind =:= implicit_fun;
+                      Kind =:= import_entry ->
+  case find_module(M) of
+    {ok, Uri}      -> find(Uri, function, {F, A});
+    {error, Error} -> {error, Error}
+  end;
 goto_definition( Uri
                , #{ kind := Kind, data := {F, A}}
                ) when Kind =:= application;
@@ -34,11 +37,10 @@ goto_definition( Uri
                       Kind =:= exports_entry ->
   find(Uri, function, {F, A});
 goto_definition(_Uri, #{ kind := behaviour, data := Behaviour }) ->
-  {ok, Uri} = erlang_ls_db:find(completion_index, Behaviour),
-  find(Uri, module, Behaviour);
-goto_definition(_Uri, #{ kind := import_entry, data := {M, F, A}}) ->
-  {ok, Uri} = erlang_ls_db:find(completion_index, M),
-  find(Uri, function, {F, A});
+  case find_module(Behaviour) of
+    {ok, Uri}      -> find(Uri, module, Behaviour);
+    {error, Error} -> {error, Error}
+  end;
 goto_definition(Uri, #{ kind := macro, data := Define }) ->
   find(Uri, define, Define);
 goto_definition(Uri, #{ kind := record_access
@@ -69,7 +71,7 @@ goto_definition(_Filename, _) ->
   {error, not_found}.
 
 %% TODO: Move poi/kind to hrl
--spec find([uri()], erlang_ls_poi:kind(), any()) ->
+-spec find(uri() | [uri()], erlang_ls_poi:kind(), any()) ->
    {ok, uri(), erlang_ls_poi:poi()} | {error, not_found}.
 find([], _Kind, _Data) ->
   {error, not_found};
@@ -117,8 +119,22 @@ include_filename(include, String) ->
 include_filename(include_lib, String) ->
   lists:last(filename:split(string:trim(String, both, [$"]))).
 
+-spec module_filename(atom()) -> string().
+module_filename(M) ->
+  atom_to_list(M) ++ ".erl".
+
 -spec beginning() -> #{range => #{from => {1, 1}, to => {1, 1}}}.
 beginning() ->
   #{range => #{from => {1, 1}, to => {1, 1}}}.
+
+-spec find_module(atom()) -> {ok, uri()} | {error, any()}.
+find_module(M) ->
+  case erlang_ls_db:find(completion_index, M) of
+    {ok, Uri} ->
+      {ok, Uri};
+    not_found ->
+      FileName = module_filename(M),
+      erlang_ls_index:find_and_index_file(FileName)
+  end.
 
 %% TODO: Handle multiple header files with the same name?
