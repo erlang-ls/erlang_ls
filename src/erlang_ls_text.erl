@@ -26,8 +26,10 @@ line(Text, LineNum, ColumnNum) ->
   binary:part(Line, {0, ColumnNum}).
 
 %% Extract the last token from the given text.
--spec last_token(text()) -> token().
+-spec last_token(text()) -> token() | {error, empty}.
 last_token(Text) ->
   {ok, Tokens, _} = erl_scan:string(binary_to_list(Text)),
-  [Token | _]     = lists:reverse(Tokens),
-  Token.
+  case Tokens of
+    [] -> {error, empty};
+    _  -> lists:last(Tokens)
+  end.

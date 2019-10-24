@@ -177,6 +177,14 @@
 -define(TEXT_DOCUMENT_SYNC_KIND_INCREMENTAL, 2).
 
 %%------------------------------------------------------------------------------
+%% Text Document Sync Kind
+%%------------------------------------------------------------------------------
+
+-define(COMPLETION_TRIGGER_KIND_INVOKED,                    1).
+-define(COMPLETION_TRIGGER_KIND_CHARACTER,                  2).
+-define(COMPLETION_TRIGGER_KIND_FOR_INCOMPLETE_COMPLETIONS, 3).
+
+%%------------------------------------------------------------------------------
 %% Versioned Text Document Identifier
 %%------------------------------------------------------------------------------
 -type versioned_text_document_id() :: #{ version := number() | null
