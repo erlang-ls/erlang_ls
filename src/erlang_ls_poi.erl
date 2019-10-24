@@ -23,8 +23,7 @@
                 | record_expr
                 | type_application
                 | type_definition.
--type poi()    :: #{ type  => poi
-                   , kind  => kind()
+-type poi()    :: #{ kind  => kind()
                    , data  => any()
                    , range := range()
                    }.
@@ -52,8 +51,7 @@
 poi(Tree, Kind, Data, Extra) ->
   Pos = erl_syntax:get_pos(Tree),
   Range = get_range(Pos, Kind, Data, Extra),
-  #{ type  => 'poi'
-   , kind  => Kind
+  #{ kind  => Kind
    , data  => Data
    , range => Range
    }.
@@ -62,8 +60,7 @@ poi(Tree, Kind, Data, Extra) ->
 -spec list(erlang_ls_tree:tree()) -> [poi()].
 list(Tree) ->
   F = fun(T, Acc) ->
-          Annotations = erl_syntax:get_ann(T),
-          case [POI || #{ type := poi } = POI <- Annotations] of
+          case erl_syntax:get_ann(T) of
             [] -> Acc;
             L -> L ++ Acc
           end
