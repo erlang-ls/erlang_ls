@@ -17,6 +17,7 @@
         , textdocument_hover/1
         , textdocument_definition/1
         , textdocument_references/1
+        , workspace_symbol/1
         ]).
 
 %%==============================================================================
@@ -51,6 +52,8 @@ initialize(Params) ->
           , referencesProvider => erlang_ls_references_provider:is_enabled()
           , documentSymbolProvider =>
               erlang_ls_document_symbol_provider:is_enabled()
+          , workspaceSymbolProvider =>
+              erlang_ls_workspace_symbol_provider:is_enabled()
           }
      },
   {response, Result}.
@@ -177,4 +180,14 @@ textdocument_definition(Params) ->
 textdocument_references(Params) ->
   Provider = erlang_ls_references_provider,
   Response = erlang_ls_provider:handle_request(Provider, {references, Params}),
+  {response, Response}.
+
+%%==============================================================================
+%% workspace/symbol
+%%==============================================================================
+
+-spec workspace_symbol(map()) -> {response, map() | null}.
+workspace_symbol(Params) ->
+  Provider = erlang_ls_workspace_symbol_provider,
+  Response = erlang_ls_provider:handle_request(Provider, {symbol, Params}),
   {response, Response}.

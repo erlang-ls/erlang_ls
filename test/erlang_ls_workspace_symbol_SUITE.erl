@@ -1,4 +1,4 @@
--module(erlang_ls_document_symbol_SUITE).
+-module(erlang_ls_workspace_symbol_SUITE).
 
 %% CT Callbacks
 -export([ suite/0
@@ -10,7 +10,9 @@
         ]).
 
 %% Test cases
--export([ functions/1
+-export([ query_modules/1
+        , query_module/1
+        , query_invalid/1
         ]).
 
 
@@ -59,39 +61,54 @@ all() ->
 %%==============================================================================
 %% Testcases
 %%==============================================================================
--spec functions(config()) -> ok.
-functions(Config) ->
-  Uri = ?config(code_navigation_uri, Config),
-  #{result := Symbols} = erlang_ls_client:document_symbol(Uri),
-  Expected = [ #{ kind => ?SYMBOLKIND_FUNCTION,
-                  location =>
+-spec query_modules(config()) -> ok.
+query_modules(Config) ->
+  #{result := Result} = erlang_ls_client:workspace_symbol(<<"m">>),
+  Expected = [ #{ kind => Kind
+                , location =>
                     #{ range =>
-                         #{ 'end' => #{character => ToC, line => ToL},
-                            start => #{character => FromC, line => FromL}
-                          },
-                       uri => Uri
-                     },
-                  name => Name
-                } || {Name, {FromL, FromC}, {ToL, ToC}}
-                       <- lists:append([functions()])],
-  ?assertEqual(length(Expected), length(Symbols)),
-  Pairs = lists:zip(lists:sort(Expected), lists:sort(Symbols)),
+                         #{ 'end' => #{character => ToC, line => ToL}
+                          , start => #{character => FromC, line => FromL}
+                          }
+                     , uri  => Uri
+                     }
+                , name => Name
+                } || {Kind, Uri, Name, {FromL, FromC}, {ToL, ToC}}
+                       <- lists:append([all_modules(Config)])],
+  ?assertEqual(length(Expected), length(Result)),
+  Pairs = lists:zip(lists:sort(Expected), lists:sort(Result)),
   [?assertEqual(E, S) || {E, S} <- Pairs],
+  ok.
+
+-spec query_module(config()) -> ok.
+query_module(Config) ->
+  Module = <<"m-code_navigation">>,
+  Uri = ?config(code_navigation_uri, Config),
+  #{result := Result} = erlang_ls_client:workspace_symbol(Module),
+  Expected = [#{ kind => ?SYMBOLKIND_MODULE
+               , location =>
+                   #{ range =>
+                        #{ 'end' => #{character => 0, line => 0}
+                         , start => #{character => 0, line => 0}
+                         }
+                    , uri  => Uri
+                    }
+               , name => <<"code_navigation">>
+               }],
+  ?assertEqual(Expected, Result),
+  ok.
+
+-spec query_invalid(config()) -> ok.
+query_invalid(_Config) ->
+  #{result := Result} = erlang_ls_client:workspace_symbol(<<"invalid">>),
+  ?assertEqual(null, Result),
   ok.
 
 %%==============================================================================
 %% Internal Functions
 %%==============================================================================
-functions() ->
-  [ {<<"callback_a/0">>, {27, 0}, {27, 10}}
-  , {<<"function_a/0">>, {20, 0}, {20, 10}}
-  , {<<"function_b/0">>, {24, 0}, {24, 10}}
-  , {<<"function_c/0">>, {30, 0}, {30, 10}}
-  , {<<"function_d/0">>, {38, 0}, {38, 10}}
-  , {<<"function_e/0">>, {41, 0}, {41, 10}}
-  , {<<"function_f/0">>, {46, 0}, {46, 10}}
-  , {<<"function_g/1">>, {49, 0}, {49, 10}}
-  , {<<"function_h/0">>, {55, 0}, {55, 10}}
-  , {<<"function_i/0">>, {59, 0}, {59, 10}}
-  , {<<"function_i/0">>, {61, 0}, {61, 10}}
+all_modules(Config) ->
+  [ {?SYMBOLKIND_MODULE, ?config(behaviour_uri, Config),             <<"behaviour_a">>,           {0, 0}, {0, 0}}
+  , {?SYMBOLKIND_MODULE, ?config(code_navigation_extra_uri, Config), <<"code_navigation_extra">>, {0, 0}, {0, 0}}
+  , {?SYMBOLKIND_MODULE, ?config(code_navigation_uri, Config),       <<"code_navigation">>,       {0, 0}, {0, 0}}
   ].

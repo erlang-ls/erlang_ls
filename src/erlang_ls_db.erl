@@ -2,6 +2,7 @@
 
 %% API
 -export([ find/2
+        , list/1
         , store/3
         , delete/2
         , start_link/0
@@ -38,6 +39,10 @@ find(Table, Key) ->
     [] -> not_found;
     [{Key, Value}] -> {ok, Value}
   end.
+
+-spec list(table()) -> [any()].
+list(Table) ->
+  ets:tab2list(Table).
 
 -spec store(table(), key(), any()) -> ok.
 store(Table, Key, Value) ->

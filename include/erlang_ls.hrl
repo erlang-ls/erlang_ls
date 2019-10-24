@@ -462,6 +462,13 @@
                      | ?SYMBOLKIND_OPERATOR
                      | ?SYMBOLKIND_TYPE_PARAMETER.
 
+-type symbol_information() :: #{ name          := string()
+                               , kind          := symbol_kind()
+                               , deprecated    => boolean()
+                               , location      := location()
+                               , containerName => string()
+                               }.
+
 %%------------------------------------------------------------------------------
 %% Internals
 %%------------------------------------------------------------------------------
