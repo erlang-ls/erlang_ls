@@ -10,6 +10,7 @@
 -export([ notification/2
         , request/3
         , response/2
+        , error/2
         ]).
 
 %% Data Structures
@@ -45,6 +46,15 @@ response(RequestId, Result) ->
   Message = #{ jsonrpc => ?JSONRPC_VSN
              , id      => RequestId
              , result  => Result
+             },
+  lager:debug("[Response] [message=~p]", [Message]),
+  content(jsx:encode(Message)).
+
+-spec error(number(), any()) -> any().
+error(RequestId, Error) ->
+  Message = #{ jsonrpc => ?JSONRPC_VSN
+             , id      => RequestId
+             , error   => Error
              },
   lager:debug("[Response] [message=~p]", [Message]),
   content(jsx:encode(Message)).

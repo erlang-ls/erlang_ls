@@ -3,7 +3,6 @@
 %%==============================================================================
 -module(prop_statem).
 
-
 %%==============================================================================
 %% Behaviours
 %%==============================================================================
@@ -34,7 +33,8 @@
 %%==============================================================================
 initial_state() ->
   #{ connected => false
-   , documents   => []
+   , shutdown  => false
+   , documents => []
    }.
 
 %%==============================================================================
@@ -77,6 +77,9 @@ initialize_pre(#{connected := Connected} = _S) ->
 initialize_next(S, _R, _Args) ->
   S.
 
+initialize_post(#{shutdown := true}, _Args, Res) ->
+  assert_shutdown_error(Res),
+  true;
 initialize_post(_S, _Args, Res) ->
   Expected = #{ capabilities =>
                   #{ hoverProvider => false
@@ -156,6 +159,28 @@ did_close_post(_S, _Args, Res) ->
   true.
 
 %%------------------------------------------------------------------------------
+%% Shutdown
+%%------------------------------------------------------------------------------
+shutdown() ->
+  erlang_ls_client:shutdown().
+
+shutdown_args(_S) ->
+  [].
+
+shutdown_pre(#{connected := Connected} = _S) ->
+  Connected.
+
+shutdown_next(S, _R, _Args) ->
+  S#{shutdown => true}.
+
+shutdown_post(#{shutdown := true}, _Args, Res) ->
+  assert_shutdown_error(Res),
+  true;
+shutdown_post(_S, _Args, Res) ->
+  ?assertMatch(#{result := null}, Res),
+  true.
+
+%%------------------------------------------------------------------------------
 %% Disconnect
 %%------------------------------------------------------------------------------
 disconnect() ->
@@ -168,7 +193,7 @@ disconnect_pre(#{connected := Connected} = _S) ->
   Connected.
 
 disconnect_next(S, _R, _Args) ->
-  S#{connected => false}.
+  S#{connected => false, shutdown => false}.
 
 disconnect_post(_S, _Args, Res) ->
   ?assertEqual(ok, Res),
@@ -211,3 +236,10 @@ teardown(_) ->
 cleanup() ->
   catch disconnect(),
   ok.
+
+%%==============================================================================
+%% Helper functions
+%%==============================================================================
+
+assert_shutdown_error(Res) ->
+  ?assertMatch(#{error := #{code := _, message := _}}, Res).

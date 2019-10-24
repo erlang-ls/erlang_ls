@@ -34,7 +34,7 @@
 %%==============================================================================
 %% Record Definitions
 %%==============================================================================
--record(state, { socket :: pid()
+-record(state, { socket :: port()
                , buffer :: binary()
                , state  :: map()
                }).
@@ -110,14 +110,22 @@ connected(cast, {notification, M, P}, State) ->
 handle_request(Request, #state{ socket = Socket
                               , state  = InternalState
                               } = State0) ->
-  Method    = maps:get(<<"method">>, Request),
-  Params    = maps:get(<<"params">>, Request),
-  case handle_method(Method, Params, InternalState) of
+  Method = maps:get(<<"method">>, Request),
+  Params = maps:get(<<"params">>, Request),
+  case erlang_ls_methods:dispatch(Method, Params, InternalState) of
     {response, Result, NewInternalState} ->
       RequestId = maps:get(<<"id">>, Request),
       Response = erlang_ls_protocol:response(RequestId, Result),
       lager:debug("[SERVER] Sending response [response=~p]", [Response]),
       gen_tcp:send(Socket, Response),
+      State0#state{state = NewInternalState};
+    {error, Error, NewInternalState} ->
+      RequestId = maps:get(<<"id">>, Request, null),
+      ErrorResponse = erlang_ls_protocol:error(RequestId, Error),
+      lager:debug( "[SERVER] Sending error response [response=~p]"
+                 , [ErrorResponse]
+                 ),
+      gen_tcp:send(Socket, ErrorResponse),
       State0#state{state = NewInternalState};
     {noresponse, NewInternalState} ->
       lager:debug("[SERVER] No response", []),
@@ -127,35 +135,8 @@ handle_request(Request, #state{ socket = Socket
       State0#state{state = NewInternalState}
   end.
 
-%% @doc Dispatch the handling of the method to erlang_ls_protocol_impl
--spec handle_method(binary(), map(), map()) ->
-  {response, map() | null} | {} | {notification, binary(), map()}.
-handle_method(Method, Params, InternalState) ->
-  Function = method_to_function_name(Method),
-  try erlang_ls_protocol_impl:Function(Params, InternalState)
-  catch error:undef -> not_implemented_method(Method)
-  end.
-
--spec not_implemented_method(binary()) ->
-  {response, map()} | {} | {notification, binary(), map()}.
-not_implemented_method(Method) ->
-  lager:warning("[Method not implemented] [method=~s]", [Method]),
-  Message = <<"Method not implemented: ", Method/binary>>,
-  Method1 = <<"window/showMessage">>,
-  Params  = #{ type    => ?MESSAGE_TYPE_INFO
-             , message => Message
-             },
-  {notification, Method1, Params}.
-
 -spec send_notification(any(), binary(), map()) -> ok.
 send_notification(Socket, Method, Params) ->
   Notification = erlang_ls_protocol:notification(Method, Params),
   lager:debug("[SERVER] Sending notification [notification=~p]", [Notification]),
   gen_tcp:send(Socket, Notification).
-
--spec method_to_function_name(binary()) -> atom().
-method_to_function_name(Method) ->
-  Replaced = string:replace(Method, <<"/">>, <<"_">>),
-  Lower    = string:lowercase(Replaced),
-  Binary   = erlang:iolist_to_binary(Lower),
-  binary_to_atom(Binary, utf8).

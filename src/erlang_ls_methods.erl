@@ -1,6 +1,9 @@
--module(erlang_ls_protocol_impl).
+-module(erlang_ls_methods).
 
 -include("erlang_ls.hrl").
+
+-export([ dispatch/3
+        ]).
 
 -export([ initialize/2
         , initialized/2
@@ -20,11 +23,52 @@
         , workspace_symbol/2
         ]).
 
--type state()   :: map().
--type params()  :: map().
--type result()  :: {response, params() | null, state()}
-                 | {noresponse, state()}
-                 | {notification, binary(), params(), state()}.
+-type method_name() :: binary().
+-type state()       :: map().
+-type params()      :: map().
+-type result()      :: {response, params() | null, state()}
+                     | {error, params(), state()}
+                     | {noresponse, state()}
+                     | {notification, binary(), params(), state()}.
+
+%%==============================================================================
+%% @doc Dispatch the handling of the method to erlang_ls_method
+%%==============================================================================
+-spec dispatch(method_name(), params(), state()) -> result().
+dispatch(Method, Params, State) ->
+  Function = method_to_function_name(Method),
+  try do_dispatch(Function, Params, State)
+  catch error:undef -> not_implemented_method(Method, State)
+  end.
+
+-spec do_dispatch(atom(), params(), state()) -> result().
+do_dispatch(exit, Params, State) ->
+  erlang_ls_methods:exit(Params, State);
+do_dispatch(_Function, _Params, #{status := shutdown} = State) ->
+  Message = <<"Server is shutting down">>,
+  Result  = #{ code    => ?ERR_INVALID_REQUEST
+             , message => Message
+             },
+  {error, Result, State};
+do_dispatch(Function, Params, State) ->
+  erlang_ls_methods:Function(Params, State).
+
+-spec not_implemented_method(method_name(), state()) -> result().
+not_implemented_method(Method, State) ->
+  lager:warning("[Method not implemented] [method=~s]", [Method]),
+  Message = <<"Method not implemented: ", Method/binary>>,
+  Method1 = <<"window/showMessage">>,
+  Params  = #{ type    => ?MESSAGE_TYPE_INFO
+             , message => Message
+             },
+  {notification, Method1, Params, State}.
+
+-spec method_to_function_name(method_name()) -> atom().
+method_to_function_name(Method) ->
+  Replaced = string:replace(Method, <<"/">>, <<"_">>),
+  Lower    = string:lowercase(Replaced),
+  Binary   = erlang:iolist_to_binary(Lower),
+  binary_to_atom(Binary, utf8).
 
 %%==============================================================================
 %% Initialize
