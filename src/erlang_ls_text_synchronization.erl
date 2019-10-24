@@ -34,6 +34,7 @@ did_close(Params) ->
     not_found ->
       lager:debug("[SERVER] Attempting to close un-opened text document, ignoring [uri=~p]", [Uri]);
     {ok, _} ->
+      %% TODO: Do not delete once DB is persistent
       ok = erlang_ls_db:delete(documents, Uri)
   end,
   ok.

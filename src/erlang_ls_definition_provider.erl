@@ -33,16 +33,13 @@ handle_request({definition, Params}, State) ->
     erlang_ls_document:get_element_at_pos(Document, Line + 1, Character + 1)
   of
     [POI|_] ->
-      Filename = erlang_ls_uri:path(Uri),
-      case erlang_ls_code_navigation:goto_definition(Filename, POI) of
-        {error, _Error} ->
-          {null, State};
-        {ok, FullName, Range} ->
-          { #{ uri => erlang_ls_uri:uri(FullName)
-             , range => erlang_ls_protocol:range(Range)
-             }
+      case erlang_ls_code_navigation:goto_definition(Uri, POI) of
+        {ok, DefUri, #{range := Range}} ->
+          { #{ uri => DefUri, range => erlang_ls_protocol:range(Range) }
           , State
-          }
+          };
+        _ ->
+          {null, State}
       end;
     [] ->
       {null, State}

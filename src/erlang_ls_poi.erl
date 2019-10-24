@@ -36,8 +36,6 @@
 -export([ poi/4 ]).
 
 -export([ list/1
-        , match/2
-        , match_kind/2
         , match_pos/2
         , first/1
         ]).
@@ -56,6 +54,7 @@ poi(Tree, Kind, Data, Extra) ->
    , range => Range
    }.
 
+%% TODO: Really needed?
 %% @edoc List the Points of Interest for a given tree.
 -spec list(erlang_ls_tree:tree()) -> [poi()].
 list(Tree) ->
@@ -66,16 +65,6 @@ list(Tree) ->
           end
       end,
   erl_syntax_lib:fold(F, [], Tree).
-
--spec match(erlang_ls_tree:tree(), {kind(), any()}) -> [poi()].
-match(Tree, {Kind0, Data0}) ->
-  [POI || #{kind := Kind, data := Data} = POI <- list(Tree)
-            , Kind0 =:= Kind
-            , Data0 =:= Data].
-
--spec match_kind(erlang_ls_tree:tree(), atom()) -> [poi()].
-match_kind(Tree, Kind0) ->
-  [POI || #{kind := Kind} = POI <- list(Tree), Kind0 =:= Kind].
 
 -spec match_pos(erlang_ls_tree:tree(), pos()) -> [poi()].
 match_pos(Tree, Pos) ->
