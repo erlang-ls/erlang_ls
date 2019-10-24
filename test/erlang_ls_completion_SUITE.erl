@@ -13,6 +13,7 @@
 
 %% Test cases
 -export([ exported_functions/1
+        , handle_empty_lines/1
         ]).
 
 %%==============================================================================
@@ -60,9 +61,8 @@ all() ->
 %%==============================================================================
 -spec exported_functions(config()) -> ok.
 exported_functions(Config) ->
+  TriggerKind = ?COMPLETION_TRIGGER_KIND_CHARACTER,
   Uri = ?config(code_navigation_uri, Config),
-  #{result := Completion} =
-    erlang_ls_client:completion(Uri, 32, 25, 2, <<":">>),
   ExpectedCompletion = [ #{ label            => <<"do_2/0">>
                           , insertText       => <<"do_2()">>
                           , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
@@ -72,10 +72,28 @@ exported_functions(Config) ->
                           , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
                           }
                        ],
-  ?assertEqual(Completion, ExpectedCompletion),
 
-  #{result := Completion} =
-    erlang_ls_client:completion(Uri, 52, 34, 2, <<":">>),
-  ?assertEqual(Completion, ExpectedCompletion),
+  #{result := Completion1} =
+    erlang_ls_client:completion(Uri, 32, 25, TriggerKind, <<":">>),
+  ?assertEqual(Completion1, ExpectedCompletion),
+
+  #{result := Completion2} =
+    erlang_ls_client:completion(Uri, 52, 34, TriggerKind, <<":">>),
+  ?assertEqual(Completion2, ExpectedCompletion),
+
+  ok.
+
+-spec handle_empty_lines(config()) -> ok.
+handle_empty_lines(Config) ->
+  Uri = ?config(code_navigation_uri, Config),
+  TriggerKind = ?COMPLETION_TRIGGER_KIND_CHARACTER,
+
+  #{ result := Completion1
+   } = erlang_ls_client:completion(Uri, 32, 1, TriggerKind, <<"">>),
+  ?assertEqual(null, Completion1),
+
+  #{ result := Completion2
+   } = erlang_ls_client:completion(Uri, 32, 2, TriggerKind, <<":">>),
+  ?assertEqual(null, Completion2),
 
   ok.

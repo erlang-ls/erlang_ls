@@ -10,10 +10,6 @@
         , teardown/0
         ]).
 
--define(TRIGGER_INVOKED,                    1).
--define(TRIGGER_CHARACTER,                  2).
--define(TRIGGER_FOR_INCOMPLETE_COMPLETIONS, 3).
-
 %%==============================================================================
 %% erlang_ls_provider functions
 %%==============================================================================
@@ -44,10 +40,14 @@ handle_request({completion, Params}, State) ->
   case maps:find(<<"context">>, Params) of
     {ok, Context} ->
       TriggerKind = maps:get(<<"triggerKind">>, Context),
-      TriggerCharacter = maps:get(<<"triggerCharacter">>, Context, undefined),
+      TriggerCharacter = maps:get(<<"triggerCharacter">>, Context, <<>>),
       %% We subtract 1 to strip the character that triggered the
       %% completion from the string.
-      Prefix = erlang_ls_text:line(Text, Line, Character - 1),
+      Length = case Character > 0 of
+                 true  -> 1;
+                 false -> 0
+               end,
+      Prefix = erlang_ls_text:line(Text, Line, Character - Length),
       {find_completion(Prefix, TriggerKind, TriggerCharacter), State};
     error ->
       {null, State}
@@ -59,7 +59,7 @@ handle_request({completion, Params}, State) ->
 
 -spec find_completion(binary(), binary(), binary()) ->
    any().
-find_completion(Prefix, ?TRIGGER_CHARACTER, <<":">>) ->
+find_completion(Prefix, ?COMPLETION_TRIGGER_KIND_CHARACTER, <<":">>) ->
   Token = erlang_ls_text:last_token(Prefix),
   try erl_syntax:type(Token) of
     atom ->
