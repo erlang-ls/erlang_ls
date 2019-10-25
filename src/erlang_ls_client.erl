@@ -18,6 +18,7 @@
         , did_save/1
         , did_close/1
         , document_symbol/1
+        , exit/0
         , initialize/2
         , references/3
         , shutdown/0
@@ -112,6 +113,10 @@ initialize(RootUri, InitOptions) ->
 -spec shutdown() -> map().
 shutdown() ->
   gen_server:call(?SERVER, {shutdown}).
+
+-spec exit() -> ok.
+exit() ->
+  gen_server:call(?SERVER, {exit}).
 
 -spec start_link(hostname(), port_no()) -> {ok, pid()}.
 start_link(Host, Port) ->
@@ -264,7 +269,16 @@ handle_call({shutdown}, From, State) ->
   gen_tcp:send(Socket, Content),
   {noreply, State#state{ request_id = RequestId + 1
                        , pending    = [{RequestId, From} | State#state.pending]
-                       }}.
+                       }};
+handle_call({exit}, _From, State) ->
+  #state{ request_id = RequestId
+        , socket     = Socket
+        } = State,
+  Method = <<"exit">>,
+  Params = #{},
+  Content = erlang_ls_protocol:request(RequestId, Method, Params),
+  gen_tcp:send(Socket, Content),
+  {reply, ok, State}.
 
 -spec handle_cast(any(), state()) -> {noreply, state()}.
 handle_cast(_Msg, State) ->

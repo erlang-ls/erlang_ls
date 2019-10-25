@@ -133,7 +133,7 @@ exit(_Params, State) ->
                shutdown -> 0;
                _        -> 1
              end,
-  erlang:halt(ExitCode).
+  erlang_ls_utils:halt(ExitCode).
 
 %%==============================================================================
 %% textdocument_didopen
