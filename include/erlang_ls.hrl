@@ -470,6 +470,21 @@
                                }.
 
 %%------------------------------------------------------------------------------
+%% Signatures
+%%------------------------------------------------------------------------------
+-type parameter_information() :: #{ label         := binary()
+                                  , documentation => binary()
+                                  }.
+-type signature_information() :: #{ label         := binary()
+                                  , documentation => binary()
+                                  , parameters    => [parameter_information()]
+                                  }.
+-type signature_help()        :: #{ signatures := [signature_information()]
+                                  , active_signature => number()
+                                  , active_parameters => number()
+                                  }.
+
+%%------------------------------------------------------------------------------
 %% Internals
 %%------------------------------------------------------------------------------
 -type pos()       :: {integer(), integer()}.
@@ -488,6 +503,7 @@
                    | record
                    | record_access
                    | record_expr
+                   | spec
                    | type_application
                    | type_definition.
 -type poi_range() :: #{ from := pos(), to := pos() }.

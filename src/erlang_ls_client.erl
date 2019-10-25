@@ -19,6 +19,7 @@
         , did_close/1
         , document_symbol/1
         , exit/0
+        , hover/3
         , initialize/2
         , references/3
         , shutdown/0
@@ -83,6 +84,11 @@ completion(Uri, Line, Char, TriggerKind, TriggerCharacter) ->
   ok.
 definition(Uri, Line, Char) ->
   gen_server:call(?SERVER, {definition, Uri, Line, Char}).
+
+-spec hover(uri(), non_neg_integer(), non_neg_integer()) ->
+  ok.
+hover(Uri, Line, Char) ->
+  gen_server:call(?SERVER, {hover, Uri, Line, Char}).
 
 -spec references(uri(), non_neg_integer(), non_neg_integer()) ->
   ok.
@@ -229,6 +235,23 @@ handle_call({did_close, Uri}, _From, State) ->
   Content = erlang_ls_protocol:notification(Method, Params),
   ok = gen_tcp:send(State#state.socket, Content),
   {reply, ok, State};
+handle_call({hover, Uri, Line, Char}, From, State) ->
+  #state{ request_id = RequestId
+        , socket     = Socket
+        } = State,
+  Method = <<"textDocument/hover">>,
+  TextDocument = #{ uri  => Uri },
+  Position = #{ line      => Line - 1
+              , character => Char - 1
+              },
+  Params = #{ position     => Position
+            , textDocument => TextDocument
+            },
+  Content = erlang_ls_protocol:request(RequestId, Method, Params),
+  gen_tcp:send(Socket, Content),
+  {noreply, State#state{ request_id = RequestId + 1
+                       , pending    = [{RequestId, From} | State#state.pending]
+                       }};
 handle_call({initialize, RootUri, InitOptions}, From, State) ->
   #state{ request_id = RequestId
         , socket     = Socket

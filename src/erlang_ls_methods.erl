@@ -87,7 +87,7 @@ initialize(Params, State) ->
   ok     = erlang_ls_provider:initialize(Config),
   Result =
     #{ capabilities =>
-         #{ hoverProvider => false
+         #{ hoverProvider => erlang_ls_hover_provider:is_enabled()
           , completionProvider =>
               #{ resolveProvider => false
                , triggerCharacters => [<<":">>, <<"#">>]
@@ -136,7 +136,7 @@ exit(_Params, State) ->
   erlang_ls_utils:halt(ExitCode).
 
 %%==============================================================================
-%% textdocument_didopen
+%% textDocument/didopen
 %%==============================================================================
 
 -spec textdocument_didopen(params(), state()) -> result().
@@ -145,7 +145,7 @@ textdocument_didopen(Params, State) ->
   {noresponse, State}.
 
 %%==============================================================================
-%% textdocument_didchange
+%% textDocument/didchange
 %%==============================================================================
 
 -spec textdocument_didchange(params(), state()) -> result().
@@ -162,7 +162,7 @@ textdocument_didchange(Params, State) ->
   {noresponse, State}.
 
 %%==============================================================================
-%% textdocument_didsave
+%% textDocument/didsave
 %%==============================================================================
 
 -spec textdocument_didsave(params(), state()) -> result().
@@ -171,7 +171,7 @@ textdocument_didsave(Params, State) ->
   {noresponse, State}.
 
 %%==============================================================================
-%% textdocument_didclose
+%% textDocument/didclose
 %%==============================================================================
 
 -spec textdocument_didclose(params(), state()) -> result().
@@ -191,15 +191,17 @@ textdocument_documentsymbol(Params, State) ->
   {response, Response, State}.
 
 %%==============================================================================
-%% textdocument_hover
+%% textDocument/hover
 %%==============================================================================
 
 -spec textdocument_hover(params(), state()) -> result().
-textdocument_hover(_Params, State) ->
-  {response, null, State}.
+textdocument_hover(Params, State) ->
+  Provider = erlang_ls_hover_provider,
+  Response = erlang_ls_provider:handle_request(Provider, {hover, Params}),
+  {response, Response, State}.
 
 %%==============================================================================
-%% textdocument_completion
+%% textDocument/completion
 %%==============================================================================
 
 -spec textdocument_completion(params(), state()) -> result().
@@ -209,7 +211,7 @@ textdocument_completion(Params, State) ->
   {response, Response, State}.
 
 %%==============================================================================
-%% textdocument_definition
+%% textDocument/definition
 %%==============================================================================
 
 -spec textdocument_definition(params(), state()) -> result().
@@ -219,7 +221,7 @@ textdocument_definition(Params, State) ->
   {response, Response, State}.
 
 %%==============================================================================
-%% textdocument_references
+%% textDocument/references
 %%==============================================================================
 
 -spec textdocument_references(params(), state()) -> result().

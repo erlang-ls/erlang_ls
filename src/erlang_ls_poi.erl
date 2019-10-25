@@ -122,6 +122,10 @@ get_range({Line, _Column}, record, _Record, _Extra) ->
   From = {Line, 1},
   To = From,
   #{ from => From, to => To };
+get_range({Line, Column}, spec, _, _Extra) ->
+  #{ from => {Line, Column}
+   , to => {Line, Column}
+   };
 %% TODO: Do we really need the StartLocation there?
 get_range({_Line, _Column}, type_application, {Type, StartLocation}, _Extra) ->
   {FromLine, FromColumn} = From = StartLocation,
