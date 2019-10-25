@@ -77,11 +77,11 @@ method_to_function_name(Method) ->
 -spec initialize(params(), state()) -> result().
 initialize(Params, State) ->
   #{ <<"rootUri">> := RootUri
-   , <<"initializationOptions">> := InitOptions
      %% TODO: Store client capabilities, use them in completion_provider
      %%       to verify when Context is present
    , <<"capabilities">> := _ClientCapabilities
    } = Params,
+  InitOptions = maps:get(<<"initializationOptions">>, Params, #{}),
   Config = erlang_ls_config:initialize(RootUri, InitOptions),
   ok     = erlang_ls_index:initialize(Config),
   ok     = erlang_ls_provider:initialize(Config),
