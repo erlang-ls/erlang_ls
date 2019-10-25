@@ -3,36 +3,6 @@
 %%==============================================================================
 -module(erlang_ls_poi).
 
--type line()   :: non_neg_integer().
--type column() :: non_neg_integer().
--type pos()    :: {line(), column()}.
--type range()  :: #{ from := pos(), to := pos() }.
--type kind()   :: application
-                | behaviour
-                | define
-                | exports_entry
-                | function
-                | implicit_fun
-                | import_entry
-                | include
-                | include_lib
-                | macro
-                | module
-                | record
-                | record_access
-                | record_expr
-                | type_application
-                | type_definition.
--type poi()    :: #{ kind  => kind()
-                   , data  => any()
-                   , range := range()
-                   }.
-
--export_type([ kind/0
-             , poi/0
-             , range/0
-             ]).
-
 -export([ poi/4 ]).
 
 -export([ list/1
@@ -41,11 +11,16 @@
         ]).
 
 %%==============================================================================
+%% Includes
+%%==============================================================================
+-include("erlang_ls.hrl").
+
+%%==============================================================================
 %% API
 %%==============================================================================
 
 %% @edoc Constructor for a Point of Interest.
--spec poi(erlang_ls_tree:tree(), kind(), any(), erlang_ls_tree:extra()) -> poi().
+-spec poi(erlang_ls_tree:tree(), poi_kind(), any(), erlang_ls_tree:extra()) -> poi().
 poi(Tree, Kind, Data, Extra) ->
   Pos = erl_syntax:get_pos(Tree),
   Range = get_range(Pos, Kind, Data, Extra),
@@ -81,7 +56,7 @@ first(POIs) ->
 %% Internal Functions
 %%==============================================================================
 
--spec get_range(pos(), kind(), any(), erlang_ls_tree:extra()) -> range().
+-spec get_range(pos(), poi_kind(), any(), erlang_ls_tree:extra()) -> poi_range().
 get_range({Line, Column}, application, {M, F, _A}, _Extra) ->
   CFrom = Column - length(atom_to_list(M)),
   From = {Line, CFrom},
@@ -158,7 +133,7 @@ get_range({Line, Column}, type_definition, _Type, _Extra) ->
   To = From,
   #{ from => From, to => To }.
 
--spec matches_pos(pos(), range()) -> boolean().
+-spec matches_pos(pos(), poi_range()) -> boolean().
 matches_pos(Pos, #{from := From, to := To}) ->
   (From =< Pos) andalso (Pos =< To).
 
@@ -166,7 +141,7 @@ matches_pos(Pos, #{from := From, to := To}) ->
 compare_pos(#{range := #{from := From1}}, #{range := #{from := From2}}) ->
   (From1 =< From2).
 
--spec get_entry_range(atom(), atom(), non_neg_integer(), erlang_ls_tree:extra()) -> range().
+-spec get_entry_range(atom(), atom(), non_neg_integer(), erlang_ls_tree:extra()) -> poi_range().
 get_entry_range(Key, F, A, Extra) ->
   Locations = maps:get(Key, Extra, []),
   {FromLine, FromColumn} = proplists:get_value({F, A}, Locations),

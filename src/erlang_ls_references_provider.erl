@@ -49,14 +49,14 @@ handle_request({references, Params}, State) ->
 %% Internal functions
 %%==============================================================================
 
--spec find_references(binary(), erlang_ls_poi:poi()) -> any().
+-spec find_references(binary(), poi()) -> any().
 find_references(Uri, POI) ->
   case erlang_ls_references_index:get(Uri, POI) of
     []   -> null;
     Refs -> [location(U, R) || #{uri := U, range := R} <- Refs]
   end.
 
--spec location(uri(), erlang_ls_poi:range()) -> map().
+-spec location(uri(), poi_range()) -> map().
 location(Uri, Range) ->
   #{ uri   => Uri
    , range => erlang_ls_protocol:range(Range)
