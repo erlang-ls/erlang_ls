@@ -82,7 +82,7 @@ initialize_post(#{shutdown := true}, _Args, Res) ->
   true;
 initialize_post(_S, _Args, Res) ->
   Expected = #{ capabilities =>
-                  #{ hoverProvider => false
+                  #{ hoverProvider => true
                    , completionProvider =>
                        #{ resolveProvider => false
                         , triggerCharacters => [<<":">>, <<"#">>]

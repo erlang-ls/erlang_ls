@@ -19,6 +19,7 @@
 -define(TABLES, [ completion_index
                 , documents
                 , references_index
+                , specs_index
                 ]).
 
 -type state() :: #{}.

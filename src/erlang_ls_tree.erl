@@ -198,7 +198,9 @@ attribute(Tree, Extra) ->
     {spec, {spec, {{F, A}, _}}} ->
       SpecLocations = maps:get(spec_locations, Extra, []),
       Locations     = proplists:get_value({F, A}, SpecLocations),
-      [erlang_ls_poi:poi(Tree, type_application, {T, L}, Extra) || {T, L} <- Locations];
+      [ erlang_ls_poi:poi(Tree, spec, {{F, A}, Tree}, Extra)
+      | [erlang_ls_poi:poi(Tree, type_application, {T, L}, Extra) || {T, L} <- Locations]
+      ];
     {type, {type, Type}} ->
       %% TODO: Support type usages in type definitions
       TypeName = element(1, Type),

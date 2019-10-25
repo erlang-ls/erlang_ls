@@ -43,6 +43,14 @@ file (assuming the `erlang_ls` executable is available in your `PATH`:
     (package-install 'yasnippet)
     ;; Install the official lsp-mode package
     (package-install 'lsp-mode)
+    ;; It is usually a good idea to install lsp-ui as well
+    (package-install 'lsp-ui)
+    ;; The lsp-ui sideline can become a serious distraction, so you
+    ;; may want to disable it
+    (setq lsp-ui-sideline-enable nil)
+    ;; Ensure docs are visible
+    (setq lsp-ui-doc-enable t)
+
     ;; Enable LSP automatically for Erlang files
     (add-hook 'erlang-mode-hook #'lsp)
 

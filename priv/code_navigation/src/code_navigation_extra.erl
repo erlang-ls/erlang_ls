@@ -6,4 +6,4 @@ do(_Config) ->
   ok.
 
 do_2() ->
-  42.
+  code_navigation:function_h().

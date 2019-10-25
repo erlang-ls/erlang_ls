@@ -24,12 +24,14 @@
         ]).
 
 -type index() :: erlang_ls_completion_index
-               | erlang_ls_references_index.
+               | erlang_ls_references_index
+               | erlang_ls_specs_index.
 -type state() :: any().
 
 -define( INDEXES
        , [ erlang_ls_completion_index
          , erlang_ls_references_index
+         , erlang_ls_specs_index
          ]
        ).
 
