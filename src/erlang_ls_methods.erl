@@ -127,7 +127,7 @@ shutdown(_Params, State) ->
 %% exit
 %%==============================================================================
 
--spec exit(params(), state()) -> result().
+-spec exit(params(), state()) -> no_return().
 exit(_Params, State) ->
   ExitCode = case maps:get(status, State, undefined) of
                shutdown -> 0;
