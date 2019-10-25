@@ -73,7 +73,7 @@ modules() ->
 -spec symbol_information({atom(), uri()}) -> symbol_information().
 symbol_information({Module, Uri}) ->
   Range = #{from => {1, 1}, to => {1, 1}},
-  #{ name => atom_to_binary(Module, utf8)
+  #{ name => atom_to_list(Module)
    , kind => ?SYMBOLKIND_MODULE
    , location => #{ uri => Uri
                   , range => erlang_ls_protocol:range(Range)
