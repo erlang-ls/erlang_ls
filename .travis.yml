@@ -3,7 +3,8 @@ otp_release:
   - 22.0
   - 21.3
 script:
-  - travis_wait rebar3 do compile, ct, proper --cover, dialyzer, xref, cover, coveralls send
+  - travis_wait make
+  - make coveralls
 cache:
   directories:
      - "$HOME/.cache/rebar3"

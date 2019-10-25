@@ -111,4 +111,5 @@ all_modules(Config) ->
   [ {?SYMBOLKIND_MODULE, ?config(behaviour_uri, Config),             <<"behaviour_a">>,           {0, 0}, {0, 0}}
   , {?SYMBOLKIND_MODULE, ?config(code_navigation_extra_uri, Config), <<"code_navigation_extra">>, {0, 0}, {0, 0}}
   , {?SYMBOLKIND_MODULE, ?config(code_navigation_uri, Config),       <<"code_navigation">>,       {0, 0}, {0, 0}}
+  , {?SYMBOLKIND_MODULE, ?config(diagnostics_uri, Config),           <<"diagnostics">>,           {0, 0}, {0, 0}}
   ].
