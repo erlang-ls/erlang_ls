@@ -34,10 +34,10 @@
 start_link() ->
   gen_server:start_link({local, ?SERVER}, ?MODULE, {}, []).
 
--spec find(table(), key()) -> {ok, any()} | not_found.
+-spec find(table(), key()) -> {ok, any()} | {error, not_found}.
 find(Table, Key) ->
   case ets:lookup(Table, Key) of
-    [] -> not_found;
+    [] -> {error, not_found};
     [{Key, Value}] -> {ok, Value}
   end.
 

@@ -57,7 +57,7 @@ goto_definition(_Uri, #{ kind := Kind, data := Include }
   case erlang_ls_db:find(completion_index, M) of
     {ok, Uri} ->
       {ok, Uri, beginning()};
-    not_found ->
+    {error, not_found} ->
       case erlang_ls_index:find_and_index_file(FileName) of
         {ok, Uri} ->
           {ok, Uri, beginning()};
@@ -70,7 +70,6 @@ goto_definition(Uri, #{ kind := type_application, data := {Type, _} }) ->
 goto_definition(_Filename, _) ->
   {error, not_found}.
 
-%% TODO: Move poi/kind to hrl
 -spec find(uri() | [uri()], poi_kind(), any()) ->
    {ok, uri(), poi()} | {error, not_found}.
 find([], _Kind, _Data) ->
@@ -85,7 +84,7 @@ find([Uri|Uris0], Kind, Data) ->
         Definitions ->
           {ok, Uri, lists:last(Definitions)}
       end;
-    not_found ->
+    {error, not_found} ->
       find(Uris0, Kind, Data)
   end;
 find(Uri, Kind, Data) ->
@@ -104,7 +103,7 @@ add_include_uri(#{ kind := Kind, data := String }, Acc) ->
   case erlang_ls_db:find(completion_index, M) of
     {ok, Uri} ->
       [Uri|Acc];
-    not_found ->
+    {error, not_found} ->
       case erlang_ls_index:find_and_index_file(FileName) of
         {ok, Uri} ->
           [Uri|Acc];
@@ -132,7 +131,7 @@ find_module(M) ->
   case erlang_ls_db:find(completion_index, M) of
     {ok, Uri} ->
       {ok, Uri};
-    not_found ->
+    {error, not_found} ->
       FileName = module_filename(M),
       erlang_ls_index:find_and_index_file(FileName)
   end.

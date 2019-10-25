@@ -62,8 +62,8 @@ register_usage(Uri, #{data := MFA, range := Range}) ->
 -spec get(key()) -> ordsets:ordset(ref()).
 get(Key) ->
   case erlang_ls_db:find(references_index, Key) of
-    not_found  -> ordsets:new();
-    {ok, Refs} -> Refs
+    {ok, Refs}         -> Refs;
+    {error, not_found} -> ordsets:new()
   end.
 
 -spec add(key(), ref()) -> ok.

@@ -57,8 +57,8 @@ documentation(Uri, Line, Character) ->
 -spec documentation(poi()) -> binary().
 documentation(#{kind := application, data := {M, F, A}}) ->
   case erlang_ls_db:find(specs_index, {M, F, A}) of
-    {ok, Doc} -> list_to_binary(erl_prettypr:format(Doc));
-    not_found -> <<>>
+    {ok, Doc}          -> list_to_binary(erl_prettypr:format(Doc));
+    {error, not_found} -> <<>>
   end;
 documentation(_POI) ->
   <<>>.

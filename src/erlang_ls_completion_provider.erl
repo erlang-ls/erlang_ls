@@ -74,7 +74,7 @@ find_completion(Prefix, ?COMPLETION_TRIGGER_KIND_CHARACTER, <<":">>) ->
              }
             || #{data := {F, A}} <- POIs
           ];
-        not_found ->
+        {error, not_found} ->
           null
       end;
       _ -> null
