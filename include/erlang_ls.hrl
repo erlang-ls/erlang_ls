@@ -88,7 +88,7 @@
 %%------------------------------------------------------------------------------
 %% Location
 %%------------------------------------------------------------------------------
--type location() :: #{ uri   := binary()
+-type location() :: #{ uri   := uri()
                      , range := range()
                      }.
 
@@ -462,8 +462,36 @@
                      | ?SYMBOLKIND_OPERATOR
                      | ?SYMBOLKIND_TYPE_PARAMETER.
 
+-type symbol_information() :: #{ name          := binary()
+                               , kind          := symbol_kind()
+                               , deprecated    => boolean()
+                               , location      := location()
+                               , containerName => binary()
+                               }.
+
 %%------------------------------------------------------------------------------
 %% Internals
 %%------------------------------------------------------------------------------
--type pos() :: {integer(), integer()}.
--type uri() :: binary().
+-type pos()       :: {integer(), integer()}.
+-type uri()       :: binary().
+-type poi_kind()  :: application
+                   | behaviour
+                   | define
+                   | exports_entry
+                   | function
+                   | implicit_fun
+                   | import_entry
+                   | include
+                   | include_lib
+                   | macro
+                   | module
+                   | record
+                   | record_access
+                   | record_expr
+                   | type_application
+                   | type_definition.
+-type poi_range() :: #{ from := pos(), to := pos() }.
+-type poi()       :: #{ kind  => poi_kind()
+                      , data  => any()
+                      , range := poi_range()
+                      }.

@@ -25,7 +25,7 @@
 -type document() :: #{ uri  := uri()
                      , text := binary()
                      , tree := erlang_ls_tree:tree()
-                     , pois := [erlang_ls_poi:poi()]
+                     , pois := [poi()]
                      }.
 
 -export_type([document/0]).
@@ -62,15 +62,15 @@ text(#{text := Text}) ->
 tree(#{tree := Tree}) ->
   Tree.
 
--spec points_of_interest(document()) -> [erlang_ls_poi:poi()].
+-spec points_of_interest(document()) -> [poi()].
 points_of_interest(Document) ->
   points_of_interest(Document, []).
 
--spec points_of_interest(document(), [erlang_ls_poi:kind()]) -> [erlang_ls_poi:poi()].
+-spec points_of_interest(document(), [poi_kind()]) -> [poi()].
 points_of_interest(Document, Kinds) ->
   points_of_interest(Document, Kinds, undefined).
 
--spec points_of_interest(document(), [erlang_ls_poi:kind()], any()) -> [erlang_ls_poi:poi()].
+-spec points_of_interest(document(), [poi_kind()], any()) -> [poi()].
 points_of_interest(#{pois := POIs}, Kinds, undefined) ->
   [POI || #{ kind := Kind } = POI <- POIs, lists:member(Kind, Kinds)];
 points_of_interest(#{pois := POIs}, Kinds, Pattern) ->

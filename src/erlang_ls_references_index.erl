@@ -11,7 +11,7 @@
 -export([get/2]).
 
 -type key() :: {module(), atom()}.
--type ref() :: #{uri := uri(), range := erlang_ls_poi:range()}.
+-type ref() :: #{uri := uri(), range := poi_range()}.
 
 -export_type([key/0]).
 
@@ -40,7 +40,7 @@ index(Document) ->
 %% External functions
 %%==============================================================================
 
--spec get(uri(), erlang_ls_poi:poi()) -> [ref()].
+-spec get(uri(), poi()) -> [ref()].
 get(Uri, #{kind := Kind, data := MFA})
   when Kind =:= application; Kind =:= implicit_fun; Kind =:= function ->
   Key = key(Uri, MFA),
@@ -52,7 +52,7 @@ get(_, _) ->
 %% Internal functions
 %%==============================================================================
 
--spec register_usage(uri(), erlang_ls_poi:poi()) -> ok.
+-spec register_usage(uri(), poi()) -> ok.
 register_usage(Uri, #{data := MFA, range := Range}) ->
   Key = key(Uri, MFA),
   Ref = #{uri => Uri, range => Range},

@@ -19,8 +19,8 @@
 %% API
 %%==============================================================================
 
--spec goto_definition(uri(), erlang_ls_poi:poi()) ->
-   {ok, uri(), erlang_ls_poi:poi()} | {error, any()}.
+-spec goto_definition(uri(), poi()) ->
+   {ok, uri(), poi()} | {error, any()}.
 goto_definition( _Uri
                , #{ kind := Kind, data := {M, F, A} }
                ) when Kind =:= application;
@@ -71,8 +71,8 @@ goto_definition(_Filename, _) ->
   {error, not_found}.
 
 %% TODO: Move poi/kind to hrl
--spec find(uri() | [uri()], erlang_ls_poi:kind(), any()) ->
-   {ok, uri(), erlang_ls_poi:poi()} | {error, not_found}.
+-spec find(uri() | [uri()], poi_kind(), any()) ->
+   {ok, uri(), poi()} | {error, not_found}.
 find([], _Kind, _Data) ->
   {error, not_found};
 find([Uri|Uris0], Kind, Data) ->
@@ -97,7 +97,7 @@ include_uris(Document) ->
                                               , [include, include_lib]),
   lists:foldl(fun add_include_uri/2, [], POIs).
 
--spec add_include_uri(erlang_ls_poi:poi(), [uri()]) -> [uri()].
+-spec add_include_uri(poi(), [uri()]) -> [uri()].
 add_include_uri(#{ kind := Kind, data := String }, Acc) ->
   FileName = include_filename(Kind, String),
   M = list_to_atom(FileName),

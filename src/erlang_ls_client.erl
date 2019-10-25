@@ -22,6 +22,7 @@
         , references/3
         , start_link/2
         , stop/0
+        , workspace_symbol/1
         ]).
 
 %% gen_server callbacks
@@ -114,6 +115,11 @@ start_link(Host, Port) ->
 -spec stop() -> ok.
 stop() ->
   gen_server:stop(?SERVER).
+
+-spec workspace_symbol(string()) ->
+  ok.
+workspace_symbol(Query) ->
+  gen_server:call(?SERVER, {workspace_symbol, Query}).
 
 %%==============================================================================
 %% gen_server Callback Functions
@@ -227,6 +233,17 @@ handle_call({initialize, RootUri, InitOptions}, From, State) ->
                        }
                   }
              },
+  Content = erlang_ls_protocol:request(RequestId, Method, Params),
+  gen_tcp:send(Socket, Content),
+  {noreply, State#state{ request_id = RequestId + 1
+                       , pending    = [{RequestId, From} | State#state.pending]
+                       }};
+handle_call({workspace_symbol, Query}, From, State) ->
+  #state{ request_id = RequestId
+        , socket     = Socket
+        } = State,
+  Method = <<"workspace/symbol">>,
+  Params = #{ query => Query },
   Content = erlang_ls_protocol:request(RequestId, Method, Params),
   gen_tcp:send(Socket, Content),
   {noreply, State#state{ request_id = RequestId + 1

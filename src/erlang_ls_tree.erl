@@ -76,12 +76,12 @@ postorder_update(F, Tree, Extra) ->
     end, Extra).
 
 %% @edoc Return the list of points of interest for a given `Tree`.
--spec points_of_interest(tree()) -> [erlang_ls_poi:poi()].
+-spec points_of_interest(tree()) -> [poi()].
 points_of_interest(Tree) ->
   points_of_interest(Tree, #{}).
 
 %% @edoc Return the list of points of interest for a given `Tree`.
--spec points_of_interest(tree(), extra()) -> [erlang_ls_poi:poi()].
+-spec points_of_interest(tree(), extra()) -> [poi()].
 points_of_interest(Tree, Extra) ->
   try
     case erl_syntax:type(Tree) of
@@ -103,7 +103,7 @@ points_of_interest(Tree, Extra) ->
       []
   end.
 
--spec application(tree(), extra()) -> [erlang_ls_poi:poi()].
+-spec application(tree(), extra()) -> [poi()].
 application(Tree, Extra) ->
   case application_mfa(Tree) of
     undefined -> [];
@@ -155,7 +155,7 @@ application_with_variable(Operator, A) ->
     _ -> undefined
   end.
 
--spec attribute(tree(), extra()) -> [erlang_ls_poi:poi()].
+-spec attribute(tree(), extra()) -> [poi()].
 attribute(Tree, Extra) ->
   try erl_syntax_lib:analyze_attribute(Tree) of
     %% Yes, Erlang allows both British and American spellings for
@@ -209,12 +209,12 @@ attribute(Tree, Extra) ->
       []
   end.
 
--spec function(tree(), extra()) -> [erlang_ls_poi:poi()].
+-spec function(tree(), extra()) -> [poi()].
 function(Tree, Extra) ->
   {F, A} = erl_syntax_lib:analyze_function(Tree),
   [erlang_ls_poi:poi(Tree, function, {F, A}, Extra)].
 
--spec implicit_fun(tree(), extra()) -> [erlang_ls_poi:poi()].
+-spec implicit_fun(tree(), extra()) -> [poi()].
 implicit_fun(Tree, Extra) ->
   FunSpec = try erl_syntax_lib:analyze_implicit_fun(Tree) of
               {M, {F, A}} -> {M, F, A};
@@ -227,14 +227,14 @@ implicit_fun(Tree, Extra) ->
     _ -> [erlang_ls_poi:poi(Tree, implicit_fun, FunSpec, Extra)]
   end.
 
--spec macro(tree(), extra()) -> [erlang_ls_poi:poi()].
+-spec macro(tree(), extra()) -> [poi()].
 macro(Tree, Extra) ->
   case erl_syntax:get_pos(Tree) of
     0 -> [];
     _ -> [erlang_ls_poi:poi(Tree, macro, node_name(Tree), Extra)]
   end.
 
--spec record_access(tree(), extra()) -> [erlang_ls_poi:poi()].
+-spec record_access(tree(), extra()) -> [poi()].
 record_access(Tree, Extra) ->
   RecordNode = erl_syntax:record_access_type(Tree),
   case erl_syntax:type(RecordNode) of
@@ -246,7 +246,7 @@ record_access(Tree, Extra) ->
       []
   end.
 
--spec record_expr(tree(), extra()) -> [erlang_ls_poi:poi()].
+-spec record_expr(tree(), extra()) -> [poi()].
 record_expr(Tree, Extra) ->
   RecordNode = erl_syntax:record_expr_type(Tree),
   case erl_syntax:type(RecordNode) of

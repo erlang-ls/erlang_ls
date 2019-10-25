@@ -26,22 +26,30 @@ setup(_Config) ->
   {any(), erlang_ls_provider:state()}.
 handle_request({document_symbol, Params}, State) ->
   #{ <<"textDocument">> := #{ <<"uri">> := Uri}} = Params,
-  {ok, Document} = erlang_ls_db:find(documents, Uri),
-  POIs = erlang_ls_document:points_of_interest(Document, [function]),
-  case POIs of
+  Functions = functions(Uri),
+  case Functions of
     [] -> {null, State};
-    _ ->
-      {[ #{ name => list_to_binary(io_lib:format("~p/~p", [F, A]))
-          , kind => ?SYMBOLKIND_FUNCTION
-          , location => #{ uri   => Uri
-                         , range => erlang_ls_protocol:range(Range)
-                         }
-          }
-         || #{ data := {F, A}
-             , range := Range
-             } <- POIs ], State}
+    _  -> {Functions, State}
   end.
 
 -spec teardown() -> ok.
 teardown() ->
   ok.
+
+%%==============================================================================
+%% Internal Functions
+%%==============================================================================
+-spec functions(uri()) -> [map()].
+functions(Uri) ->
+  {ok, Document} = erlang_ls_db:find(documents, Uri),
+  POIs = erlang_ls_document:points_of_interest(Document, [function]),
+  lists:reverse([ #{ name => function_name(F, A)
+                   , kind => ?SYMBOLKIND_FUNCTION
+                   , location => #{ uri   => Uri
+                                  , range => erlang_ls_protocol:range(Range)
+                                  }
+                   } || #{data := {F, A}, range := Range} <- POIs ]).
+
+-spec function_name(atom(), non_neg_integer()) -> binary().
+function_name(F, A) ->
+  list_to_binary(io_lib:format("~p/~p", [F, A])).
