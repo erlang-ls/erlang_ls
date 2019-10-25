@@ -75,7 +75,7 @@ functions(Config) ->
                 } || {Name, {FromL, FromC}, {ToL, ToC}}
                        <- lists:append([functions()])],
   ?assertEqual(length(Expected), length(Symbols)),
-  Pairs = lists:zip(lists:sort(Expected), lists:sort(Symbols)),
+  Pairs = lists:zip(Expected, Symbols),
   [?assertEqual(E, S) || {E, S} <- Pairs],
   ok.
 
@@ -83,9 +83,9 @@ functions(Config) ->
 %% Internal Functions
 %%==============================================================================
 functions() ->
-  [ {<<"callback_a/0">>, {27, 0}, {27, 10}}
-  , {<<"function_a/0">>, {20, 0}, {20, 10}}
+  [ {<<"function_a/0">>, {20, 0}, {20, 10}}
   , {<<"function_b/0">>, {24, 0}, {24, 10}}
+  , {<<"callback_a/0">>, {27, 0}, {27, 10}}
   , {<<"function_c/0">>, {30, 0}, {30, 10}}
   , {<<"function_d/0">>, {38, 0}, {38, 10}}
   , {<<"function_e/0">>, {41, 0}, {41, 10}}
