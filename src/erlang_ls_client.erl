@@ -18,8 +18,10 @@
         , did_save/1
         , did_close/1
         , document_symbol/1
+        , exit/0
         , initialize/2
         , references/3
+        , shutdown/0
         , start_link/2
         , stop/0
         , workspace_symbol/1
@@ -104,9 +106,17 @@ did_close(Uri) ->
 document_symbol(Uri) ->
   gen_server:call(?SERVER, {document_symbol, Uri}).
 
--spec initialize(uri(), init_options()) -> ok.
+-spec initialize(uri(), init_options()) -> map().
 initialize(RootUri, InitOptions) ->
   gen_server:call(?SERVER, {initialize, RootUri, InitOptions}).
+
+-spec shutdown() -> map().
+shutdown() ->
+  gen_server:call(?SERVER, {shutdown}).
+
+-spec exit() -> ok.
+exit() ->
+  gen_server:call(?SERVER, {exit}).
 
 -spec start_link(hostname(), port_no()) -> {ok, pid()}.
 start_link(Host, Port) ->
@@ -248,7 +258,27 @@ handle_call({workspace_symbol, Query}, From, State) ->
   gen_tcp:send(Socket, Content),
   {noreply, State#state{ request_id = RequestId + 1
                        , pending    = [{RequestId, From} | State#state.pending]
-                       }}.
+                       }};
+handle_call({shutdown}, From, State) ->
+  #state{ request_id = RequestId
+        , socket     = Socket
+        } = State,
+  Method = <<"shutdown">>,
+  Params = #{},
+  Content = erlang_ls_protocol:request(RequestId, Method, Params),
+  gen_tcp:send(Socket, Content),
+  {noreply, State#state{ request_id = RequestId + 1
+                       , pending    = [{RequestId, From} | State#state.pending]
+                       }};
+handle_call({exit}, _From, State) ->
+  #state{ request_id = RequestId
+        , socket     = Socket
+        } = State,
+  Method = <<"exit">>,
+  Params = #{},
+  Content = erlang_ls_protocol:request(RequestId, Method, Params),
+  gen_tcp:send(Socket, Content),
+  {reply, ok, State}.
 
 -spec handle_cast(any(), state()) -> {noreply, state()}.
 handle_cast(_Msg, State) ->
@@ -292,9 +322,13 @@ handle_responses(Socket, [Response|Responses], Pending) ->
     true ->
       lager:debug("[CLIENT] Handling Response [response=~p]", [Response]),
       RequestId         = maps:get(id, Response),
-      {RequestId, From} = lists:keyfind(RequestId, 1, Pending),
-      gen_server:reply(From, Response),
-      handle_responses(Socket, Responses, lists:keydelete(RequestId, 1, Pending));
+      case lists:keyfind(RequestId, 1, Pending) of
+        {RequestId, From} ->
+          gen_server:reply(From, Response),
+          handle_responses(Socket, Responses, lists:keydelete(RequestId, 1, Pending));
+        false ->
+          handle_responses(Socket, Responses, Pending)
+      end;
     false ->
       lager:debug("[CLIENT] Handling Notification [notification=~p]", [Response]),
       handle_responses(Socket, Responses, Pending)

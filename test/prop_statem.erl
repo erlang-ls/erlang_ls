@@ -3,7 +3,6 @@
 %%==============================================================================
 -module(prop_statem).
 
-
 %%==============================================================================
 %% Behaviours
 %%==============================================================================
@@ -34,7 +33,8 @@
 %%==============================================================================
 initial_state() ->
   #{ connected => false
-   , documents   => []
+   , shutdown  => false
+   , documents => []
    }.
 
 %%==============================================================================
@@ -77,6 +77,9 @@ initialize_pre(#{connected := Connected} = _S) ->
 initialize_next(S, _R, _Args) ->
   S.
 
+initialize_post(#{shutdown := true}, _Args, Res) ->
+  assert_shutdown_error(Res),
+  true;
 initialize_post(_S, _Args, Res) ->
   Expected = #{ capabilities =>
                   #{ hoverProvider => false
@@ -156,6 +159,55 @@ did_close_post(_S, _Args, Res) ->
   true.
 
 %%------------------------------------------------------------------------------
+%% Shutdown
+%%------------------------------------------------------------------------------
+shutdown() ->
+  erlang_ls_client:shutdown().
+
+shutdown_args(_S) ->
+  [].
+
+shutdown_pre(#{connected := Connected} = _S) ->
+  Connected.
+
+shutdown_next(S, _R, _Args) ->
+  S#{shutdown => true}.
+
+shutdown_post(#{shutdown := true}, _Args, Res) ->
+  assert_shutdown_error(Res),
+  true;
+shutdown_post(_S, _Args, Res) ->
+  ?assertMatch(#{result := null}, Res),
+  true.
+
+%%------------------------------------------------------------------------------
+%% Shutdown
+%%------------------------------------------------------------------------------
+exit() ->
+  erlang_ls_client:exit().
+
+exit_args(_S) ->
+  [].
+
+exit_pre(#{connected := Connected} = _S) ->
+  Connected.
+
+exit_next(S, _R, _Args) ->
+  %% We disconnect to simulate the server goes down
+  catch disconnect(),
+  S#{shutdown => false, connected => false}.
+
+exit_post(S, _Args, Res) ->
+  ExpectedExitCode = case maps:get(shutdown, S, false) of
+                       true  -> 0;
+                       false -> 1
+                     end,
+  wait_for(halt_called, 1000),
+  ?assert(meck:called(erlang_ls_utils, halt, [ExpectedExitCode])),
+  ?assertMatch(ok, Res),
+  true.
+
+%%------------------------------------------------------------------------------
 %% Disconnect
 %%------------------------------------------------------------------------------
 disconnect() ->
@@ -168,7 +220,7 @@ disconnect_pre(#{connected := Connected} = _S) ->
   Connected.
 
 disconnect_next(S, _R, _Args) ->
-  S#{connected => false}.
+  S#{connected => false, shutdown => false}.
 
 disconnect_post(_S, _Args, Res) ->
   ?assertEqual(ok, Res),
@@ -190,8 +242,12 @@ prop_main() ->
 setup() ->
   meck:new(erlang_ls_compiler_diagnostics, [no_link, passthrough]),
   meck:new(erlang_ls_dialyzer_diagnostics, [no_link, passthrough]),
+  meck:new(erlang_ls_utils, [no_link, passthrough]),
   meck:expect(erlang_ls_compiler_diagnostics, diagnostics, 1, []),
   meck:expect(erlang_ls_dialyzer_diagnostics, diagnostics, 1, []),
+  Self    = erlang:self(),
+  HaltFun = fun(_X) -> Self ! halt_called, {noresponse, #{}} end,
+  meck:expect(erlang_ls_utils, halt, HaltFun),
   application:ensure_all_started(erlang_ls),
   file:write_file("/tmp/erlang_ls.config", <<"">>),
   lager:set_loglevel(lager_console_backend, warning),
@@ -203,6 +259,7 @@ setup() ->
 teardown(_) ->
   meck:unload(erlang_ls_compiler_diagnostics),
   meck:unload(erlang_ls_dialyzer_diagnostics),
+  meck:unload(erlang_ls_utils),
   ok.
 
 %%==============================================================================
@@ -211,3 +268,20 @@ teardown(_) ->
 cleanup() ->
   catch disconnect(),
   ok.
+
+%%==============================================================================
+%% Helper functions
+%%==============================================================================
+
+assert_shutdown_error(Res) ->
+  ?assertMatch(#{error := #{code := _, message := _}}, Res).
+
+meck_matcher_integer(N) ->
+  meck_matcher:new(fun(X) -> X =:= N end).
+
+wait_for(_Message, Timeout) when Timeout =< 0 ->
+  timeout;
+wait_for(Message, Timeout) ->
+  receive Message -> ok
+  after 10 -> wait_for(Message, Timeout - 10)
+  end.
