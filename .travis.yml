@@ -4,7 +4,7 @@ otp_release:
   - 21.3
 script:
   - travis_wait make
-  - rebar3 coveralls send
+  - make coveralls
 cache:
   directories:
      - "$HOME/.cache/rebar3"
