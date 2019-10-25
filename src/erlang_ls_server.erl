@@ -26,6 +26,9 @@
 -export([ connected/3
         ]).
 
+%% Notifications API
+-export([ send_notification/3 ]).
+
 %%==============================================================================
 %% Includes
 %%==============================================================================
@@ -100,8 +103,15 @@ connected(info, {'EXIT', _, normal}, _State) ->
 connected(info, {tcp_error, _, Reason}, _State) ->
   {stop, Reason};
 connected(cast, {notification, M, P}, State) ->
-  send_notification(State#state.socket, M, P),
+  do_send_notification(State#state.socket, M, P),
   keep_state_and_data.
+
+%%==============================================================================
+%% Notifications API
+%%==============================================================================
+-spec send_notification(pid(), binary(), map()) -> ok.
+send_notification(Server, Method, Params) ->
+  gen_server:cast(Server, {notification, Method, Params}).
 
 %%==============================================================================
 %% Internal Functions
@@ -131,12 +141,12 @@ handle_request(Request, #state{ socket = Socket
       lager:debug("[SERVER] No response", []),
       State0#state{state = NewInternalState};
     {notification, M, P, NewInternalState} ->
-      send_notification(Socket, M, P),
+      do_send_notification(Socket, M, P),
       State0#state{state = NewInternalState}
   end.
 
--spec send_notification(any(), binary(), map()) -> ok.
-send_notification(Socket, Method, Params) ->
+-spec do_send_notification(any(), binary(), map()) -> ok.
+do_send_notification(Socket, Method, Params) ->
   Notification = erlang_ls_protocol:notification(Method, Params),
   lager:debug("[SERVER] Sending notification [notification=~p]", [Notification]),
   gen_tcp:send(Socket, Notification).

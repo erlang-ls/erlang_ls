@@ -3,6 +3,7 @@
 -export([ all/1
         , all/2
         , init_per_testcase/2
+        , wait_for/2
         ]).
 
 -type config() :: [{atom(), any()}].
@@ -42,14 +43,32 @@ init_per_testcase(_TestCase, Config) ->
   IncludePath   = filename:join([ RootPath
                                 , <<"include">>
                                 , <<"code_navigation.hrl">>]),
-  Uri           = erlang_ls_uri:uri(Path),
-  ExtraUri      = erlang_ls_uri:uri(ExtraPath),
-  BehaviourUri  = erlang_ls_uri:uri(BehaviourPath),
-  IncludeUri    = erlang_ls_uri:uri(IncludePath),
+  DiagnosticsPath = filename:join([ RootPath
+                                  , <<"src">>
+                                  , <<"diagnostics.erl">>]),
+  DiagnosticsIncludePath = filename:join([ RootPath
+                                         , <<"include">>
+                                         , <<"diagnostics.hrl">>]),
+  Uri                   = erlang_ls_uri:uri(Path),
+  ExtraUri              = erlang_ls_uri:uri(ExtraPath),
+  BehaviourUri          = erlang_ls_uri:uri(BehaviourPath),
+  IncludeUri            = erlang_ls_uri:uri(IncludePath),
+  DiagnosticsUri        = erlang_ls_uri:uri(DiagnosticsPath),
+  DiagnosticsIncludeUri = erlang_ls_uri:uri(DiagnosticsIncludePath),
   {ok, Text}    = file:read_file(Path),
   erlang_ls_client:did_open(Uri, erlang, 1, Text),
   [ {code_navigation_uri, Uri}
   , {code_navigation_extra_uri, ExtraUri}
   , {behaviour_uri, BehaviourUri}
   , {include_uri, IncludeUri}
+  , {diagnostics_uri, DiagnosticsUri}
+  , {diagnostics_include_uri, DiagnosticsIncludeUri}
     |Config].
+
+-spec wait_for(any(), non_neg_integer()) -> ok.
+wait_for(_Message, Timeout) when Timeout =< 0 ->
+  timeout;
+wait_for(Message, Timeout) ->
+  receive Message -> ok
+  after 10 -> wait_for(Message, Timeout - 10)
+  end.

@@ -202,7 +202,7 @@ exit_post(S, _Args, Res) ->
                        true  -> 0;
                        false -> 1
                      end,
-  wait_for(halt_called, 1000),
+  erlang_ls_test_utils:wait_for(halt_called, 1000),
   ?assert(meck:called(erlang_ls_utils, halt, [ExpectedExitCode])),
   ?assertMatch(ok, Res),
   true.
@@ -278,10 +278,3 @@ assert_shutdown_error(Res) ->
 
 meck_matcher_integer(N) ->
   meck_matcher:new(fun(X) -> X =:= N end).
-
-wait_for(_Message, Timeout) when Timeout =< 0 ->
-  timeout;
-wait_for(Message, Timeout) ->
-  receive Message -> ok
-  after 10 -> wait_for(Message, Timeout - 10)
-  end.

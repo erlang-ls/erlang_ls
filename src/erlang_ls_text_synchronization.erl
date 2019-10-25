@@ -24,7 +24,7 @@ did_save(Params, Server) ->
               , diagnostics => CDiagnostics ++ DDiagnostics
               },
   %% TODO: prune/re-index on save/change
-  gen_server:cast(Server, {notification, Method, Params1}).
+  erlang_ls_server:send_notification(Server, Method, Params1).
 
 -spec did_close(map()) -> ok.
 did_close(Params) ->
