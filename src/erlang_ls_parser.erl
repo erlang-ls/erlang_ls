@@ -4,8 +4,10 @@
         , parse_file/1
         ]).
 
+-include_lib("erlang_ls.hrl").
+
 -spec parse(binary()) ->
-   {ok, erlang_ls_tree:tree(), erlang_ls_tree:extra()} | {error, any()}.
+   {ok, tree(), erlang_ls_tree:extra()} | {error, any()}.
 parse(Text) ->
   %% epp_dodger only works with source files,
   %% so let's use a temporary file.
@@ -19,7 +21,7 @@ parse(Text) ->
   end.
 
 -spec parse_file(binary()) ->
-   {ok, erlang_ls_tree:tree(), erlang_ls_tree:extra()} | {error, any()}.
+   {ok, tree(), erlang_ls_tree:extra()} | {error, any()}.
 parse_file(Path) ->
   case file:open(Path, [read]) of
     {ok, IoDevice} ->

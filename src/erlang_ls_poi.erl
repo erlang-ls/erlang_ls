@@ -17,7 +17,7 @@
 %%==============================================================================
 
 %% @edoc Constructor for a Point of Interest.
--spec poi(erlang_ls_tree:tree(), poi_kind(), any(), erlang_ls_tree:extra()) -> poi().
+-spec poi(tree(), poi_kind(), any(), erlang_ls_tree:extra()) -> poi().
 poi(Tree, Kind, Data, Extra) ->
   Pos = erl_syntax:get_pos(Tree),
   Range = get_range(Pos, Kind, Data, Extra),
