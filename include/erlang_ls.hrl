@@ -511,3 +511,5 @@
                       , data  => any()
                       , range := poi_range()
                       }.
+-type tree()      :: erl_syntax:syntaxTree().
+-type extra()     :: any().

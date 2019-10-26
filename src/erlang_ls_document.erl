@@ -39,10 +39,10 @@
 
 -spec create(uri(), binary()) -> document().
 create(Uri, Text) ->
-  {ok, Tree, Extra} = erlang_ls_parser:parse(Text),
+  {ok, POIs} = erlang_ls_parser:parse(Text),
   #{ uri  => Uri
    , text => Text
-   , pois => erlang_ls_tree:points_of_interest(Tree, Extra)
+   , pois => POIs
    }.
 
 -spec uri(document()) -> uri().

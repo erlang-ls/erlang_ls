@@ -40,8 +40,7 @@ all() -> erlang_ls_test_utils:all(?MODULE).
 -spec specs_location(config()) -> ok.
 specs_location(_Config) ->
   Text = "-spec foo(integer()) -> any(); (atom()) -> pid().",
-  {ok, _Tree, Extra} = erlang_ls_parser:parse(Text),
-  SpecLocations = maps:get(spec_locations, Extra, []),
-  Locations     = proplists:get_value({foo, 1}, SpecLocations),
-  ?assertEqual(4, length(Locations)),
+  {ok, POIs} = erlang_ls_parser:parse(Text),
+  Spec = [POI || #{data := {{foo, 1}, _}, kind := spec} = POI <- POIs],
+  ?assertEqual(1, length(Spec)),
   ok.
