@@ -85,7 +85,8 @@ range({Line, Column}, type_definition, _Type, _Extra) ->
   To = From,
   #{ from => From, to => To }.
 
--spec get_entry_range(atom(), atom(), non_neg_integer(), extra()) -> poi_range().
+-spec get_entry_range(atom(), atom(), non_neg_integer(), extra()) ->
+   poi_range().
 get_entry_range(Key, F, A, Extra) ->
   Locations = maps:get(Key, Extra, []),
   {FromLine, FromColumn} = proplists:get_value({F, A}, Locations),

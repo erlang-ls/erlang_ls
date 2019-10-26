@@ -67,8 +67,10 @@ find_completion(Prefix, ?COMPLETION_TRIGGER_KIND_CHARACTER, <<":">>) ->
       case erlang_ls_completion_index:find(Module) of
         {ok, Uri} ->
           {ok, Document} = erlang_ls_db:find(documents, Uri),
-          POIs = erlang_ls_document:points_of_interest(Document, [exports_entry]),
-          [ #{ label            => list_to_binary(io_lib:format("~p/~p", [F, A]))
+          POIs = erlang_ls_document:points_of_interest( Document
+                                                      , [exports_entry]),
+          [ #{ label            => list_to_binary(
+                                     io_lib:format("~p/~p", [F, A]))
              , insertText       => snippet_function_call(F, A)
              , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
              }
