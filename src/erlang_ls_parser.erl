@@ -79,7 +79,8 @@ extra(Form, Tokens, Extra) ->
   Type = erl_syntax:type(Form),
   extra(Form, Tokens, Extra, Type).
 
--spec extra(erl_parse:abstract_form(), [erl_scan:token()], extra(), atom()) -> extra().
+-spec extra(erl_parse:abstract_form(), [erl_scan:token()], extra(), atom()) ->
+   extra().
 extra(Form, Tokens, Extra, attribute) ->
   case erl_syntax_lib:analyze_attribute(Form) of
     {export, Exports} ->
@@ -113,7 +114,7 @@ extra(Form, Tokens, Extra, attribute) ->
 extra(_Form, _Tokens, Extra, _Type) ->
   Extra.
 
--spec spec_locations(erl_syntax:syntaxTree()) -> [{atom(), erl_anno:location()}].
+-spec spec_locations(tree()) -> [{atom(), erl_anno:location()}].
 spec_locations(FT) ->
   case erl_syntax:type(FT) of
     function_type ->
@@ -241,9 +242,11 @@ attribute(Tree, Extra) ->
     {behaviour, {behaviour, Behaviour}} ->
       [erlang_ls_poi:new(Tree, behaviour, Behaviour, Extra)];
     {export, Exports} ->
-      [erlang_ls_poi:new(Tree, exports_entry, {F, A}, Extra) || {F, A} <- Exports];
+      [erlang_ls_poi:new(Tree, exports_entry, {F, A}, Extra)
+       || {F, A} <- Exports];
     {import, {M, Imports}} ->
-      [erlang_ls_poi:new(Tree, import_entry, {M, F, A}, Extra) || {F, A} <- Imports];
+      [erlang_ls_poi:new(Tree, import_entry, {M, F, A}, Extra)
+       || {F, A} <- Imports];
     {module, {Module, _Args}} ->
       [erlang_ls_poi:new(Tree, module, Module, Extra)];
     {module, Module} ->
@@ -275,7 +278,8 @@ attribute(Tree, Extra) ->
       SpecLocations = maps:get(spec_locations, Extra, []),
       Locations     = proplists:get_value({F, A}, SpecLocations),
       [ erlang_ls_poi:new(Tree, spec, {{F, A}, Tree}, Extra)
-      | [erlang_ls_poi:new(Tree, type_application, {T, L}, Extra) || {T, L} <- Locations]
+      | [erlang_ls_poi:new(Tree, type_application, {T, L}, Extra)
+         || {T, L} <- Locations]
       ];
     {type, {type, Type}} ->
       %% TODO: Support type usages in type definitions

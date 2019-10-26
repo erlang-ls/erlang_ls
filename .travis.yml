@@ -1,4 +1,6 @@
 language: erlang
+before_install:
+  - git clone https://github.com/inaka/elvis.git; pushd elvis; rebar3 escriptize; sudo cp _build/default/bin/elvis /usr/bin; popd
 otp_release:
   - 22.0
   - 21.3

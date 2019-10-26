@@ -32,7 +32,8 @@ did_close(Params) ->
   Uri          = maps:get(<<"uri">>         , TextDocument),
   case erlang_ls_db:find(documents, Uri) of
     {error, not_found} ->
-      lager:debug("[SERVER] Attempting to close un-opened text document, ignoring [uri=~p]", [Uri]);
+      lager:debug("[SERVER] Document is already closed [uri=~p]"
+                 , [Uri]);
     {ok, _} ->
       %% TODO: Do not delete once DB is persistent
       ok = erlang_ls_db:delete(documents, Uri)
