@@ -63,12 +63,12 @@ all() ->
 exported_functions(Config) ->
   TriggerKind = ?COMPLETION_TRIGGER_KIND_CHARACTER,
   Uri = ?config(code_navigation_uri, Config),
-  ExpectedCompletion = [ #{ label            => <<"do_2/0">>
-                          , insertText       => <<"do_2()">>
+  ExpectedCompletion = [ #{ label            => <<"do/1">>
+                          , insertText       => <<"do($1)">>
                           , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
                           }
-                       , #{ label            => <<"do/1">>
-                          , insertText       => <<"do($1)">>
+                       , #{ label            => <<"do_2/0">>
+                          , insertText       => <<"do_2()">>
                           , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
                           }
                        ],
