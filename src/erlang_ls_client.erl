@@ -147,7 +147,9 @@ init({Host, Port}) ->
   {ok, #state{socket = Socket}}.
 
 -spec handle_call(any(), any(), state()) -> {reply, any(), state()}.
-handle_call({completion, Uri, Line, Char, TriggerKind, TriggerCharacter}, From, State) ->
+handle_call( {completion, Uri, Line, Char, TriggerKind, TriggerCharacter}
+           , From
+           , State) ->
   #state{ request_id = RequestId
         , socket     = Socket
         } = State,
@@ -311,9 +313,11 @@ handle_info({tcp, _Socket, Packet}, #state{ document  = Document
                                           , socket    = Socket
                                           , pending   = Pending
                                           } = State) ->
-  lager:debug("[SERVER] TCP Packet [document=~p] [packet=~p] ", [Document, Packet]),
+  lager:debug("[SERVER] TCP Packet [document=~p] [packet=~p] ", [ Document
+                                                                , Packet]),
   Data = <<Document/binary, Packet/binary>>,
-  {Responses, NewDocument} = erlang_ls_jsonrpc:split(Data, [return_maps, {labels, atom}]),
+  {Responses, NewDocument} =
+    erlang_ls_jsonrpc:split(Data, [return_maps, {labels, atom}]),
   Pending1 = handle_responses(Socket, Responses, Pending),
   inet:setopts(Socket, [{active, once}]),
   {noreply, State#state{ document = NewDocument, pending = Pending1 }};
@@ -347,11 +351,14 @@ handle_responses(Socket, [Response|Responses], Pending) ->
       case lists:keyfind(RequestId, 1, Pending) of
         {RequestId, From} ->
           gen_server:reply(From, Response),
-          handle_responses(Socket, Responses, lists:keydelete(RequestId, 1, Pending));
+          handle_responses( Socket
+                          , Responses
+                          , lists:keydelete(RequestId, 1, Pending));
         false ->
           handle_responses(Socket, Responses, Pending)
       end;
     false ->
-      lager:debug("[CLIENT] Handling Notification [notification=~p]", [Response]),
+      lager:debug( "[CLIENT] Handling Notification [notification=~p]"
+                 , [Response]),
       handle_responses(Socket, Responses, Pending)
   end.

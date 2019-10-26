@@ -148,5 +148,6 @@ handle_request(Request, #state{ socket = Socket
 -spec do_send_notification(any(), binary(), map()) -> ok.
 do_send_notification(Socket, Method, Params) ->
   Notification = erlang_ls_protocol:notification(Method, Params),
-  lager:debug("[SERVER] Sending notification [notification=~p]", [Notification]),
+  lager:debug( "[SERVER] Sending notification [notification=~p]"
+             , [Notification]),
   gen_tcp:send(Socket, Notification).
