@@ -11,7 +11,6 @@
 -export([ create/2
         , uri/1
         , text/1
-        , tree/1
         , points_of_interest/1
         , points_of_interest/2
         , points_of_interest/3
@@ -24,7 +23,6 @@
 
 -type document() :: #{ uri  := uri()
                      , text := binary()
-                     , tree := erlang_ls_tree:tree()
                      , pois := [poi()]
                      }.
 
@@ -42,12 +40,9 @@
 -spec create(uri(), binary()) -> document().
 create(Uri, Text) ->
   {ok, Tree, Extra} = erlang_ls_parser:parse(Text),
-  AnnotatedTree = erlang_ls_tree:annotate(Tree, Extra),
-  POIs = erlang_ls_poi:list(AnnotatedTree),
   #{ uri  => Uri
    , text => Text
-   , tree => AnnotatedTree
-   , pois => POIs
+   , pois => erlang_ls_tree:points_of_interest(Tree, Extra)
    }.
 
 -spec uri(document()) -> uri().
@@ -57,10 +52,6 @@ uri(#{uri := Uri}) ->
 -spec text(document()) -> binary().
 text(#{text := Text}) ->
   Text.
-
--spec tree(document()) -> erlang_ls_tree:tree().
-tree(#{tree := Tree}) ->
-  Tree.
 
 -spec points_of_interest(document()) -> [poi()].
 points_of_interest(Document) ->
@@ -82,6 +73,5 @@ points_of_interest(#{pois := POIs}, Kinds, Pattern) ->
 -spec get_element_at_pos(document(), non_neg_integer(), non_neg_integer()) ->
   [any()].
 get_element_at_pos(Document, Line, Column) ->
-  AnnotatedTree = maps:get(tree, Document),
-  %% TODO: Refine API
-  erlang_ls_poi:match_pos(AnnotatedTree, {Line, Column}).
+  POIs = maps:get(pois, Document),
+  erlang_ls_poi:match_pos(POIs, {Line, Column}).

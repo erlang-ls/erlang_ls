@@ -5,10 +5,7 @@
 
 -export([ poi/4 ]).
 
--export([ list/1
-        , match_pos/2
-        , first/1
-        ]).
+-export([ match_pos/2 ]).
 
 %%==============================================================================
 %% Includes
@@ -29,28 +26,9 @@ poi(Tree, Kind, Data, Extra) ->
    , range => Range
    }.
 
-%% TODO: Really needed?
-%% @edoc List the Points of Interest for a given tree.
--spec list(erlang_ls_tree:tree()) -> [poi()].
-list(Tree) ->
-  F = fun(T, Acc) ->
-          case erl_syntax:get_ann(T) of
-            [] -> Acc;
-            L -> L ++ Acc
-          end
-      end,
-  erl_syntax_lib:fold(F, [], Tree).
-
--spec match_pos(erlang_ls_tree:tree(), pos()) -> [poi()].
-match_pos(Tree, Pos) ->
-  [POI || #{range := Range} = POI <- list(Tree), matches_pos(Pos, Range)].
-
--spec first([poi()]) -> poi().
-first([]) ->
-  error(badarg);
-first(POIs) ->
-  [First | _] = lists:sort(fun compare_pos/2, POIs),
-  First.
+-spec match_pos([poi()], pos()) -> [poi()].
+match_pos(POIs, Pos) ->
+  [POI || #{range := Range} = POI <- POIs, matches_pos(Pos, Range)].
 
 %%==============================================================================
 %% Internal Functions
@@ -140,10 +118,6 @@ get_range({Line, Column}, type_definition, _Type, _Extra) ->
 -spec matches_pos(pos(), poi_range()) -> boolean().
 matches_pos(Pos, #{from := From, to := To}) ->
   (From =< Pos) andalso (Pos =< To).
-
--spec compare_pos(poi(), poi()) -> boolean().
-compare_pos(#{range := #{from := From1}}, #{range := #{from := From2}}) ->
-  (From1 =< From2).
 
 -spec get_entry_range(atom(), atom(), non_neg_integer(), erlang_ls_tree:extra()) -> poi_range().
 get_entry_range(Key, F, A, Extra) ->

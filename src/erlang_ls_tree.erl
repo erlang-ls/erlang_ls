@@ -6,13 +6,7 @@
 %%==============================================================================
 %% Exports
 %%==============================================================================
--export([ annotate/1
-        , annotate/2
-        , annotate_node/1
-        , annotate_node/2
-        , postorder_update/3
-        , points_of_interest/1
-        , points_of_interest/2
+-export([ points_of_interest/2
         ]).
 
 %%==============================================================================
@@ -24,11 +18,9 @@
 %% Types
 %%==============================================================================
 -type tree() :: erl_syntax:syntaxTree().
--type annotated_tree() :: tree().
 -type extra() :: map(). %% TODO: Refine type
 
--export_type([ annotated_tree/0
-             , extra/0
+-export_type([ extra/0
              , tree/0
              ]).
 
@@ -36,53 +28,21 @@
 %% API
 %%==============================================================================
 
-%% @edoc Given a syntax tree, it returns a new one, annotated with all
-%% the identified _points of interest_ (a.k.a. _poi_).
--spec annotate(tree()) -> tree().
-annotate(Tree) ->
-  annotate(Tree, #{}).
-
-%% @edoc Given a syntax tree, it returns a new one, annotated with all
-%% the identified _points of interest_ (a.k.a. _poi_).
--spec annotate(tree(), extra()) -> tree().
-annotate(Tree, Extra) ->
-  postorder_update(fun annotate_node/2, Tree, Extra).
-
-%% @edoc Add an annotation to the root of the given `Tree` for each
-%% point of interest found.
--spec annotate_node(tree()) -> tree().
-annotate_node(Tree) ->
-  annotate_node(Tree, #{}).
-
-%% @edoc Add an annotation to the root of the given `Tree` for each
-%% point of interest found.
--spec annotate_node(tree(), extra()) -> tree().
-annotate_node(Tree, Extra) ->
-  lists:foldl( fun erl_syntax:add_ann/2
-             , Tree
-             , points_of_interest(Tree, Extra)).
-
-%% @edoc Traverse the given `Tree`, applying the function `F` to all
-%% nodes in the tree, in post-order. Adapted from the `erl_syntax`
-%% documentation.
--spec postorder_update(fun(), tree(), extra()) -> tree().
-postorder_update(F, Tree, Extra) ->
-  F(case erl_syntax:subtrees(Tree) of
-      [] -> Tree;
-      List -> erl_syntax:update_tree(Tree,
-                                     [[postorder_update(F, Subtree, Extra)
-                                       || Subtree <- Group]
-                                      || Group <- List])
-    end, Extra).
-
-%% @edoc Return the list of points of interest for a given `Tree`.
--spec points_of_interest(tree()) -> [poi()].
-points_of_interest(Tree) ->
-  points_of_interest(Tree, #{}).
-
-%% @edoc Return the list of points of interest for a given `Tree`.
 -spec points_of_interest(tree(), extra()) -> [poi()].
 points_of_interest(Tree, Extra) ->
+  lists:flatten(
+    erl_syntax_lib:fold(
+      fun(T, Acc) ->
+          [do_points_of_interest(T, Extra)|Acc]
+      end, [], Tree)).
+
+%%==============================================================================
+%% Internal Functions
+%%==============================================================================
+
+%% @edoc Return the list of points of interest for a given `Tree`.
+-spec do_points_of_interest(tree(), extra()) -> [poi()].
+do_points_of_interest(Tree, Extra) ->
   try
     case erl_syntax:type(Tree) of
       application   -> application(Tree, Extra);
