@@ -183,7 +183,7 @@ do_points_of_interest(Tree, Extra) ->
 application(Tree, Extra) ->
   case application_mfa(Tree) of
     undefined -> [];
-    MFA -> [erlang_ls_poi:poi(Tree, application, MFA, Extra)]
+    MFA -> [erlang_ls_poi:new(Tree, application, MFA, Extra)]
   end.
 
 -spec application_mfa(tree()) ->
@@ -237,32 +237,32 @@ attribute(Tree, Extra) ->
     %% Yes, Erlang allows both British and American spellings for
     %% keywords.
     {behavior, {behavior, Behaviour}} ->
-      [erlang_ls_poi:poi(Tree, behaviour, Behaviour, Extra)];
+      [erlang_ls_poi:new(Tree, behaviour, Behaviour, Extra)];
     {behaviour, {behaviour, Behaviour}} ->
-      [erlang_ls_poi:poi(Tree, behaviour, Behaviour, Extra)];
+      [erlang_ls_poi:new(Tree, behaviour, Behaviour, Extra)];
     {export, Exports} ->
-      [erlang_ls_poi:poi(Tree, exports_entry, {F, A}, Extra) || {F, A} <- Exports];
+      [erlang_ls_poi:new(Tree, exports_entry, {F, A}, Extra) || {F, A} <- Exports];
     {import, {M, Imports}} ->
-      [erlang_ls_poi:poi(Tree, import_entry, {M, F, A}, Extra) || {F, A} <- Imports];
+      [erlang_ls_poi:new(Tree, import_entry, {M, F, A}, Extra) || {F, A} <- Imports];
     {module, {Module, _Args}} ->
-      [erlang_ls_poi:poi(Tree, module, Module, Extra)];
+      [erlang_ls_poi:new(Tree, module, Module, Extra)];
     {module, Module} ->
-      [erlang_ls_poi:poi(Tree, module, Module, Extra)];
+      [erlang_ls_poi:new(Tree, module, Module, Extra)];
     preprocessor ->
       Name = erl_syntax:atom_value(erl_syntax:attribute_name(Tree)),
       case {Name, erl_syntax:attribute_arguments(Tree)} of
         {define, [Define|_]} ->
-          [erlang_ls_poi:poi( Tree
+          [erlang_ls_poi:new( Tree
                             , define
                             , define_name(Define)
                             , Extra )];
         {include, [String]} ->
-          [erlang_ls_poi:poi( Tree
+          [erlang_ls_poi:new( Tree
                             , include
                             , erl_syntax:string_literal(String)
                             , Extra )];
         {include_lib, [String]} ->
-          [erlang_ls_poi:poi( Tree
+          [erlang_ls_poi:new( Tree
                             , include_lib
                             , erl_syntax:string_literal(String)
                             , Extra )];
@@ -270,17 +270,17 @@ attribute(Tree, Extra) ->
           []
       end;
     {record, {Record, _Fields}} ->
-      [erlang_ls_poi:poi(Tree, record, atom_to_list(Record), Extra)];
+      [erlang_ls_poi:new(Tree, record, atom_to_list(Record), Extra)];
     {spec, {spec, {{F, A}, _}}} ->
       SpecLocations = maps:get(spec_locations, Extra, []),
       Locations     = proplists:get_value({F, A}, SpecLocations),
-      [ erlang_ls_poi:poi(Tree, spec, {{F, A}, Tree}, Extra)
-      | [erlang_ls_poi:poi(Tree, type_application, {T, L}, Extra) || {T, L} <- Locations]
+      [ erlang_ls_poi:new(Tree, spec, {{F, A}, Tree}, Extra)
+      | [erlang_ls_poi:new(Tree, type_application, {T, L}, Extra) || {T, L} <- Locations]
       ];
     {type, {type, Type}} ->
       %% TODO: Support type usages in type definitions
       TypeName = element(1, Type),
-      [erlang_ls_poi:poi(Tree, type_definition, TypeName, Extra)];
+      [erlang_ls_poi:new(Tree, type_definition, TypeName, Extra)];
     _ ->
       []
   catch throw:syntax_error ->
@@ -290,7 +290,7 @@ attribute(Tree, Extra) ->
 -spec function(tree(), extra()) -> [poi()].
 function(Tree, Extra) ->
   {F, A} = erl_syntax_lib:analyze_function(Tree),
-  [erlang_ls_poi:poi(Tree, function, {F, A}, Extra)].
+  [erlang_ls_poi:new(Tree, function, {F, A}, Extra)].
 
 -spec implicit_fun(tree(), extra()) -> [poi()].
 implicit_fun(Tree, Extra) ->
@@ -302,14 +302,14 @@ implicit_fun(Tree, Extra) ->
             end,
   case FunSpec of
     undefined -> [];
-    _ -> [erlang_ls_poi:poi(Tree, implicit_fun, FunSpec, Extra)]
+    _ -> [erlang_ls_poi:new(Tree, implicit_fun, FunSpec, Extra)]
   end.
 
 -spec macro(tree(), extra()) -> [poi()].
 macro(Tree, Extra) ->
   case erl_syntax:get_pos(Tree) of
     0 -> [];
-    _ -> [erlang_ls_poi:poi(Tree, macro, node_name(Tree), Extra)]
+    _ -> [erlang_ls_poi:new(Tree, macro, node_name(Tree), Extra)]
   end.
 
 -spec record_access(tree(), extra()) -> [poi()].
@@ -319,7 +319,7 @@ record_access(Tree, Extra) ->
     atom ->
       Record = erl_syntax:atom_name(RecordNode),
       Field = erl_syntax:atom_name(erl_syntax:record_access_field(Tree)),
-      [erlang_ls_poi:poi(Tree, record_access, {Record, Field}, Extra)];
+      [erlang_ls_poi:new(Tree, record_access, {Record, Field}, Extra)];
     _ ->
       []
   end.
@@ -330,7 +330,7 @@ record_expr(Tree, Extra) ->
   case erl_syntax:type(RecordNode) of
     atom ->
       Record = erl_syntax:atom_name(RecordNode),
-      [erlang_ls_poi:poi(Tree, record_expr, Record, Extra)];
+      [erlang_ls_poi:new(Tree, record_expr, Record, Extra)];
     _ ->
       []
   end.

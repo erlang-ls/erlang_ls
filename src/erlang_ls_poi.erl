@@ -3,7 +3,7 @@
 %%==============================================================================
 -module(erlang_ls_poi).
 
--export([ poi/4 ]).
+-export([ new/4 ]).
 
 -export([ match_pos/2 ]).
 
@@ -17,8 +17,8 @@
 %%==============================================================================
 
 %% @edoc Constructor for a Point of Interest.
--spec poi(tree(), poi_kind(), any(), extra()) -> poi().
-poi(Tree, Kind, Data, Extra) ->
+-spec new(tree(), poi_kind(), any(), extra()) -> poi().
+new(Tree, Kind, Data, Extra) ->
   Pos = erl_syntax:get_pos(Tree),
   Range = get_range(Pos, Kind, Data, Extra),
   #{ kind  => Kind
