@@ -6,8 +6,7 @@
 
 -include_lib("erlang_ls.hrl").
 
--spec parse(binary()) ->
-   {ok, tree(), erlang_ls_tree:extra()} | {error, any()}.
+-spec parse(binary()) -> {ok, [poi()]} | {error, any()}.
 parse(Text) ->
   %% epp_dodger only works with source files,
   %% so let's use a temporary file.
@@ -20,8 +19,7 @@ parse(Text) ->
     file:delete(TmpPath)
   end.
 
--spec parse_file(binary()) ->
-   {ok, tree(), erlang_ls_tree:extra()} | {error, any()}.
+-spec parse_file(binary()) -> {ok, [poi()]} | {error, any()}.
 parse_file(Path) ->
   case file:open(Path, [read]) of
     {ok, IoDevice} ->
@@ -36,13 +34,13 @@ parse_file(Path) ->
       {ok, 0} = file:position(IoDevice, 0),
       {ok, Extra} = parse_extra(IoDevice, #{}, {1, 1}),
       ok = file:close(IoDevice),
-      {ok, Tree, Extra};
+      {ok, erlang_ls_tree:points_of_interest(Tree, Extra)};
     {error, Error} ->
       {error, Error}
   end.
 
--spec parse_extra(io:device(), erlang_ls_tree:extra(), erl_anno:location()) ->
-   {ok, erlang_ls_tree:extra()} | {error, any()}.
+-spec parse_extra(io:device(), extra(), erl_anno:location()) ->
+   {ok, extra()} | {error, any()}.
 parse_extra(IoDevice, Extra, StartLocation) ->
   case io:scan_erl_form(IoDevice, "", StartLocation) of
     {ok, Tokens, EndLocation} ->
@@ -60,13 +58,12 @@ parse_extra(IoDevice, Extra, StartLocation) ->
 
 -spec extra( erl_parse:abstract_form()
            , [erl_scan:token()]
-           , erlang_ls_tree:extra()) -> erlang_ls_tree:extra().
+           , extra()) -> extra().
 extra(Form, Tokens, Extra) ->
   Type = erl_syntax:type(Form),
   extra(Form, Tokens, Extra, Type).
 
--spec extra(erl_parse:abstract_form(), [erl_scan:token()], erlang_ls_tree:extra(), atom()) ->
-   erlang_ls_tree:extra().
+-spec extra(erl_parse:abstract_form(), [erl_scan:token()], extra(), atom()) -> extra().
 extra(Form, Tokens, Extra, attribute) ->
   case erl_syntax_lib:analyze_attribute(Form) of
     {export, Exports} ->

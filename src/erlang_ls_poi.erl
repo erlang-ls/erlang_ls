@@ -17,7 +17,7 @@
 %%==============================================================================
 
 %% @edoc Constructor for a Point of Interest.
--spec poi(tree(), poi_kind(), any(), erlang_ls_tree:extra()) -> poi().
+-spec poi(tree(), poi_kind(), any(), extra()) -> poi().
 poi(Tree, Kind, Data, Extra) ->
   Pos = erl_syntax:get_pos(Tree),
   Range = get_range(Pos, Kind, Data, Extra),
@@ -34,7 +34,7 @@ match_pos(POIs, Pos) ->
 %% Internal Functions
 %%==============================================================================
 
--spec get_range(pos(), poi_kind(), any(), erlang_ls_tree:extra()) -> poi_range().
+-spec get_range(pos(), poi_kind(), any(), extra()) -> poi_range().
 get_range({Line, Column}, application, {M, F, _A}, _Extra) ->
   CFrom = Column - length(atom_to_list(M)),
   From = {Line, CFrom},
@@ -119,7 +119,7 @@ get_range({Line, Column}, type_definition, _Type, _Extra) ->
 matches_pos(Pos, #{from := From, to := To}) ->
   (From =< Pos) andalso (Pos =< To).
 
--spec get_entry_range(atom(), atom(), non_neg_integer(), erlang_ls_tree:extra()) -> poi_range().
+-spec get_entry_range(atom(), atom(), non_neg_integer(), extra()) -> poi_range().
 get_entry_range(Key, F, A, Extra) ->
   Locations = maps:get(Key, Extra, []),
   {FromLine, FromColumn} = proplists:get_value({F, A}, Locations),
