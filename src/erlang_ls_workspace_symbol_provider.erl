@@ -45,7 +45,7 @@ handle_request({symbol, Params}, State) ->
         case erlang_ls_db:find(completion_index, Module) of
           {ok, Uri} ->
             [symbol_information({Module, Uri})];
-          not_found ->
+          {error, not_found} ->
             null
         end;
       _ ->

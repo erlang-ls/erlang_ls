@@ -146,7 +146,6 @@ init({Host, Port}) ->
   {ok, Socket} = gen_tcp:connect(Host, Port, Opts),
   {ok, #state{socket = Socket}}.
 
-%% TODO: Refactor request function
 -spec handle_call(any(), any(), state()) -> {reply, any(), state()}.
 handle_call({completion, Uri, Line, Char, TriggerKind, TriggerCharacter}, From, State) ->
   #state{ request_id = RequestId

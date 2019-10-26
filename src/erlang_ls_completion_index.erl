@@ -37,8 +37,7 @@ index(Document) ->
 %% External functions
 %%==============================================================================
 
-%% TODO: Wrap not_found in error tuple
--spec find(module()) -> {ok, value()} | not_found.
+-spec find(module()) -> {ok, value()} | {error, not_found}.
 find(Module) ->
   %% TODO: Use callback function to fetch index name
   erlang_ls_db:find(completion_index, Module).
