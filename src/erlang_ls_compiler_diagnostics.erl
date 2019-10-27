@@ -24,6 +24,7 @@
 -define(COMPILER_OPTS, [ debug_info
                        , return_warnings
                        , return_errors
+                       , strong_validation
                        ]).
 
 %%==============================================================================
