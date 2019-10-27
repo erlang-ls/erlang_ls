@@ -64,10 +64,12 @@ exported_functions(Config) ->
   TriggerKind = ?COMPLETION_TRIGGER_KIND_CHARACTER,
   Uri = ?config(code_navigation_uri, Config),
   ExpectedCompletion = [ #{ label            => <<"do/1">>
+                          , kind             => ?COMPLETION_ITEM_KIND_FUNCTION
                           , insertText       => <<"do($1)">>
                           , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
                           }
                        , #{ label            => <<"do_2/0">>
+                          , kind             => ?COMPLETION_ITEM_KIND_FUNCTION
                           , insertText       => <<"do_2()">>
                           , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
                           }
