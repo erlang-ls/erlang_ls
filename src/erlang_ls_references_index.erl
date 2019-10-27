@@ -42,7 +42,10 @@ index(Document) ->
 
 -spec get(uri(), poi()) -> [ref()].
 get(Uri, #{kind := Kind, data := MFA})
-  when Kind =:= application; Kind =:= implicit_fun; Kind =:= function ->
+  when Kind =:= application;
+       Kind =:= implicit_fun;
+       Kind =:= function;
+       Kind =:= exports_entry ->
   Key = key(Uri, MFA),
   ordsets:to_list(get(Key));
 get(_, _) ->
