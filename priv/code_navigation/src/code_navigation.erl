@@ -2,7 +2,7 @@
 
 -behaviour(behaviour_a).
 
--export([ function_a/0, function_g/1 ]).
+-export([ function_a/0, function_g/1, function_b/0 ]).
 
 %% behaviour_a callbacks
 -export([ callback_a/0 ]).

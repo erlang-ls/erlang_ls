@@ -15,6 +15,7 @@
         , function_definition/1
         , fun_local/1
         , fun_remote/1
+        , export_entry/1
         ]).
 
 %%==============================================================================
@@ -125,6 +126,20 @@ fun_remote(Config) ->
                          }
                       , #{ uri => Uri
                          , range => #{from => {52, 8}, to => {52, 38}}
+                         }
+                      ],
+  assert_locations(Locations, ExpectedLocations),
+  ok.
+
+-spec export_entry(config()) -> ok.
+export_entry(Config) ->
+  Uri = ?config(code_navigation_uri, Config),
+  #{result := Locations} = erlang_ls_client:references(Uri, 5, 39),
+  ExpectedLocations = [ #{ uri => Uri
+                         , range => #{from => {22, 3}, to => {22, 13}}
+                         }
+                      , #{ uri => Uri
+                         , range => #{from => {51, 7}, to => {51, 23}}
                          }
                       ],
   assert_locations(Locations, ExpectedLocations),
