@@ -78,28 +78,21 @@ specs(M, F, A) ->
 
 -spec edoc(atom(), atom(), non_neg_integer()) -> binary().
 edoc(M, F, A) ->
-  case erlang_ls_utils:find_module(M) of
-    {ok, Uri} ->
-      Path      = erlang_ls_uri:path(Uri),
-      {M, EDoc} = edoc:get_doc(binary_to_list(Path), [{private, true}]),
-      Internal  = xmerl:export_simple([EDoc], docsh_edoc_xmerl),
-      %% TODO: Something is weird with the docsh specs.
-      %%       For now, let's avoid the Dialyzer warnings.
-      Docs = erlang:apply(docsh_docs_v1, from_internal, [Internal]),
-      Res  = erlang:apply(docsh_docs_v1, lookup, [ Docs
-                                                 , {M, F, A}
-                                                 , [doc, spec]]),
-      case Res of
-        {ok, [{{function, F, A}, _Anno, Signature, Desc, _Metadata}|_]} ->
-          format(Signature, Desc);
-        {not_found, Message} ->
-          Message;
-        Error ->
-          lager:error("[hover] Error finding edoc [error=~p]", [Error]),
-          <<>>
-      end;
-    {error, Error} ->
-      lager:error("[hover] Error finding module [error=~p]", [Error]),
+  try
+    {ok, Uri} = erlang_ls_utils:find_module(M),
+    Path      = erlang_ls_uri:path(Uri),
+    {M, EDoc} = edoc:get_doc(binary_to_list(Path), [{private, true}]),
+    Internal  = xmerl:export_simple([EDoc], docsh_edoc_xmerl),
+    %% TODO: Something is weird with the docsh specs.
+    %%       For now, let's avoid the Dialyzer warnings.
+    Docs = erlang:apply(docsh_docs_v1, from_internal, [Internal]),
+    Res  = erlang:apply(docsh_docs_v1, lookup, [ Docs
+                                               , {M, F, A}
+                                               , [doc, spec]]),
+    {ok, [{{function, F, A}, _Anno, Signature, Desc, _Metadata}|_]} = Res,
+    format(Signature, Desc)
+  catch C:E ->
+      lager:error("[hover] Error fetching edoc [error=~p]", [{C, E}]),
       <<>>
   end.
 
