@@ -83,6 +83,10 @@ range({_Line, _Column}, type_application, {Type, StartLocation}, _Extra) ->
 range({Line, Column}, type_definition, _Type, _Extra) ->
   From = {Line, Column},
   To = From,
+  #{ from => From, to => To };
+range({Line, Column}, variable, Name, _Extra) ->
+  From = {Line, Column},
+  To = {Line, Column + length(atom_to_list(Name))},
   #{ from => From, to => To }.
 
 -spec get_entry_range(atom(), atom(), non_neg_integer(), extra()) ->

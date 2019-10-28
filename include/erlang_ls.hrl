@@ -231,8 +231,57 @@
                              , name => binary()
                              }.
 
--define(COMPLETION_ITEM_KIND_TEXT, 1).
--type completion_item_kind() :: ?COMPLETION_ITEM_KIND_TEXT.
+-define(COMPLETION_ITEM_KIND_TEXT,        1).
+-define(COMPLETION_ITEM_KIND_METHOD,      2).
+-define(COMPLETION_ITEM_KIND_FUNCTION,    3).
+-define(COMPLETION_ITEM_KIND_CONSTRUCTOR, 4).
+-define(COMPLETION_ITEM_KIND_FIELD,       5).
+-define(COMPLETION_ITEM_KIND_VARIABLE,    6).
+-define(COMPLETION_ITEM_KIND_CLASS,       7).
+-define(COMPLETION_ITEM_KIND_INTERFACE,   8).
+-define(COMPLETION_ITEM_KIND_MODULE,      9).
+-define(COMPLETION_ITEM_KIND_PROPERTY,    10).
+-define(COMPLETION_ITEM_KIND_UNIT,        11).
+-define(COMPLETION_ITEM_KIND_VALUE,       12).
+-define(COMPLETION_ITEM_KIND_ENUM,        13).
+-define(COMPLETION_ITEM_KIND_KEYWORD,     14).
+-define(COMPLETION_ITEM_KIND_SNIPPET,     15).
+-define(COMPLETION_ITEM_KIND_COLOR,       16).
+-define(COMPLETION_ITEM_KIND_FILE,        17).
+-define(COMPLETION_ITEM_KIND_REFERENCE,   18).
+-define(COMPLETION_ITEM_KIND_FOLDER,      19).
+-define(COMPLETION_ITEM_KIND_ENUM_MEMBER, 20).
+-define(COMPLETION_ITEM_KIND_CONSTANT,    21).
+-define(COMPLETION_ITEM_KIND_STRUCT,      22).
+-define(COMPLETION_ITEM_KIND_EVENT,       23).
+-define(COMPLETION_ITEM_KIND_OPERATOR,    24).
+-define(COMPLETION_ITEM_KIND_TYPE_PARAM,  25).
+
+-type completion_item_kind() :: ?COMPLETION_ITEM_KIND_TEXT
+                              | ?COMPLETION_ITEM_KIND_METHOD
+                              | ?COMPLETION_ITEM_KIND_FUNCTION
+                              | ?COMPLETION_ITEM_KIND_CONSTRUCTOR
+                              | ?COMPLETION_ITEM_KIND_FIELD
+                              | ?COMPLETION_ITEM_KIND_VARIABLE
+                              | ?COMPLETION_ITEM_KIND_CLASS
+                              | ?COMPLETION_ITEM_KIND_INTERFACE
+                              | ?COMPLETION_ITEM_KIND_MODULE
+                              | ?COMPLETION_ITEM_KIND_PROPERTY
+                              | ?COMPLETION_ITEM_KIND_UNIT
+                              | ?COMPLETION_ITEM_KIND_VALUE
+                              | ?COMPLETION_ITEM_KIND_ENUM
+                              | ?COMPLETION_ITEM_KIND_KEYWORD
+                              | ?COMPLETION_ITEM_KIND_SNIPPET
+                              | ?COMPLETION_ITEM_KIND_COLOR
+                              | ?COMPLETION_ITEM_KIND_FILE
+                              | ?COMPLETION_ITEM_KIND_REFERENCE
+                              | ?COMPLETION_ITEM_KIND_FOLDER
+                              | ?COMPLETION_ITEM_KIND_ENUM_MEMBER
+                              | ?COMPLETION_ITEM_KIND_CONSTANT
+                              | ?COMPLETION_ITEM_KIND_STRUCT
+                              | ?COMPLETION_ITEM_KIND_EVENT
+                              | ?COMPLETION_ITEM_KIND_OPERATOR
+                              | ?COMPLETION_ITEM_KIND_TYPE_PARAM.
 
 -define(CODE_ACTION_KIND_QUICKFIX, 1).
 -type code_action_kind() :: ?CODE_ACTION_KIND_QUICKFIX.
@@ -505,7 +554,8 @@
                    | record_expr
                    | spec
                    | type_application
-                   | type_definition.
+                   | type_definition
+                   | variable.
 -type poi_range() :: #{ from := pos(), to := pos() }.
 -type poi()       :: #{ kind  => poi_kind()
                       , data  => any()

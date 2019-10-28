@@ -169,6 +169,7 @@ do_points_of_interest(Tree, Extra) ->
       macro         -> macro(Tree, Extra);
       record_access -> record_access(Tree, Extra);
       record_expr   -> record_expr(Tree, Extra);
+      variable      -> variable(Tree, Extra);
       _             -> []
     end
   catch
@@ -337,6 +338,13 @@ record_expr(Tree, Extra) ->
       [erlang_ls_poi:new(Tree, record_expr, Record, Extra)];
     _ ->
       []
+  end.
+
+-spec variable(tree(), extra()) -> [poi()].
+variable(Tree, Extra) ->
+  case erl_syntax:get_pos(Tree) of
+    0 -> [];
+    _ -> [erlang_ls_poi:new(Tree, variable, node_name(Tree), Extra)]
   end.
 
 -spec define_name(tree()) -> atom().

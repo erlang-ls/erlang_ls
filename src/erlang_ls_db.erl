@@ -2,6 +2,7 @@
 
 %% API
 -export([ find/2
+        , keys/1
         , list/1
         , store/3
         , delete/2
@@ -40,6 +41,10 @@ find(Table, Key) ->
     [] -> {error, not_found};
     [{Key, Value}] -> {ok, Value}
   end.
+
+-spec keys(table()) -> [any()].
+keys(Table) ->
+  [K || {K, _} <- ets:tab2list(Table)].
 
 -spec list(table()) -> [any()].
 list(Table) ->
