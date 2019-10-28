@@ -61,3 +61,8 @@ function_i() -> one.
 -else.
 function_i() -> two.
 -endif.
+
+%% @doc Such a wonderful function.
+-spec function_j() -> pos_integer().
+function_j() ->
+  53.

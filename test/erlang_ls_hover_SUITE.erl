@@ -62,8 +62,18 @@ all() ->
 -spec hover_docs(config()) -> ok.
 hover_docs(Config) ->
   Uri = ?config(code_navigation_extra_uri, Config),
-  #{result := Result} = erlang_ls_client:hover(Uri, 9, 15),
+  #{result := Result} = erlang_ls_client:hover(Uri, 12, 26),
   ?assert(maps:is_key(contents, Result)),
+  Contents = maps:get(contents, Result),
+  ?assertEqual( #{ kind  => <<"markdown">>
+                 , value => <<"-spec function_j() -> pos_integer()."
+                              "\n\n"
+                              "# code_navigation:function_j/0"
+                              "\n\n"
+                              "Such a wonderful function."
+                              "\n\n">>
+                 }
+              , Contents),
   ok.
 
 -spec hover_no_docs(config()) -> ok.
