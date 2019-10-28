@@ -26,7 +26,7 @@ goto_definition( _Uri
                ) when Kind =:= application;
                       Kind =:= implicit_fun;
                       Kind =:= import_entry ->
-  case find_module(M) of
+  case erlang_ls_utils:find_module(M) of
     {ok, Uri}      -> find(Uri, function, {F, A});
     {error, Error} -> {error, Error}
   end;
@@ -37,7 +37,7 @@ goto_definition( Uri
                       Kind =:= exports_entry ->
   find(Uri, function, {F, A});
 goto_definition(_Uri, #{ kind := behaviour, data := Behaviour }) ->
-  case find_module(Behaviour) of
+  case erlang_ls_utils:find_module(Behaviour) of
     {ok, Uri}      -> find(Uri, module, Behaviour);
     {error, Error} -> {error, Error}
   end;
@@ -118,22 +118,8 @@ include_filename(include, String) ->
 include_filename(include_lib, String) ->
   lists:last(filename:split(string:trim(String, both, [$"]))).
 
--spec module_filename(atom()) -> string().
-module_filename(M) ->
-  atom_to_list(M) ++ ".erl".
-
 -spec beginning() -> #{range => #{from => {1, 1}, to => {1, 1}}}.
 beginning() ->
   #{range => #{from => {1, 1}, to => {1, 1}}}.
-
--spec find_module(atom()) -> {ok, uri()} | {error, any()}.
-find_module(M) ->
-  case erlang_ls_db:find(completion_index, M) of
-    {ok, Uri} ->
-      {ok, Uri};
-    {error, not_found} ->
-      FileName = module_filename(M),
-      erlang_ls_index:find_and_index_file(FileName)
-  end.
 
 %% TODO: Handle multiple header files with the same name?

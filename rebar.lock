@@ -1,5 +1,6 @@
 {"1.1.0",
 [{<<"cowlib">>,{pkg,<<"cowlib">>,<<"2.3.0">>},0},
+ {<<"docsh">>,{pkg,<<"docsh">>,<<"0.7.1">>},0},
  {<<"goldrush">>,{pkg,<<"goldrush">>,<<"0.1.9">>},1},
  {<<"jsx">>,{pkg,<<"jsx">>,<<"2.9.0">>},0},
  {<<"lager">>,{pkg,<<"lager">>,<<"3.6.8">>},0},
@@ -9,6 +10,7 @@
 [
 {pkg_hash,[
  {<<"cowlib">>, <<"BBD58EF537904E4F7C1DD62E6AA8BC831C8183CE4EFA9BD1150164FE15BE4CAA">>},
+ {<<"docsh">>, <<"453DF4455DC5A9EEE6B7662B9CA151A2B93A4443ACCDC3F70FCCD0F463C71050">>},
  {<<"goldrush">>, <<"F06E5D5F1277DA5C413E84D5A2924174182FB108DABB39D5EC548B27424CD106">>},
  {<<"jsx">>, <<"D2F6E5F069C00266CAD52FB15D87C428579EA4D7D73A33669E12679E203329DD">>},
  {<<"lager">>, <<"897EFC7679BB82383448646C96768CDC4E747464DD18B999C7AACA485686B0DA">>},
