@@ -2,6 +2,7 @@
 
 -export([ find_module/1
         , halt/1
+        , start_epmd/0
         ]).
 
 -include("erlang_ls.hrl").
@@ -23,3 +24,24 @@ find_module(M) ->
 -spec halt(integer()) -> no_return().
 halt(ExitCode) ->
   erlang:halt(ExitCode).
+
+-spec start_epmd() -> ok.
+start_epmd() ->
+    [] = os:cmd(epmd_path() ++ " -daemon"),
+    ok.
+
+-spec epmd_path() -> string().
+epmd_path() ->
+    ErtsBinDir = filename:dirname(escript:script_name()),
+    Name = "epmd",
+    case os:find_executable(Name, ErtsBinDir) of
+        false ->
+            case os:find_executable(Name) of
+                false ->
+                    error("Could not find epmd.");
+                GlobalEpmd ->
+                    GlobalEpmd
+            end;
+        Epmd ->
+            Epmd
+    end.
