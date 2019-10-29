@@ -69,7 +69,10 @@ parse_extra(IoDevice, Extra, StartLocation) ->
     {eof, _} ->
       {ok, Extra};
     {error, ErrorInfo, EndLocation} ->
-      {error, {ErrorInfo, EndLocation}}
+      lager:warning( "Could not parse extra information [end_location=p] ~p"
+                   , [EndLocation, ErrorInfo]
+                   ),
+      {ok, Extra}
   end.
 
 -spec extra( erl_parse:abstract_form()

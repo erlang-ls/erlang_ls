@@ -8,6 +8,7 @@
 
 %% Test cases
 -export([ specs_location/1
+        , parse_invalid_code/1
         ]).
 
 %%==============================================================================
@@ -43,4 +44,11 @@ specs_location(_Config) ->
   {ok, POIs} = erlang_ls_parser:parse(Text),
   Spec = [POI || #{data := {{foo, 1}, _}, kind := spec} = POI <- POIs],
   ?assertEqual(1, length(Spec)),
+  ok.
+
+%% Issue #170
+-spec parse_invalid_code(config()) -> ok.
+parse_invalid_code(_Config) ->
+  Text = "foo(X) -> 16#.",
+  {ok, _POIs} = erlang_ls_parser:parse(Text),
   ok.
