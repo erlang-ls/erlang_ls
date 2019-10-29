@@ -66,11 +66,11 @@ find_completion( Prefix
   try erl_syntax:type(Token) of
     atom ->
       Module = erl_syntax:atom_value(Token),
-      case erlang_ls_completion_index:find(Module) of
+      case erlang_ls_utils:find_module(Module) of
         {ok, Uri} ->
           {ok, Document} = erlang_ls_db:find(documents, Uri),
           functions(Document, exports_entry);
-        {error, not_found} ->
+        {error, _Error} ->
           null
       end;
     _ -> null
