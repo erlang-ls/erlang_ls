@@ -38,8 +38,9 @@
 -spec diagnostics(uri()) -> [diagnostic()].
 diagnostics(Uri) ->
   Path = erlang_ls_uri:path(Uri),
-  Includes = [{i, IncludePath} || IncludePath <-
-                                    erlang_ls_index:app_include_path()],
+  Includes = [ {i, IncludePath}
+               || IncludePath <- erlang_ls_index:include_path()
+             ],
   case compile:file(binary_to_list(Path), Includes ++ ?COMPILER_OPTS) of
     {ok, _, WS} ->
       diagnostics(WS, ?DIAGNOSTIC_WARNING);

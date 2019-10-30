@@ -24,13 +24,13 @@
 -define(DEFAULT_CONFIG_PATH, "erlang_ls.config").
 -define(SERVER, ?MODULE).
 
--type key()   :: root_uri | deps_dirs | otp_path.
--type path()   :: file:filename().
--type state() :: #{ deps_dirs => [path()]
-                  , otp_path  => path()
-                  , root_uri  => uri()
+-type key()   :: root_uri | include_dirs | deps_dirs | otp_path.
+-type path()  :: file:filename().
+-type state() :: #{ deps_dirs    => [path()]
+                  , include_dirs => [path()]
+                  , otp_path     => path()
+                  , root_uri     => uri()
                   }.
-
 
 %%==============================================================================
 %% Exported functions
@@ -43,9 +43,11 @@ initialize(RootUri, InitOptions) ->
                                         ])),
   OtpPath = maps:get("otp_path", Config, code:root_dir()),
   DepsDirs = maps:get("deps_dirs", Config, []),
+  IncludeDirs = maps:get("include_dirs", Config, ["include"]),
   ok = set(root_uri, RootUri),
   ok = set(otp_path, OtpPath),
   ok = set(deps_dirs, DepsDirs),
+  ok = set(include_dirs, IncludeDirs),
   Config.
 
 -spec start_link() -> {ok, pid()}.

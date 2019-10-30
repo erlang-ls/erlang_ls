@@ -13,7 +13,7 @@
         ]).
 
 -export([ app_path/0
-        , app_include_path/0
+        , include_path/0
         , deps_path/0
         , otp_path/0
         ]).
@@ -139,11 +139,13 @@ app_path() ->
                  , [RootPath, "include"]
                  ]).
 
--spec app_include_path() -> [string()].
-app_include_path() ->
+-spec include_path() -> [string()].
+include_path() ->
   {ok, RootUri} = erlang_ls_config:get(root_uri),
   RootPath = binary_to_list(erlang_ls_uri:path(RootUri)),
-  resolve_paths( [ [RootPath, "include"] ]).
+  {ok, IncludeDirs} = erlang_ls_config:get(include_dirs),
+  Paths = [resolve_paths( [ [RootPath, Dir] ]) || Dir <- IncludeDirs],
+  lists:append(Paths).
 
 -spec deps_path() -> [string()].
 deps_path() ->

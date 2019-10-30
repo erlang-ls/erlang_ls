@@ -110,10 +110,11 @@ A sample `erlang_ls.config` file would look like the following:
 
 Currently, the following customizations are possible:
 
-| Parameter  | Description                                                         |
-|------------|---------------------------------------------------------------------|
-| otp\_path  | Path to the OTP installation                                        |
-| deps\_dirs | List of directories containing dependencies. It supports wildcards. |
+| Parameter     | Description                                                                          |
+|---------------|--------------------------------------------------------------------------------------|
+| otp\_path     | Path to the OTP installation                                                         |
+| deps\_dirs    | List of directories containing dependencies. It supports wildcards.                  |
+| include\_dirs | List of directories provided to the compiler as include dirs. It supports wildcards. |
 
 ## Troubleshooting
 
