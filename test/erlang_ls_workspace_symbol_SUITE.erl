@@ -10,9 +10,9 @@
         ]).
 
 %% Test cases
--export([ query_modules/1
-        , query_module/1
-        , query_invalid/1
+-export([ query_multiple/1
+        , query_single/1
+        , query_none/1
         ]).
 
 
@@ -61,55 +61,57 @@ all() ->
 %%==============================================================================
 %% Testcases
 %%==============================================================================
--spec query_modules(config()) -> ok.
-query_modules(Config) ->
-  #{result := Result} = erlang_ls_client:workspace_symbol(<<"m">>),
-  Expected = [ #{ kind => Kind
+-spec query_multiple(config()) -> ok.
+query_multiple(Config) ->
+  Query = <<"code_navigation">>,
+  Uri = ?config(code_navigation_uri, Config),
+  ExtraUri = ?config(code_navigation_extra_uri, Config),
+  #{result := Result} = erlang_ls_client:workspace_symbol(Query),
+  Expected = [ #{ kind => ?SYMBOLKIND_MODULE
                 , location =>
                     #{ range =>
-                         #{ 'end' => #{character => ToC, line => ToL}
-                          , start => #{character => FromC, line => FromL}
+                         #{ 'end' => #{character => 0, line => 0}
+                          , start => #{character => 0, line => 0}
                           }
                      , uri  => Uri
                      }
-                , name => Name
-                } || {Kind, Uri, Name, {FromL, FromC}, {ToL, ToC}}
-                       <- lists:append([all_modules(Config)])],
-  ?assertEqual(length(Expected), length(Result)),
-  Pairs = lists:zip(lists:sort(Expected), lists:sort(Result)),
-  [?assertEqual(E, S) || {E, S} <- Pairs],
+                , name => <<"code_navigation">>
+                }
+             , #{ kind => ?SYMBOLKIND_MODULE
+                , location =>
+                    #{ range =>
+                         #{ 'end' => #{character => 0, line => 0}
+                          , start => #{character => 0, line => 0}
+                          }
+                     , uri  => ExtraUri
+                     }
+                , name => <<"code_navigation_extra">>
+                }
+             ],
+  ?assertEqual(lists:sort(Expected), lists:sort(Result)),
   ok.
 
--spec query_module(config()) -> ok.
-query_module(Config) ->
-  Module = <<"m-code_navigation">>,
-  Uri = ?config(code_navigation_uri, Config),
-  #{result := Result} = erlang_ls_client:workspace_symbol(Module),
-  Expected = [#{ kind => ?SYMBOLKIND_MODULE
-               , location =>
-                   #{ range =>
-                        #{ 'end' => #{character => 0, line => 0}
-                         , start => #{character => 0, line => 0}
-                         }
-                    , uri  => Uri
-                    }
-               , name => <<"code_navigation">>
-               }],
-  ?assertEqual(Expected, Result),
+-spec query_single(config()) -> ok.
+query_single(Config) ->
+  Query = <<"extra">>,
+  ExtraUri = ?config(code_navigation_extra_uri, Config),
+  #{result := Result} = erlang_ls_client:workspace_symbol(Query),
+  Expected = [ #{ kind => ?SYMBOLKIND_MODULE
+                , location =>
+                    #{ range =>
+                         #{ 'end' => #{character => 0, line => 0}
+                          , start => #{character => 0, line => 0}
+                          }
+                     , uri  => ExtraUri
+                     }
+                , name => <<"code_navigation_extra">>
+                }
+             ],
+  ?assertEqual(lists:sort(Expected), lists:sort(Result)),
   ok.
 
--spec query_invalid(config()) -> ok.
-query_invalid(_Config) ->
-  #{result := Result} = erlang_ls_client:workspace_symbol(<<"invalid">>),
-  ?assertEqual(null, Result),
+-spec query_none(config()) -> ok.
+query_none(_Config) ->
+  #{result := Result} = erlang_ls_client:workspace_symbol(<<"invalid_query">>),
+  ?assertEqual([], Result),
   ok.
-
-%%==============================================================================
-%% Internal Functions
-%%==============================================================================
-all_modules(Config) ->
-  [ {?SYMBOLKIND_MODULE, ?config(behaviour_uri, Config),             <<"behaviour_a">>,           {0, 0}, {0, 0}}
-  , {?SYMBOLKIND_MODULE, ?config(code_navigation_extra_uri, Config), <<"code_navigation_extra">>, {0, 0}, {0, 0}}
-  , {?SYMBOLKIND_MODULE, ?config(code_navigation_uri, Config),       <<"code_navigation">>,       {0, 0}, {0, 0}}
-  , {?SYMBOLKIND_MODULE, ?config(diagnostics_uri, Config),           <<"diagnostics">>,           {0, 0}, {0, 0}}
-  ].
