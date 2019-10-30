@@ -21,10 +21,9 @@
 %%==============================================================================
 %% Defines
 %%==============================================================================
--define(COMPILER_OPTS, [ debug_info
-                       , return_warnings
+-define(COMPILER_OPTS, [ return_warnings
                        , return_errors
-                       , strong_validation
+                       , basic_validation
                        ]).
 
 %%==============================================================================
