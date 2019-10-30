@@ -126,9 +126,16 @@ resides in:
 
     /path/to/erlang_ls/_build/debug/bin/erlang_ls
 
-Once an instance of the server is running you can connect to it via:
+Once an instance of the server is running, find the name of the node in
+the logs or by running `epmd -names`. It will look something like:
 
-    erl -sname debug -remsh erlang_ls@`HOSTNAME`
+    $ epmd -names
+    epmd: up and running on port 4369 with data:
+    name erlang_ls_62880311918 at port 50819
+
+And you can connect to it via:
+
+    erl -sname debug -remsh erlang_ls_62880311918@`HOSTNAME`
 
 The [redbug](https://github.com/massemanet/redbug) application is
 included in _debug mode_, so feel free to use it.
