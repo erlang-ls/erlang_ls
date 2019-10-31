@@ -43,7 +43,12 @@ handle_request({completion, Params}, State) ->
       %% We subtract 1 to strip the character that triggered the
       %% completion from the string.
       Length = case Character > 0 of true -> 1; false -> 0 end,
-      Prefix = erlang_ls_text:line(Text, Line, Character - Length),
+      Prefix = case TriggerKind of
+                 ?COMPLETION_TRIGGER_KIND_CHARACTER ->
+                   erlang_ls_text:line(Text, Line, Character - Length);
+                 ?COMPLETION_TRIGGER_KIND_INVOKED ->
+                   erlang_ls_text:line(Text, Line, Character)
+               end,
       Opts   = #{ trigger  => TriggerCharacter
                 , document => Document
                 },
@@ -56,8 +61,7 @@ handle_request({completion, Params}, State) ->
 %% Internal functions
 %%==============================================================================
 
--spec find_completion(binary(), binary(), map()) ->
-   any().
+-spec find_completion(binary(), integer(), map()) -> any().
 find_completion( Prefix
                , ?COMPLETION_TRIGGER_KIND_CHARACTER
                , #{trigger := <<":">>}
@@ -66,13 +70,7 @@ find_completion( Prefix
   try erl_syntax:type(Token) of
     atom ->
       Module = erl_syntax:atom_value(Token),
-      case erlang_ls_utils:find_module(Module) of
-        {ok, Uri} ->
-          {ok, Document} = erlang_ls_db:find(documents, Uri),
-          functions(Document, exports_entry);
-        {error, _Error} ->
-          null
-      end;
+      exported_functions(Module);
     _ -> null
   catch error:{badarg, _} ->
       null
@@ -81,9 +79,14 @@ find_completion( Prefix
                , ?COMPLETION_TRIGGER_KIND_INVOKED
                , #{document := Document}
                ) ->
-  functions(Document, function)
-    ++ modules(Prefix)
-    ++ variables(Document);
+  case lists:reverse(erlang_ls_text:tokens(Prefix)) of
+    [{atom, _, _}, {':', _}, {atom, _, Module} | _] ->
+      exported_functions(Module);
+    _ ->
+      functions(Document, function)
+        ++ modules(Prefix)
+        ++ variables(Document)
+  end;
 find_completion(_Prefix, _TriggerKind, _Opts) ->
   null.
 
@@ -105,6 +108,16 @@ functions(Document, POIKind) ->
      }
     || #{data := {F, A}} <- POIs
   ].
+
+-spec exported_functions(module()) -> [map()] | null.
+exported_functions(Module) ->
+  case erlang_ls_utils:find_module(Module) of
+    {ok, Uri} ->
+      {ok, Document} = erlang_ls_db:find(documents, Uri),
+      functions(Document, exports_entry);
+    {error, _Error} ->
+      null
+  end.
 
 -spec snippet_function_call(atom(), non_neg_integer()) -> binary().
 snippet_function_call(Function, Arity) ->
