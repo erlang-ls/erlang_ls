@@ -27,15 +27,4 @@ did_save(Params, Server) ->
   erlang_ls_server:send_notification(Server, Method, Params1).
 
 -spec did_close(map()) -> ok.
-did_close(Params) ->
-  TextDocument = maps:get(<<"textDocument">>, Params),
-  Uri          = maps:get(<<"uri">>         , TextDocument),
-  case erlang_ls_db:find(documents, Uri) of
-    {error, not_found} ->
-      lager:debug("[SERVER] Document is already closed [uri=~p]"
-                 , [Uri]);
-    {ok, _} ->
-      %% TODO: Do not delete once DB is persistent
-      ok = erlang_ls_db:delete(documents, Uri)
-  end,
-  ok.
+did_close(_Params) -> ok.
