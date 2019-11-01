@@ -52,18 +52,11 @@ goto_definition(_Uri, #{ kind := Kind, data := Include }
                ) when Kind =:= include;
                       Kind =:= include_lib ->
   %% TODO: Index header definitions as well
-  FileName = include_filename(Kind, Include),
+  FileName = erlang_ls_utils:include_filename(Kind, Include),
   M = list_to_atom(FileName),
-  case erlang_ls_db:find(completion_index, M) of
-    {ok, Uri} ->
-      {ok, Uri, beginning()};
-    {error, not_found} ->
-      case erlang_ls_index:find_and_index_file(FileName) of
-        {ok, Uri} ->
-          {ok, Uri, beginning()};
-        {error, Error} ->
-          {error, Error}
-      end
+  case erlang_ls_utils:find_module(M) of
+    {ok, Uri}      -> {ok, Uri, beginning()};
+    {error, Error} -> {error, Error}
   end;
 goto_definition(Uri, #{ kind := type_application, data := {Type, _} }) ->
   find(Uri, type_definition, Type);
@@ -98,7 +91,7 @@ include_uris(Document) ->
 
 -spec add_include_uri(poi(), [uri()]) -> [uri()].
 add_include_uri(#{ kind := Kind, data := String }, Acc) ->
-  FileName = include_filename(Kind, String),
+  FileName = erlang_ls_utils:include_filename(Kind, String),
   M = list_to_atom(FileName),
   case erlang_ls_db:find(completion_index, M) of
     {ok, Uri} ->
@@ -111,12 +104,6 @@ add_include_uri(#{ kind := Kind, data := String }, Acc) ->
           Acc
       end
   end.
-
--spec include_filename('include' | 'include_lib', string()) -> string().
-include_filename(include, String) ->
-  string:trim(String, both, [$"]);
-include_filename(include_lib, String) ->
-  lists:last(filename:split(string:trim(String, both, [$"]))).
 
 -spec beginning() -> #{range => #{from => {1, 1}, to => {1, 1}}}.
 beginning() ->

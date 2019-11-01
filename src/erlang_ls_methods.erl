@@ -90,7 +90,7 @@ initialize(Params, State) ->
          #{ hoverProvider => erlang_ls_hover_provider:is_enabled()
           , completionProvider =>
               #{ resolveProvider => false
-               , triggerCharacters => [<<":">>, <<"#">>]
+               , triggerCharacters => [<<":">>, <<"#">>, <<"?">>]
                }
           , textDocumentSync =>
               #{ openClose => true

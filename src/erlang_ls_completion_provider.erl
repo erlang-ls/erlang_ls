@@ -70,17 +70,30 @@ find_completion( Prefix
     {atom, _, Module} -> exported_functions(Module);
     _ -> null
   end;
+find_completion( _Prefix
+               , ?COMPLETION_TRIGGER_KIND_CHARACTER
+               , #{trigger := <<"?">>, document := Document}
+               ) ->
+  macros(Document);
 find_completion( Prefix
                , ?COMPLETION_TRIGGER_KIND_INVOKED
                , #{document := Document}
                ) ->
   case lists:reverse(erlang_ls_text:tokens(Prefix)) of
+    %% Check for "[...] atom:atom"
     [{atom, _, _}, {':', _}, {atom, _, Module} | _] ->
       exported_functions(Module);
+    %% Check for "[...] ?anything"
+    [_, {'?', _} | _] ->
+      macros(Document);
+    %% Check for "[...] Variable"
+    [{var, _, _} | _] ->
+      variables(Document);
+    %% Check for "[...] atom"
+    [{atom, _, _} | _] ->
+      modules(Prefix) ++ functions(Document, false);
     _ ->
-      functions(Document, false)
-        ++ modules(Prefix)
-        ++ variables(Document)
+      modules(Prefix) ++ functions(Document, false) ++ variables(Document)
   end;
 find_completion(_Prefix, _TriggerKind, _Opts) ->
   null.
@@ -160,3 +173,37 @@ variables(Document) ->
            || #{data := Name} <- POIs
          ],
   lists:usort(Vars).
+
+%%==============================================================================
+%% Macros
+
+-spec macros(erlang_ls_document:document()) -> [map()].
+macros(Document) ->
+  lists:flatten([local_macros(Document), included_macros(Document)]).
+
+-spec local_macros(erlang_ls_document:document()) -> [map()].
+local_macros(Document) ->
+  POIs   = erlang_ls_document:points_of_interest(Document, [define]),
+   [ #{ label => atom_to_binary(Name, utf8)
+      , kind  => ?COMPLETION_ITEM_KIND_CONSTANT
+      }
+     || #{data := Name} <- POIs
+   ].
+
+-spec included_macros(erlang_ls_document:document()) -> [[map()]].
+included_macros(Document) ->
+  Kinds = [include, include_lib],
+  POIs  = erlang_ls_document:points_of_interest(Document, Kinds),
+  [ include_file_macros(Kind, Name) || #{kind := Kind, data := Name} <- POIs].
+
+-spec include_file_macros('include' | 'include_lib', string()) -> [map()].
+include_file_macros(Kind, Name) ->
+  Filename = erlang_ls_utils:include_filename(Kind, Name),
+  M = list_to_atom(Filename),
+  case erlang_ls_utils:find_module(M) of
+    {ok, Uri} ->
+      {ok, IncludeDocument} = erlang_ls_db:find(documents, Uri),
+      local_macros(IncludeDocument);
+    {error, _} ->
+      []
+  end.
