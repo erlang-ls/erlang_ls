@@ -1,7 +1,7 @@
 %%==============================================================================
 %% Unit Tests for Code Navigation
 %%==============================================================================
--module(erlang_ls_code_navigation_SUITE).
+-module(erlang_ls_definition_SUITE).
 
 %% CT Callbacks
 -export([ suite/0
@@ -16,6 +16,7 @@
 -export([ application_local/1
         , application_remote/1
         , behaviour/1
+        , definition_after_closing/1
         , duplicate_definition/1
         , export_entry/1
         , fun_local/1
@@ -106,6 +107,23 @@ behaviour(Config) ->
   ?assertEqual(?config(behaviour_uri, Config), DefUri),
   ?assertEqual( erlang_ls_protocol:range(#{from => {1, 2}, to => {1, 2}})
               , Range),
+  ok.
+
+%% Issue #191: Definition not found after document is closed
+-spec definition_after_closing(config()) -> ok.
+definition_after_closing(Config) ->
+  Uri      = ?config(code_navigation_uri, Config),
+  ExtraUri = ?config(code_navigation_extra_uri, Config),
+  Def      = erlang_ls_client:definition(Uri, 32, 13),
+  #{result := #{range := Range, uri := DefUri}} = Def,
+  ?assertEqual(ExtraUri, DefUri),
+  ?assertEqual( erlang_ls_protocol:range(#{from => {5, 1}, to => {5, 3}})
+              , Range),
+
+  %% Close file, get definition
+  ok   = erlang_ls_client:did_close(ExtraUri),
+  Def1 = erlang_ls_client:definition(Uri, 32, 13),
+  #{result := #{range := Range, uri := DefUri}} = Def1,
   ok.
 
 -spec duplicate_definition(config()) -> ok.
