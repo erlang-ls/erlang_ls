@@ -91,18 +91,22 @@ find_completion( Prefix
       variables(Document);
     %% Check for "[...] atom"
     [{atom, _, _} | _] ->
-      modules(Prefix) ++ functions(Document, false);
+      modules() ++ functions(Document, false);
     _ ->
-      modules(Prefix) ++ functions(Document, false) ++ variables(Document)
+      modules()
+        ++ functions(Document, false)
+        ++ variables(Document)
+        ++ keywords()
   end;
 find_completion(_Prefix, _TriggerKind, _Opts) ->
   null.
 
 %%==============================================================================
 %% Modules
+%%==============================================================================
 
--spec modules(binary()) -> [map()].
-modules(_Prefix) ->
+-spec modules() -> [map()].
+modules() ->
   [ #{ label            => atom_to_binary(K, utf8)
      , kind             => ?COMPLETION_ITEM_KIND_MODULE
      , insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
@@ -111,6 +115,7 @@ modules(_Prefix) ->
 
 %%==============================================================================
 %% Functions
+%%==============================================================================
 
 -spec functions(erlang_ls_document:document(), boolean()) -> [map()].
 functions(Document, _OnlyExported = false) ->
@@ -163,6 +168,7 @@ snippet_function_call(Function, Args0) ->
 
 %%==============================================================================
 %% Variables
+%%==============================================================================
 
 -spec variables(erlang_ls_document:document()) -> [map()].
 variables(Document) ->
@@ -176,6 +182,7 @@ variables(Document) ->
 
 %%==============================================================================
 %% Macros
+%%==============================================================================
 
 -spec macros(erlang_ls_document:document()) -> [map()].
 macros(Document) ->
@@ -208,3 +215,17 @@ include_file_macros(Kind, Name) ->
     {error, _} ->
       []
   end.
+
+%%==============================================================================
+%% Keywords
+%%==============================================================================
+
+-spec keywords() -> [map()].
+keywords() ->
+  Keywords = [ 'after', 'and', 'andalso', 'band', 'begin', 'bnot', 'bor', 'bsl'
+             , 'bsr', 'bxor', 'case', 'catch', 'cond', 'div', 'end', 'fun'
+             , 'if', 'let', 'not', 'of', 'or', 'orelse', 'receive', 'rem'
+             , 'try', 'when', 'xor'],
+  [ #{ label => atom_to_binary(K, utf8)
+     , kind  => ?COMPLETION_ITEM_KIND_KEYWORD
+     } || K <- Keywords ].
