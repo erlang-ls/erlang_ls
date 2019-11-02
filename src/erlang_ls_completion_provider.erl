@@ -94,7 +94,7 @@ find_completion( Prefix
       variables(Document);
     %% Check for "[...] atom"
     [{atom, _, _} | _] ->
-      modules() ++ functions(Document, false);
+      modules() ++ functions(Document, false) ++ keywords();
     _ ->
       modules()
         ++ functions(Document, false)
