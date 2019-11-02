@@ -5,7 +5,6 @@
 -compile({no_auto_import, [get/1]}).
 
 -export([ index/1
-        , setup/0
         ]).
 
 -export([get/2]).
@@ -23,10 +22,6 @@
 %%==============================================================================
 %% erlang_ls_index functions
 %%==============================================================================
-
--spec setup() -> ok.
-setup() ->
-  ok.
 
 -spec index(erlang_ls_document:document()) -> ok.
 index(Document) ->

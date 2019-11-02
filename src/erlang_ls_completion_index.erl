@@ -3,7 +3,6 @@
 -behaviour(erlang_ls_index).
 
 -export([ index/1
-        , setup/0
         ]).
 
 -export([ find/1 ]).
@@ -21,10 +20,6 @@
 %%==============================================================================
 %% erlang_ls_index functions
 %%==============================================================================
-
--spec setup() -> ok.
-setup() ->
-  ok.
 
 -spec index(erlang_ls_document:document()) -> ok.
 index(Document) ->

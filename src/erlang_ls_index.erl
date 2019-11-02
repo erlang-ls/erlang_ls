@@ -1,9 +1,6 @@
 -module(erlang_ls_index).
 
--behaviour(gen_server).
-
 -callback index(erlang_ls_document:document()) -> ok.
--callback setup() -> atom().
 
 -export([ find_and_index_file/1
         , index/1
@@ -17,16 +14,9 @@
         , otp_path/0
         ]).
 
-%% gen_server callbacks
--export([ init/1
-        , handle_call/3
-        , handle_cast/2
-        ]).
-
 -type index() :: erlang_ls_completion_index
                | erlang_ls_references_index
                | erlang_ls_specs_index.
--type state() :: any().
 
 -define( INDEXES
        , [ erlang_ls_completion_index
@@ -43,10 +33,6 @@
 
 -spec initialize(map()) -> ok.
 initialize(_Config) ->
-  %% Initialize all indexes
-  [  supervisor:start_child(erlang_ls_indexes_sup, [Index])
-     || Index <- ?INDEXES
-  ],
   %% TODO: This could be done asynchronously,
   %%       but we need a way to know when indexing is done,
   %%       or the tests will be flaky.
@@ -58,34 +44,14 @@ initialize(_Config) ->
 
 -spec index(erlang_ls_document:document()) -> ok.
 index(Document) ->
-  Uri = erlang_ls_document:uri(Document),
-  ok  = erlang_ls_db:store(documents, Uri, Document),
-  [gen_server:cast(Index, {index, Index, Document}) || Index <- ?INDEXES],
+  Uri    = erlang_ls_document:uri(Document),
+  ok     = erlang_ls_db:store(documents, Uri, Document),
+  [Index:index(Document) || Index <- ?INDEXES],
   ok.
 
 -spec start_link(index()) -> {ok, pid()}.
 start_link(Index) ->
   gen_server:start_link({local, Index}, ?MODULE, Index, []).
-
-%%==============================================================================
-%% gen_server callbacks
-%%==============================================================================
-
--spec init(index()) -> {ok, state()}.
-init(Index) ->
-  State = Index:setup(),
-  {ok, State}.
-
--spec handle_call(any(), {pid(), any()}, state()) ->
-  {reply, any(), state()}.
-handle_call(_Message, _From, State) ->
-  {reply, ok, State}.
-
--spec handle_cast(any(), any()) ->
-  {noreply, state()}.
-handle_cast({index, Index, Document}, State) ->
-  Index:index(Document),
-  {noreply, State}.
 
 %%==============================================================================
 %% Internal functions
