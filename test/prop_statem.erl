@@ -37,7 +37,6 @@ initial_state() ->
    , documents => []
    }.
 
-
 %%==============================================================================
 %% Weights
 %%==============================================================================
@@ -228,7 +227,7 @@ disconnect_pre(#{connected := Connected} = _S) ->
   Connected.
 
 disconnect_next(S, _R, _Args) ->
-  S#{connected => false, shutdown => false}.
+  S#{connected => false}.
 
 disconnect_post(_S, _Args, Res) ->
   ?assertEqual(ok, Res),
@@ -274,6 +273,9 @@ teardown(_) ->
 %% Cleanup
 %%==============================================================================
 cleanup() ->
+  application:stop(ranch),
+  application:stop(erlang_ls),
+  application:ensure_all_started(erlang_ls),
   catch disconnect(),
   ok.
 
