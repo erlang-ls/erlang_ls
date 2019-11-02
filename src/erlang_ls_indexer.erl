@@ -1,15 +1,19 @@
 %% TODO: Show progress messages to client
 -module(erlang_ls_indexer).
 
+%% TODO: Move all code in one place
+%% TODO: Rename tables
 -callback index(erlang_ls_document:document()) -> ok.
 
 %% TODO: Solve API mix (gen_server and not)
 %% API
--export([ do_index/1
-        , find_and_index_file/1
+-export([ find_and_index_file/1
         , index/1
         , index_dir/1
         , start_link/0
+        , index_app/0
+        , index_deps/0
+        , index_otp/0
         ]).
 
 %% gen_server callbacks
@@ -19,42 +23,28 @@
         ]).
 
 %%==============================================================================
-%% Types
-%%==============================================================================
--type state() :: #{}.
-
--define( INDEXES
-       , [ erlang_ls_completion_index
-         , erlang_ls_references_index
-         , erlang_ls_specs_index
-         ]
-       ).
-
-%%==============================================================================
 %% Includes
 %%==============================================================================
 -include("erlang_ls.hrl").
 
 %%==============================================================================
+%% Types
+%%==============================================================================
+-type state() :: #{}.
+
+%%==============================================================================
 %% Macros
 %%==============================================================================
 -define(SERVER, ?MODULE).
+-define(INDEXES, [ erlang_ls_completion_index
+                 , erlang_ls_references_index
+                 , erlang_ls_specs_index
+                 ]
+       ).
 
 %%==============================================================================
 %% Exported functions
 %%==============================================================================
--spec start_link() -> {ok, pid()}.
-start_link() ->
-  %% TODO: Optionally configure number of workers from args
-  Workers = application:get_env(erlang_ls_app, indexers, 10),
-  {ok, _Pool} = wpool:start_sup_pool(indexers, [ {workers, Workers} ]),
-  gen_server:start_link({local, ?SERVER}, ?MODULE, {}, []).
-
--spec index(erlang_ls_document:document()) -> ok.
-index(Document) ->
-  gen_server:call(?SERVER, {index, Document}).
-
-%% TODO: Not necessary after indexing
 -spec find_and_index_file(string()) ->
    {ok, uri()} | {error, any()}.
 find_and_index_file(FileName) ->
@@ -72,19 +62,25 @@ find_and_index_file(FileName) ->
       {error, Error}
   end.
 
--spec do_index(erlang_ls_document:document()) -> ok.
-do_index(Document) ->
+-spec index(erlang_ls_document:document()) -> ok.
+index(Document) ->
   Uri    = erlang_ls_document:uri(Document),
   ok     = erlang_ls_db:store(documents, Uri, Document),
   [Index:index(Document) || Index <- ?INDEXES],
   ok.
 
-%% @edoc Index a directory.
-%%
-%% Index all .erl and .hrl files contained in the given directory, recursively.
-%% If indexing fails for a specific file, the file is skipped.
-%% Return the number of correctly and incorrectly indexed files.
-%%
+-spec index_app() -> any().
+index_app() ->
+  gen_server:cast(?SERVER, {index_app}).
+
+-spec index_deps() -> any().
+index_deps() ->
+  gen_server:cast(?SERVER, {index_deps}).
+
+-spec index_otp() -> any().
+index_otp() ->
+  gen_server:cast(?SERVER, {index_otp}).
+
 -spec index_dir(string()) -> {non_neg_integer(), non_neg_integer()}.
 index_dir(Dir) ->
   lager:info("Indexing directory. [dir=~s]", [Dir]),
@@ -103,8 +99,13 @@ index_dir(Dir) ->
                                           , {0, 0} ]),
   lager:info("Finished indexing directory. [dir=~s] [time=~p]"
              "[succeeded=~p] "
-             "[failed=~p]", [Time/1000/1000, Dir, Succeeded, Failed]),
+             "[failed=~p]", [Dir, Time/1000/1000, Succeeded, Failed]),
   {Succeeded, Failed}.
+
+
+-spec start_link() -> {ok, pid()}.
+start_link() ->
+  gen_server:start_link({local, ?SERVER}, ?MODULE, {}, []).
 
 %%==============================================================================
 %% gen_server Callback Functions
@@ -112,15 +113,26 @@ index_dir(Dir) ->
 
 -spec init({}) -> {ok, state()}.
 init({}) ->
+  %% TODO: Optionally configure number of workers from args
+  Workers = application:get_env(erlang_ls_app, indexers, 10),
+  {ok, _Pool} = wpool:start_sup_pool(indexers, [ {workers, Workers} ]),
   {ok, #{}}.
 
 -spec handle_call(any(), any(), state()) ->
   {reply, any(), state()}.
-handle_call({index, Document}, _From, State) ->
-  {ok, Res} = wpool:call(indexers, {?MODULE, do_index, [Document]}),
-  {reply, Res, State}.
+handle_call(_Request, _From, State) ->
+  {noreply, State}.
 
 -spec handle_cast(any(), state()) -> {noreply, state()}.
+handle_cast({index_app}, State) ->
+  [index_dir(Dir) || Dir <- erlang_ls_config:get(app_paths)],
+  {noreply, State};
+handle_cast({index_deps}, State) ->
+  [index_dir(Dir) || Dir <- erlang_ls_config:get(deps_paths)],
+  {noreply, State};
+handle_cast({index_otp}, State) ->
+  [index_dir(Dir) || Dir <- erlang_ls_config:get(otp_paths)],
+  {noreply, State};
 handle_cast(_Msg, State) ->
   {noreply, State}.
 
@@ -136,7 +148,7 @@ try_index_file(FullName) ->
     {ok, Text} = file:read_file(FullName),
     Uri        = erlang_ls_uri:uri(FullName),
     Document   = erlang_ls_document:create(Uri, Text),
-    ok         = index(Document)
+    ok         = wpool:cast(indexers, {?MODULE, index, [Document]})
   catch Type:Reason:St ->
       lager:error("Error indexing file "
                   "[filename=~s] "
