@@ -66,14 +66,9 @@ find_completion( Prefix
                , ?COMPLETION_TRIGGER_KIND_CHARACTER
                , #{trigger := <<":">>}
                ) ->
-  Token = erlang_ls_text:last_token(Prefix),
-  try erl_syntax:type(Token) of
-    atom ->
-      Module = erl_syntax:atom_value(Token),
-      exported_functions(Module);
+  case erlang_ls_text:last_token(Prefix) of
+    {atom, _, Module} -> exported_functions(Module);
     _ -> null
-  catch error:{badarg, _} ->
-      null
   end;
 find_completion( Prefix
                , ?COMPLETION_TRIGGER_KIND_INVOKED
@@ -83,12 +78,15 @@ find_completion( Prefix
     [{atom, _, _}, {':', _}, {atom, _, Module} | _] ->
       exported_functions(Module);
     _ ->
-      functions(Document, function)
+      functions(Document, false)
         ++ modules(Prefix)
         ++ variables(Document)
   end;
 find_completion(_Prefix, _TriggerKind, _Opts) ->
   null.
+
+%%==============================================================================
+%% Modules
 
 -spec modules(binary()) -> [map()].
 modules(_Prefix) ->
@@ -98,32 +96,60 @@ modules(_Prefix) ->
      } || K <- erlang_ls_db:keys(completion_index)
   ].
 
--spec functions(erlang_ls_document:document(), poi_kind()) -> [map()].
-functions(Document, POIKind) ->
-  POIs = erlang_ls_document:points_of_interest(Document, [POIKind]),
-  [ #{ label            => list_to_binary(io_lib:format("~p/~p", [F, A]))
-     , kind             => ?COMPLETION_ITEM_KIND_FUNCTION
-     , insertText       => snippet_function_call(F, A)
-     , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
-     }
-    || #{data := {F, A}} <- POIs
+%%==============================================================================
+%% Functions
+
+-spec functions(erlang_ls_document:document(), boolean()) -> [map()].
+functions(Document, _OnlyExported = false) ->
+  POIs = erlang_ls_document:points_of_interest(Document, [function]),
+  [completion_item_function(POI) || POI <- POIs];
+functions(Document, _OnlyExported = true) ->
+  Exports   = erlang_ls_document:points_of_interest(Document, [exports_entry]),
+  Functions = erlang_ls_document:points_of_interest(Document, [function]),
+  ExportsFA = [FA || #{data := FA} <- Exports],
+  [ completion_item_function(POI)
+    || #{data := FA} = POI <- Functions, lists:member(FA, ExportsFA)
   ].
+
+-spec completion_item_function(poi()) -> map().
+completion_item_function(#{data := {F, A}, tree := Tree}) ->
+  #{ label            => list_to_binary(io_lib:format("~p/~p", [F, A]))
+   , kind             => ?COMPLETION_ITEM_KIND_FUNCTION
+   , insertText       => snippet_function_call(F, function_args(Tree, A))
+   , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+   }.
 
 -spec exported_functions(module()) -> [map()] | null.
 exported_functions(Module) ->
   case erlang_ls_utils:find_module(Module) of
     {ok, Uri} ->
       {ok, Document} = erlang_ls_db:find(documents, Uri),
-      functions(Document, exports_entry);
+      functions(Document, true);
     {error, _Error} ->
       null
   end.
 
--spec snippet_function_call(atom(), non_neg_integer()) -> binary().
-snippet_function_call(Function, Arity) ->
-  Args = ["$" ++ integer_to_list(N) || N <- lists:seq(1, Arity)],
-  Format = "~p(" ++ string:join(Args, ", ") ++ ")",
-  list_to_binary(io_lib:format(Format, [Function])).
+-spec function_args(tree(), arity()) -> [{integer(), string()}].
+function_args(Tree, Arity) ->
+  Clause   = hd(erl_syntax:function_clauses(Tree)),
+  Patterns = erl_syntax:clause_patterns(Clause),
+  [ case erl_syntax:type(P) of
+      variable -> {N, erl_syntax:variable_literal(P)};
+      _        -> {N, "Arg" ++ integer_to_list(N)}
+    end
+    || {N, P} <- lists:zip(lists:seq(1, Arity), Patterns)
+  ].
+
+-spec snippet_function_call(atom(), [{integer(), string()}]) -> binary().
+snippet_function_call(Function, Args0) ->
+  Args    = [ ["${", integer_to_list(N), ":", A, "}"]
+              || {N, A} <- Args0
+            ],
+  Snippet = [atom_to_list(Function), "(", string:join(Args, ", "), ")"],
+  iolist_to_binary(Snippet).
+
+%%==============================================================================
+%% Variables
 
 -spec variables(erlang_ls_document:document()) -> [map()].
 variables(Document) ->

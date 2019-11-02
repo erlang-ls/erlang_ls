@@ -557,9 +557,10 @@
                    | type_definition
                    | variable.
 -type poi_range() :: #{ from := pos(), to := pos() }.
--type poi()       :: #{ kind  => poi_kind()
-                      , data  => any()
+-type poi()       :: #{ kind  := poi_kind()
+                      , data  := any()
                       , range := poi_range()
+                      , tree  := tree()
                       }.
 -type tree()      :: erl_syntax:syntaxTree().
 -type extra()     :: any().

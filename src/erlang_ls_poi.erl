@@ -25,6 +25,7 @@ new(Tree, Kind, Data, Extra) ->
   #{ kind  => Kind
    , data  => Data
    , range => Range
+   , tree  => Tree
    }.
 
 -spec match_pos([poi()], pos()) -> [poi()].
