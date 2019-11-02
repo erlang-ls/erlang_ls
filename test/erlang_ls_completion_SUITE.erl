@@ -113,7 +113,7 @@ all_completions(Config) ->
 
   #{result := Completion} =
     erlang_ls_client:completion(Uri, 5, 1, TriggerKind, <<"d">>),
-  ?assertEqual(lists:sort(Completion), lists:sort(Expected)),
+  ?assertEqual(lists:sort(Expected), lists:sort(Completion)),
 
   ok.
 
