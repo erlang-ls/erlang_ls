@@ -39,7 +39,7 @@
 diagnostics(Uri) ->
   Path = erlang_ls_uri:path(Uri),
   Includes = [ {i, IncludePath}
-               || IncludePath <- erlang_ls_index:include_path()
+               || IncludePath <- erlang_ls_config:get(include_paths)
              ],
   case compile:file(binary_to_list(Path), Includes ++ ?COMPILER_OPTS) of
     {ok, _, WS} ->

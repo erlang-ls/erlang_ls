@@ -83,7 +83,7 @@ initialize(Params, State) ->
    } = Params,
   InitOptions = maps:get(<<"initializationOptions">>, Params, #{}),
   ok = erlang_ls_config:initialize(RootUri, InitOptions),
-  ok = erlang_ls_index:initialize(),
+  ok = erlang_ls_indexer:initialize(),
   ok = erlang_ls_provider:initialize(),
   Result =
     #{ capabilities =>
@@ -157,7 +157,7 @@ textdocument_didchange(Params, State) ->
     []                      -> ok;
     [#{<<"text">> := Text}] ->
       Document = erlang_ls_document:create(Uri, Text),
-      erlang_ls_index:index(Document)
+      erlang_ls_indexer:index(Document)
   end,
   {noresponse, State}.
 

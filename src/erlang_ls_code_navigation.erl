@@ -97,7 +97,7 @@ add_include_uri(#{ kind := Kind, data := String }, Acc) ->
     {ok, Uri} ->
       [Uri|Acc];
     {error, not_found} ->
-      case erlang_ls_index:find_and_index_file(FileName) of
+      case erlang_ls_indexer:find_and_index_file(FileName) of
         {ok, Uri} ->
           [Uri|Acc];
         {error, _Error} ->

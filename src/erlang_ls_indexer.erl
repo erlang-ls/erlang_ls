@@ -1,4 +1,4 @@
--module(erlang_ls_index).
+-module(erlang_ls_indexer).
 
 -callback index(erlang_ls_document:document()) -> ok.
 
@@ -6,12 +6,6 @@
         , index/1
         , initialize/0
         , start_link/1
-        ]).
-
--export([ app_path/0
-        , include_path/0
-        , deps_path/0
-        , otp_path/0
         ]).
 
 -type index() :: erlang_ls_completion_index
@@ -39,7 +33,7 @@ initialize() ->
 
   %% At initialization, we currently index only the app path.
   %% deps and otp paths will be indexed on demand.
-  [index_dir(Dir) || Dir <- app_path()],
+  [index_dir(Dir) || Dir <- erlang_ls_config:get(app_paths)],
   ok.
 
 -spec index(erlang_ls_document:document()) -> ok.
@@ -103,9 +97,9 @@ try_index_file(FullName) ->
 -spec find_and_index_file(string()) ->
    {ok, uri()} | {error, any()}.
 find_and_index_file(FileName) ->
-  Paths = lists:append([ app_path()
-                       , deps_path()
-                       , otp_path()
+  Paths = lists:append([ erlang_ls_config:get(app_paths)
+                       , erlang_ls_config:get(deps_paths)
+                       , erlang_ls_config:get(otp_paths)
                        ]),
   case file:path_open(Paths, list_to_binary(FileName), [read]) of
     {ok, IoDevice, FullName} ->
@@ -116,73 +110,3 @@ find_and_index_file(FileName) ->
     {error, Error} ->
       {error, Error}
   end.
-
--spec app_path() -> [string()].
-app_path() ->
-  {ok, RootUri} = erlang_ls_config:get(root_uri),
-  RootPath = binary_to_list(erlang_ls_uri:path(RootUri)),
-  resolve_paths( [ [RootPath, "src"]
-                 , [RootPath, "test"]
-                 , [RootPath, "include"]
-                 ]).
-
--spec include_path() -> [string()].
-include_path() ->
-  {ok, RootUri} = erlang_ls_config:get(root_uri),
-  RootPath = binary_to_list(erlang_ls_uri:path(RootUri)),
-  {ok, IncludeDirs} = erlang_ls_config:get(include_dirs),
-  Paths = [resolve_paths( [ [RootPath, Dir] ]) || Dir <- IncludeDirs],
-  lists:append(Paths).
-
--spec deps_path() -> [string()].
-deps_path() ->
-  {ok, RootUri} = erlang_ls_config:get(root_uri),
-  RootPath = binary_to_list(erlang_ls_uri:path(RootUri)),
-  {ok, Dirs} = erlang_ls_config:get(deps_dirs),
-  Paths = [ resolve_paths( [ [RootPath, Dir, "src"]
-                           , [RootPath, Dir, "test"]
-                           , [RootPath, Dir, "include"]
-                           ])
-            || Dir <- Dirs
-          ],
-  lists:append(Paths).
-
--spec otp_path() -> [string()].
-otp_path() ->
-  {ok, Root} = erlang_ls_config:get(otp_path),
-  resolve_paths( [ [Root, "lib", "*", "src"]
-                 , [Root, "lib", "*", "include"]
-                 ]).
-
--spec resolve_paths([[string()]]) -> [[string()]].
-resolve_paths(PathSpecs) ->
-  lists:append([resolve_path(PathSpec) || PathSpec <- PathSpecs]).
-
--spec resolve_path([string()]) -> [string()].
-resolve_path(PathSpec) ->
-  Path = filename:join(PathSpec),
-  Paths = [[P | subdirs(P)] || P <- filelib:wildcard(Path)],
-  lists:append(Paths).
-
-%% Returns all subdirectories for the provided path
--spec subdirs(string()) -> [string()].
-subdirs(Path) ->
-  subdirs(Path, []).
-
--spec subdirs(string(), [string()]) -> [string()].
-subdirs(Path, Subdirs) ->
-  case file:list_dir(Path) of
-    {ok, Files}     -> subdirs_(Path, Files, Subdirs);
-    {error, enoent} -> Subdirs
-  end.
-
--spec subdirs_(string(), [string()], [string()]) -> [string()].
-subdirs_(Path, Files, Subdirs) ->
-  Fold = fun(F, Acc) ->
-             FullPath = filename:join([Path, F]),
-             case filelib:is_dir(FullPath) of
-               true  -> subdirs(FullPath, [FullPath | Acc]);
-               false -> Acc
-             end
-         end,
-  lists:foldl(Fold, Subdirs, Files).

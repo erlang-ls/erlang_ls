@@ -19,7 +19,7 @@ find_module(M) ->
       {ok, Uri};
     {error, not_found} ->
       FileName = atom_to_list(M) ++ ".erl",
-      erlang_ls_index:find_and_index_file(FileName)
+      erlang_ls_indexer:find_and_index_file(FileName)
   end.
 
 -spec include_filename('include' | 'include_lib', string()) -> string().

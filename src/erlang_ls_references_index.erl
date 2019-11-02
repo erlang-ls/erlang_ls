@@ -1,6 +1,6 @@
 -module(erlang_ls_references_index).
 
--behaviour(erlang_ls_index).
+-behaviour(erlang_ls_indexer).
 
 -compile({no_auto_import, [get/1]}).
 

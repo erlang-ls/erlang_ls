@@ -1,6 +1,6 @@
 -module(erlang_ls_specs_index).
 
--behaviour(erlang_ls_index).
+-behaviour(erlang_ls_indexer).
 
 -export([ index/1
         ]).
