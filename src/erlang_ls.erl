@@ -22,8 +22,9 @@ parse_args(["--tcp" | Rest]) ->
 parse_args(["--port", Port | Rest]) ->
   application:set_env(erlang_ls, port, list_to_integer(Port)),
   parse_args(Rest);
-parse_args([X | Rest]) ->
-  lager:info("Unknown option: ~p", [X]),
+%% For backward compatibility with clients
+parse_args([Port | Rest]) ->
+  application:set_env(erlang_ls, port, list_to_integer(Port)),
   parse_args(Rest).
 
 -spec init_node_name(boolean()) -> ok.
