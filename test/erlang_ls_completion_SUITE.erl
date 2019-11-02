@@ -167,9 +167,6 @@ macros(Config) ->
                 , label => <<"INCLUDED_MACRO_A">>
                 }
              , #{ kind => ?COMPLETION_ITEM_KIND_CONSTANT
-                , label => <<"INCLUDED_MACRO_A">>
-                }
-             , #{ kind => ?COMPLETION_ITEM_KIND_CONSTANT
                 , label => <<"MACRO_A">>
                 }
              , #{ kind => ?COMPLETION_ITEM_KIND_CONSTANT

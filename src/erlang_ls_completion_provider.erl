@@ -179,7 +179,8 @@ variables(Document) ->
 
 -spec macros(erlang_ls_document:document()) -> [map()].
 macros(Document) ->
-  lists:flatten([local_macros(Document), included_macros(Document)]).
+  Macros = lists:flatten([local_macros(Document), included_macros(Document)]),
+  lists:usort(Macros).
 
 -spec local_macros(erlang_ls_document:document()) -> [map()].
 local_macros(Document) ->
@@ -194,7 +195,7 @@ local_macros(Document) ->
 included_macros(Document) ->
   Kinds = [include, include_lib],
   POIs  = erlang_ls_document:points_of_interest(Document, Kinds),
-  [ include_file_macros(Kind, Name) || #{kind := Kind, data := Name} <- POIs].
+  [include_file_macros(Kind, Name) || #{kind := Kind, data := Name} <- POIs].
 
 -spec include_file_macros('include' | 'include_lib', string()) -> [map()].
 include_file_macros(Kind, Name) ->
