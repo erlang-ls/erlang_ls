@@ -113,8 +113,9 @@ all_completions(Config) ->
 
   #{result := Completion} =
     erlang_ls_client:completion(Uri, 5, 1, TriggerKind, <<"d">>),
-  ?assertEqual(lists:sort(Expected), lists:sort(Completion)),
-
+  Keywords = [C || #{kind := ?COMPLETION_ITEM_KIND_KEYWORD} = C <- Completion],
+  ?assertEqual(erlang_ls_completion_provider:keywords(), Keywords),
+  ?assertEqual(lists:sort(Expected), lists:sort(Completion -- Keywords)),
   ok.
 
 -spec exported_functions(config()) -> ok.
