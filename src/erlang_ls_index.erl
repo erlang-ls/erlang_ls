@@ -7,7 +7,6 @@
 
 -export([ find_and_index_file/1
         , index/1
-        , index_file/1
         , initialize/1
         , start_link/1
         ]).
@@ -54,7 +53,7 @@ initialize(_Config) ->
 
   %% At initialization, we currently index only the app path.
   %% deps and otp paths will be indexed on demand.
-  indexer(app_path()),
+  [index_dir(Dir) || Dir <- app_path()],
   ok.
 
 -spec index(erlang_ls_document:document()) -> ok.
@@ -92,13 +91,48 @@ handle_cast({index, Index, Document}, State) ->
 %% Internal functions
 %%==============================================================================
 
--spec indexer([string()]) -> ok.
-indexer(Paths) ->
-  Fun = fun(File, _) -> index_file(iolist_to_binary(File)) end,
-  [ filelib:fold_files(Path, ".*\\.[e,h]rl$", true, Fun, ok)
-    || Path <- Paths
-  ],
-  ok.
+%% @edoc Index a directory.
+%%
+%% Index all .erl and .hrl files contained in the given directory, recursively.
+%% If indexing fails for a specific file, the file is skipped.
+%% Return the number of correctly and incorrectly indexed files.
+%%
+-spec index_dir(string()) -> {non_neg_integer(), non_neg_integer()}.
+index_dir(Dir) ->
+  lager:info("Indexing directory. [dir=~s]", [Dir]),
+  F = fun(FileName, {Succeeded, Failed}) ->
+          case try_index_file(list_to_binary(FileName)) of
+            ok              -> {Succeeded +1, Failed};
+            {error, _Error} -> {Succeeded, Failed + 1}
+          end
+      end,
+  {Time, {Succeeded, Failed}} = timer:tc( filelib
+                                        , fold_files
+                                        , [ Dir
+                                          , ".*\\.[e,h]rl$"
+                                          , true
+                                          , F
+                                          , {0, 0} ]),
+  lager:info("Finished indexing directory. [dir=~s] [time=~p]"
+             "[succeeded=~p] "
+             "[failed=~p]", [Time/1000/1000, Dir, Succeeded, Failed]),
+  {Succeeded, Failed}.
+
+%% @edoc Try indexing a file.
+-spec try_index_file(binary()) -> ok | {error, any()}.
+try_index_file(FullName) ->
+  try
+    lager:debug("Indexing file. [filename=~s]", [FullName]),
+    {ok, Text} = file:read_file(FullName),
+    Uri        = erlang_ls_uri:uri(FullName),
+    Document   = erlang_ls_document:create(Uri, Text),
+    ok         = index(Document)
+  catch Type:Reason:St ->
+      lager:error("Error indexing file "
+                  "[filename=~s] "
+                  "~p:~p:~p", [FullName, Type, Reason, St]),
+      {error, {Type, Reason}}
+  end.
 
 -spec find_and_index_file(string()) ->
    {ok, uri()} | {error, any()}.
@@ -111,23 +145,10 @@ find_and_index_file(FileName) ->
     {ok, IoDevice, FullName} ->
       %% TODO: Avoid opening file twice
       file:close(IoDevice),
-      index_file(FullName),
+      try_index_file(FullName),
       {ok, erlang_ls_uri:uri(FullName)};
     {error, Error} ->
       {error, Error}
-  end.
-
--spec index_file(file:name_all()) -> ok.
-index_file(FullName) ->
-  try
-    lager:debug("Indexing ~s", [FullName]),
-    {ok, Text} = file:read_file(FullName),
-    Uri        = erlang_ls_uri:uri(FullName),
-    Document   = erlang_ls_document:create(Uri, Text),
-    ok         = index(Document)
-  catch Type:Reason:St ->
-      lager:error("Error indexing ~s: ~p", [FullName, Reason]),
-      erlang:raise(Type, Reason, St)
   end.
 
 -spec app_path() -> [string()].
