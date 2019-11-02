@@ -54,6 +54,10 @@ file (assuming the `erlang_ls` executable is available in your `PATH`:
     ;; Enable LSP automatically for Erlang files
     (add-hook 'erlang-mode-hook #'lsp)
 
+    ;; Override the key bindings from erlang-mode to use LSP for completion
+    (eval-after-load 'erlang
+      '(define-key erlang-mode-map (kbd "C-M-i") #'company-lsp))
+
 Ensure you have Erlang (i.e. `erl`, `escript` and friends) as part
 of your Emacs path. If you don't, you can try the following:
 
