@@ -84,7 +84,7 @@ initialize(Params, State) ->
   InitOptions = maps:get(<<"initializationOptions">>, Params, #{}),
   Config = erlang_ls_config:initialize(RootUri, InitOptions),
   ok     = erlang_ls_index:initialize(Config),
-  ok     = erlang_ls_provider:initialize(Config),
+  ok     = erlang_ls_provider:initialize(),
   Result =
     #{ capabilities =>
          #{ hoverProvider => erlang_ls_hover_provider:is_enabled()

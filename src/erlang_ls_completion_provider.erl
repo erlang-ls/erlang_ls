@@ -6,8 +6,6 @@
 
 -export([ handle_request/2
         , is_enabled/0
-        , setup/1
-        , teardown/0
         ]).
 
 %% Exported to ease testing.
@@ -20,14 +18,6 @@
 -spec is_enabled() -> boolean().
 is_enabled() ->
   true.
-
--spec setup(map()) -> erlang_ls_provider:state().
-setup(_Config) ->
-  #{}.
-
--spec teardown() -> ok.
-teardown() ->
-  ok.
 
 -spec handle_request(any(), erlang_ls_provider:state()) ->
   {any(), erlang_ls_provider:state()}.

@@ -4,8 +4,6 @@
 
 -export([ handle_request/2
         , is_enabled/0
-        , setup/1
-        , teardown/0
         ]).
 
 -include("erlang_ls.hrl").
@@ -18,10 +16,6 @@
 is_enabled() ->
   true.
 
--spec setup(map()) -> erlang_ls_provider:state().
-setup(_Config) ->
-  #{}.
-
 -spec handle_request(any(), erlang_ls_provider:state()) ->
   {any(), erlang_ls_provider:state()}.
 handle_request({document_symbol, Params}, State) ->
@@ -31,10 +25,6 @@ handle_request({document_symbol, Params}, State) ->
     [] -> {null, State};
     _  -> {Functions, State}
   end.
-
--spec teardown() -> ok.
-teardown() ->
-  ok.
 
 %%==============================================================================
 %% Internal Functions
