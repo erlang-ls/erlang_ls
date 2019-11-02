@@ -36,7 +36,7 @@
 %% Exported functions
 %%==============================================================================
 
--spec initialize(uri(), map()) -> map().
+-spec initialize(uri(), map()) -> ok.
 initialize(RootUri, InitOptions) ->
   Config = consult_config(filename:join([ erlang_ls_uri:path(RootUri)
                                         , config_path(InitOptions)
@@ -48,7 +48,7 @@ initialize(RootUri, InitOptions) ->
   ok = set(otp_path, OtpPath),
   ok = set(deps_dirs, DepsDirs),
   ok = set(include_dirs, IncludeDirs),
-  Config.
+  ok.
 
 -spec start_link() -> {ok, pid()}.
 start_link() ->

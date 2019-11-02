@@ -4,7 +4,7 @@
 
 -export([ find_and_index_file/1
         , index/1
-        , initialize/1
+        , initialize/0
         , start_link/1
         ]).
 
@@ -31,8 +31,8 @@
 %% External functions
 %%==============================================================================
 
--spec initialize(map()) -> ok.
-initialize(_Config) ->
+-spec initialize() -> ok.
+initialize() ->
   %% TODO: This could be done asynchronously,
   %%       but we need a way to know when indexing is done,
   %%       or the tests will be flaky.
