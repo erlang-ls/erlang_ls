@@ -12,7 +12,9 @@
 %% Exports
 %%==============================================================================
 
--export([start_link/2]).
+-export([ start/1
+        , start_link/2
+        ]).
 
 %% gen_statem callbacks
 -export([ callback_mode/0
@@ -50,6 +52,10 @@
 %%==============================================================================
 %% Start server
 %%==============================================================================
+
+-spec start(module()) -> ok.
+start(Transport) ->
+  Transport:start().
 
 -spec start_link(module(), any()) -> {ok, pid()}.
 start_link(Transport, Args) ->

@@ -5,12 +5,22 @@
 
 -export([start_link/4]).
 
--export([ init/1
+-export([ start/0
+        , init/1
         , recv/1
         , send/2
         , close/1
         ]).
 
+%%==============================================================================
+%% Defines
+%%==============================================================================
+
+-define(DEFAULT_PORT, 10000).
+
+%%==============================================================================
+%% Types
+%%==============================================================================
 -type state() :: {any(), any()}.
 
 %%==============================================================================
@@ -25,6 +35,17 @@ start_link(Ref, Socket, Transport, Opts) ->
 %%==============================================================================
 %% els_transport callbacks
 %%==============================================================================
+
+-spec start() -> ok.
+start() ->
+  Port = application:get_env(erlang_ls, port, ?DEFAULT_PORT),
+  {ok, _} = ranch:start_listener( erlang_ls
+                                , ranch_tcp
+                                , #{socket_opts => [{port, Port}]}
+                                , erlang_ls_tcp
+                                , []
+                                ),
+  ok.
 
 -spec init({ranch:ref(), any(), module(), any()}) -> state().
 init({Ref, Socket, Transport, _Opts}) ->

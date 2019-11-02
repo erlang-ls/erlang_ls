@@ -17,22 +17,12 @@
         ]).
 
 %%==============================================================================
-%% Defines
-%%==============================================================================
--define(DEFAULT_PORT, 10000).
-
-%%==============================================================================
 %% Application Callbacks
 %%==============================================================================
 -spec start(normal, any()) -> {ok, pid()}.
 start(_StartType, _StartArgs) ->
-  Port = application:get_env(erlang_ls, port, ?DEFAULT_PORT),
-  {ok, _} = ranch:start_listener( erlang_ls
-                                , ranch_tcp
-                                , #{socket_opts => [{port, Port}]}
-                                , els_tcp
-                                , []
-                                ),
+  Transport = application:get_env(erlang_ls, transport, erlang_ls_tcp),
+  ok = erlang_ls_server:start(Transport),
   erlang_ls_sup:start_link().
 
 -spec stop(any()) -> ok.
