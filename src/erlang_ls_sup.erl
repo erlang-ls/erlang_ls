@@ -43,6 +43,10 @@ init([]) ->
                   , start    => {erlang_ls_config, start_link, []}
                   , shutdown => brutal_kill
                   }
+               , #{ id       => erlang_ls_indexer
+                  , start    => {erlang_ls_indexer, start_link, []}
+                  , shutdown => brutal_kill
+                  }
                , #{ id       => erlang_ls_db
                   , start    => {erlang_ls_db, start_link, []}
                   , shutdown => brutal_kill

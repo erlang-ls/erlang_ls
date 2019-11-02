@@ -1,16 +1,27 @@
+%% TODO: Show progress messages to client
 -module(erlang_ls_indexer).
 
 -callback index(erlang_ls_document:document()) -> ok.
 
--export([ find_and_index_file/1
+%% TODO: Solve API mix (gen_server and not)
+%% API
+-export([ do_index/1
+        , find_and_index_file/1
         , index/1
-        , initialize/0
-        , start_link/1
+        , index_dir/1
+        , start_link/0
         ]).
 
--type index() :: erlang_ls_completion_index
-               | erlang_ls_references_index
-               | erlang_ls_specs_index.
+%% gen_server callbacks
+-export([ init/1
+        , handle_call/3
+        , handle_cast/2
+        ]).
+
+%%==============================================================================
+%% Types
+%%==============================================================================
+-type state() :: #{}.
 
 -define( INDEXES
        , [ erlang_ls_completion_index
@@ -19,37 +30,54 @@
          ]
        ).
 
+%%==============================================================================
+%% Includes
+%%==============================================================================
 -include("erlang_ls.hrl").
 
 %%==============================================================================
-%% External functions
+%% Macros
 %%==============================================================================
+-define(SERVER, ?MODULE).
 
--spec initialize() -> ok.
-initialize() ->
-  %% TODO: This could be done asynchronously,
-  %%       but we need a way to know when indexing is done,
-  %%       or the tests will be flaky.
-
-  %% At initialization, we currently index only the app path.
-  %% deps and otp paths will be indexed on demand.
-  [index_dir(Dir) || Dir <- erlang_ls_config:get(app_paths)],
-  ok.
+%%==============================================================================
+%% Exported functions
+%%==============================================================================
+-spec start_link() -> {ok, pid()}.
+start_link() ->
+  %% TODO: Optionally configure number of workers from args
+  Workers = application:get_env(erlang_ls_app, indexers, 10),
+  {ok, _Pool} = wpool:start_sup_pool(indexers, [ {workers, Workers} ]),
+  gen_server:start_link({local, ?SERVER}, ?MODULE, {}, []).
 
 -spec index(erlang_ls_document:document()) -> ok.
 index(Document) ->
+  gen_server:call(?SERVER, {index, Document}).
+
+%% TODO: Not necessary after indexing
+-spec find_and_index_file(string()) ->
+   {ok, uri()} | {error, any()}.
+find_and_index_file(FileName) ->
+  Paths = lists:append([ erlang_ls_config:get(app_paths)
+                       , erlang_ls_config:get(deps_paths)
+                       , erlang_ls_config:get(otp_paths)
+                       ]),
+  case file:path_open(Paths, list_to_binary(FileName), [read]) of
+    {ok, IoDevice, FullName} ->
+      %% TODO: Avoid opening file twice
+      file:close(IoDevice),
+      try_index_file(FullName),
+      {ok, erlang_ls_uri:uri(FullName)};
+    {error, Error} ->
+      {error, Error}
+  end.
+
+-spec do_index(erlang_ls_document:document()) -> ok.
+do_index(Document) ->
   Uri    = erlang_ls_document:uri(Document),
   ok     = erlang_ls_db:store(documents, Uri, Document),
-  [wpool:call(indexers, {Index, index, [Document]}) || Index <- ?INDEXES],
+  [Index:index(Document) || Index <- ?INDEXES],
   ok.
-
--spec start_link(index()) -> {ok, pid()}.
-start_link(Index) ->
-  gen_server:start_link({local, Index}, ?MODULE, Index, []).
-
-%%==============================================================================
-%% Internal functions
-%%==============================================================================
 
 %% @edoc Index a directory.
 %%
@@ -78,6 +106,28 @@ index_dir(Dir) ->
              "[failed=~p]", [Time/1000/1000, Dir, Succeeded, Failed]),
   {Succeeded, Failed}.
 
+%%==============================================================================
+%% gen_server Callback Functions
+%%==============================================================================
+
+-spec init({}) -> {ok, state()}.
+init({}) ->
+  {ok, #{}}.
+
+-spec handle_call(any(), any(), state()) ->
+  {reply, any(), state()}.
+handle_call({index, Document}, _From, State) ->
+  {ok, Res} = wpool:call(indexers, {?MODULE, do_index, [Document]}),
+  {reply, Res, State}.
+
+-spec handle_cast(any(), state()) -> {noreply, state()}.
+handle_cast(_Msg, State) ->
+  {noreply, State}.
+
+%%==============================================================================
+%% Internal functions
+%%==============================================================================
+
 %% @edoc Try indexing a file.
 -spec try_index_file(binary()) -> ok | {error, any()}.
 try_index_file(FullName) ->
@@ -92,21 +142,4 @@ try_index_file(FullName) ->
                   "[filename=~s] "
                   "~p:~p:~p", [FullName, Type, Reason, St]),
       {error, {Type, Reason}}
-  end.
-
--spec find_and_index_file(string()) ->
-   {ok, uri()} | {error, any()}.
-find_and_index_file(FileName) ->
-  Paths = lists:append([ erlang_ls_config:get(app_paths)
-                       , erlang_ls_config:get(deps_paths)
-                       , erlang_ls_config:get(otp_paths)
-                       ]),
-  case file:path_open(Paths, list_to_binary(FileName), [read]) of
-    {ok, IoDevice, FullName} ->
-      %% TODO: Avoid opening file twice
-      file:close(IoDevice),
-      try_index_file(FullName),
-      {ok, erlang_ls_uri:uri(FullName)};
-    {error, Error} ->
-      {error, Error}
   end.

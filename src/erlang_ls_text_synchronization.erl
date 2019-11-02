@@ -23,7 +23,6 @@ did_save(Params, Server) ->
   Params1  = #{ uri => Uri
               , diagnostics => CDiagnostics ++ DDiagnostics
               },
-  %% TODO: prune/re-index on save/change
   erlang_ls_server:send_notification(Server, Method, Params1).
 
 -spec did_close(map()) -> ok.

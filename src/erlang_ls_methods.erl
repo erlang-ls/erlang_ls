@@ -83,7 +83,7 @@ initialize(Params, State) ->
    } = Params,
   InitOptions = maps:get(<<"initializationOptions">>, Params, #{}),
   ok = erlang_ls_config:initialize(RootUri, InitOptions),
-  ok = erlang_ls_indexer:initialize(),
+  [erlang_ls_indexer:index_dir(Dir) || Dir <- erlang_ls_config:get(app_paths)],
   ok = erlang_ls_provider:initialize(),
   Result =
     #{ capabilities =>
