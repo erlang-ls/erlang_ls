@@ -1,6 +1,7 @@
 -module(erlang_ls_utils).
 
 -export([ find_module/1
+        , include_filename/2
         , halt/1
         , start_epmd/0
         ]).
@@ -20,6 +21,12 @@ find_module(M) ->
       FileName = atom_to_list(M) ++ ".erl",
       erlang_ls_index:find_and_index_file(FileName)
   end.
+
+-spec include_filename('include' | 'include_lib', string()) -> string().
+include_filename(include, String) ->
+  string:trim(String, both, [$"]);
+include_filename(include_lib, String) ->
+  lists:last(filename:split(string:trim(String, both, [$"]))).
 
 -spec halt(integer()) -> no_return().
 halt(ExitCode) ->
