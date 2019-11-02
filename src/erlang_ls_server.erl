@@ -66,9 +66,8 @@ send_notification(Server, Method, Params) ->
   gen_server:cast(Server, {notification, Method, Params}).
 
 %%==============================================================================
-%% gen_statem callbacks
+%% gen_server callbacks
 %%==============================================================================
-
 -spec init(module()) -> no_return().
 init(Transport) ->
   lager:info("Starting erlang_ls_server..."),
