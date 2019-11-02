@@ -29,8 +29,8 @@ start(_StartType, _StartArgs) ->
   Port = application:get_env(erlang_ls, port, ?DEFAULT_PORT),
   {ok, _} = ranch:start_listener( erlang_ls
                                 , ranch_tcp
-                                , [{port, Port}]
-                                , erlang_ls_server
+                                , #{socket_opts => [{port, Port}]}
+                                , els_tcp
                                 , []
                                 ),
   erlang_ls_sup:start_link().

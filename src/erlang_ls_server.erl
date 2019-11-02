@@ -6,14 +6,13 @@
 %%==============================================================================
 %% Behaviours
 %%==============================================================================
--behaviour(ranch_protocol).
 -behaviour(gen_statem).
 
 %%==============================================================================
 %% Exports
 %%==============================================================================
-%% ranch_protocol callbacks
--export([ start_link/4 ]).
+
+-export([start_link/2]).
 
 %% gen_statem callbacks
 -export([ callback_mode/0
@@ -37,9 +36,10 @@
 %%==============================================================================
 %% Record Definitions
 %%==============================================================================
--record(state, { socket :: port()
-               , buffer :: binary()
-               , state  :: map()
+-record(state, { transport  :: module()
+               , connection :: any()
+               , buffer     :: binary()
+               , state      :: map()
                }).
 
 %%==============================================================================
@@ -48,11 +48,12 @@
 -type state() :: #state{}.
 
 %%==============================================================================
-%% ranch_protocol callbacks
+%% Start server
 %%==============================================================================
--spec start_link(ranch:ref(), any(), module(), any()) -> {ok, pid()}.
-start_link(Ref, Socket, Transport, Opts) ->
-  {ok, proc_lib:spawn_link(?MODULE, init, [{Ref, Socket, Transport, Opts}])}.
+
+-spec start_link(module(), any()) -> {ok, pid()}.
+start_link(Transport, Args) ->
+  {ok, proc_lib:spawn_link(erlang_ls_server, init, [{Transport, Args}])}.
 
 %%==============================================================================
 %% gen_statem callbacks
@@ -61,28 +62,26 @@ start_link(Ref, Socket, Transport, Opts) ->
 callback_mode() ->
   state_functions.
 
--spec init({ranch:ref(), any(), module(), any()}) -> no_return().
-init({Ref, Socket, Transport, _Opts}) ->
-  ok = ranch:accept_ack(Ref),
-  ok = Transport:setopts(Socket, [ {active, once}
-                                 , {packet, 0}
-                                 ]),
-  gen_statem:enter_loop( ?MODULE
-                       , []
-                       , connected
-                       , #state{ socket = Socket
-                               , buffer = <<>>
-                               , state  = #{}
-                               }
-                       ).
+-spec init({module(), any()}) -> no_return().
+init({Transport, Args}) ->
+  Connection = Transport:init(Args),
+  State = #state{ transport  = Transport
+                , connection = Connection
+                , buffer     = <<>>
+                , state      = #{}
+                },
+  gen_statem:enter_loop(?MODULE, [], connected, State).
 
 -spec code_change(any(), atom(), state(), any()) -> {ok, atom(), state()}.
 code_change(_OldVsn, StateName, State, _Extra) ->
   {ok, StateName, State}.
 
 -spec terminate(any(), atom(), state()) -> any().
-terminate(_Reason, _StateName, #state{socket = Socket}) ->
-  gen_tcp:close(Socket),
+terminate( _Reason
+         , _StateName
+         , #state{ transport  = Transport, connection = Connection}
+         ) ->
+  Transport:close(Connection),
   ok.
 
 %%==============================================================================
@@ -102,8 +101,11 @@ connected(info, {'EXIT', _, normal}, _State) ->
   keep_state_and_data;
 connected(info, {tcp_error, _, Reason}, _State) ->
   {stop, Reason};
-connected(cast, {notification, M, P}, State) ->
-  do_send_notification(State#state.socket, M, P),
+connected( cast
+         , {notification, M, P}
+         , #state{transport = Transport , connection = Connection}
+         ) ->
+  do_send_notification(Transport, Connection, M, P),
   keep_state_and_data.
 
 %%==============================================================================
@@ -117,8 +119,9 @@ send_notification(Server, Method, Params) ->
 %% Internal Functions
 %%==============================================================================
 -spec handle_request(any(), state()) -> state().
-handle_request(Request, #state{ socket = Socket
-                              , state  = InternalState
+handle_request(Request, #state{ transport  = Transport
+                              , connection = Connection
+                              , state      = InternalState
                               } = State0) ->
   Method = maps:get(<<"method">>, Request),
   Params = maps:get(<<"params">>, Request),
@@ -127,7 +130,7 @@ handle_request(Request, #state{ socket = Socket
       RequestId = maps:get(<<"id">>, Request),
       Response = erlang_ls_protocol:response(RequestId, Result),
       lager:debug("[SERVER] Sending response [response=~p]", [Response]),
-      gen_tcp:send(Socket, Response),
+      Transport:send(Connection, Response),
       State0#state{state = NewInternalState};
     {error, Error, NewInternalState} ->
       RequestId = maps:get(<<"id">>, Request, null),
@@ -135,19 +138,19 @@ handle_request(Request, #state{ socket = Socket
       lager:debug( "[SERVER] Sending error response [response=~p]"
                  , [ErrorResponse]
                  ),
-      gen_tcp:send(Socket, ErrorResponse),
+      Transport:send(Connection, ErrorResponse),
       State0#state{state = NewInternalState};
     {noresponse, NewInternalState} ->
       lager:debug("[SERVER] No response", []),
       State0#state{state = NewInternalState};
     {notification, M, P, NewInternalState} ->
-      do_send_notification(Socket, M, P),
+      do_send_notification(Transport, Connection, M, P),
       State0#state{state = NewInternalState}
   end.
 
--spec do_send_notification(any(), binary(), map()) -> ok.
-do_send_notification(Socket, Method, Params) ->
+-spec do_send_notification(module(), any(), binary(), map()) -> ok.
+do_send_notification(Transport, Connection, Method, Params) ->
   Notification = erlang_ls_protocol:notification(Method, Params),
   lager:debug( "[SERVER] Sending notification [notification=~p]"
              , [Notification]),
-  gen_tcp:send(Socket, Notification).
+  Transport:send(Connection, Notification).
