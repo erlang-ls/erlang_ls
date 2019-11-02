@@ -6,6 +6,7 @@
  {<<"lager">>,{pkg,<<"lager">>,<<"3.6.8">>},0},
  {<<"ranch">>,{pkg,<<"ranch">>,<<"1.7.1">>},0},
  {<<"redbug">>,{pkg,<<"redbug">>,<<"1.2.1">>},0},
+ {<<"worker_pool">>,{pkg,<<"worker_pool">>,<<"4.0.1">>},0},
  {<<"yamerl">>,{pkg,<<"yamerl">>,<<"0.7.0">>},0}]}.
 [
 {pkg_hash,[
@@ -16,5 +17,6 @@
  {<<"lager">>, <<"897EFC7679BB82383448646C96768CDC4E747464DD18B999C7AACA485686B0DA">>},
  {<<"ranch">>, <<"6B1FAB51B49196860B733A49C07604465A47BDB78AA10C1C16A3D199F7F8C881">>},
  {<<"redbug">>, <<"9153EE50E42C39CE3F6EFA65EE746F4A52896DA66862CFB59E7C0F838B7B8414">>},
+ {<<"worker_pool">>, <<"8CDEBCE7E09ECB4F1EB4BBF78AA99248064AC357077668C011AC600599973723">>},
  {<<"yamerl">>, <<"E51DBA652DCE74C20A88294130B48051EBBBB0BE7D76F22DE064F0F3CCF0AAF5">>}]}
 ].

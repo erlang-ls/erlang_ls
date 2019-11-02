@@ -46,7 +46,7 @@ initialize(_Config) ->
 index(Document) ->
   Uri    = erlang_ls_document:uri(Document),
   ok     = erlang_ls_db:store(documents, Uri, Document),
-  [Index:index(Document) || Index <- ?INDEXES],
+  [wpool:call(indexers, {Index, index, [Document]}) || Index <- ?INDEXES],
   ok.
 
 -spec start_link(index()) -> {ok, pid()}.
