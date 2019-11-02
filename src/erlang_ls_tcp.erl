@@ -3,14 +3,17 @@
 -behaviour(ranch_protocol).
 -behaviour(erlang_ls_transport).
 
+%% ranch callbacks
 -export([start_link/4]).
 
--export([ start/0
+%% erlang_ls_transport callbacks
+-export([ start_listener/0
         , init/1
-        , recv/1
         , send/2
-        , close/1
         ]).
+
+-record(state, {buffer :: binary()}).
+-record(connection, {socket :: any(), transport :: module()}).
 
 %%==============================================================================
 %% Defines
@@ -21,7 +24,9 @@
 %%==============================================================================
 %% Types
 %%==============================================================================
--type state() :: {any(), any()}.
+
+-type state()      :: #state{}.
+-type connection() :: #connection{}.
 
 %%==============================================================================
 %% ranch_protocol callbacks
@@ -30,40 +35,53 @@
 -spec start_link(ranch:ref(), any(), module(), any()) -> {ok, pid()}.
 start_link(Ref, Socket, Transport, Opts) ->
   Args = {Ref, Socket, Transport, Opts},
-  erlang_ls_server:start_link(?MODULE, Args).
+  {ok, proc_lib:spawn_link(?MODULE, init, [Args])}.
 
 %%==============================================================================
-%% els_transport callbacks
+%% erlang_ls_transport callbacks
 %%==============================================================================
 
--spec start() -> ok.
-start() ->
-  Port = application:get_env(erlang_ls, port, ?DEFAULT_PORT),
+-spec start_listener() -> {ok, pid()}.
+start_listener() ->
+  lager:info("Starting ranch listener.."),
+  Port    = application:get_env(erlang_ls, port, ?DEFAULT_PORT),
   {ok, _} = ranch:start_listener( erlang_ls
                                 , ranch_tcp
                                 , #{socket_opts => [{port, Port}]}
-                                , erlang_ls_tcp
+                                , ?MODULE
                                 , []
-                                ),
-  ok.
+                                ).
 
 -spec init({ranch:ref(), any(), module(), any()}) -> state().
 init({Ref, Socket, Transport, _Opts}) ->
-  {ok, _} = ranch:handshake(Ref),
-  ok = Transport:setopts(Socket, [{active, once}, {packet, 0}]),
-  {Socket, Transport}.
+  {ok, _}    = ranch:handshake(Ref),
+  ok         = Transport:setopts(Socket, [{active, once}, {packet, 0}]),
 
--spec recv(state()) -> binary().
-recv({Socket, Transport}) ->
-  case Transport:recv(Socket, 0, infinity) of
-    {ok, Payload}   -> {ok, Payload};
-    {error, Error} -> {error, Error}
-  end.
+  Connection = #connection{socket = Socket, transport = Transport},
+  ok         = erlang_ls_server:set_connection(Connection),
 
--spec send(state(), binary()) -> ok.
-send({Socket, Transport}, Payload) ->
+  loop(#state{buffer = <<>>}).
+
+-spec send(connection(), binary()) -> ok.
+send(#connection{socket = Socket, transport = Transport}, Payload) ->
   Transport:send(Socket, Payload).
 
--spec close(state()) -> ok.
-close({Socket, Transport}) ->
-  Transport:close(Socket).
+%%==============================================================================
+%% gen_statem State Functions
+%%==============================================================================
+
+-spec loop(state()) -> state().
+loop(#state{buffer = Buffer} = State) ->
+  receive
+    {tcp, Socket, Packet} ->
+      Data = <<Buffer/binary, Packet/binary>>,
+      {Requests, NewBuffer} = erlang_ls_jsonrpc:split(Data, [return_maps]),
+      ok = erlang_ls_server:process_requests(Requests),
+      inet:setopts(Socket, [{active, once}]),
+      loop(State#state{buffer = NewBuffer});
+    {tcp_closed, _Socket} ->
+      ok;
+    Message ->
+      lager:warning("Unsupported message: ~p", [Message]),
+      loop(State)
+  end.

@@ -6,29 +6,26 @@
 %%==============================================================================
 %% Behaviours
 %%==============================================================================
--behaviour(gen_statem).
+-behaviour(gen_server).
 
 %%==============================================================================
 %% Exports
 %%==============================================================================
 
--export([ start/1
-        , start_link/2
+-export([ start_link/1
         ]).
 
-%% gen_statem callbacks
--export([ callback_mode/0
-        , code_change/4
-        , init/1
-        , terminate/3
-        ]).
-
-%% gen_statem state functions
--export([ connected/3
+%% gen_server callbacks
+-export([ init/1
+        , handle_call/3
+        , handle_cast/2
         ]).
 
 %% Notifications API
--export([ send_notification/3 ]).
+-export([ process_requests/1
+        , set_connection/1
+        , send_notification/3
+        ]).
 
 %%==============================================================================
 %% Includes
@@ -50,85 +47,54 @@
 -type state() :: #state{}.
 
 %%==============================================================================
-%% Start server
+%% API
 %%==============================================================================
+-spec start_link(module()) -> ok.
+start_link(Transport) ->
+  gen_server:start_link({local, ?MODULE}, ?MODULE, Transport, []).
 
--spec start(module()) -> ok.
-start(Transport) ->
-  Transport:start().
+-spec process_requests([any()]) -> ok.
+process_requests(Requests) ->
+  gen_server:cast(?MODULE, {requests, Requests}).
 
--spec start_link(module(), any()) -> {ok, pid()}.
-start_link(Transport, Args) ->
-  {ok, proc_lib:spawn_link(erlang_ls_server, init, [{Transport, Args}])}.
+-spec set_connection(any()) -> ok.
+set_connection(Connection) ->
+  gen_server:call(?MODULE, {set_connection, Connection}).
 
-%%==============================================================================
-%% gen_statem callbacks
-%%==============================================================================
--spec callback_mode() -> state_functions.
-callback_mode() ->
-  state_functions.
-
--spec init({module(), any()}) -> no_return().
-init({Transport, Args}) ->
-  Connection = Transport:init(Args),
-  State = #state{ transport  = Transport
-                , connection = Connection
-                , buffer     = <<>>
-                , state      = #{}
-                },
-  gen_statem:enter_loop(?MODULE, [], connected, State).
-
--spec code_change(any(), atom(), state(), any()) -> {ok, atom(), state()}.
-code_change(_OldVsn, StateName, State, _Extra) ->
-  {ok, StateName, State}.
-
--spec terminate(any(), atom(), state()) -> any().
-terminate( _Reason
-         , _StateName
-         , #state{ transport  = Transport, connection = Connection}
-         ) ->
-  Transport:close(Connection),
-  ok.
-
-%%==============================================================================
-%% gen_statem State Functions
-%%==============================================================================
--spec connected(gen_statem:event_type(), any(), state()) -> any().
-connected(info, {tcp, Socket, Packet}, #state{buffer = Buffer} = State0) ->
-  lager:debug("[SERVER] TCP Packet [buffer=~p] [packet=~p] ", [Buffer, Packet]),
-  Data = <<Buffer/binary, Packet/binary>>,
-  {Requests, NewBuffer} = erlang_ls_jsonrpc:split(Data, [return_maps]),
-  State   = lists:foldl(fun handle_request/2, State0, Requests),
-  inet:setopts(Socket, [{active, once}]),
-  {keep_state, State#state{ buffer = NewBuffer }};
-connected(info, {tcp_closed, _Socket}, _State) ->
-  {stop, normal};
-connected(info, {'EXIT', _, normal}, _State) ->
-  keep_state_and_data;
-connected(info, {tcp_error, _, Reason}, _State) ->
-  {stop, Reason};
-connected( cast
-         , {notification, M, P}
-         , #state{transport = Transport , connection = Connection}
-         ) ->
-  do_send_notification(Transport, Connection, M, P),
-  keep_state_and_data.
-
-%%==============================================================================
-%% Notifications API
-%%==============================================================================
 -spec send_notification(pid(), binary(), map()) -> ok.
 send_notification(Server, Method, Params) ->
   gen_server:cast(Server, {notification, Method, Params}).
 
 %%==============================================================================
+%% gen_statem callbacks
+%%==============================================================================
+
+-spec init(module()) -> no_return().
+init(Transport) ->
+  lager:info("Starting erlang_ls_server..."),
+  State = #state{ transport = Transport
+                , buffer    = <<>>
+                , state     = #{}
+                },
+  {ok, State}.
+
+-spec handle_call(any(), any(), state()) -> {reply, any(), state()}.
+handle_call({set_connection, Connection}, _From, State) ->
+  {reply, ok, State#state{connection = Connection}}.
+
+-spec handle_cast(any(), state()) -> {noreply, state()}.
+handle_cast({requests, Requests}, State0) ->
+  State = lists:foldl(fun handle_request/2, State0, Requests),
+  {noreply, State};
+handle_cast({notification, Method, Params}, State) ->
+  do_send_notification(Method, Params, State),
+  {noreply, State}.
+
+%%==============================================================================
 %% Internal Functions
 %%==============================================================================
--spec handle_request(any(), state()) -> state().
-handle_request(Request, #state{ transport  = Transport
-                              , connection = Connection
-                              , state      = InternalState
-                              } = State0) ->
+-spec handle_request(map(), state()) -> state().
+handle_request(Request, #state{state = InternalState} = State0) ->
   Method = maps:get(<<"method">>, Request),
   Params = maps:get(<<"params">>, Request),
   case erlang_ls_methods:dispatch(Method, Params, InternalState) of
@@ -136,7 +102,7 @@ handle_request(Request, #state{ transport  = Transport
       RequestId = maps:get(<<"id">>, Request),
       Response = erlang_ls_protocol:response(RequestId, Result),
       lager:debug("[SERVER] Sending response [response=~p]", [Response]),
-      Transport:send(Connection, Response),
+      send(Response, State0),
       State0#state{state = NewInternalState};
     {error, Error, NewInternalState} ->
       RequestId = maps:get(<<"id">>, Request, null),
@@ -144,19 +110,24 @@ handle_request(Request, #state{ transport  = Transport
       lager:debug( "[SERVER] Sending error response [response=~p]"
                  , [ErrorResponse]
                  ),
-      Transport:send(Connection, ErrorResponse),
+      send(ErrorResponse, State0),
       State0#state{state = NewInternalState};
     {noresponse, NewInternalState} ->
       lager:debug("[SERVER] No response", []),
       State0#state{state = NewInternalState};
     {notification, M, P, NewInternalState} ->
-      do_send_notification(Transport, Connection, M, P),
+      do_send_notification(M, P, State0),
       State0#state{state = NewInternalState}
   end.
 
--spec do_send_notification(module(), any(), binary(), map()) -> ok.
-do_send_notification(Transport, Connection, Method, Params) ->
+-spec do_send_notification(binary(), map(), state()) -> ok.
+do_send_notification(Method, Params, State) ->
   Notification = erlang_ls_protocol:notification(Method, Params),
   lager:debug( "[SERVER] Sending notification [notification=~p]"
-             , [Notification]),
-  Transport:send(Connection, Notification).
+             , [Notification]
+             ),
+  send(Notification, State).
+
+-spec send(binary(), state()) -> ok.
+send(Payload, #state{transport = T, connection = C}) ->
+  T:send(C, Payload).
