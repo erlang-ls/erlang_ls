@@ -22,8 +22,8 @@
         ]).
 
 %% Notifications API
--export([ process_requests/1
-        , set_connection/1
+-export([ process_requests/2
+        , set_connection/2
         , send_notification/3
         ]).
 
@@ -51,15 +51,17 @@
 %%==============================================================================
 -spec start_link(module()) -> {ok, pid()}.
 start_link(Transport) ->
-  gen_server:start_link({local, ?MODULE}, ?MODULE, Transport, []).
+  {ok, Server} = gen_server:start_link(?MODULE, Transport, []),
+  {ok, _} = Transport:start_listener(Server),
+  {ok, Server}.
 
--spec process_requests([any()]) -> ok.
-process_requests(Requests) ->
-  gen_server:cast(?MODULE, {requests, Requests}).
+-spec process_requests(pid(), [any()]) -> ok.
+process_requests(Server, Requests) ->
+  gen_server:cast(Server, {requests, Requests}).
 
--spec set_connection(any()) -> ok.
-set_connection(Connection) ->
-  gen_server:call(?MODULE, {set_connection, Connection}).
+-spec set_connection(pid(), any()) -> ok.
+set_connection(Server, Connection) ->
+  gen_server:call(Server, {set_connection, Connection}).
 
 -spec send_notification(pid(), binary(), map()) -> ok.
 send_notification(Server, Method, Params) ->

@@ -7,12 +7,14 @@
 -export([start_link/4]).
 
 %% erlang_ls_transport callbacks
--export([ start_listener/0
+-export([ start_listener/1
         , init/1
         , send/2
         ]).
 
--record(state, {buffer :: binary()}).
+-record(state, { buffer :: binary()
+               , server :: pid()
+               }).
 -record(connection, {socket :: any(), transport :: module()}).
 
 %%==============================================================================
@@ -41,26 +43,27 @@ start_link(Ref, Socket, Transport, Opts) ->
 %% erlang_ls_transport callbacks
 %%==============================================================================
 
--spec start_listener() -> {ok, pid()}.
-start_listener() ->
+-spec start_listener(pid()) -> {ok, pid()}.
+start_listener(Server) ->
   lager:info("Starting ranch listener.."),
   Port    = application:get_env(erlang_ls, port, ?DEFAULT_PORT),
   {ok, _} = ranch:start_listener( erlang_ls
                                 , ranch_tcp
                                 , #{socket_opts => [{port, Port}]}
                                 , ?MODULE
-                                , []
+                                , [{server, Server}]
                                 ).
 
 -spec init({ranch:ref(), any(), module(), any()}) -> ok.
-init({Ref, Socket, Transport, _Opts}) ->
+init({Ref, Socket, Transport, Opts}) ->
+  Server     = proplists:get_value(server, Opts),
   {ok, _}    = ranch:handshake(Ref),
   ok         = Transport:setopts(Socket, [{active, once}, {packet, 0}]),
 
   Connection = #connection{socket = Socket, transport = Transport},
-  ok         = erlang_ls_server:set_connection(Connection),
+  ok         = erlang_ls_server:set_connection(Server, Connection),
 
-  loop(#state{buffer = <<>>}).
+  loop(#state{buffer = <<>>, server = Server}).
 
 -spec send(connection(), binary()) -> ok.
 send(#connection{socket = Socket, transport = Transport}, Payload) ->
@@ -71,12 +74,12 @@ send(#connection{socket = Socket, transport = Transport}, Payload) ->
 %%==============================================================================
 
 -spec loop(state()) -> ok.
-loop(#state{buffer = Buffer} = State) ->
+loop(#state{buffer = Buffer, server = Server} = State) ->
   receive
     {tcp, Socket, Packet} ->
       Data = <<Buffer/binary, Packet/binary>>,
       {Requests, NewBuffer} = erlang_ls_jsonrpc:split(Data, [return_maps]),
-      ok = erlang_ls_server:process_requests(Requests),
+      ok = erlang_ls_server:process_requests(Server, Requests),
       inet:setopts(Socket, [{active, once}]),
       loop(State#state{buffer = NewBuffer});
     {tcp_closed, _Socket} ->
