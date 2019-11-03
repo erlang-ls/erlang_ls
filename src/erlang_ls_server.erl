@@ -49,7 +49,7 @@
 %%==============================================================================
 %% API
 %%==============================================================================
--spec start_link(module()) -> ok.
+-spec start_link(module()) -> {ok, pid()}.
 start_link(Transport) ->
   gen_server:start_link({local, ?MODULE}, ?MODULE, Transport, []).
 
@@ -127,6 +127,6 @@ do_send_notification(Method, Params, State) ->
              ),
   send(Notification, State).
 
--spec send(binary(), state()) -> ok.
+-spec send(iolist(), state()) -> ok.
 send(Payload, #state{transport = T, connection = C}) ->
   T:send(C, Payload).

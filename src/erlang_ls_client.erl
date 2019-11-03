@@ -126,7 +126,7 @@ exit() ->
 
 -spec start_link(hostname(), port_no()) -> {ok, pid()}.
 start_link(Host, Port) ->
-  gen_server:start_link({local, ?SERVER}, ?MODULE, {Host, Port}, []).
+  gen_server:start_link({local, ?SERVER}, ?MODULE, {tcp, Host, Port}, []).
 
 -spec stop() -> ok.
 stop() ->
@@ -140,11 +140,14 @@ workspace_symbol(Query) ->
 %%==============================================================================
 %% gen_server Callback Functions
 %%==============================================================================
--spec init({hostname(), port_no()}) -> {ok, state()}.
-init({Host, Port}) ->
+-spec init({tcp, hostname(), port_no()}) -> {ok, state()}.
+init({tcp, Host, Port}) ->
   Opts         = [binary, {active, once}, {packet, 0}],
   {ok, Socket} = gen_tcp:connect(Host, Port, Opts),
-  {ok, #state{socket = Socket}}.
+  {ok, #state{socket = Socket}};
+init({stdio, _Path}) ->
+  Port = erlang:open_port({spawn, "ls"}, [use_stdio, binary]),
+  {ok, #state{socket = Port}}.
 
 -spec handle_call(any(), any(), state()) -> {reply, any(), state()}.
 handle_call( {completion, Uri, Line, Char, TriggerKind, TriggerCharacter}

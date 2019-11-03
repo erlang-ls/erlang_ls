@@ -52,7 +52,7 @@ start_listener() ->
                                 , []
                                 ).
 
--spec init({ranch:ref(), any(), module(), any()}) -> state().
+-spec init({ranch:ref(), any(), module(), any()}) -> ok.
 init({Ref, Socket, Transport, _Opts}) ->
   {ok, _}    = ranch:handshake(Ref),
   ok         = Transport:setopts(Socket, [{active, once}, {packet, 0}]),
@@ -70,7 +70,7 @@ send(#connection{socket = Socket, transport = Transport}, Payload) ->
 %% gen_statem State Functions
 %%==============================================================================
 
--spec loop(state()) -> state().
+-spec loop(state()) -> ok.
 loop(#state{buffer = Buffer} = State) ->
   receive
     {tcp, Socket, Packet} ->
