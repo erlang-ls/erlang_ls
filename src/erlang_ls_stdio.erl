@@ -14,14 +14,15 @@
 %%==============================================================================
 -spec start_listener() -> {ok, pid()}.
 start_listener() ->
-  {ok, proc_lib:spawn_link(?MODULE, init, [{}])}.
+  IoDevice = application:get_env(erlang_ls, io_device, ?STDIO),
+  {ok, proc_lib:spawn_link(?MODULE, init, [IoDevice])}.
 
 -spec init(any()) -> no_return().
-init(_Args) ->
+init(IoDevice) ->
   lager:info("Starting stdio server..."),
-  ok = io:setopts(?STDIO, [binary]),
-  ok = erlang_ls_server:set_connection(?STDIO),
-  loop([]).
+  ok = io:setopts(IoDevice, [binary]),
+  ok = erlang_ls_server:set_connection(IoDevice),
+  loop([], IoDevice).
 
 -spec send(any(), binary()) -> ok.
 send(Connection, Payload) ->
@@ -31,20 +32,20 @@ send(Connection, Payload) ->
 %% loop
 %%==============================================================================
 
--spec loop([binary()]) -> no_return().
-loop(Lines) ->
+-spec loop([binary()], any()) -> no_return().
+loop(Lines, IoDevice) ->
   case io:get_line(?STDIO) of
     <<"\n">> ->
       Headers       = parse_headers(Lines),
       BinLength     = proplists:get_value(<<"content-length">>, Headers),
       Length        = binary_to_integer(BinLength),
       %% Use file:read/2 since it reads bytes
-      {ok, Payload} = file:read(?STDIO, Length),
+      {ok, Payload} = file:read(IoDevice, Length),
       Request       = jsx:decode(Payload, [return_maps]),
       erlang_ls_server:process_requests([Request]),
-      loop([]);
+      loop([], IoDevice);
     Line ->
-      loop([Line | Lines])
+      loop([Line | Lines], IoDevice)
   end.
 
 -spec parse_headers([binary()]) -> [{binary(), binary()}].
