@@ -37,8 +37,7 @@
 %% Macros
 %%==============================================================================
 -define(SERVER, ?MODULE).
--define(INDEXES, [ erlang_ls_completion_index
-                 , erlang_ls_references_index
+-define(INDEXES, [ erlang_ls_references_index
                  , erlang_ls_specs_index
                  ]
        ).
@@ -67,6 +66,8 @@ find_and_index_file(FileName) ->
 index(Document) ->
   Uri    = erlang_ls_document:uri(Document),
   ok     = erlang_ls_db:store(documents, Uri, Document),
+  Module = erlang_ls_uri:module(Uri),
+  ok = erlang_ls_db:store(completion_index, Module, Uri),
   [Index:index(Document) || Index <- ?INDEXES],
   ok.
 
