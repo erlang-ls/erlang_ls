@@ -37,7 +37,6 @@
 %% Macros
 %%==============================================================================
 -define(SERVER, ?MODULE).
--define(INDEXES, [ erlang_ls_references_index ]).
 
 %%==============================================================================
 %% Exported functions
@@ -68,7 +67,9 @@ index(Document) ->
   Specs  = erlang_ls_document:points_of_interest(Document, [spec]),
   [erlang_ls_db:store(signatures, {Module, F, A}, Tree) ||
     #{data := {{F, A}, Tree}} <- Specs],
-  [Index:index(Document) || Index <- ?INDEXES],
+  Kinds = [application, implicit_fun],
+  POIs  = erlang_ls_document:points_of_interest(Document, Kinds),
+  [register_usage(Uri, POI) || POI <- POIs],
   ok.
 
 -spec index_app() -> any().
@@ -161,4 +162,30 @@ try_index_file(FullName) ->
                   "[filename=~s] "
                   "~p:~p:~p", [FullName, Type, Reason, St]),
       {error, {Type, Reason}}
+  end.
+
+%% TODO: Specific for references
+
+-spec register_usage(uri(), poi()) -> ok.
+register_usage(Uri, #{data := {M, F, A}, range := Range}) ->
+  Ref = #{uri => Uri, range => Range},
+  add({M, F, A}, Ref),
+  ok;
+register_usage(Uri, #{data := {F, A}, range := Range}) ->
+  Ref = #{uri => Uri, range => Range},
+  M = erlang_ls_uri:module(Uri),
+  add({M, F, A}, Ref),
+  ok.
+
+-spec add(any(), any()) -> ok.
+add(Key, Value) ->
+  Refs = ordsets:add_element(Value, get(Key)),
+  ok = erlang_ls_db:store(references, Key, Refs).
+
+-compile({no_auto_import, [get/1]}).
+-spec get(any()) -> ordsets:ordset(any()).
+get(Key) ->
+  case erlang_ls_db:find(references, Key) of
+    {ok, Refs}         -> Refs;
+    {error, not_found} -> ordsets:new()
   end.

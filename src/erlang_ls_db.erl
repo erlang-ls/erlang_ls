@@ -16,9 +16,9 @@
         ]).
 
 -define(SERVER, ?MODULE).
--define(TABLES, [ modules
-                , documents
-                , references_index
+-define(TABLES, [ documents
+                , modules
+                , references
                 , signatures
                 ]).
 

@@ -40,11 +40,26 @@ handle_request({references, Params}, State) ->
 %%==============================================================================
 
 -spec find_references(binary(), poi()) -> any().
-find_references(Uri, POI) ->
-  case erlang_ls_references_index:get(Uri, POI) of
-    []   -> null;
-    Refs -> [location(U, R) || #{uri := U, range := R} <- Refs]
-  end.
+find_references(Uri, #{ kind := Kind
+                      , data := Data
+                      }) when Kind =:= application;
+                              Kind =:= implicit_fun;
+                              Kind =:= function;
+                              Kind =:= exports_entry ->
+  Key = case Data of
+          {F, A}    -> {erlang_ls_uri:module(Uri), F, A};
+          {M, F, A} -> {M, F, A}
+        end,
+  case erlang_ls_db:find(references, Key) of
+    {error, not_found} ->
+      null;
+    {ok, []} ->
+      null;
+    {ok, Refs} ->
+      [location(U, R) || #{uri := U, range := R} <- ordsets:to_list(Refs)]
+  end;
+find_references(_Uri, _POI) ->
+  null.
 
 -spec location(uri(), poi_range()) -> map().
 location(Uri, Range) ->
