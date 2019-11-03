@@ -14,11 +14,12 @@ main(Args) ->
 -spec parse_args([string()]) -> ok.
 parse_args([]) ->
   ok;
-parse_args(["--stdio" | Rest]) ->
-  application:set_env(erlang_ls, transport, erlang_ls_stdio),
-  parse_args(Rest);
-parse_args(["--tcp" | Rest]) ->
-  application:set_env(erlang_ls, transport, erlang_ls_tcp),
+parse_args(["--transport", Name | Rest]) ->
+  Transport = case Name of
+                "tcp"   -> erlang_ls_tcp;
+                "stdio" -> erlang_ls_stdio
+              end,
+  application:set_env(erlang_ls, transport, Transport),
   parse_args(Rest);
 parse_args(["--port", Port | Rest]) ->
   application:set_env(erlang_ls, port, list_to_integer(Port)),
