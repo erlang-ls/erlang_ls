@@ -57,7 +57,7 @@ start_link(Transport) ->
 
 -spec process_requests(pid(), [any()]) -> ok.
 process_requests(Server, Requests) ->
-  gen_server:cast(Server, {requests, Requests}).
+  gen_server:cast(Server, {messages, Requests}).
 
 -spec set_connection(pid(), any()) -> ok.
 set_connection(Server, Connection) ->
@@ -84,7 +84,7 @@ handle_call({set_connection, Connection}, _From, State) ->
   {reply, ok, State#state{connection = Connection}}.
 
 -spec handle_cast(any(), state()) -> {noreply, state()}.
-handle_cast({requests, Requests}, State0) ->
+handle_cast({messages, Requests}, State0) ->
   State = lists:foldl(fun handle_request/2, State0, Requests),
   {noreply, State};
 handle_cast({notification, Method, Params}, State) ->

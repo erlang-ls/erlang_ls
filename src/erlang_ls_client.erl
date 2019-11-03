@@ -37,9 +37,6 @@
         , code_change/3
         ]).
 
-%% io_device loop
--export([io_device_loop/3]).
-
 %%==============================================================================
 %% Includes
 %%==============================================================================
@@ -49,6 +46,7 @@
 %% Defines
 %%==============================================================================
 -define(SERVER, ?MODULE).
+-define(JSON_OPTS, [return_maps, {labels, atom}]).
 
 %%==============================================================================
 %% Record Definitions
@@ -153,7 +151,7 @@ init({tcp, Host, Port}) ->
   {ok, #state{transport = tcp, connection = Socket}};
 init({stdio, IoDevice}) ->
   Self = self(),
-  proc_lib:spawn_link(?MODULE, io_device_loop, [IoDevice, Self, []]),
+  proc_lib:spawn_link(erlang_ls_stdio, loop, [[], IoDevice, Self, ?JSON_OPTS]),
   {ok, #state{transport = stdio, connection = IoDevice}}.
 
 -spec handle_call(any(), any(), state()) -> {reply, any(), state()}.
@@ -297,6 +295,11 @@ handle_call({exit}, _From, State) ->
   {reply, ok, State}.
 
 -spec handle_cast(any(), state()) -> {noreply, state()}.
+handle_cast( {messages, Responses}
+           , #state{pending = Pending, transport = stdio} = State
+           ) ->
+  Pending1 = handle_responses(Responses, Pending),
+  {noreply, State#state{pending = Pending1}};
 handle_cast(_Msg, State) ->
   {noreply, State}.
 
@@ -314,12 +317,7 @@ handle_info({tcp_closed, _Socket}, State) ->
   {noreply, State};
 handle_info({tcp_error, _Socket, Reason}, State) ->
   lager:debug("[CLIENT] TCP error [reason=~p]", [Reason]),
-  {noreply, State};
-handle_info({io_device, Response}, #state{ pending   = Pending
-                                         , transport = stdio
-                                         } = State) ->
-  Pending1 = handle_responses([Response], Pending),
-  {noreply, State#state{pending = Pending1}}.
+  {noreply, State}.
 
 -spec terminate(any(), state()) -> ok.
 terminate( _Reason
@@ -344,16 +342,15 @@ process_packet(Buffer, Packet) ->
   lager:debug("[SERVER] TCP Packet [buffer=~p] [packet=~p] ", [ Buffer
                                                               , Packet]),
   Data = <<Buffer/binary, Packet/binary>>,
-  erlang_ls_jsonrpc:split(Data, [return_maps, {labels, atom}]).
+  erlang_ls_jsonrpc:split(Data, ?JSON_OPTS).
 
 -spec handle_responses([map()], [any()]) -> [any()].
 handle_responses([], Pending) ->
   Pending;
 handle_responses([Response|Responses], Pending) ->
-  case maps:is_key(id, Response) of
-    true ->
+  case maps:find(id, Response) of
+    {ok, RequestId} ->
       lager:debug("[CLIENT] Handling Response [response=~p]", [Response]),
-      RequestId         = maps:get(id, Response),
       case lists:keyfind(RequestId, 1, Pending) of
         {RequestId, From} ->
           gen_server:reply(From, Response),
@@ -362,7 +359,7 @@ handle_responses([Response|Responses], Pending) ->
         false ->
           handle_responses(Responses, Pending)
       end;
-    false ->
+    error ->
       lager:debug( "[CLIENT] Handling Notification [notification=~p]"
                  , [Response]),
       handle_responses(Responses, Pending)
@@ -373,19 +370,3 @@ send(Content, #state{transport = tcp, connection = Socket}) ->
   gen_tcp:send(Socket, Content);
 send(Content, #state{transport = stdio, connection = IoDevice}) ->
   io:format(IoDevice, iolist_to_binary(Content), []).
-
--spec io_device_loop(any(), pid(), [binary()]) -> no_return().
-io_device_loop(IoDevice, Pid, Lines) ->
-  case io:get_line(IoDevice, "") of
-    <<"\n">> ->
-      Headers = erlang_ls_stdio:parse_headers(Lines),
-      BinLength     = proplists:get_value(<<"content-length">>, Headers),
-      Length        = binary_to_integer(BinLength),
-      %% Use file:read/2 since it reads bytes
-      {ok, Payload} = file:read(IoDevice, Length),
-      Response      = jsx:decode(Payload, [return_maps, {labels, atom}]),
-      Pid ! {io_device, Response},
-      io_device_loop(IoDevice, Pid, []);
-    Line ->
-      io_device_loop(IoDevice, Pid, [Line | Lines])
-  end.
