@@ -61,7 +61,7 @@ documentation(_POI) ->
 %%==============================================================================
 -spec specs(atom(), atom(), non_neg_integer()) -> binary().
 specs(M, F, A) ->
-  case erlang_ls_db:find(specs_index, {M, F, A}) of
+  case erlang_ls_db:find(signatures, {M, F, A}) of
     {ok, Doc}          -> list_to_binary(erl_prettypr:format(Doc));
     {error, not_found} -> <<>>
   end.

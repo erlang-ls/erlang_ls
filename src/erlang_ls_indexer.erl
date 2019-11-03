@@ -37,10 +37,7 @@
 %% Macros
 %%==============================================================================
 -define(SERVER, ?MODULE).
--define(INDEXES, [ erlang_ls_references_index
-                 , erlang_ls_specs_index
-                 ]
-       ).
+-define(INDEXES, [ erlang_ls_references_index ]).
 
 %%==============================================================================
 %% Exported functions
@@ -68,6 +65,9 @@ index(Document) ->
   ok     = erlang_ls_db:store(documents, Uri, Document),
   Module = erlang_ls_uri:module(Uri),
   ok = erlang_ls_db:store(modules, Module, Uri),
+  Specs  = erlang_ls_document:points_of_interest(Document, [spec]),
+  [erlang_ls_db:store(signatures, {Module, F, A}, Tree) ||
+    #{data := {{F, A}, Tree}} <- Specs],
   [Index:index(Document) || Index <- ?INDEXES],
   ok.
 

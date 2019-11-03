@@ -19,7 +19,7 @@
 -define(TABLES, [ modules
                 , documents
                 , references_index
-                , specs_index
+                , signatures
                 ]).
 
 -type state() :: #{}.
