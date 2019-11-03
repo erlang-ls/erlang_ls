@@ -52,7 +52,7 @@ weight(_S, _Cmd)     -> 5.
 %% Connect
 %%------------------------------------------------------------------------------
 connect() ->
-  erlang_ls_client:start_link(?HOSTNAME, ?PORT).
+  erlang_ls_client:start_link(tcp, {?HOSTNAME, ?PORT}).
 
 connect_args(_S) ->
   [].

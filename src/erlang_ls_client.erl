@@ -23,7 +23,6 @@
         , initialize/2
         , references/3
         , shutdown/0
-        , start_link/1
         , start_link/2
         , stop/0
         , workspace_symbol/1
@@ -37,6 +36,9 @@
         , terminate/2
         , code_change/3
         ]).
+
+%% io_device loop
+-export([io_device_loop/3]).
 
 %%==============================================================================
 %% Includes
@@ -126,13 +128,11 @@ shutdown() ->
 exit() ->
   gen_server:call(?SERVER, {exit}).
 
--spec start_link(hostname(), port_no()) -> {ok, pid()}.
-start_link(Host, Port) ->
-  gen_server:start_link({local, ?SERVER}, ?MODULE, {tcp, Host, Port}, []).
-
--spec start_link(stdio_local) -> {ok, pid()}.
-start_link(stdio_local) ->
-  gen_server:start_link({local, ?SERVER}, ?MODULE, {stdio, local}, []).
+-spec start_link(tcp | stdio, any()) -> {ok, pid()}.
+start_link(tcp, {Host, Port}) ->
+  gen_server:start_link({local, ?SERVER}, ?MODULE, {tcp, Host, Port}, []);
+start_link(stdio, IoDevice) ->
+  gen_server:start_link({local, ?SERVER}, ?MODULE, {stdio, IoDevice}, []).
 
 -spec stop() -> ok.
 stop() ->
@@ -151,10 +151,10 @@ init({tcp, Host, Port}) ->
   Opts         = [binary, {active, once}, {packet, 0}],
   {ok, Socket} = gen_tcp:connect(Host, Port, Opts),
   {ok, #state{transport = tcp, connection = Socket}};
-init({stdio, local}) ->
-  %% Found in user:start_port/1
-  Port = erlang:open_port({fd, 0, 1}, [eof, binary]),
-  {ok, #state{transport = stdio, connection = Port}}.
+init({stdio, IoDevice}) ->
+  Self = self(),
+  proc_lib:spawn_link(?MODULE, io_device_loop, [IoDevice, Self, []]),
+  {ok, #state{transport = stdio, connection = IoDevice}}.
 
 -spec handle_call(any(), any(), state()) -> {reply, any(), state()}.
 handle_call( {completion, Uri, Line, Char, TriggerKind, TriggerCharacter}
@@ -315,20 +315,21 @@ handle_info({tcp_closed, _Socket}, State) ->
 handle_info({tcp_error, _Socket, Reason}, State) ->
   lager:debug("[CLIENT] TCP error [reason=~p]", [Reason]),
   {noreply, State};
-handle_info({Port, {data, Data}}, #state{ buffer     = Buffer
-                                        , pending    = Pending
-                                        , connection = Port
-                                        , transport  = stdio
-                                        } = State) ->
-  {Responses, NewBuffer} = process_packet(Buffer, Data),
-  Pending1 = handle_responses(Responses, Pending),
-  {noreply, State#state{ buffer = NewBuffer, pending = Pending1 }}.
+handle_info({io_device, Response}, #state{ pending   = Pending
+                                         , transport = stdio
+                                         } = State) ->
+  Pending1 = handle_responses([Response], Pending),
+  {noreply, State#state{pending = Pending1}}.
 
 -spec terminate(any(), state()) -> ok.
-terminate(_Reason, #state{transport = tcp, connection = Socket} = _State) ->
+terminate( _Reason
+         , #state{transport = tcp, connection = Socket} = _State
+         ) ->
   ok = gen_tcp:close(Socket);
-terminate(_Reason, #state{transport = stdio, connection = Port} = _State) ->
-  true = erlang:port_close(Port),
+terminate( _Reason
+         , #state{transport = stdio, connection = IoDevice} = _State
+         ) ->
+  true = erlang:exit(IoDevice, normal),
   ok.
 
 -spec code_change(any(), state(), any()) -> {ok, state()}.
@@ -370,5 +371,21 @@ handle_responses([Response|Responses], Pending) ->
 -spec send(iolist(), state()) -> any().
 send(Content, #state{transport = tcp, connection = Socket}) ->
   gen_tcp:send(Socket, Content);
-send(Content, #state{transport = stdio, connection = Port}) ->
-  erlang:port_command(Port, Content).
+send(Content, #state{transport = stdio, connection = IoDevice}) ->
+  io:format(IoDevice, iolist_to_binary(Content), []).
+
+-spec io_device_loop(any(), pid(), [binary()]) -> no_return().
+io_device_loop(IoDevice, Pid, Lines) ->
+  case io:get_line(IoDevice, "") of
+    <<"\n">> ->
+      Headers = erlang_ls_stdio:parse_headers(Lines),
+      BinLength     = proplists:get_value(<<"content-length">>, Headers),
+      Length        = binary_to_integer(BinLength),
+      %% Use file:read/2 since it reads bytes
+      {ok, Payload} = file:read(IoDevice, Length),
+      Response      = jsx:decode(Payload, [return_maps, {labels, atom}]),
+      Pid ! {io_device, Response},
+      io_device_loop(IoDevice, Pid, []);
+    Line ->
+      io_device_loop(IoDevice, Pid, [Line | Lines])
+  end.

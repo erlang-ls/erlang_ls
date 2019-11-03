@@ -5,6 +5,7 @@
 -export([ start_listener/0
         , init/1
         , send/2
+        , parse_headers/1
         ]).
 
 -define(STDIO, standard_io).
@@ -34,7 +35,7 @@ send(Connection, Payload) ->
 
 -spec loop([binary()], any()) -> no_return().
 loop(Lines, IoDevice) ->
-  case io:get_line(?STDIO) of
+  case io:get_line(IoDevice, "") of
     <<"\n">> ->
       Headers       = parse_headers(Lines),
       BinLength     = proplists:get_value(<<"content-length">>, Headers),
