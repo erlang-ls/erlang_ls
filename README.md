@@ -33,6 +33,16 @@ Compile the project:
 
     rebar3 escriptize
 
+## Command-line Arguments
+
+These are the command-line arguments that can be provided to the
+`erlang_ls` escript:
+
+| Argument                | Description                                                                                     |
+|-------------------------|-------------------------------------------------------------------------------------------------|
+| --transport tcp / stdio | Specifies the transport the server will use for the connection with the client (default: `tcp`) |
+| --port PORT             | Used when the transport is `tcp` (default: `10000`)                                             |
+
 ### Emacs Setup
 
 The official `lsp-mode` package already includea a client for the
@@ -94,8 +104,8 @@ Completion requests are sent from the client to the server to compute
 completion items at a given cursor position. Completion items are
 presented to the user for easy selection.
 
-Code completion are currently triggered by one of the following
-characters: `:`.
+Code completion are currently triggered by the following characters:
+`:`, `?`.
 
 Code completion is available for the following elements:
 
