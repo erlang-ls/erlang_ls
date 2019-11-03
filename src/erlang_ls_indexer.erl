@@ -67,7 +67,7 @@ index(Document) ->
   Uri    = erlang_ls_document:uri(Document),
   ok     = erlang_ls_db:store(documents, Uri, Document),
   Module = erlang_ls_uri:module(Uri),
-  ok = erlang_ls_db:store(completion_index, Module, Uri),
+  ok = erlang_ls_db:store(modules, Module, Uri),
   [Index:index(Document) || Index <- ?INDEXES],
   ok.
 

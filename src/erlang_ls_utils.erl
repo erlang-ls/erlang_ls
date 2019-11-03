@@ -14,7 +14,7 @@
 %% `URI`. If the module is not in the DB, try to index it.
 -spec find_module(atom()) -> {ok, uri()} | {error, any()}.
 find_module(M) ->
-  case erlang_ls_db:find(completion_index, M) of
+  case erlang_ls_db:find(modules, M) of
     {ok, Uri} ->
       {ok, Uri};
     {error, not_found} ->

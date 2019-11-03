@@ -30,8 +30,7 @@ handle_request({symbol, Params}, State) ->
 
 -spec modules(binary()) -> [symbol_information()].
 modules(Query) ->
-  %% TODO: Stop indexing header files together with modules
-  All = erlang_ls_db:list(completion_index),
+  All = erlang_ls_db:list(modules),
   F = fun({Module, Uri}) ->
           filename:extension(Uri) =:= <<".erl">> andalso
             re:run(atom_to_binary(Module, utf8), Query) =/= nomatch

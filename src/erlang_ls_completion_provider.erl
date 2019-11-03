@@ -103,7 +103,7 @@ modules() ->
   [ #{ label            => atom_to_binary(K, utf8)
      , kind             => ?COMPLETION_ITEM_KIND_MODULE
      , insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
-     } || K <- erlang_ls_db:keys(completion_index)
+     } || K <- erlang_ls_db:keys(modules)
   ].
 
 %%==============================================================================

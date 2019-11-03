@@ -93,7 +93,7 @@ include_uris(Document) ->
 add_include_uri(#{ kind := Kind, data := String }, Acc) ->
   FileName = erlang_ls_utils:include_filename(Kind, String),
   M = list_to_atom(FileName),
-  case erlang_ls_db:find(completion_index, M) of
+   case erlang_ls_db:find(modules, M) of
     {ok, Uri} ->
       [Uri|Acc];
     {error, not_found} ->

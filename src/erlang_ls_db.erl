@@ -16,8 +16,7 @@
         ]).
 
 -define(SERVER, ?MODULE).
-%% TODO: Get table names via provider callbacks
--define(TABLES, [ completion_index
+-define(TABLES, [ modules
                 , documents
                 , references_index
                 , specs_index
