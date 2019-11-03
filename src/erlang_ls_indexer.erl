@@ -20,6 +20,7 @@
 -export([ init/1
         , handle_call/3
         , handle_cast/2
+        , terminate/2
         ]).
 
 %%==============================================================================
@@ -135,6 +136,11 @@ handle_cast({index_otp}, State) ->
   {noreply, State};
 handle_cast(_Msg, State) ->
   {noreply, State}.
+
+-spec terminate(any(), state()) -> ok.
+terminate(_, _State) ->
+  wpool:stop_sup_pool(indexers),
+  ok.
 
 %%==============================================================================
 %% Internal functions
