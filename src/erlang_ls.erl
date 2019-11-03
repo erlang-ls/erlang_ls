@@ -3,12 +3,31 @@
 -export([ main/1 ]).
 
 -spec main([any()]) -> ok.
-main([Port]) ->
+main(Args) ->
+  application:load(erlang_ls),
+  parse_args(Args),
   init_node_name(is_debug()),
-  application:set_env(erlang_ls, port, list_to_integer(Port)),
   application:ensure_all_started(erlang_ls),
   lager:info("Started erlang_ls server ~p", [node()]),
   receive _ -> ok end.
+
+-spec parse_args([string()]) -> ok.
+parse_args([]) ->
+  ok;
+parse_args(["--transport", Name | Rest]) ->
+  Transport = case Name of
+                "tcp"   -> erlang_ls_tcp;
+                "stdio" -> erlang_ls_stdio
+              end,
+  application:set_env(erlang_ls, transport, Transport),
+  parse_args(Rest);
+parse_args(["--port", Port | Rest]) ->
+  application:set_env(erlang_ls, port, list_to_integer(Port)),
+  parse_args(Rest);
+%% For backward compatibility with clients
+parse_args([Port | Rest]) ->
+  application:set_env(erlang_ls, port, list_to_integer(Port)),
+  parse_args(Rest).
 
 -spec init_node_name(boolean()) -> ok.
 init_node_name(true) ->
@@ -22,5 +41,5 @@ init_node_name(false) ->
 
 -spec is_debug() -> boolean().
 is_debug() ->
-  application:load(erlang_ls),
-  application:get_env(erlang_ls, debug_mode, false).
+  {ok, DebugMode} = application:get_env(erlang_ls, debug_mode),
+  DebugMode.

@@ -37,7 +37,6 @@ initial_state() ->
    , documents => []
    }.
 
-
 %%==============================================================================
 %% Weights
 %%==============================================================================
@@ -53,7 +52,7 @@ weight(_S, _Cmd)     -> 5.
 %% Connect
 %%------------------------------------------------------------------------------
 connect() ->
-  erlang_ls_client:start_link(?HOSTNAME, ?PORT).
+  erlang_ls_client:start_link(tcp, {?HOSTNAME, ?PORT}).
 
 connect_args(_S) ->
   [].
@@ -228,7 +227,7 @@ disconnect_pre(#{connected := Connected} = _S) ->
   Connected.
 
 disconnect_next(S, _R, _Args) ->
-  S#{connected => false, shutdown => false}.
+  S#{connected => false}.
 
 disconnect_post(_S, _Args, Res) ->
   ?assertEqual(ok, Res),
@@ -275,6 +274,11 @@ teardown(_) ->
 %%==============================================================================
 cleanup() ->
   catch disconnect(),
+  %% Restart the server, since though the client disconnects the
+  %% server keeps its state.
+  application:stop(ranch),
+  application:stop(erlang_ls),
+  application:ensure_all_started(erlang_ls),
   ok.
 
 %%==============================================================================

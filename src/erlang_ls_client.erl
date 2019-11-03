@@ -46,14 +46,16 @@
 %% Defines
 %%==============================================================================
 -define(SERVER, ?MODULE).
+-define(JSON_OPTS, [return_maps, {labels, atom}]).
 
 %%==============================================================================
 %% Record Definitions
 %%==============================================================================
--record(state, { socket
+-record(state, { transport :: tcp | stdio
+               , connection
                , request_id = 1
                , pending    = []
-               , document   = <<>>
+               , buffer   = <<>>
                }).
 
 %%==============================================================================
@@ -124,9 +126,11 @@ shutdown() ->
 exit() ->
   gen_server:call(?SERVER, {exit}).
 
--spec start_link(hostname(), port_no()) -> {ok, pid()}.
-start_link(Host, Port) ->
-  gen_server:start_link({local, ?SERVER}, ?MODULE, {Host, Port}, []).
+-spec start_link(tcp | stdio, any()) -> {ok, pid()}.
+start_link(tcp, {Host, Port}) ->
+  gen_server:start_link({local, ?SERVER}, ?MODULE, {tcp, Host, Port}, []);
+start_link(stdio, IoDevice) ->
+  gen_server:start_link({local, ?SERVER}, ?MODULE, {stdio, IoDevice}, []).
 
 -spec stop() -> ok.
 stop() ->
@@ -140,19 +144,21 @@ workspace_symbol(Query) ->
 %%==============================================================================
 %% gen_server Callback Functions
 %%==============================================================================
--spec init({hostname(), port_no()}) -> {ok, state()}.
-init({Host, Port}) ->
+-spec init({tcp, hostname(), port_no()}) -> {ok, state()}.
+init({tcp, Host, Port}) ->
   Opts         = [binary, {active, once}, {packet, 0}],
   {ok, Socket} = gen_tcp:connect(Host, Port, Opts),
-  {ok, #state{socket = Socket}}.
+  {ok, #state{transport = tcp, connection = Socket}};
+init({stdio, IoDevice}) ->
+  Self = self(),
+  proc_lib:spawn_link(erlang_ls_stdio, loop, [[], IoDevice, Self, ?JSON_OPTS]),
+  {ok, #state{transport = stdio, connection = IoDevice}}.
 
 -spec handle_call(any(), any(), state()) -> {reply, any(), state()}.
 handle_call( {completion, Uri, Line, Char, TriggerKind, TriggerCharacter}
            , From
            , State) ->
-  #state{ request_id = RequestId
-        , socket     = Socket
-        } = State,
+  #state{request_id = RequestId} = State,
   Method = <<"textDocument/completion">>,
   Params = #{ position     => #{ line      => Line - 1
                                , character => Char - 1
@@ -163,14 +169,12 @@ handle_call( {completion, Uri, Line, Char, TriggerKind, TriggerCharacter}
                                }
             },
   Content = erlang_ls_protocol:request(RequestId, Method, Params),
-  gen_tcp:send(Socket, Content),
+  send(Content, State),
   {noreply, State#state{ request_id = RequestId + 1
                        , pending    = [{RequestId, From} | State#state.pending]
                        }};
 handle_call({definition, Uri, Line, Char}, From, State) ->
-  #state{ request_id = RequestId
-        , socket     = Socket
-        } = State,
+  #state{request_id = RequestId} = State,
   Method = <<"textDocument/definition">>,
   TextDocument = #{ uri  => Uri },
   Position = #{ line      => Line - 1
@@ -180,26 +184,22 @@ handle_call({definition, Uri, Line, Char}, From, State) ->
             , textDocument => TextDocument
             },
   Content = erlang_ls_protocol:request(RequestId, Method, Params),
-  gen_tcp:send(Socket, Content),
+  send(Content, State),
   {noreply, State#state{ request_id = RequestId + 1
                        , pending    = [{RequestId, From} | State#state.pending]
                        }};
 handle_call({document_symbol, Uri}, From, State) ->
-  #state{ request_id = RequestId
-        , socket     = Socket
-        } = State,
+  RequestId = State#state.request_id,
   Method = <<"textDocument/documentSymbol">>,
   TextDocument = #{ uri  => Uri },
   Params = #{ textDocument => TextDocument },
   Content = erlang_ls_protocol:request(RequestId, Method, Params),
-  gen_tcp:send(Socket, Content),
+  send(Content, State),
   {noreply, State#state{ request_id = RequestId + 1
                        , pending    = [{RequestId, From} | State#state.pending]
                        }};
 handle_call({references, Uri, Line, Char}, From, State) ->
-  #state{ request_id = RequestId
-        , socket     = Socket
-        } = State,
+  RequestId = State#state.request_id,
   Method = <<"textDocument/references">>,
   Params = #{ position     => #{ line      => Line - 1
                                , character => Char - 1
@@ -207,7 +207,7 @@ handle_call({references, Uri, Line, Char}, From, State) ->
             , textDocument => #{ uri  => Uri }
             },
   Content = erlang_ls_protocol:request(RequestId, Method, Params),
-  gen_tcp:send(Socket, Content),
+  send(Content, State),
   {noreply, State#state{ request_id = RequestId + 1
                        , pending    = [{RequestId, From} | State#state.pending]
                        }};
@@ -220,26 +220,24 @@ handle_call({did_open, Uri, LanguageId, Version, Text}, _From, State) ->
                   },
   Params = #{textDocument => TextDocument},
   Content = erlang_ls_protocol:notification(Method, Params),
-  ok = gen_tcp:send(State#state.socket, Content),
+  send(Content, State),
   {reply, ok, State};
 handle_call({did_save, Uri}, _From, State) ->
   Method = <<"textDocument/didSave">>,
   TextDocument = #{ uri => Uri },
   Params = #{textDocument => TextDocument},
   Content = erlang_ls_protocol:notification(Method, Params),
-  ok = gen_tcp:send(State#state.socket, Content),
+  send(Content, State),
   {reply, ok, State};
 handle_call({did_close, Uri}, _From, State) ->
   Method = <<"textDocument/didClose">>,
   TextDocument = #{ uri => Uri },
   Params = #{textDocument => TextDocument},
   Content = erlang_ls_protocol:notification(Method, Params),
-  ok = gen_tcp:send(State#state.socket, Content),
+  send(Content, State),
   {reply, ok, State};
 handle_call({hover, Uri, Line, Char}, From, State) ->
-  #state{ request_id = RequestId
-        , socket     = Socket
-        } = State,
+  RequestId = State#state.request_id,
   Method = <<"textDocument/hover">>,
   TextDocument = #{ uri  => Uri },
   Position = #{ line      => Line - 1
@@ -249,14 +247,12 @@ handle_call({hover, Uri, Line, Char}, From, State) ->
             , textDocument => TextDocument
             },
   Content = erlang_ls_protocol:request(RequestId, Method, Params),
-  gen_tcp:send(Socket, Content),
+  send(Content, State),
   {noreply, State#state{ request_id = RequestId + 1
                        , pending    = [{RequestId, From} | State#state.pending]
                        }};
 handle_call({initialize, RootUri, InitOptions}, From, State) ->
-  #state{ request_id = RequestId
-        , socket     = Socket
-        } = State,
+  RequestId = State#state.request_id,
   Method  = <<"initialize">>,
   Params  = #{ <<"rootUri">> => RootUri
              , <<"initializationOptions">> => InitOptions
@@ -268,59 +264,54 @@ handle_call({initialize, RootUri, InitOptions}, From, State) ->
                   }
              },
   Content = erlang_ls_protocol:request(RequestId, Method, Params),
-  gen_tcp:send(Socket, Content),
+  send(Content, State),
   {noreply, State#state{ request_id = RequestId + 1
                        , pending    = [{RequestId, From} | State#state.pending]
                        }};
 handle_call({workspace_symbol, Query}, From, State) ->
-  #state{ request_id = RequestId
-        , socket     = Socket
-        } = State,
+  RequestId = State#state.request_id,
   Method = <<"workspace/symbol">>,
   Params = #{ query => Query },
   Content = erlang_ls_protocol:request(RequestId, Method, Params),
-  gen_tcp:send(Socket, Content),
+  send(Content, State),
   {noreply, State#state{ request_id = RequestId + 1
                        , pending    = [{RequestId, From} | State#state.pending]
                        }};
 handle_call({shutdown}, From, State) ->
-  #state{ request_id = RequestId
-        , socket     = Socket
-        } = State,
+  RequestId = State#state.request_id,
   Method = <<"shutdown">>,
   Params = #{},
   Content = erlang_ls_protocol:request(RequestId, Method, Params),
-  gen_tcp:send(Socket, Content),
+  send(Content, State),
   {noreply, State#state{ request_id = RequestId + 1
                        , pending    = [{RequestId, From} | State#state.pending]
                        }};
 handle_call({exit}, _From, State) ->
-  #state{ request_id = RequestId
-        , socket     = Socket
-        } = State,
+  RequestId = State#state.request_id,
   Method = <<"exit">>,
   Params = #{},
   Content = erlang_ls_protocol:request(RequestId, Method, Params),
-  gen_tcp:send(Socket, Content),
+  send(Content, State),
   {reply, ok, State}.
 
 -spec handle_cast(any(), state()) -> {noreply, state()}.
+handle_cast( {messages, Responses}
+           , #state{pending = Pending, transport = stdio} = State
+           ) ->
+  Pending1 = handle_responses(Responses, Pending),
+  {noreply, State#state{pending = Pending1}};
 handle_cast(_Msg, State) ->
   {noreply, State}.
 
 -spec handle_info(any(), state()) -> {noreply, state()}.
-handle_info({tcp, _Socket, Packet}, #state{ document  = Document
-                                          , socket    = Socket
+handle_info({tcp, _Socket, Packet}, #state{ buffer    = Buffer
                                           , pending   = Pending
+                                          , transport = tcp
                                           } = State) ->
-  lager:debug("[SERVER] TCP Packet [document=~p] [packet=~p] ", [ Document
-                                                                , Packet]),
-  Data = <<Document/binary, Packet/binary>>,
-  {Responses, NewDocument} =
-    erlang_ls_jsonrpc:split(Data, [return_maps, {labels, atom}]),
-  Pending1 = handle_responses(Socket, Responses, Pending),
-  inet:setopts(Socket, [{active, once}]),
-  {noreply, State#state{ document = NewDocument, pending = Pending1 }};
+  inet:setopts(State#state.connection, [{active, once}]),
+  {Responses, NewBuffer} = process_packet(Buffer, Packet),
+  Pending1 = handle_responses(Responses, Pending),
+  {noreply, State#state{ buffer = NewBuffer, pending = Pending1 }};
 handle_info({tcp_closed, _Socket}, State) ->
   lager:debug("[CLIENT] TCP closed", []),
   {noreply, State};
@@ -329,8 +320,14 @@ handle_info({tcp_error, _Socket, Reason}, State) ->
   {noreply, State}.
 
 -spec terminate(any(), state()) -> ok.
-terminate(_Reason, #state{socket = Socket} = _State) ->
-  ok = gen_tcp:close(Socket),
+terminate( _Reason
+         , #state{transport = tcp, connection = Socket} = _State
+         ) ->
+  ok = gen_tcp:close(Socket);
+terminate( _Reason
+         , #state{transport = stdio, connection = IoDevice} = _State
+         ) ->
+  true = erlang:exit(IoDevice, normal),
   ok.
 
 -spec code_change(any(), state(), any()) -> {ok, state()}.
@@ -340,25 +337,36 @@ code_change(_OldVsn, State, _Extra) ->
 %%==============================================================================
 %% Internal Functions
 %%==============================================================================
--spec handle_responses(any(), [map()], [any()]) -> [any()].
-handle_responses(_Socket, [], Pending) ->
+-spec process_packet(binary(), binary()) -> {[map()], binary()}.
+process_packet(Buffer, Packet) ->
+  lager:debug("[SERVER] TCP Packet [buffer=~p] [packet=~p] ", [ Buffer
+                                                              , Packet]),
+  Data = <<Buffer/binary, Packet/binary>>,
+  erlang_ls_jsonrpc:split(Data, ?JSON_OPTS).
+
+-spec handle_responses([map()], [any()]) -> [any()].
+handle_responses([], Pending) ->
   Pending;
-handle_responses(Socket, [Response|Responses], Pending) ->
-  case maps:is_key(id, Response) of
-    true ->
+handle_responses([Response|Responses], Pending) ->
+  case maps:find(id, Response) of
+    {ok, RequestId} ->
       lager:debug("[CLIENT] Handling Response [response=~p]", [Response]),
-      RequestId         = maps:get(id, Response),
       case lists:keyfind(RequestId, 1, Pending) of
         {RequestId, From} ->
           gen_server:reply(From, Response),
-          handle_responses( Socket
-                          , Responses
+          handle_responses( Responses
                           , lists:keydelete(RequestId, 1, Pending));
         false ->
-          handle_responses(Socket, Responses, Pending)
+          handle_responses(Responses, Pending)
       end;
-    false ->
+    error ->
       lager:debug( "[CLIENT] Handling Notification [notification=~p]"
                  , [Response]),
-      handle_responses(Socket, Responses, Pending)
+      handle_responses(Responses, Pending)
   end.
+
+-spec send(iolist(), state()) -> any().
+send(Content, #state{transport = tcp, connection = Socket}) ->
+  gen_tcp:send(Socket, Content);
+send(Content, #state{transport = stdio, connection = IoDevice}) ->
+  io:format(IoDevice, iolist_to_binary(Content), []).
