@@ -119,7 +119,7 @@ init({}) ->
   {ok, #{}}.
 
 -spec handle_call(any(), any(), state()) ->
-  {reply, any(), state()}.
+  {noreply, state()}.
 handle_call(_Request, _From, State) ->
   {noreply, State}.
 
