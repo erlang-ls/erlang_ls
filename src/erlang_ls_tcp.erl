@@ -46,7 +46,7 @@ start_link(Ref, Socket, Transport, Opts) ->
 -spec start_listener(pid()) -> {ok, pid()}.
 start_listener(Server) ->
   lager:info("Starting ranch listener.."),
-  Port    = application:get_env(erlang_ls, port, ?DEFAULT_PORT),
+  {ok, Port} = application:get_env(erlang_ls, port),
   {ok, _} = ranch:start_listener( erlang_ls
                                 , ranch_tcp
                                 , #{socket_opts => [{port, Port}]}

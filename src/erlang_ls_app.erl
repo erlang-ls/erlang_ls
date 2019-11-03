@@ -21,7 +21,7 @@
 %%==============================================================================
 -spec start(normal, any()) -> {ok, pid()}.
 start(_StartType, _StartArgs) ->
-  Transport = application:get_env(erlang_ls, transport, erlang_ls_tcp),
+  {ok, Transport} = application:get_env(erlang_ls, transport),
   {ok, _}   = erlang_ls_server:start_link(Transport),
   erlang_ls_sup:start_link().
 

@@ -9,14 +9,12 @@
 
 -export([loop/4]).
 
--define(STDIO, standard_io).
-
 %%==============================================================================
 %% erlang_ls_transport callbacks
 %%==============================================================================
 -spec start_listener(pid()) -> {ok, pid()}.
 start_listener(Server) ->
-  IoDevice = application:get_env(erlang_ls, io_device, ?STDIO),
+  {ok, IoDevice} = application:get_env(erlang_ls, io_device),
   {ok, proc_lib:spawn_link(?MODULE, init, [{Server, IoDevice}])}.
 
 -spec init({pid(), any()}) -> no_return().

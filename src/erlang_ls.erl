@@ -4,6 +4,7 @@
 
 -spec main([any()]) -> ok.
 main(Args) ->
+  application:load(erlang_ls),
   parse_args(Args),
   init_node_name(is_debug()),
   application:ensure_all_started(erlang_ls),
@@ -39,5 +40,5 @@ init_node_name(false) ->
 
 -spec is_debug() -> boolean().
 is_debug() ->
-  application:load(erlang_ls),
-  application:get_env(erlang_ls, debug_mode, false).
+  {ok, DebugMode} = application:get_env(erlang_ls, debug_mode),
+  DebugMode.
