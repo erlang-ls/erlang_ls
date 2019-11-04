@@ -83,13 +83,11 @@ find_completion( Prefix
     [{var, _, _} | _] ->
       variables(Document);
     %% Check for "[...] atom"
-    [{atom, _, _} | _] ->
-      modules() ++ functions(Document, false) ++ keywords();
+    [{atom, _, Name} | _] ->
+      NameBinary = atom_to_binary(Name, utf8),
+      keywords() ++ modules(NameBinary) ++ functions(Document, false);
     _ ->
-      modules()
-        ++ functions(Document, false)
-        ++ variables(Document)
-        ++ keywords()
+      []
   end;
 find_completion(_Prefix, _TriggerKind, _Opts) ->
   null.
@@ -98,13 +96,17 @@ find_completion(_Prefix, _TriggerKind, _Opts) ->
 %% Modules
 %%==============================================================================
 
--spec modules() -> [map()].
-modules() ->
-  [ #{ label            => atom_to_binary(K, utf8)
-     , kind             => ?COMPLETION_ITEM_KIND_MODULE
-     , insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
-     } || K <- erlang_ls_db:keys(modules)
-  ].
+-spec modules(binary()) -> [map()].
+modules(Prefix) ->
+  Modules = erlang_ls_db:keys(modules),
+  filter_by_prefix(Prefix, Modules, fun to_binary/1, fun item_kind_module/1).
+
+-spec item_kind_module(binary()) -> map().
+item_kind_module(Module) ->
+  #{ label            => Module
+   , kind             => ?COMPLETION_ITEM_KIND_MODULE
+   , insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+   }.
 
 %%==============================================================================
 %% Functions
@@ -222,3 +224,24 @@ keywords() ->
   [ #{ label => atom_to_binary(K, utf8)
      , kind  => ?COMPLETION_ITEM_KIND_KEYWORD
      } || K <- Keywords ].
+
+%%==============================================================================
+%% Filter by prefix
+%%==============================================================================
+
+-spec filter_by_prefix(binary(), [binary()], function(), function()) -> [map()].
+filter_by_prefix(Prefix, List, ToBinary, ItemFun) ->
+  FilterMapFun = fun(X) ->
+                     Str = ToBinary(X),
+                     case string:prefix(Str, Prefix)  of
+                       nomatch -> false;
+                       _       -> {true, ItemFun(Str)}
+                     end
+                 end,
+  lists:filtermap(FilterMapFun, List).
+
+-spec to_binary(any()) -> binary().
+to_binary(X) when is_atom(X) ->
+  atom_to_binary(X, utf8);
+to_binary(X) when is_binary(X) ->
+  X.
