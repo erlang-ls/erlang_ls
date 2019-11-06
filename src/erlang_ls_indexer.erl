@@ -8,6 +8,7 @@
 %% TODO: Solve API mix (gen_server and not)
 %% API
 -export([ find_and_index_file/1
+        , find_and_index_file/2
         , index/1
         , index_dir/1
         , start_link/0
@@ -44,6 +45,11 @@
 -spec find_and_index_file(string()) ->
    {ok, uri()} | {error, any()}.
 find_and_index_file(FileName) ->
+  find_and_index_file(FileName, async).
+
+-spec find_and_index_file(string(), async | sync) ->
+   {ok, uri()} | {error, any()}.
+find_and_index_file(FileName, SyncAsync) ->
   Paths = lists:append([ erlang_ls_config:get(app_paths)
                        , erlang_ls_config:get(deps_paths)
                        , erlang_ls_config:get(otp_paths)
@@ -52,7 +58,7 @@ find_and_index_file(FileName) ->
     {ok, IoDevice, FullName} ->
       %% TODO: Avoid opening file twice
       file:close(IoDevice),
-      try_index_file(FullName),
+      try_index_file(FullName, SyncAsync),
       {ok, erlang_ls_uri:uri(FullName)};
     {error, Error} ->
       {error, Error}
@@ -88,7 +94,7 @@ index_otp() ->
 index_dir(Dir) ->
   lager:info("Indexing directory. [dir=~s]", [Dir]),
   F = fun(FileName, {Succeeded, Failed}) ->
-          case try_index_file(list_to_binary(FileName)) of
+          case try_index_file(list_to_binary(FileName), async) of
             ok              -> {Succeeded +1, Failed};
             {error, _Error} -> {Succeeded, Failed + 1}
           end
@@ -149,20 +155,26 @@ terminate(_, _State) ->
 %%==============================================================================
 
 %% @edoc Try indexing a file.
--spec try_index_file(binary()) -> ok | {error, any()}.
-try_index_file(FullName) ->
+-spec try_index_file(binary(), sync | async) -> ok | {error, any()}.
+try_index_file(FullName, SyncAsync) ->
   try
     lager:debug("Indexing file. [filename=~s]", [FullName]),
     {ok, Text} = file:read_file(FullName),
     Uri        = erlang_ls_uri:uri(FullName),
     Document   = erlang_ls_document:create(Uri, Text),
-    ok         = wpool:cast(indexers, {?MODULE, index, [Document]})
+    ok         = index_document(Document, SyncAsync)
   catch Type:Reason:St ->
       lager:error("Error indexing file "
                   "[filename=~s] "
                   "~p:~p:~p", [FullName, Type, Reason, St]),
       {error, {Type, Reason}}
   end.
+
+-spec index_document(erlang_ls_document:document(), async | sync) -> ok.
+index_document(Document, async) ->
+  ok = wpool:cast(indexers, {?MODULE, index, [Document]});
+index_document(Document, sync) ->
+  ok = wpool:call(indexers, {?MODULE, index, [Document]}).
 
 %% TODO: Specific for references
 

@@ -1,6 +1,7 @@
 -module(erlang_ls_utils).
 
 -export([ find_module/1
+        , find_module/2
         , include_filename/2
         , halt/1
         , start_epmd/0
@@ -12,15 +13,24 @@
 %%
 %% Look for a given module in the DB and return the respective
 %% `URI`. If the module is not in the DB, try to index it.
+
 -spec find_module(atom()) -> {ok, uri()} | {error, any()}.
 find_module(M) ->
+  find_module(M, erl).
+
+-spec find_module(atom(), string()) -> {ok, uri()} | {error, any()}.
+find_module(M, Extension) ->
   case erlang_ls_db:find(modules, M) of
     {ok, Uri} ->
       {ok, Uri};
     {error, not_found} ->
-      FileName = atom_to_list(M) ++ ".erl",
-      erlang_ls_indexer:find_and_index_file(FileName)
+      FileName = atom_to_list(M) ++ extension(Extension),
+      erlang_ls_indexer:find_and_index_file(FileName, sync)
   end.
+
+-spec extension(erl | hrl) -> string().
+extension(erl) -> ".erl";
+extension(hrl) -> "".
 
 -spec include_filename('include' | 'include_lib', string()) -> string().
 include_filename(include, String) ->

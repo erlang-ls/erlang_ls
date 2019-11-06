@@ -266,12 +266,12 @@ attribute(Tree, Extra) ->
         {include, [String]} ->
           [erlang_ls_poi:new( Tree
                             , include
-                            , erl_syntax:string_literal(String)
+                            , erl_syntax:string_value(String)
                             , Extra )];
         {include_lib, [String]} ->
           [erlang_ls_poi:new( Tree
                             , include_lib
-                            , erl_syntax:string_literal(String)
+                            , erl_syntax:string_value(String)
                             , Extra )];
         _ ->
           []
