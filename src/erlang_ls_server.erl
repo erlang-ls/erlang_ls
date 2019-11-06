@@ -21,10 +21,14 @@
         , handle_cast/2
         ]).
 
-%% Notifications API
+%% API
 -export([ process_requests/2
         , set_connection/2
         , send_notification/3
+        ]).
+
+%% Testing
+-export([ reset_state/0
         ]).
 
 %%==============================================================================
@@ -51,9 +55,9 @@
 %%==============================================================================
 -spec start_link(module()) -> {ok, pid()}.
 start_link(Transport) ->
-  {ok, Server} = gen_server:start_link(?MODULE, Transport, []),
-  {ok, _} = Transport:start_listener(Server),
-  {ok, Server}.
+  {ok, Pid} = gen_server:start_link({local, ?MODULE}, ?MODULE, Transport, []),
+  {ok, _} = Transport:start_listener(Pid),
+  {ok, Pid}.
 
 -spec process_requests(pid(), [any()]) -> ok.
 process_requests(Server, Requests) ->
@@ -66,6 +70,13 @@ set_connection(Server, Connection) ->
 -spec send_notification(pid(), binary(), map()) -> ok.
 send_notification(Server, Method, Params) ->
   gen_server:cast(Server, {notification, Method, Params}).
+
+%%==============================================================================
+%% Testing
+%%==============================================================================
+-spec reset_state() -> ok.
+reset_state() ->
+  gen_server:call(?MODULE, {reset_state}).
 
 %%==============================================================================
 %% gen_server callbacks
@@ -81,7 +92,9 @@ init(Transport) ->
 
 -spec handle_call(any(), any(), state()) -> {reply, any(), state()}.
 handle_call({set_connection, Connection}, _From, State) ->
-  {reply, ok, State#state{connection = Connection}}.
+  {reply, ok, State#state{connection = Connection}};
+handle_call({reset_state}, _From, State) ->
+  {reply, ok, State#state{state = #{}}}.
 
 -spec handle_cast(any(), state()) -> {noreply, state()}.
 handle_cast({messages, Requests}, State0) ->

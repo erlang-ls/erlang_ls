@@ -18,7 +18,7 @@
 find_module(M) ->
   find_module(M, erl).
 
--spec find_module(atom(), string()) -> {ok, uri()} | {error, any()}.
+-spec find_module(atom(), erl | hrl) -> {ok, uri()} | {error, any()}.
 find_module(M, Extension) ->
   case erlang_ls_db:find(modules, M) of
     {ok, Uri} ->

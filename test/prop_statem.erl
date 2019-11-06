@@ -276,9 +276,7 @@ cleanup() ->
   catch disconnect(),
   %% Restart the server, since though the client disconnects the
   %% server keeps its state.
-  application:stop(ranch),
-  application:stop(erlang_ls),
-  application:ensure_all_started(erlang_ls),
+  erlang_ls_server:reset_state(),
   ok.
 
 %%==============================================================================
