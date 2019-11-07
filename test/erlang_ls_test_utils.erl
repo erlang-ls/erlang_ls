@@ -70,6 +70,10 @@ init_per_suite(Config) ->
 
   {ok, Text} = file:read_file(Path),
 
+  application:load(erlang_ls),
+  application:set_env(erlang_ls, index_otp, false),
+  application:set_env(erlang_ls, index_deps, false),
+
   [ {root_uri, RootUri}
   , {code_navigation_uri, Uri}
   , {code_navigation_text, Text}

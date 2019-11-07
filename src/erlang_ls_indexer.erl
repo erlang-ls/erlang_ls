@@ -84,11 +84,17 @@ index_app() ->
 
 -spec index_deps() -> any().
 index_deps() ->
-  gen_server:cast(?SERVER, {index_deps}).
+  case application:get_env(erlang_ls, index_deps) of
+    {ok, true}  -> gen_server:cast(?SERVER, {index_deps});
+    {ok, false} -> lager:info("Not indexing dependencies")
+  end.
 
 -spec index_otp() -> any().
 index_otp() ->
-  gen_server:cast(?SERVER, {index_otp}).
+  case application:get_env(erlang_ls, index_otp) of
+    {ok, true}  -> gen_server:cast(?SERVER, {index_otp});
+    {ok, false} -> lager:info("Not indexing OTP")
+  end.
 
 -spec index_dir(string()) -> {non_neg_integer(), non_neg_integer()}.
 index_dir(Dir) ->
