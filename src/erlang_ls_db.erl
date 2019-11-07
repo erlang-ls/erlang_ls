@@ -62,14 +62,14 @@ update(Table, Key, UpdateFun, Default) ->
       New = UpdateFun(Default),
       case ets:insert_new(Table, {Key, New}) of
         true  -> ok;
-        false -> update(Table, Key, Default, UpdateFun)
+        false -> update(Table, Key, UpdateFun, Default)
       end;
     {ok, Old} ->
       New = UpdateFun(Old),
       Replace = [{{Key, Old}, [], [{const, {Key, New}}]}],
       case ets:select_replace(Table, Replace) of
         1 -> ok;
-        0 -> update(Table, Key, Default, UpdateFun)
+        0 -> update(Table, Key, UpdateFun, Default)
       end
   end.
 
