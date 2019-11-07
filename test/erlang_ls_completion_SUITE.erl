@@ -13,7 +13,8 @@
         ]).
 
 %% Test cases
--export([ all_completions/1
+-export([ atom_completions/1
+        , empty_completions/1
         , exported_functions/1
         , handle_empty_lines/1
         , macros/1
@@ -67,58 +68,51 @@ end_per_testcase(TestCase, Config) ->
 %% Testcases
 %%==============================================================================
 
--spec all_completions(config()) -> ok.
-all_completions(Config) ->
+-spec atom_completions(config()) -> ok.
+atom_completions(Config) ->
   TriggerKind = ?COMPLETION_TRIGGER_KIND_INVOKED,
   Uri = ?config(code_navigation_extra_uri, Config),
-  Expected = [#{ kind => ?COMPLETION_ITEM_KIND_VARIABLE
-               , label => <<"_Config">>
-               },
-              #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
-               , kind => ?COMPLETION_ITEM_KIND_MODULE
-               , label => <<"behaviour_a">>
-               },
-              #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
-               , kind => ?COMPLETION_ITEM_KIND_MODULE
-               , label => <<"code_navigation">>
-               },
-              #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
-               , kind => ?COMPLETION_ITEM_KIND_MODULE
-               , label => <<"code_navigation.hrl">>
-               },
-              #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
-               , kind => ?COMPLETION_ITEM_KIND_MODULE
-               , label => <<"code_navigation_extra">>
-               },
-              #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
-               , kind => ?COMPLETION_ITEM_KIND_MODULE
-               , label => <<"diagnostics">>
-               },
-              #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
-               , kind => ?COMPLETION_ITEM_KIND_MODULE
-               , label => <<"diagnostics.hrl">>
-               },
-              #{ insertText => <<"do(${1:_Config})">>
-               , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
-               , kind => ?COMPLETION_ITEM_KIND_FUNCTION
-               , label => <<"do/1">>},
-              #{ insertText => <<"do_2()">>
-               , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
-               , kind => ?COMPLETION_ITEM_KIND_FUNCTION
-               , label => <<"do_2/0">>
-               },
-              #{ insertText => <<"do_3()">>
-               , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
-               , kind => ?COMPLETION_ITEM_KIND_FUNCTION
-               , label => <<"do_3/0">>
-               }
-             ],
+  Expected = [ #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+                , kind             => ?COMPLETION_ITEM_KIND_MODULE
+                , label            => <<"code_navigation_extra">>
+                }
+             , #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+                , kind             => ?COMPLETION_ITEM_KIND_MODULE
+                , label            => <<"code_navigation">>
+                }
+             , #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+                , kind             => ?COMPLETION_ITEM_KIND_MODULE
+                , label            => <<"code_navigation.hrl">>
+                }
+             , #{ insertText => <<"do_3()">>
+                , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+                , kind             => ?COMPLETION_ITEM_KIND_FUNCTION,
+                  label => <<"do_3/0">>
+                }
+             , #{ insertText => <<"do_2()">>
+                , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+                , kind             => ?COMPLETION_ITEM_KIND_FUNCTION,
+                  label => <<"do_2/0">>
+                }
+             , #{ insertText => <<"do(${1:_Config})">>
+                , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+                , kind             => ?COMPLETION_ITEM_KIND_FUNCTION,
+                  label => <<"do/1">>
+                }
+             ] ++ erlang_ls_completion_provider:keywords(),
+  #{ result := Completion
+   } = erlang_ls_client:completion(Uri, 9, 6, TriggerKind, <<"d">>),
+  ?assertEqual(lists:sort(Expected), lists:sort(Completion)),
+  ok.
 
-  #{result := Completion} =
-    erlang_ls_client:completion(Uri, 5, 1, TriggerKind, <<"d">>),
-  Keywords = [C || #{kind := ?COMPLETION_ITEM_KIND_KEYWORD} = C <- Completion],
-  ?assertEqual(erlang_ls_completion_provider:keywords(), Keywords),
-  [?assert(lists:member(E, Completion)) || E <- Expected],
+-spec empty_completions(config()) -> ok.
+empty_completions(Config) ->
+  TriggerKind = ?COMPLETION_TRIGGER_KIND_INVOKED,
+  Uri = ?config(code_navigation_extra_uri, Config),
+
+  #{ result := Completion
+   } = erlang_ls_client:completion(Uri, 5, 1, TriggerKind, <<"d">>),
+  ?assertEqual([], Completion),
   ok.
 
 -spec exported_functions(config()) -> ok.
