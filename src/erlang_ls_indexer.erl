@@ -75,7 +75,7 @@ index(Document) ->
     #{data := {{F, A}, Tree}} <- Specs],
   Kinds = [application, implicit_fun],
   POIs  = erlang_ls_document:points_of_interest(Document, Kinds),
-  [register_usage(Uri, POI) || POI <- POIs],
+  [register_reference(Uri, POI) || POI <- POIs],
   ok.
 
 -spec index_app() -> any().
@@ -178,25 +178,26 @@ index_document(Document, sync) ->
 
 %% TODO: Specific for references
 
--spec register_usage(uri(), poi()) -> ok.
-register_usage(Uri, #{data := {M, F, A}, range := Range}) ->
+-spec register_reference(uri(), poi()) -> ok.
+register_reference(Uri, #{data := {M, F, A}, range := Range}) ->
   Ref = #{uri => Uri, range => Range},
-  add({M, F, A}, Ref),
+  add_reference({M, F, A}, Ref),
   ok;
-register_usage(Uri, #{data := {F, A}, range := Range}) ->
+register_reference(Uri, #{data := {F, A}, range := Range}) ->
   Ref = #{uri => Uri, range => Range},
   M = erlang_ls_uri:module(Uri),
-  add({M, F, A}, Ref),
+  add_reference({M, F, A}, Ref),
   ok.
 
--spec add(any(), any()) -> ok.
-add(Key, Value) ->
-  Refs = ordsets:add_element(Value, get(Key)),
-  ok = erlang_ls_db:store(references, Key, Refs).
+-spec add_reference(any(), any()) -> ok.
+add_reference(Key, Value) ->
+  OldRefs = get_references(Key),
+  NewRefs = ordsets:add_element(Value, OldRefs),
+  ok = erlang_ls_db:update(references, Key, OldRefs, NewRefs).
 
 -compile({no_auto_import, [get/1]}).
--spec get(any()) -> ordsets:ordset(any()).
-get(Key) ->
+-spec get_references(any()) -> ordsets:ordset(any()).
+get_references(Key) ->
   case erlang_ls_db:find(references, Key) of
     {ok, Refs}         -> Refs;
     {error, not_found} -> ordsets:new()
