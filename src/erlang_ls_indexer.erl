@@ -202,14 +202,5 @@ register_reference(Uri, #{data := {F, A}, range := Range}) ->
 
 -spec add_reference(any(), any()) -> ok.
 add_reference(Key, Value) ->
-  OldRefs = get_references(Key),
-  NewRefs = ordsets:add_element(Value, OldRefs),
-  ok = erlang_ls_db:update(references, Key, OldRefs, NewRefs).
-
--compile({no_auto_import, [get/1]}).
--spec get_references(any()) -> ordsets:ordset(any()).
-get_references(Key) ->
-  case erlang_ls_db:find(references, Key) of
-    {ok, Refs}         -> Refs;
-    {error, not_found} -> ordsets:new()
-  end.
+  UpdateFun = fun(OldRefs) -> ordsets:add_element(Value, OldRefs) end,
+  ok = erlang_ls_db:update(references, Key, UpdateFun, ordsets:new()).

@@ -55,15 +55,21 @@ store(Table, Key, Value) ->
   true = ets:insert(Table, {Key, Value}),
   ok.
 
--spec update(table(), key(), any(), any()) -> ok.
-update(Table, Key, Old, New) ->
-  Replace = [{{Key, Old}, [], [{const, {Key, New}}]}],
-  case ets:select_replace(Table, Replace) of
-    1 -> ok;
-    0 ->
+-spec update(table(), key(), function(), any()) -> ok.
+update(Table, Key, UpdateFun, Default) ->
+  case find(Table, Key) of
+    {error, not_found} ->
+      New = UpdateFun(Default),
       case ets:insert_new(Table, {Key, New}) of
         true  -> ok;
-        false -> update(Table, Key, Old, New)
+        false -> update(Table, Key, Default, UpdateFun)
+      end;
+    {ok, Old} ->
+      New = UpdateFun(Old),
+      Replace = [{{Key, Old}, [], [{const, {Key, New}}]}],
+      case ets:select_replace(Table, Replace) of
+        1 -> ok;
+        0 -> update(Table, Key, Default, UpdateFun)
       end
   end.
 
