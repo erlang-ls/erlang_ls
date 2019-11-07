@@ -4,8 +4,6 @@
 
 -export([ handle_request/2
         , is_enabled/0
-        , setup/1
-        , teardown/0
         ]).
 
 %%==============================================================================
@@ -20,14 +18,6 @@
 -spec is_enabled() -> boolean().
 is_enabled() ->
   true.
-
--spec setup(map()) -> erlang_ls_provider:state().
-setup(_Config) ->
-  ok.
-
--spec teardown() -> ok.
-teardown() ->
-  ok.
 
 -spec handle_request(any(), erlang_ls_provider:state()) ->
   {any(), erlang_ls_provider:state()}.
@@ -46,7 +36,7 @@ handle_request({hover, Params}, State) ->
 
 -spec documentation(uri(), non_neg_integer(), non_neg_integer()) -> binary().
 documentation(Uri, Line, Character) ->
-  {ok, Document} = erlang_ls_db:find(documents, Uri),
+  {ok, Document} = erlang_ls_utils:find_document(Uri),
   case erlang_ls_document:get_element_at_pos(Document, Line + 1, Character + 1)
   of
     [POI|_] -> documentation(POI);
@@ -71,7 +61,7 @@ documentation(_POI) ->
 %%==============================================================================
 -spec specs(atom(), atom(), non_neg_integer()) -> binary().
 specs(M, F, A) ->
-  case erlang_ls_db:find(specs_index, {M, F, A}) of
+  case erlang_ls_db:find(signatures, {M, F, A}) of
     {ok, Doc}          -> list_to_binary(erl_prettypr:format(Doc));
     {error, not_found} -> <<>>
   end.

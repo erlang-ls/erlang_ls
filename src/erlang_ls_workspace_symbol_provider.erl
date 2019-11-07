@@ -4,8 +4,6 @@
 
 -export([ handle_request/2
         , is_enabled/0
-        , setup/1
-        , teardown/0
         ]).
 
 -include("erlang_ls.hrl").
@@ -18,10 +16,6 @@
 is_enabled() ->
   true.
 
--spec setup(map()) -> erlang_ls_provider:state().
-setup(_Config) ->
-  #{}.
-
 -spec handle_request(any(), erlang_ls_provider:state()) ->
   {any(), erlang_ls_provider:state()}.
 handle_request({symbol, Params}, State) ->
@@ -30,18 +24,13 @@ handle_request({symbol, Params}, State) ->
   #{ <<"query">> := Query} = Params,
   {modules(Query), State}.
 
--spec teardown() -> ok.
-teardown() ->
-  ok.
-
 %%==============================================================================
 %% Internal Functions
 %%==============================================================================
 
 -spec modules(binary()) -> [symbol_information()].
 modules(Query) ->
-  %% TODO: Stop indexing header files together with modules
-  All = erlang_ls_db:list(completion_index),
+  All = erlang_ls_db:list(modules),
   F = fun({Module, Uri}) ->
           filename:extension(Uri) =:= <<".erl">> andalso
             re:run(atom_to_binary(Module, utf8), Query) =/= nomatch

@@ -6,8 +6,6 @@
 
 -export([ handle_request/2
         , is_enabled/0
-        , setup/1
-        , teardown/0
         ]).
 
 %% Exported to ease testing.
@@ -21,14 +19,6 @@
 is_enabled() ->
   true.
 
--spec setup(map()) -> erlang_ls_provider:state().
-setup(_Config) ->
-  #{}.
-
--spec teardown() -> ok.
-teardown() ->
-  ok.
-
 -spec handle_request(any(), erlang_ls_provider:state()) ->
   {any(), erlang_ls_provider:state()}.
 handle_request({completion, Params}, State) ->
@@ -37,7 +27,7 @@ handle_request({completion, Params}, State) ->
                             }
    , <<"textDocument">> := #{<<"uri">> := Uri}
    } = Params,
-  {ok, Document} = erlang_ls_db:find(documents, Uri),
+  {ok, Document} = erlang_ls_utils:find_document(Uri),
   Text = erlang_ls_document:text(Document),
   case maps:find(<<"context">>, Params) of
     {ok, Context} ->
@@ -113,7 +103,7 @@ modules() ->
   [ #{ label            => atom_to_binary(K, utf8)
      , kind             => ?COMPLETION_ITEM_KIND_MODULE
      , insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
-     } || K <- erlang_ls_db:keys(completion_index)
+     } || K <- erlang_ls_db:keys(modules)
   ].
 
 %%==============================================================================
@@ -144,7 +134,7 @@ completion_item_function(#{data := {F, A}, tree := Tree}) ->
 exported_functions(Module) ->
   case erlang_ls_utils:find_module(Module) of
     {ok, Uri} ->
-      {ok, Document} = erlang_ls_db:find(documents, Uri),
+      {ok, Document} = erlang_ls_utils:find_document(Uri),
       functions(Document, true);
     {error, _Error} ->
       null
@@ -213,7 +203,7 @@ include_file_macros(Kind, Name) ->
   M = list_to_atom(Filename),
   case erlang_ls_utils:find_module(M) of
     {ok, Uri} ->
-      {ok, IncludeDocument} = erlang_ls_db:find(documents, Uri),
+      {ok, IncludeDocument} = erlang_ls_utils:find_document(Uri),
       local_macros(IncludeDocument);
     {error, _} ->
       []

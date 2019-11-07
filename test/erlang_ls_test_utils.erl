@@ -60,6 +60,7 @@ init_per_suite(Config) ->
   DiagnosticsIncludePath = filename:join([ RootPath
                                          , <<"include">>
                                          , <<"diagnostics.hrl">>]),
+
   Uri                    = erlang_ls_uri:uri(Path),
   ExtraUri               = erlang_ls_uri:uri(ExtraPath),
   BehaviourUri           = erlang_ls_uri:uri(BehaviourPath),
@@ -68,6 +69,10 @@ init_per_suite(Config) ->
   DiagnosticsIncludeUri  = erlang_ls_uri:uri(DiagnosticsIncludePath),
 
   {ok, Text} = file:read_file(Path),
+
+  application:load(erlang_ls),
+  application:set_env(erlang_ls, index_otp, false),
+  application:set_env(erlang_ls, index_deps, false),
 
   [ {root_uri, RootUri}
   , {code_navigation_uri, Uri}
@@ -111,6 +116,13 @@ init_per_testcase(_TestCase, Config) ->
 
   erlang_ls_client:initialize(RootUri, []),
   erlang_ls_client:did_open(Uri, erlang, 1, Text),
+
+  %% Ensure modules used in test suites are indexed
+  erlang_ls_indexer:find_and_index_file("behaviour_a", async),
+  erlang_ls_indexer:find_and_index_file("code_navigation_extra", async),
+  erlang_ls_indexer:find_and_index_file("code_navigation.hrl", async),
+  erlang_ls_indexer:find_and_index_file("diagnostics.hrl", async),
+
   [{started, Started} | Config].
 
 -spec end_per_testcase(atom(), config()) -> ok.

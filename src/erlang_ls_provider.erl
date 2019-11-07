@@ -3,10 +3,9 @@
 -behaviour(gen_server).
 
 %% API
--export([ initialize/1
+-export([ initialize/0
         , handle_request/2
-        , start_link/2
-        , teardown/2
+        , start_link/1
         ]).
 
 %% gen_server callbacks
@@ -15,9 +14,7 @@
         , handle_cast/2
         ]).
 
--callback is_enabled()    -> boolean().
--callback setup(config()) -> state().
--callback teardown()      -> ok.
+-callback is_enabled() -> boolean().
 
 -type config()   :: any().
 -type provider() :: erlang_ls_completion_provider
@@ -38,21 +35,14 @@
 %% External functions
 %%==============================================================================
 
--spec initialize(map()) -> ok.
-initialize(Config) ->
-  [ start_provider(Provider, Config)
-    || Provider <- enabled_providers()
-  ],
+-spec initialize() -> ok.
+initialize() ->
+  [ start_provider(Provider) || Provider <- enabled_providers() ],
   ok.
 
--spec teardown(provider(), config()) -> ok.
-teardown(Provider, Config) ->
-  Provider:teardown(Config).
-
--spec start_link(provider(), config()) -> {ok, pid()}.
-start_link(Provider, Config) ->
-  Args = #{provider => Provider, config => Config},
-  gen_server:start_link({local, Provider}, ?MODULE, Args, []).
+-spec start_link(provider()) -> {ok, pid()}.
+start_link(Provider) ->
+  gen_server:start_link({local, Provider}, ?MODULE, none, []).
 
 -spec handle_request(provider(), request()) -> any().
 handle_request(Provider, Request) ->
@@ -62,10 +52,9 @@ handle_request(Provider, Request) ->
 %% gen_server callbacks
 %%==============================================================================
 
--spec init(#{provider := atom(), config := map()}) -> {ok, state()}.
-init(#{provider := Provider, config := Config}) ->
-  State = Provider:setup(Config),
-  {ok, State}.
+-spec init(none) -> {ok, state()}.
+init(none) ->
+  {ok, #{}}.
 
 -spec handle_call(any(), {pid(), any()}, state()) ->
   {reply, any(), state()}.
@@ -82,11 +71,12 @@ handle_cast(_Request, State) ->
 %% Internal functions
 %%==============================================================================
 
--spec start_provider(provider(), config()) -> ok.
-start_provider(Provider, Config) ->
-  supervisor:start_child(erlang_ls_providers_sup, [Provider, Config]),
+-spec start_provider(provider()) -> ok.
+start_provider(Provider) ->
+  supervisor:start_child(erlang_ls_providers_sup, [Provider]),
   ok.
 
+%% TODO: This could be moved to the supervisor
 -spec providers() -> [provider()].
 providers() ->
   [ erlang_ls_completion_provider

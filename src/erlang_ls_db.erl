@@ -5,6 +5,7 @@
         , keys/1
         , list/1
         , store/3
+        , update/4
         , delete/2
         , start_link/0
         ]).
@@ -16,11 +17,10 @@
         ]).
 
 -define(SERVER, ?MODULE).
-%% TODO: Get table names via provider callbacks
--define(TABLES, [ completion_index
-                , documents
-                , references_index
-                , specs_index
+-define(TABLES, [ documents
+                , modules
+                , references
+                , signatures
                 ]).
 
 -type state() :: #{}.
@@ -54,6 +54,18 @@ list(Table) ->
 store(Table, Key, Value) ->
   true = ets:insert(Table, {Key, Value}),
   ok.
+
+-spec update(table(), key(), any(), any()) -> ok.
+update(Table, Key, Old, New) ->
+  Replace = [{{Key, Old}, [], [{const, {Key, New}}]}],
+  case ets:select_replace(Table, Replace) of
+    1 -> ok;
+    0 ->
+      case ets:insert_new(Table, {Key, New}) of
+        true  -> ok;
+        false -> update(Table, Key, Old, New)
+      end
+  end.
 
 -spec delete(table(), key()) -> ok.
 delete(Table, Key) ->

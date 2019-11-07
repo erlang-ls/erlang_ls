@@ -256,6 +256,8 @@ setup() ->
   HaltFun = fun(_X) -> Self ! halt_called, {noresponse, #{}} end,
   meck:expect(erlang_ls_utils, halt, HaltFun),
   application:ensure_all_started(erlang_ls),
+  application:set_env(erlang_ls, index_otp, false),
+  application:set_env(erlang_ls, index_deps, false),
   file:write_file("/tmp/erlang_ls.config", <<"">>),
   lager:set_loglevel(lager_console_backend, warning),
   ok.
@@ -276,9 +278,7 @@ cleanup() ->
   catch disconnect(),
   %% Restart the server, since though the client disconnects the
   %% server keeps its state.
-  application:stop(ranch),
-  application:stop(erlang_ls),
-  application:ensure_all_started(erlang_ls),
+  erlang_ls_server:reset_state(),
   ok.
 
 %%==============================================================================

@@ -82,9 +82,11 @@ initialize(Params, State) ->
    , <<"capabilities">> := _ClientCapabilities
    } = Params,
   InitOptions = maps:get(<<"initializationOptions">>, Params, #{}),
-  Config = erlang_ls_config:initialize(RootUri, InitOptions),
-  ok     = erlang_ls_index:initialize(Config),
-  ok     = erlang_ls_provider:initialize(Config),
+  ok = erlang_ls_config:initialize(RootUri, InitOptions),
+  erlang_ls_indexer:index_app(),
+  erlang_ls_indexer:index_deps(),
+  erlang_ls_indexer:index_otp(),
+  ok = erlang_ls_provider:initialize(),
   Result =
     #{ capabilities =>
          #{ hoverProvider => erlang_ls_hover_provider:is_enabled()
@@ -157,7 +159,7 @@ textdocument_didchange(Params, State) ->
     []                      -> ok;
     [#{<<"text">> := Text}] ->
       Document = erlang_ls_document:create(Uri, Text),
-      erlang_ls_index:index(Document)
+      erlang_ls_indexer:index(Document)
   end,
   {noresponse, State}.
 

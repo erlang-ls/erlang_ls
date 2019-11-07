@@ -4,8 +4,6 @@
 
 -export([ handle_request/2
         , is_enabled/0
-        , setup/1
-        , teardown/0
         ]).
 
 %%==============================================================================
@@ -16,10 +14,6 @@
 is_enabled() ->
   true.
 
--spec setup(map()) -> erlang_ls_provider:state().
-setup(_Config) ->
-  #{}.
-
 -spec handle_request(any(), erlang_ls_provider:state()) ->
   {any(), erlang_ls_provider:state()}.
 handle_request({definition, Params}, State) ->
@@ -28,7 +22,7 @@ handle_request({definition, Params}, State) ->
                             }
    , <<"textDocument">> := #{<<"uri">> := Uri}
    } = Params,
-  {ok, Document} = erlang_ls_db:find(documents, Uri),
+  {ok, Document} = erlang_ls_utils:find_document(Uri),
   case
     erlang_ls_document:get_element_at_pos(Document, Line + 1, Character + 1)
   of
@@ -44,7 +38,3 @@ handle_request({definition, Params}, State) ->
     [] ->
       {null, State}
   end.
-
--spec teardown() -> ok.
-teardown() ->
-  ok.

@@ -11,7 +11,7 @@ did_open(Params) ->
   Uri          = maps:get(<<"uri">>         , TextDocument),
   Text         = maps:get(<<"text">>        , TextDocument),
   Document     = erlang_ls_document:create(Uri, Text),
-  ok           = erlang_ls_index:index(Document).
+  ok           = erlang_ls_indexer:index(Document).
 
 -spec did_save(map(), pid()) -> ok.
 did_save(Params, Server) ->
@@ -23,7 +23,6 @@ did_save(Params, Server) ->
   Params1  = #{ uri => Uri
               , diagnostics => CDiagnostics ++ DDiagnostics
               },
-  %% TODO: prune/re-index on save/change
   erlang_ls_server:send_notification(Server, Method, Params1).
 
 -spec did_close(map()) -> ok.

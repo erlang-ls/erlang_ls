@@ -13,6 +13,7 @@
       , lager
       , yamerl
       , docsh
+      , worker_pool
       ]
     }
   , { env
@@ -20,6 +21,10 @@
       , {io_device, standard_io}
       , {port, 10000}
       , {debug_mode, false}
+        %% Indexing
+      , {indexers, 10}
+      , {index_otp, true}
+      , {index_deps, true}
       ]
     }
   , {modules, []}

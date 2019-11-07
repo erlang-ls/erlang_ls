@@ -244,7 +244,7 @@ macro_with_args_included(Config) ->
   Uri = ?config(code_navigation_uri, Config),
   Def = erlang_ls_client:definition(Uri, 43, 9),
   #{result := #{uri := DefUri}} = Def,
-  ?assertEqual (<<"assert.hrl">>
+  ?assertEqual( <<"assert.hrl">>
               , filename:basename(erlang_ls_uri:path(DefUri))),
   %% Do not assert on line number to avoid binding to a specific OTP version
   ok.
