@@ -31,7 +31,7 @@ handle_request({document_symbol, Params}, State) ->
 %%==============================================================================
 -spec functions(uri()) -> [map()].
 functions(Uri) ->
-  {ok, Document} = erlang_ls_db:find(documents, Uri),
+  {ok, Document} = erlang_ls_utils:find_document(Uri),
   POIs = erlang_ls_document:points_of_interest(Document, [function]),
   lists:reverse([ #{ name => function_name(F, A)
                    , kind => ?SYMBOLKIND_FUNCTION

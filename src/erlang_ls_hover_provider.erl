@@ -36,7 +36,7 @@ handle_request({hover, Params}, State) ->
 
 -spec documentation(uri(), non_neg_integer(), non_neg_integer()) -> binary().
 documentation(Uri, Line, Character) ->
-  {ok, Document} = erlang_ls_db:find(documents, Uri),
+  {ok, Document} = erlang_ls_utils:find_document(Uri),
   case erlang_ls_document:get_element_at_pos(Document, Line + 1, Character + 1)
   of
     [POI|_] -> documentation(POI);

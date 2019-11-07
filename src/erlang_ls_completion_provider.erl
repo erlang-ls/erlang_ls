@@ -134,7 +134,7 @@ completion_item_function(#{data := {F, A}, tree := Tree}) ->
 exported_functions(Module) ->
   case erlang_ls_utils:find_module(Module) of
     {ok, Uri} ->
-      {ok, Document} = erlang_ls_db:find(documents, Uri),
+      {ok, Document} = erlang_ls_utils:find_document(Uri),
       functions(Document, true);
     {error, _Error} ->
       null
@@ -203,7 +203,7 @@ include_file_macros(Kind, Name) ->
   M = list_to_atom(Filename),
   case erlang_ls_utils:find_module(M) of
     {ok, Uri} ->
-      {ok, IncludeDocument} = erlang_ls_db:find(documents, Uri),
+      {ok, IncludeDocument} = erlang_ls_utils:find_document(Uri),
       local_macros(IncludeDocument);
     {error, _} ->
       []
