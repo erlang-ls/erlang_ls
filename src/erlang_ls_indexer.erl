@@ -9,6 +9,7 @@
 %% API
 -export([ find_and_index_file/1
         , find_and_index_file/2
+        , index_file/2
         , index/1
         , index_dir/1
         , start_link/0
@@ -58,11 +59,15 @@ find_and_index_file(FileName, SyncAsync) ->
     {ok, IoDevice, FullName} ->
       %% TODO: Avoid opening file twice
       file:close(IoDevice),
-      try_index_file(FullName, SyncAsync),
-      {ok, erlang_ls_uri:uri(FullName)};
+      index_file(FullName, SyncAsync);
     {error, Error} ->
       {error, Error}
   end.
+
+-spec index_file(binary(), sync | async) -> {ok, uri()}.
+index_file(Path, SyncAsync) ->
+  try_index_file(Path, SyncAsync),
+  {ok, erlang_ls_uri:uri(Path)}.
 
 -spec index(erlang_ls_document:document()) -> ok.
 index(Document) ->

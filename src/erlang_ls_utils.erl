@@ -1,6 +1,7 @@
 -module(erlang_ls_utils).
 
--export([ find_module/1
+-export([ find_document/1
+        , find_module/1
         , find_module/2
         , include_filename/2
         , halt/1
@@ -26,6 +27,17 @@ find_module(M, Extension) ->
     {error, not_found} ->
       FileName = atom_to_list(M) ++ extension(Extension),
       erlang_ls_indexer:find_and_index_file(FileName, sync)
+  end.
+
+-spec find_document(uri()) ->
+  {ok, erlang_ls_document:document()} | {error, any()}.
+find_document(Uri) ->
+  case erlang_ls_db:find(documents, Uri) of
+    {ok, Document} ->
+      {ok, Document};
+    {error, not_found} ->
+      Path = erlang_ls_uri:path(Uri),
+      erlang_ls_indexer:index_file(Path, sync)
   end.
 
 -spec extension(erl | hrl) -> string().

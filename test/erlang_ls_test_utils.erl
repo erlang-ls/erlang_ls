@@ -116,10 +116,13 @@ init_per_testcase(_TestCase, Config) ->
 
   erlang_ls_client:initialize(RootUri, []),
   erlang_ls_client:did_open(Uri, erlang, 1, Text),
+
   %% Ensure modules used in test suites are indexed
-  erlang_ls_indexer:find_and_index_file("behaviour_a"),
-  erlang_ls_indexer:find_and_index_file("code_navigation.hrl"),
-  erlang_ls_indexer:find_and_index_file("diagnostics.hrl"),
+  erlang_ls_indexer:find_and_index_file("behaviour_a", async),
+  erlang_ls_indexer:find_and_index_file("code_navigation_extra", async),
+  erlang_ls_indexer:find_and_index_file("code_navigation.hrl", async),
+  erlang_ls_indexer:find_and_index_file("diagnostics.hrl", async),
+
   [{started, Started} | Config].
 
 -spec end_per_testcase(atom(), config()) -> ok.
