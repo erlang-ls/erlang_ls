@@ -49,7 +49,7 @@ documentation(#{kind := application, data := {M, F, A}}) ->
     {<<>>, <<>>} ->
       <<>>;
     {Specs, Edoc} ->
-      #{ kind => <<"markdown">>
+      #{ kind => content_kind()
        , value => <<Specs/binary, "\n\n", Edoc/binary>>
        }
   end;
@@ -94,3 +94,13 @@ format(Signature, Desc) when is_map(Desc) ->
   Doc          = maps:get(Lang, Desc, <<>>),
   FormattedDoc = list_to_binary(docsh_edoc:format_edoc(Doc, #{})),
   <<"# ", Signature/binary, "\n", FormattedDoc/binary>>.
+
+-spec content_kind() -> markup_kind().
+content_kind() ->
+  Capabilities      = erlang_ls_config:get(capabilities),
+  HoverCapabilities = maps:get(<<"hover">>, Capabilities, #{}),
+  ContentFormat     = maps:get(<<"contentFormat">>, HoverCapabilities, []),
+  case lists:member(atom_to_binary(?MARKDOWN, utf8), ContentFormat) of
+    true  -> ?MARKDOWN;
+    false -> ?PLAINTEXT
+  end.

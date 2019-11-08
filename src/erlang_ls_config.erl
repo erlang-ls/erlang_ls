@@ -1,7 +1,7 @@
 -module(erlang_ls_config).
 
 %% API
--export([ initialize/2
+-export([ initialize/3
         , get/1
         , set/2
         , start_link/0
@@ -26,6 +26,7 @@
 
 %% TODO: Refine names to avoid confusion
 -type key()   :: app_paths
+               | capabilities
                | deps_dirs
                | deps_paths
                | include_dirs
@@ -48,8 +49,8 @@
 %% Exported functions
 %%==============================================================================
 
--spec initialize(uri(), map()) -> ok.
-initialize(RootUri, InitOptions) ->
+-spec initialize(uri(), map(), map()) -> ok.
+initialize(RootUri, Capabilities, InitOptions) ->
   Config = consult_config(filename:join([ erlang_ls_uri:path(RootUri)
                                         , config_path(InitOptions)
                                         ])),
@@ -67,6 +68,8 @@ initialize(RootUri, InitOptions) ->
   ok = set(deps_paths    , deps_paths(RootUri, DepsDirs)),
   ok = set(include_paths , include_paths(RootUri, IncludeDirs)),
   ok = set(otp_paths     , otp_paths(OtpPath)),
+  %% Init Options
+  ok = set(capabilities  , Capabilities),
   ok.
 
 -spec start_link() -> {ok, pid()}.
