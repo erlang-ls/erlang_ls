@@ -261,6 +261,11 @@ handle_call({initialize, RootUri, InitOptions}, From, State) ->
                       #{ <<"completion">> =>
                            #{ <<"contextSupport">> => 'true' }
                        }
+                  , <<"hover">> =>
+                      #{ <<"contentFormat">> => [ ?MARKDOWN
+                                                , ?PLAINTEXT
+                                                ]
+                       }
                   }
              },
   Content = erlang_ls_protocol:request(RequestId, Method, Params),
