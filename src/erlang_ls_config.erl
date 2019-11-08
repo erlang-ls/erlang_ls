@@ -26,6 +26,7 @@
 
 %% TODO: Refine names to avoid confusion
 -type key()   :: app_paths
+               | capabilities
                | deps_dirs
                | deps_paths
                | include_dirs
