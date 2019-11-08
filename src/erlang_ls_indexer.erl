@@ -185,7 +185,9 @@ try_index_file(FullName, SyncAsync) ->
 index_document(Document, async) ->
   ok = wpool:cast(indexers, {?MODULE, index, [Document]});
 index_document(Document, sync) ->
-  ok = wpool:call(indexers, {?MODULE, index, [Document]}).
+  %% wpool:call/2 returns {ok, Result}
+  _ = wpool:call(indexers, {?MODULE, index, [Document]}),
+  ok.
 
 %% TODO: Specific for references
 
