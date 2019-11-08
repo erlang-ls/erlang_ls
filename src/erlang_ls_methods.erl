@@ -97,7 +97,7 @@ initialize(Params, State) ->
           , textDocumentSync =>
               #{ openClose => true
                , change    => ?TEXT_DOCUMENT_SYNC_KIND_FULL
-               , save      => true
+               , save      => #{includeText => true}
                }
           , definitionProvider => erlang_ls_definition_provider:is_enabled()
           , referencesProvider => erlang_ls_references_provider:is_enabled()

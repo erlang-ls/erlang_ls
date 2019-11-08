@@ -97,7 +97,7 @@ initialize_post(_S, _Args, Res) ->
                    , textDocumentSync =>
                        #{ openClose => true
                         , change    => ?TEXT_DOCUMENT_SYNC_KIND_FULL
-                        , save      => true
+                        , save      => #{includeText => true}
                         }
                    , definitionProvider      => true
                    , referencesProvider      => true
