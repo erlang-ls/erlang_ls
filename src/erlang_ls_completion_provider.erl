@@ -60,7 +60,7 @@ find_completion( Prefix
                , #{trigger := <<":">>}
                ) ->
   case erlang_ls_text:last_token(Prefix) of
-    {atom, _, Module} -> exported_functions(Module);
+    {atom, _, Module} -> exported_functions(Module, false);
     _ -> null
   end;
 find_completion( _Prefix
@@ -73,19 +73,25 @@ find_completion( Prefix
                , #{document := Document}
                ) ->
   case lists:reverse(erlang_ls_text:tokens(Prefix)) of
+    %% Check for "[...] fun atom:atom"
+    [{atom, _, _}, {':', _}, {atom, _, Module}, {'fun', _} | _] ->
+      exported_functions(Module, true);
     %% Check for "[...] atom:atom"
     [{atom, _, _}, {':', _}, {atom, _, Module} | _] ->
-      exported_functions(Module);
+      exported_functions(Module, false);
     %% Check for "[...] ?anything"
     [_, {'?', _} | _] ->
       macros(Document);
     %% Check for "[...] Variable"
     [{var, _, _} | _] ->
       variables(Document);
+    %% Check for "[...] fun atom"
+    [{atom, _, _}, {'fun', _} | _] ->
+      functions(Document, false, true);
     %% Check for "[...] atom"
     [{atom, _, Name} | _] ->
       NameBinary = atom_to_binary(Name, utf8),
-      keywords() ++ modules(NameBinary) ++ functions(Document, false);
+      keywords() ++ modules(NameBinary) ++ functions(Document, false, false);
     _ ->
       []
   end;
@@ -112,32 +118,39 @@ item_kind_module(Module) ->
 %% Functions
 %%==============================================================================
 
--spec functions(erlang_ls_document:document(), boolean()) -> [map()].
-functions(Document, _OnlyExported = false) ->
+-spec functions(erlang_ls_document:document(), boolean(), boolean()) -> [map()].
+functions(Document, _OnlyExported = false, Arity) ->
   POIs = erlang_ls_document:points_of_interest(Document, [function]),
-  [completion_item_function(POI) || POI <- POIs];
-functions(Document, _OnlyExported = true) ->
+  List = [completion_item_function(POI, Arity) || POI <- POIs],
+  lists:usort(List);
+functions(Document, _OnlyExported = true, Arity) ->
   Exports   = erlang_ls_document:points_of_interest(Document, [exports_entry]),
   Functions = erlang_ls_document:points_of_interest(Document, [function]),
   ExportsFA = [FA || #{data := FA} <- Exports],
-  [ completion_item_function(POI)
-    || #{data := FA} = POI <- Functions, lists:member(FA, ExportsFA)
-  ].
+  List      = [ completion_item_function(POI, Arity)
+                || #{data := FA} = POI <- Functions, lists:member(FA, ExportsFA)
+              ],
+  lists:usort(List).
 
--spec completion_item_function(poi()) -> map().
-completion_item_function(#{data := {F, A}, tree := Tree}) ->
+-spec completion_item_function(poi(), boolean()) -> map().
+completion_item_function(#{data := {F, A}, tree := Tree}, false) ->
   #{ label            => list_to_binary(io_lib:format("~p/~p", [F, A]))
    , kind             => ?COMPLETION_ITEM_KIND_FUNCTION
    , insertText       => snippet_function_call(F, function_args(Tree, A))
    , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+   };
+completion_item_function(#{data := {F, A}}, true) ->
+  #{ label            => list_to_binary(io_lib:format("~p/~p", [F, A]))
+   , kind             => ?COMPLETION_ITEM_KIND_FUNCTION
+   , insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
    }.
 
--spec exported_functions(module()) -> [map()] | null.
-exported_functions(Module) ->
+-spec exported_functions(module(), boolean()) -> [map()] | null.
+exported_functions(Module, Arity) ->
   case erlang_ls_utils:find_module(Module) of
     {ok, Uri} ->
       {ok, Document} = erlang_ls_utils:find_document(Uri),
-      functions(Document, true);
+      functions(Document, true, Arity);
     {error, _Error} ->
       null
   end.
