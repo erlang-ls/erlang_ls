@@ -103,6 +103,9 @@ initialize_post(_S, _Args, Res) ->
                    , referencesProvider      => true
                    , documentSymbolProvider  => true
                    , workspaceSymbolProvider => true
+                   , didChangeWatchedFiles =>
+                       #{ dynamicRegistration => false
+                        }
                    }
               },
   ?assertEqual(Expected, maps:get(result, Res)),
