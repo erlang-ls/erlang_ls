@@ -20,6 +20,7 @@
         , textdocument_hover/2
         , textdocument_definition/2
         , textdocument_references/2
+        , workspace_didchangewatchedfiles/2
         , workspace_symbol/2
         ]).
 
@@ -105,6 +106,8 @@ initialize(Params, State) ->
               erlang_ls_document_symbol_provider:is_enabled()
           , workspaceSymbolProvider =>
               erlang_ls_workspace_symbol_provider:is_enabled()
+          , didChangeWatchedFiles =>
+              #{ dynamicRegistration => false }
           }
      },
   {response, Result, State#{status => initialized}}.
@@ -231,6 +234,17 @@ textdocument_references(Params, State) ->
   Provider = erlang_ls_references_provider,
   Response = erlang_ls_provider:handle_request(Provider, {references, Params}),
   {response, Response, State}.
+
+
+%%==============================================================================
+%% workspace/didChangeWatchedFiles
+%%==============================================================================
+
+-spec workspace_didchangewatchedfiles(map(), state()) -> result().
+workspace_didchangewatchedfiles(_Params, State) ->
+  %% Some clients rely on these notifications to be successful.
+  %% Let's just ignore them.
+  {noresponse, State}.
 
 %%==============================================================================
 %% workspace/symbol
