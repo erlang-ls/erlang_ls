@@ -16,7 +16,7 @@ parse_args([]) ->
   ok;
 parse_args(["--transport", Name | Rest]) ->
   Transport = case Name of
-                "tcp"   -> erlang_ls_tcp;
+                "tcp"   -> els_tcp;
                 "stdio" -> els_stdio
               end,
   application:set_env(erlang_ls, transport, Transport),
