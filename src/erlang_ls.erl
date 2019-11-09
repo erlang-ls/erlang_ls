@@ -16,8 +16,8 @@ parse_args([]) ->
   ok;
 parse_args(["--transport", Name | Rest]) ->
   Transport = case Name of
-                "tcp"   -> erlang_ls_tcp;
-                "stdio" -> erlang_ls_stdio
+                "tcp"   -> els_tcp;
+                "stdio" -> els_stdio
               end,
   application:set_env(erlang_ls, transport, Transport),
   parse_args(Rest);
@@ -31,7 +31,7 @@ parse_args([Port | Rest]) ->
 
 -spec init_node_name(boolean()) -> ok.
 init_node_name(true) ->
-  ok       = erlang_ls_utils:start_epmd(),
+  ok       = els_utils:start_epmd(),
   Name     = "erlang_ls_" ++ integer_to_list(rand:uniform(16#FFFFFFFFF)),
   NodeName = list_to_atom(Name),
   net_kernel:start([NodeName, shortnames]),

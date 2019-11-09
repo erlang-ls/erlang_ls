@@ -52,7 +52,7 @@ weight(_S, _Cmd)     -> 5.
 %% Connect
 %%------------------------------------------------------------------------------
 connect() ->
-  erlang_ls_client:start_link(tcp, {?HOSTNAME, ?PORT}).
+  els_client:start_link(tcp, {?HOSTNAME, ?PORT}).
 
 connect_args(_S) ->
   [].
@@ -71,11 +71,11 @@ connect_post(_S, _Args, Res) ->
 %% Initialize
 %%------------------------------------------------------------------------------
 initialize(RootUri, InitOptions) ->
-  erlang_ls_client:initialize(RootUri, InitOptions).
+  els_client:initialize(RootUri, InitOptions).
 
 initialize_args(_S) ->
-  [ erlang_ls_proper_gen:root_uri()
-  , erlang_ls_proper_gen:init_options()
+  [ els_proper_gen:root_uri()
+  , els_proper_gen:init_options()
   ].
 
 initialize_pre(#{connected := Connected} = _S) ->
@@ -115,10 +115,10 @@ initialize_post(_S, _Args, Res) ->
 %% textDocument/didOpen
 %%------------------------------------------------------------------------------
 did_open(Uri, LanguageId, Version, Text) ->
-  erlang_ls_client:did_open(Uri, LanguageId, Version, Text).
+  els_client:did_open(Uri, LanguageId, Version, Text).
 
 did_open_args(_S) ->
-  [erlang_ls_proper_gen:uri(), <<"erlang">>, 0, erlang_ls_proper_gen:tokens()].
+  [els_proper_gen:uri(), <<"erlang">>, 0, els_proper_gen:tokens()].
 
 did_open_pre(#{connected := Connected} = _S) ->
   Connected.
@@ -134,10 +134,10 @@ did_open_post(_S, _Args, Res) ->
 %% textDocument/didSave
 %%------------------------------------------------------------------------------
 did_save(Uri) ->
-  erlang_ls_client:did_save(Uri).
+  els_client:did_save(Uri).
 
 did_save_args(_S) ->
-  [erlang_ls_proper_gen:uri()].
+  [els_proper_gen:uri()].
 
 did_save_pre(#{connected := Connected} = _S) ->
   Connected.
@@ -153,10 +153,10 @@ did_save_post(_S, _Args, Res) ->
 %% textDocument/didClose
 %%------------------------------------------------------------------------------
 did_close(Uri) ->
-  erlang_ls_client:did_close(Uri).
+  els_client:did_close(Uri).
 
 did_close_args(_S) ->
-  [erlang_ls_proper_gen:uri()].
+  [els_proper_gen:uri()].
 
 did_close_pre(#{connected := Connected} = _S) ->
   Connected.
@@ -172,7 +172,7 @@ did_close_post(_S, _Args, Res) ->
 %% Shutdown
 %%------------------------------------------------------------------------------
 shutdown() ->
-  erlang_ls_client:shutdown().
+  els_client:shutdown().
 
 shutdown_args(_S) ->
   [].
@@ -194,7 +194,7 @@ shutdown_post(_S, _Args, Res) ->
 %% Shutdown
 %%------------------------------------------------------------------------------
 exit() ->
-  erlang_ls_client:exit().
+  els_client:exit().
 
 exit_args(_S) ->
   [].
@@ -212,8 +212,8 @@ exit_post(S, _Args, Res) ->
                        true  -> 0;
                        false -> 1
                      end,
-  erlang_ls_test_utils:wait_for(halt_called, 1000),
-  ?assert(meck:called(erlang_ls_utils, halt, [ExpectedExitCode])),
+  els_test_utils:wait_for(halt_called, 1000),
+  ?assert(meck:called(els_utils, halt, [ExpectedExitCode])),
   ?assertMatch(ok, Res),
   true.
 
@@ -221,7 +221,7 @@ exit_post(S, _Args, Res) ->
 %% Disconnect
 %%------------------------------------------------------------------------------
 disconnect() ->
-  erlang_ls_client:stop().
+  els_client:stop().
 
 disconnect_args(_S) ->
   [].
@@ -250,14 +250,14 @@ prop_main() ->
 %% Setup
 %%==============================================================================
 setup() ->
-  meck:new(erlang_ls_compiler_diagnostics, [no_link, passthrough]),
-  meck:new(erlang_ls_dialyzer_diagnostics, [no_link, passthrough]),
-  meck:new(erlang_ls_utils, [no_link, passthrough]),
-  meck:expect(erlang_ls_compiler_diagnostics, diagnostics, 1, []),
-  meck:expect(erlang_ls_dialyzer_diagnostics, diagnostics, 1, []),
+  meck:new(els_compiler_diagnostics, [no_link, passthrough]),
+  meck:new(els_dialyzer_diagnostics, [no_link, passthrough]),
+  meck:new(els_utils, [no_link, passthrough]),
+  meck:expect(els_compiler_diagnostics, diagnostics, 1, []),
+  meck:expect(els_dialyzer_diagnostics, diagnostics, 1, []),
   Self    = erlang:self(),
   HaltFun = fun(_X) -> Self ! halt_called, {noresponse, #{}} end,
-  meck:expect(erlang_ls_utils, halt, HaltFun),
+  meck:expect(els_utils, halt, HaltFun),
   application:ensure_all_started(erlang_ls),
   application:set_env(erlang_ls, index_otp, false),
   application:set_env(erlang_ls, index_deps, false),
@@ -269,9 +269,9 @@ setup() ->
 %% Teardown
 %%==============================================================================
 teardown(_) ->
-  meck:unload(erlang_ls_compiler_diagnostics),
-  meck:unload(erlang_ls_dialyzer_diagnostics),
-  meck:unload(erlang_ls_utils),
+  meck:unload(els_compiler_diagnostics),
+  meck:unload(els_dialyzer_diagnostics),
+  meck:unload(els_utils),
   ok.
 
 %%==============================================================================
@@ -281,7 +281,7 @@ cleanup() ->
   catch disconnect(),
   %% Restart the server, since though the client disconnects the
   %% server keeps its state.
-  erlang_ls_server:reset_state(),
+  els_server:reset_state(),
   ok.
 
 %%==============================================================================

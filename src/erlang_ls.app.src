@@ -2,7 +2,7 @@
 , [ {description, "The Erlang Language Server"}
   , {vsn, "1.0.0"}
   , {registered, []}
-  , {mod, { erlang_ls_app, []}}
+  , {mod, { els_app, []}}
   , { applications
     , [ kernel
       , stdlib
@@ -17,7 +17,7 @@
       ]
     }
   , { env
-    , [ {transport, erlang_ls_tcp}
+    , [ {transport, els_tcp}
       , {io_device, standard_io}
       , {port, 10000}
       , {debug_mode, false}
