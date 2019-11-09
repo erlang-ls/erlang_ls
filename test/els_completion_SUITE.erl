@@ -18,6 +18,7 @@
         , exported_functions/1
         , exported_functions_arity/1
         , functions_arity/1
+        , functions_export_list/1
         , handle_empty_lines/1
         , macros/1
         , only_exported_functions_after_colon/1
@@ -153,6 +154,7 @@ exported_functions(Config) ->
 
   ok.
 
+%% [#200] Complete only with arity for named funs
 -spec exported_functions_arity(config()) -> ok.
 exported_functions_arity(Config) ->
   TriggerKind = ?COMPLETION_TRIGGER_KIND_INVOKED,
@@ -173,6 +175,7 @@ exported_functions_arity(Config) ->
 
   ok.
 
+%% [#200] Complete only with arity for named funs
 -spec functions_arity(config()) -> ok.
 functions_arity(Config) ->
   TriggerKind = ?COMPLETION_TRIGGER_KIND_INVOKED,
@@ -198,6 +201,35 @@ functions_arity(Config) ->
 
   #{result := Completion} =
     els_client:completion(Uri, 51, 17, TriggerKind, <<"">>),
+  ?assertEqual(lists:sort(ExpectedCompletion), lists:sort(Completion)),
+
+  ok.
+
+%% [#196] Complete only with arity for funs inside the export list
+-spec functions_export_list(config()) -> ok.
+functions_export_list(Config) ->
+  TriggerKind = ?COMPLETION_TRIGGER_KIND_INVOKED,
+  Uri = ?config(code_navigation_extra_uri, Config),
+  ExpectedCompletion = [ #{ label            => <<"do/1">>
+                          , kind             => ?COMPLETION_ITEM_KIND_FUNCTION
+                          , insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+                          }
+                       , #{ label            => <<"do_2/0">>
+                          , kind             => ?COMPLETION_ITEM_KIND_FUNCTION
+                          , insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+                          }
+                       ,  #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+                           , kind             => ?COMPLETION_ITEM_KIND_FUNCTION
+                           , label            => <<"do_3/2">>
+                           }
+                       , #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+                          , kind             => ?COMPLETION_ITEM_KIND_FUNCTION
+                          , label            => <<"do_4/2">>
+                          }
+                       ] ++ els_completion_provider:keywords(),
+
+  #{result := Completion} =
+    els_client:completion(Uri, 3, 13, TriggerKind, <<"">>),
   ?assertEqual(lists:sort(ExpectedCompletion), lists:sort(Completion)),
 
   ok.
