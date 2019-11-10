@@ -204,7 +204,7 @@ resides in:
     /path/to/erlang_ls/_build/debug/bin/erlang_ls
 
 Once an instance of the server is running, find the name of the node in
-the logs or by running `epmd -names`. It will look something like:
+the [logs](#logs) or by running `epmd -names`. It will look something like:
 
     $ epmd -names
     epmd: up and running on port 4369 with data:
@@ -216,6 +216,10 @@ And you can connect to it via:
 
 The [redbug](https://github.com/massemanet/redbug) application is
 included in _debug mode_, so feel free to use it.
+
+### Logs
+
+Logs are written to `/usr/local/var/log/erlang_ls/PROJECT_DIRNAME/info.log`.
 
 ## References
 
