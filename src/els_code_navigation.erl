@@ -52,7 +52,7 @@ goto_definition(_Uri, #{ kind := Kind, data := Include }
                ) when Kind =:= include;
                       Kind =:= include_lib ->
   %% TODO: Index header definitions as well
-  FileName = els_utils:include_filename(Kind, Include),
+  FileName = filename:basename(Include),
   M = list_to_atom(FileName),
   case els_utils:find_module(M) of
     {ok, Uri}      -> {ok, Uri, beginning()};
@@ -90,8 +90,8 @@ include_uris(Document) ->
   lists:foldl(fun add_include_uri/2, [], POIs).
 
 -spec add_include_uri(poi(), [uri()]) -> [uri()].
-add_include_uri(#{ kind := Kind, data := String }, Acc) ->
-  FileName = els_utils:include_filename(Kind, String),
+add_include_uri(#{ data := String }, Acc) ->
+  FileName = filename:basename(String),
   M = list_to_atom(FileName),
   case els_utils:find_module(M, hrl) of
     {ok, Uri}       -> [Uri | Acc];
