@@ -42,6 +42,7 @@ These are the command-line arguments that can be provided to the
 |-------------------------|-------------------------------------------------------------------------------------------------|
 | --transport tcp / stdio | Specifies the transport the server will use for the connection with the client (default: `tcp`) |
 | --port PORT             | Used when the transport is `tcp` (default: `10000`)                                             |
+| --log-dir DIR           | Directory where logs will be written (default: `/usr/local/var/log/erlang_ls`                   |
 
 ### Emacs Setup
 
@@ -204,7 +205,7 @@ resides in:
     /path/to/erlang_ls/_build/debug/bin/erlang_ls
 
 Once an instance of the server is running, find the name of the node in
-the logs or by running `epmd -names`. It will look something like:
+the [logs](#logs) or by running `epmd -names`. It will look something like:
 
     $ epmd -names
     epmd: up and running on port 4369 with data:
@@ -216,6 +217,10 @@ And you can connect to it via:
 
 The [redbug](https://github.com/massemanet/redbug) application is
 included in _debug mode_, so feel free to use it.
+
+### Logs
+
+Logs are written to `/usr/local/var/log/erlang_ls/PROJECT_DIRNAME/info.log`.
 
 ## References
 

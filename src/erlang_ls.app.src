@@ -25,6 +25,8 @@
       , {indexers, 10}
       , {index_otp, true}
       , {index_deps, true}
+        %% Logs
+      , {log_dir, "/usr/local/var/log/erlang_ls"}
       ]
     }
   , {modules, []}
