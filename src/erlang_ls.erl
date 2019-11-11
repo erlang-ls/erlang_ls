@@ -7,6 +7,7 @@
 -spec main([any()]) -> ok.
 main(Args) ->
   %% Initialization
+  ok = application:load(lager),
   ok = application:load(?APP),
   ok = parse_args(Args),
   ok = init_node_name(is_debug()),
@@ -33,6 +34,9 @@ parse_args(["--transport", Name | Rest]) ->
 parse_args(["--port", Port | Rest]) ->
   application:set_env(?APP, port, list_to_integer(Port)),
   parse_args(Rest);
+parse_args(["--log-dir", Dir | Rest]) ->
+  application:set_env(?APP, log_dir, Dir),
+  parse_args(Rest);
 %% For backward compatibility with clients
 parse_args([Port | Rest]) ->
   application:set_env(?APP, port, list_to_integer(Port)),
@@ -49,7 +53,6 @@ lager_config() ->
                {ok, Value} -> Value;
                undefined   -> default_lager_handlers(LogRoot)
              end,
-  ok = application:load(lager),
   ok = application:set_env(lager, handlers, Handlers),
   ok = application:set_env(lager, crash_log, "crash.log"),
   ok = application:set_env(lager, log_root, LogRoot),
@@ -68,9 +71,10 @@ default_lager_handlers(LogRoot) ->
 
 -spec log_root() -> string().
 log_root() ->
+  {ok, LogDir}     = application:get_env(?APP, log_dir),
   {ok, CurrentDir} = file:get_cwd(),
-  Dirname = filename:basename(CurrentDir),
-  filename:join([ "/usr/local/var/log/erlang_ls", Dirname]).
+  Dirname          = filename:basename(CurrentDir),
+  filename:join([LogDir, Dirname]).
 
 %%==============================================================================
 %% Node name initialization

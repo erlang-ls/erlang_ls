@@ -42,6 +42,7 @@ These are the command-line arguments that can be provided to the
 |-------------------------|-------------------------------------------------------------------------------------------------|
 | --transport tcp / stdio | Specifies the transport the server will use for the connection with the client (default: `tcp`) |
 | --port PORT             | Used when the transport is `tcp` (default: `10000`)                                             |
+| --log-dir DIR           | Directory where logs will be written (default: `/usr/local/var/log/erlang_ls`                   |
 
 ### Emacs Setup
 
