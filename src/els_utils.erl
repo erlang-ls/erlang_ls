@@ -37,7 +37,8 @@ find_document(Uri) ->
       {ok, Document};
     {error, not_found} ->
       Path = els_uri:path(Uri),
-      els_indexer:index_file(Path, sync)
+      {ok, Uri} = els_indexer:index_file(Path, sync),
+      {ok, _} = els_db:find(documents, Uri)
   end.
 
 -spec extension(erl | hrl) -> string().
