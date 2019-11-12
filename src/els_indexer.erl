@@ -106,22 +106,27 @@ index_dir(Dir) ->
   lager:info("Indexing directory. [dir=~s]", [Dir]),
   F = fun(FileName, {Succeeded, Failed}) ->
           case try_index_file(list_to_binary(FileName), async) of
-            ok              -> {Succeeded +1, Failed};
+            ok              -> {Succeeded + 1, Failed};
             {error, _Error} -> {Succeeded, Failed + 1}
           end
       end,
-  {Time, {Succeeded, Failed}} = timer:tc( filelib
+  Filter = fun(Path) ->
+               Ext = filename:extension(Path),
+               lists:member(Ext, [".erl", ".hrl"])
+           end,
+
+  {Time, {Succeeded, Failed}} = timer:tc( els_utils
                                         , fold_files
-                                        , [ Dir
-                                          , ".*\\.[e,h]rl$"
-                                          , true
-                                          , F
-                                          , {0, 0} ]),
+                                        , [ F
+                                          , Filter
+                                          , Dir
+                                          , {0, 0}
+                                          ]
+                                        ),
   lager:info("Finished indexing directory. [dir=~s] [time=~p]"
              "[succeeded=~p] "
              "[failed=~p]", [Dir, Time/1000/1000, Succeeded, Failed]),
   {Succeeded, Failed}.
-
 
 -spec start_link() -> {ok, pid()}.
 start_link() ->

@@ -210,11 +210,11 @@ local_macros(Document) ->
 included_macros(Document) ->
   Kinds = [include, include_lib],
   POIs  = els_document:points_of_interest(Document, Kinds),
-  [include_file_macros(Kind, Name) || #{kind := Kind, data := Name} <- POIs].
+  [include_file_macros(Name) || #{data := Name} <- POIs].
 
--spec include_file_macros('include' | 'include_lib', string()) -> [map()].
-include_file_macros(Kind, Name) ->
-  Filename = els_utils:include_filename(Kind, Name),
+-spec include_file_macros(string()) -> [map()].
+include_file_macros(Name) ->
+  Filename = filename:basename(Name),
   M = list_to_atom(Filename),
   case els_utils:find_module(M) of
     {ok, Uri} ->
