@@ -31,7 +31,7 @@ available and I occasionally blog about the project on
 
 Compile the project:
 
-    rebar3 escriptize
+    make
 
 ## Command-line Arguments
 
