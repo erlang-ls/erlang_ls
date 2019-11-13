@@ -7,8 +7,8 @@
 -spec main([any()]) -> ok.
 main(Args) ->
   %% Initialization
-  ok = application:load(lager),
-  ok = application:load(?APP),
+  application:load(lager),
+  application:load(?APP),
   ok = parse_args(Args),
   ok = init_node_name(is_debug()),
   ok = lager_config(),
@@ -35,6 +35,7 @@ parse_args(["--port", Port | Rest]) ->
   application:set_env(?APP, port, list_to_integer(Port)),
   parse_args(Rest);
 parse_args(["--log-dir", Dir | Rest]) ->
+  application:set_env(?APP, logging_enabled, true),
   application:set_env(?APP, log_dir, Dir),
   parse_args(Rest);
 %% For backward compatibility with clients
@@ -46,20 +47,24 @@ parse_args([Port | Rest]) ->
 %% Lager configuration
 %%==============================================================================
 
+
 -spec lager_config() -> ok.
 lager_config() ->
-  LogRoot  = log_root(),
-  Handlers = case application:get_env(?APP, lager_handlers) of
-               {ok, Value} -> Value;
-               undefined   -> default_lager_handlers(LogRoot)
-             end,
-  ok = application:set_env(lager, handlers, Handlers),
-  ok = application:set_env(lager, crash_log, "crash.log"),
-  ok = application:set_env(lager, log_root, LogRoot),
-  ok.
+  {ok, LoggingEnabled} = application:get_env(?APP, logging_enabled),
+  case LoggingEnabled of
+    true ->
+      LogRoot   = log_root(),
+      Handlers  = lager_handlers(LogRoot),
+      ok = application:set_env(lager, handlers, Handlers),
+      ok = application:set_env(lager, crash_log, "crash.log"),
+      ok = application:set_env(lager, log_root, LogRoot);
+    false ->
+      ok = application:set_env(lager, handlers, []),
+      ok = application:set_env(lager, crash_log, false)
+  end.
 
--spec default_lager_handlers(string()) -> [any()].
-default_lager_handlers(LogRoot) ->
+-spec lager_handlers(string()) -> [any()].
+lager_handlers(LogRoot) ->
   LogFile = filename:join([LogRoot, "info.log"]),
   ok      = filelib:ensure_dir(LogFile),
   [ { lager_file_backend
