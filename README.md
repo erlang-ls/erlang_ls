@@ -42,7 +42,7 @@ These are the command-line arguments that can be provided to the
 |-------------------------|-------------------------------------------------------------------------------------------------|
 | --transport tcp / stdio | Specifies the transport the server will use for the connection with the client (default: `tcp`) |
 | --port PORT             | Used when the transport is `tcp` (default: `10000`)                                             |
-| --log-dir DIR           | Directory where logs will be written (default: `/usr/local/var/log/erlang_ls`                   |
+| --log-dir DIR           | Directory where logs will be written. When not provided no logs are generated.                  |
 
 ### Emacs Setup
 
@@ -218,9 +218,16 @@ And you can connect to it via:
 The [redbug](https://github.com/massemanet/redbug) application is
 included in _debug mode_, so feel free to use it.
 
-### Logs
+### Logging
 
-Logs are written to `/usr/local/var/log/erlang_ls/PROJECT_DIRNAME/info.log`.
+When the escript is built using the `debug` profile as above, logging
+will be enabled and the logs will be written to `/usr/local/var/log/erlang_ls`.
+It's possible to change this directory either by modifying the default
+value in the `erlang_ls.app.src` file or by having the LSP client
+being used to provide a `--log-dir` option.
+
+When the `escript` is built in the `default` mode (i.e. `rebar3 escript`),
+no log files are generated, unless the `--log-dir` option is provided.
 
 ## References
 
