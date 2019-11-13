@@ -55,8 +55,7 @@ find_document(Uri) ->
 %% skipping all symlinks.
 -spec fold_files(function(), function(), string(), any()) -> any().
 fold_files(F, Filter, Dir, Acc) ->
-  {ok, AllFiles} = file:list_dir(Dir),
-  do_fold_files(F, Filter, Dir, AllFiles, Acc).
+  do_fold_dir(F, Filter, Dir, Acc).
 
 -spec halt(integer()) -> no_return().
 halt(ExitCode) ->
@@ -87,10 +86,11 @@ epmd_path() ->
             Epmd
     end.
 
-
 -spec extension(erl | hrl) -> string().
 extension(erl) -> ".erl";
 extension(hrl) -> "".
+
+%% Folding over files
 
 -spec do_fold_files(function(), function(), string(), [string()], any()) ->
   any().
@@ -98,24 +98,30 @@ do_fold_files(_F, _Filter,  _Dir, [], Acc0) ->
   Acc0;
 do_fold_files(F, Filter, Dir, [File | Rest], Acc0) ->
   Path = filename:join(Dir, File),
-  case not is_symlink(Path) of
-    true  ->
-      Acc = process_path(F, Filter, Path, Acc0),
-      do_fold_files(F, Filter, Dir, Rest, Acc);
-    false ->
-      do_fold_files(F, Filter, Dir, Rest, Acc0)
+  %% Symbolic links are not regular files
+  Acc  = case filelib:is_regular(Path) of
+           true  -> do_fold_file(F, Filter, Path, Acc0);
+           false -> do_fold_dir(F, Filter, Path, Acc0)
+         end,
+  do_fold_files(F, Filter, Dir, Rest, Acc).
+
+-spec do_fold_file(function(), function(), string(), any()) ->
+  any().
+do_fold_file(F, Filter, Path, Acc) ->
+  case Filter(Path) of
+    true  -> F(Path, Acc);
+    false -> Acc
   end.
 
--spec process_path(function(), function(), string(), any()) ->
+-spec do_fold_dir(function(), function(), string(), any()) ->
   any().
-process_path(F, Filter, Path, Acc) ->
-  case filelib:is_regular(Path) of
+do_fold_dir(F, Filter, Dir, Acc) ->
+  case not is_symlink(Dir) of
     true ->
-      case Filter(Path) of
-        true  -> F(Path, Acc);
-        false -> Acc
-      end;
-    false -> fold_files(F, Filter, Path, Acc)
+      {ok, Files} = file:list_dir(Dir),
+      do_fold_files(F, Filter, Dir, Files, Acc);
+    false ->
+      Acc
   end.
 
 -spec is_symlink(string()) -> boolean().
