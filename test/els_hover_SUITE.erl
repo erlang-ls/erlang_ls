@@ -65,7 +65,7 @@ end_per_testcase(TestCase, Config) ->
 -spec hover_docs(config()) -> ok.
 hover_docs(Config) ->
   Uri = ?config(code_navigation_extra_uri, Config),
-  #{result := Result} = els_client:hover(Uri, 12, 26),
+  #{result := Result} = els_client:hover(Uri, 13, 26),
   ?assert(maps:is_key(contents, Result)),
   Contents = maps:get(contents, Result),
   ?assertEqual( #{ kind  => <<"markdown">>

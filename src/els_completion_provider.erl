@@ -124,7 +124,7 @@ functions(Document, _OnlyExported = false, Arity) ->
   List = [completion_item_function(POI, Arity) || POI <- POIs],
   lists:usort(List);
 functions(Document, _OnlyExported = true, Arity) ->
-  Exports   = els_document:points_of_interest(Document, [exports_entry]),
+  Exports   = els_document:points_of_interest(Document, [export_entry]),
   Functions = els_document:points_of_interest(Document, [function]),
   ExportsFA = [FA || #{id := FA} <- Exports],
   List      = [ completion_item_function(POI, Arity)

@@ -45,7 +45,7 @@ find_references(Uri, #{ kind := Kind
                       }) when Kind =:= application;
                               Kind =:= implicit_fun;
                               Kind =:= function;
-                              Kind =:= exports_entry ->
+                              Kind =:= export_entry ->
   Key = case Id of
           {F, A}    -> {els_uri:module(Uri), F, A};
           {M, F, A} -> {M, F, A}

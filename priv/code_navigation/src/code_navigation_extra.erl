@@ -8,5 +8,6 @@ do(_Config) ->
 do_2() ->
   code_navigation:function_h().
 
-do_3() ->
+-spec do_3(nat(), wot()) -> {atom(), code_navigation_types:type_a()}.
+do_3(_, _) ->
   code_navigation:function_j().

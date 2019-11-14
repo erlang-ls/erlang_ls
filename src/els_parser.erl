@@ -44,9 +44,10 @@ parse_file(Path) ->
       Tree = erl_syntax:form_list(Forms),
       %% Reset file pointer position.
       {ok, 0} = file:position(IoDevice, 0),
-      {ok, Extra} = parse_extra(IoDevice, #{}, {1, 1}),
+      {ok, Extra} = parse_attribute_pois(IoDevice, [], {1, 1}),
       ok = file:close(IoDevice),
-      {ok, points_of_interest(Tree, Extra)};
+      POIs = points_of_interest(Tree),
+      {ok, Extra ++ POIs};
     {error, Error} ->
       {error, Error}
   end.
@@ -55,89 +56,77 @@ parse_file(Path) ->
 %% Internal Functions
 %%==============================================================================
 
--spec parse_extra(io:device(), extra(), erl_anno:location()) ->
-   {ok, extra()} | {error, any()}.
-parse_extra(IoDevice, Extra, StartLocation) ->
-  case io:scan_erl_form(IoDevice, "", StartLocation) of
-    {ok, Tokens, EndLocation} ->
+-spec parse_attribute_pois(io:device(), [poi()], erl_anno:location()) ->
+   {ok, [poi()]} | {error, any()}.
+parse_attribute_pois(IoDevice, Acc, StartLoc) ->
+  case io:scan_erl_form(IoDevice, "", StartLoc) of
+    {ok, Tokens, EndLoc} ->
       case erl_parse:parse_form(Tokens) of
         {ok, Form} ->
-          parse_extra(IoDevice, extra(Form, Tokens, Extra), EndLocation);
+          POIs = find_attribute_pois(Form, Tokens),
+          parse_attribute_pois(IoDevice, POIs ++ Acc, EndLoc);
         {error, _Error} ->
-          parse_extra(IoDevice, Extra, EndLocation)
+          parse_attribute_pois(IoDevice, Acc, EndLoc)
       end;
     {eof, _} ->
-      {ok, Extra};
-    {error, ErrorInfo, EndLocation} ->
-      lager:warning( "Could not parse extra information [end_location=p] ~p"
-                   , [EndLocation, ErrorInfo]
+      {ok, Acc};
+    {error, ErrorInfo, EndLoc} ->
+      lager:warning( "Could not parse extra information [end_loc=p] ~p"
+                   , [EndLoc, ErrorInfo]
                    ),
-      {ok, Extra}
+      {ok, Acc}
   end.
 
--spec extra( erl_parse:abstract_form()
-           , [erl_scan:token()]
-           , extra()) -> extra().
-extra(Form, Tokens, Extra) ->
-  Type = erl_syntax:type(Form),
-  extra(Form, Tokens, Extra, Type).
-
--spec extra(erl_parse:abstract_form(), [erl_scan:token()], extra(), atom()) ->
-   extra().
-extra(Form, Tokens, Extra, attribute) ->
-  case erl_syntax_lib:analyze_attribute(Form) of
-    {export, Exports} ->
-      %% TODO: Use maps:update_with
-      OldLocations = maps:get(exports_locations, Extra, []),
-      %% Hackity-hack. The first atom is the attribute name.
-      %% We should find a nicer way to parse the export list.
-      [_|Locations] = [L || {atom, L, _F} <- Tokens],
-      NewLocations = lists:append( OldLocations
-                                 , lists:zip(Exports, Locations)
-                                 ),
-      maps:put(exports_locations, NewLocations, Extra);
-    {import, {_M, Imports}} ->
-      %% Hackity-hack. The first two atoms are the attribute name and
-      %% the import module. We should find a nicer way to parse the
-      %% import list.
-      OldLocations = maps:get(import_locations, Extra, []),
-      [_, _|Locations] = [L || {atom, L, _F} <- Tokens],
-      NewLocations = lists:append( OldLocations
-                                 , lists:zip(Imports, Locations)
-                                 ),
-      maps:put(import_locations, NewLocations, Extra);
-    {spec, {spec, {{F, A}, FTs}}} ->
-      SpecLocations = [find_spec_points_of_interest(FT) || FT <- FTs],
-      OldLocations  = maps:get(spec_locations, Extra, []),
-      NewLocations  = [{{F, A}, lists:append(SpecLocations)} | OldLocations],
-      maps:put(spec_locations, NewLocations, Extra);
+-spec find_attribute_pois(erl_parse:abstract_form(), [erl_scan:token()]) ->
+   [poi()].
+find_attribute_pois(Form, Tokens) ->
+  case erl_syntax:type(Form) of
+    attribute ->
+      case erl_syntax_lib:analyze_attribute(Form) of
+        {export, Exports} ->
+          %% The first atom is the attribute name, so we skip it.
+          [_|Atoms] = [T|| {atom, _, _} = T <- Tokens],
+          [ els_poi:new(Pos, export_entry, {F, A})
+            || {{F, A}, {atom, Pos, _}} <- lists:zip(Exports, Atoms)];
+        {import, {M, Imports}} ->
+          %% The first two atoms are the attribute name and the imported
+          %% module, so we skip them.
+          [_, _|Atoms] = [T|| {atom, _, _} = T <- Tokens],
+          [ els_poi:new(Pos, import_entry, {M, F, A})
+            || {{F, A}, {atom, Pos, _}} <- lists:zip(Imports, Atoms)];
+        {spec, {spec, {_, FTs}}} ->
+          lists:flatten([find_spec_points_of_interest(FT) || FT <- FTs]);
+        _ ->
+          []
+      end;
     _ ->
-      Extra
-  end;
-extra(_Form, _Tokens, Extra, _Type) ->
-  Extra.
+      []
+  end.
 
 %% @edoc Find points of interest in a spec attribute.
--spec find_spec_points_of_interest(tree()) -> [any()].
+-spec find_spec_points_of_interest(tree()) -> [poi()].
 find_spec_points_of_interest(Tree) ->
-  erl_syntax_lib:fold(fun do_find_spec_points_of_interest/2, [], Tree).
+  Fun = fun do_find_spec_points_of_interest/2,
+  Res = erl_syntax_lib:fold(Fun, [], Tree),
+  Res.
 
-%% TODO: Return pois instead
--spec do_find_spec_points_of_interest(tree(), [any()]) -> [any()].
+-spec do_find_spec_points_of_interest(tree(), [any()]) -> [poi()].
 do_find_spec_points_of_interest(Tree, Acc) ->
-  case is_type_application(Tree) of
-    true ->
-        case Tree of
-          {remote_type, StartLocation, Type, _Args} ->
-            [{Type, StartLocation}|Acc];
-          {type, StartLocation, Type, _Args} ->
-            [{Type, StartLocation}|Acc];
-          {user_type, StartLocation, Type, _Args} ->
-            [{Type, StartLocation}|Acc];
-          _ ->
-            Acc
-        end;
-    false ->
+  Pos = erl_syntax:get_pos(Tree),
+  case {is_type_application(Tree), Tree} of
+    {true, {remote_type, _, [Module, Type, Args]}} ->
+      Id = { erl_syntax:atom_value(Module)
+           , erl_syntax:atom_value(Type)
+           , length(Args)
+           },
+      [els_poi:new(Pos, type_application, Id)|Acc];
+    {true, {type, _, {type, Type}, Args}} ->
+      Id = {Type, length(Args)},
+      [els_poi:new(Pos, type_application, Id)|Acc];
+    {true, {user_type, _, Type, Args}} ->
+      Id = {Type, length(Args)},
+      [els_poi:new(Pos, type_application, Id)|Acc];
+    _ ->
       Acc
   end.
 
@@ -146,44 +135,34 @@ tmp_path() ->
   RandBin = integer_to_binary(erlang:unique_integer([positive, monotonic])),
   <<"/tmp/els_tmp_", RandBin/binary>>.
 
--spec points_of_interest(tree(), extra()) -> [poi()].
-points_of_interest(Tree, Extra) ->
+-spec points_of_interest(tree()) -> [poi()].
+points_of_interest(Tree) ->
   lists:flatten(
     erl_syntax_lib:fold(
       fun(T, Acc) ->
-          [do_points_of_interest(T, Extra)|Acc]
+          [do_points_of_interest(T)|Acc]
       end, [], Tree)).
 
-
 %% @edoc Return the list of points of interest for a given `Tree`.
--spec do_points_of_interest(tree(), extra()) -> [poi()].
-do_points_of_interest(Tree, Extra) ->
-  try
-    case erl_syntax:type(Tree) of
-      application   -> application(Tree, Extra);
-      attribute     -> attribute(Tree, Extra);
-      function      -> function(Tree, Extra);
-      implicit_fun  -> implicit_fun(Tree, Extra);
-      macro         -> macro(Tree, Extra);
-      record_access -> record_access(Tree, Extra);
-      record_expr   -> record_expr(Tree, Extra);
-      variable      -> variable(Tree, Extra);
-      _             -> []
-    end
-  catch
-    Class:Reason:Stacktrace ->
-      Position = erl_syntax:get_pos(Tree),
-      lager:warning( "Could not analyze tree - error=~p:~p pos=~p "
-                     "stacktrace=~p"
-                   , [Class, Reason, Position, Stacktrace]),
-      []
+-spec do_points_of_interest(tree()) -> [poi()].
+do_points_of_interest(Tree) ->
+  case erl_syntax:type(Tree) of
+    application   -> application(Tree);
+    attribute     -> attribute(Tree);
+    function      -> function(Tree);
+    implicit_fun  -> implicit_fun(Tree);
+    macro         -> macro(Tree);
+    record_access -> record_access(Tree);
+    record_expr   -> record_expr(Tree);
+    variable      -> variable(Tree);
+    _             -> []
   end.
 
--spec application(tree(), extra()) -> [poi()].
-application(Tree, Extra) ->
+-spec application(tree()) -> [poi()].
+application(Tree) ->
   case application_mfa(Tree) of
     undefined -> [];
-    MFA -> [els_poi:new(Tree, application, MFA, Extra)]
+    MFA -> [els_poi:new(erl_syntax:get_pos(Tree), application, MFA)]
   end.
 
 -spec application_mfa(tree()) ->
@@ -231,70 +210,49 @@ application_with_variable(Operator, A) ->
     _ -> undefined
   end.
 
--spec attribute(tree(), extra()) -> [poi()].
-attribute(Tree, Extra) ->
+-spec attribute(tree()) -> [poi()].
+attribute(Tree) ->
+  Pos = erl_syntax:get_pos(Tree),
   try erl_syntax_lib:analyze_attribute(Tree) of
     %% Yes, Erlang allows both British and American spellings for
     %% keywords.
     {behavior, {behavior, Behaviour}} ->
-      [els_poi:new(Tree, behaviour, Behaviour, Extra)];
+      [els_poi:new(Pos, behaviour, Behaviour)];
     {behaviour, {behaviour, Behaviour}} ->
-      [els_poi:new(Tree, behaviour, Behaviour, Extra)];
-    {export, Exports} ->
-      [els_poi:new(Tree, exports_entry, {F, A}, Extra)
-       || {F, A} <- Exports];
-    {import, {M, Imports}} ->
-      [els_poi:new(Tree, import_entry, {M, F, A}, Extra)
-       || {F, A} <- Imports];
+      [els_poi:new(Pos, behaviour, Behaviour)];
     {module, {Module, _Args}} ->
-      [els_poi:new(Tree, module, Module, Extra)];
+      [els_poi:new(Pos, module, Module)];
     {module, Module} ->
-      [els_poi:new(Tree, module, Module, Extra)];
+      [els_poi:new(Pos, module, Module)];
     preprocessor ->
       Name = erl_syntax:atom_value(erl_syntax:attribute_name(Tree)),
       case {Name, erl_syntax:attribute_arguments(Tree)} of
         {define, [Define|_]} ->
-          [els_poi:new( Tree
-                      , define
-                      , define_name(Define)
-                      , Extra )];
+          [els_poi:new(Pos, define, define_name(Define))];
         {include, [String]} ->
-          [els_poi:new( Tree
-                      , include
-                      , erl_syntax:string_value(String)
-                      , Extra )];
+          [els_poi:new(Pos, include, erl_syntax:string_value(String))];
         {include_lib, [String]} ->
-          [els_poi:new( Tree
-                      , include_lib
-                      , erl_syntax:string_value(String)
-                      , Extra )];
+          [els_poi:new(Pos, include_lib, erl_syntax:string_value(String))];
         _ ->
           []
       end;
     {record, {Record, _Fields}} ->
-      [els_poi:new(Tree, record, atom_to_list(Record), Extra)];
+      [els_poi:new(Pos, record, atom_to_list(Record))];
     {spec, {spec, {{F, A}, _}}} ->
-      SpecLocations = maps:get(spec_locations, Extra, []),
-      Locations     = proplists:get_value({F, A}, SpecLocations),
-      [ els_poi:new(Tree, spec, {{F, A}, Tree}, Extra)
-      | [els_poi:new(Tree, type_application, {T, L}, Extra)
-         || {T, L} <- Locations]
-      ];
-    {type, {type, Type}} ->
-      %% TODO: Support type usages in type definitions
-      TypeName = element(1, Type),
-      [els_poi:new(Tree, type_definition, TypeName, Extra)];
+      [els_poi:new(Pos, spec, {F, A}, Tree)];
+    {type, {type, {Type, _, Args}}} ->
+      [els_poi:new(Pos, type_definition, {Type, length(Args)})];
     _ ->
       []
   catch throw:syntax_error ->
       []
   end.
 
--spec function(tree(), extra()) -> [poi()].
-function(Tree, Extra) ->
+-spec function(tree()) -> [poi()].
+function(Tree) ->
   {F, A} = erl_syntax_lib:analyze_function(Tree),
   Args   = function_args(Tree, A),
-  [els_poi:new(Tree, function, {F, A}, Args, Extra)].
+  [els_poi:new(erl_syntax:get_pos(Tree), function, {F, A}, Args)].
 
 -spec function_args(tree(), arity()) -> [{integer(), string()}].
 function_args(Tree, Arity) ->
@@ -307,8 +265,8 @@ function_args(Tree, Arity) ->
     || {N, P} <- lists:zip(lists:seq(1, Arity), Patterns)
   ].
 
--spec implicit_fun(tree(), extra()) -> [poi()].
-implicit_fun(Tree, Extra) ->
+-spec implicit_fun(tree()) -> [poi()].
+implicit_fun(Tree) ->
   FunSpec = try erl_syntax_lib:analyze_implicit_fun(Tree) of
               {M, {F, A}} -> {M, F, A};
               {F, A} -> {F, A}
@@ -317,44 +275,46 @@ implicit_fun(Tree, Extra) ->
             end,
   case FunSpec of
     undefined -> [];
-    _ -> [els_poi:new(Tree, implicit_fun, FunSpec, Extra)]
+    _ -> [els_poi:new(erl_syntax:get_pos(Tree), implicit_fun, FunSpec)]
   end.
 
--spec macro(tree(), extra()) -> [poi()].
-macro(Tree, Extra) ->
-  case erl_syntax:get_pos(Tree) of
+-spec macro(tree()) -> [poi()].
+macro(Tree) ->
+  Pos = erl_syntax:get_pos(Tree),
+  case Pos of
     0 -> [];
-    _ -> [els_poi:new(Tree, macro, node_name(Tree), Extra)]
+    _ -> [els_poi:new(Pos, macro, node_name(Tree))]
   end.
 
--spec record_access(tree(), extra()) -> [poi()].
-record_access(Tree, Extra) ->
+-spec record_access(tree()) -> [poi()].
+record_access(Tree) ->
   RecordNode = erl_syntax:record_access_type(Tree),
   case erl_syntax:type(RecordNode) of
     atom ->
       Record = erl_syntax:atom_name(RecordNode),
       Field = erl_syntax:atom_name(erl_syntax:record_access_field(Tree)),
-      [els_poi:new(Tree, record_access, {Record, Field}, Extra)];
+      [els_poi:new(erl_syntax:get_pos(Tree), record_access, {Record, Field})];
     _ ->
       []
   end.
 
--spec record_expr(tree(), extra()) -> [poi()].
-record_expr(Tree, Extra) ->
+-spec record_expr(tree()) -> [poi()].
+record_expr(Tree) ->
   RecordNode = erl_syntax:record_expr_type(Tree),
   case erl_syntax:type(RecordNode) of
     atom ->
       Record = erl_syntax:atom_name(RecordNode),
-      [els_poi:new(Tree, record_expr, Record, Extra)];
+      [els_poi:new(erl_syntax:get_pos(Tree), record_expr, Record)];
     _ ->
       []
   end.
 
--spec variable(tree(), extra()) -> [poi()].
-variable(Tree, Extra) ->
-  case erl_syntax:get_pos(Tree) of
+-spec variable(tree()) -> [poi()].
+variable(Tree) ->
+  Pos = erl_syntax:get_pos(Tree),
+  case Pos of
     0 -> [];
-    _ -> [els_poi:new(Tree, variable, node_name(Tree), Extra)]
+    _ -> [els_poi:new(Pos, variable, node_name(Tree))]
   end.
 
 -spec define_name(tree()) -> atom().
@@ -382,12 +342,6 @@ node_name(Tree) ->
 
 -spec is_type_application(tree()) -> boolean().
 is_type_application(Tree) ->
+  Type  = erl_syntax:type(Tree),
   Types = [type_application, user_type_application],
-  lists:member(erl_syntax:type(Tree), Types).
-
-%% TODO: Support type
-%% TODO: Support remote_type
-%% TODO: Support tuple
-%% TODO: Support union
-%% TODO: Add arity to type_definition
-%% TODO: Check why proc_lib fails to parse
+  lists:member(Type, Types).

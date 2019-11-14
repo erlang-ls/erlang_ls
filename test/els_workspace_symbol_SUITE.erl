@@ -69,6 +69,7 @@ query_multiple(Config) ->
   Query = <<"code_navigation">>,
   Uri = ?config(code_navigation_uri, Config),
   ExtraUri = ?config(code_navigation_extra_uri, Config),
+  TypesUri = ?config(code_navigation_types_uri, Config),
   #{result := Result} = els_client:workspace_symbol(Query),
   Expected = [ #{ kind => ?SYMBOLKIND_MODULE
                 , location =>
@@ -89,6 +90,16 @@ query_multiple(Config) ->
                      , uri  => ExtraUri
                      }
                 , name => <<"code_navigation_extra">>
+                }
+             , #{ kind => ?SYMBOLKIND_MODULE
+                , location =>
+                    #{ range =>
+                         #{ 'end' => #{character => 0, line => 0}
+                          , start => #{character => 0, line => 0}
+                          }
+                     , uri  => TypesUri
+                     }
+                , name => <<"code_navigation_types">>
                 }
              ],
   ?assertEqual(lists:sort(Expected), lists:sort(Result)),

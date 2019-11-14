@@ -2,101 +2,99 @@
 
 -include("erlang_ls.hrl").
 
--export([ range/4 ]).
+-export([ range/3 ]).
 
--spec range(pos(), poi_kind(), any(), extra()) -> poi_range().
-range({Line, Column}, application, {M, F, _A}, _Extra) ->
+-spec range(pos(), poi_kind(), any()) -> poi_range().
+range({Line, Column}, application, {M, F, _A}) ->
   CFrom = Column - length(atom_to_list(M)),
   From = {Line, CFrom},
   CTo = Column + length(atom_to_list(F)),
   To = {Line, CTo},
   #{ from => From, to => To };
-range({Line, Column}, application, {F, _A}, _Extra) ->
+range({Line, Column}, application, {F, _A}) ->
   From = {Line, Column},
   To = {Line, Column + length(atom_to_list(F))},
   #{ from => From, to => To };
-range({Line, Column}, implicit_fun, {M, F, A}, _Extra) ->
+range({Line, Column}, implicit_fun, {M, F, A}) ->
   From = {Line, Column},
   %% Assumes "fun M:F/A"
   Length = 6 + length(atom_to_list(M) ++ atom_to_list(F) ++ integer_to_list(A)),
   To = {Line, Column + Length},
   #{ from => From, to => To };
-range({Line, Column}, implicit_fun, {F, A}, _Extra) ->
+range({Line, Column}, implicit_fun, {F, A}) ->
   From = {Line, Column},
   %% Assumes "fun F/A"
   Length = 5 + length(atom_to_list(F) ++ integer_to_list(A)),
   To = {Line, Column + Length},
   #{ from => From, to => To };
-range({Line, Column}, behaviour, Behaviour, _Extra) ->
+range({Line, Column}, behaviour, Behaviour) ->
   From = {Line, Column - 1},
   To = {Line, Column + length("behaviour") + length(atom_to_list(Behaviour))},
   #{ from => From, to => To };
-range({_Line, _Column}, exports_entry, {F, A}, Extra) ->
-  get_entry_range(exports_locations, F, A, Extra);
-range({_Line, _Column}, import_entry, {_M, F, A}, Extra) ->
-  get_entry_range(import_locations, F, A, Extra);
-range({Line, Column}, function, {F, _A}, _Extra) ->
+range(Pos, export_entry, {F, A}) ->
+  get_entry_range(Pos, F, A);
+range(Pos, import_entry, {_M, F, A}) ->
+  get_entry_range(Pos, F, A);
+range({Line, Column}, function, {F, _A}) ->
   From = {Line, Column},
   To = {Line, Column + length(atom_to_list(F))},
   #{ from => From, to => To };
-range({Line, _Column}, define, _Define, _Extra) ->
+range({Line, _Column}, define, _Define) ->
   From = {Line, 1},
   To = From,
   #{ from => From, to => To };
-range({Line, Column}, include, Include, _Extra) ->
+range({Line, Column}, include, Include) ->
   From = {Line, Column},
   To = {Line, Column + length("include") + length(Include)},
   #{ from => From, to => To };
-range({Line, Column}, include_lib, Include, _Extra) ->
+range({Line, Column}, include_lib, Include) ->
   From = {Line, Column},
   To = {Line, Column + length("include_lib") + length(Include)},
   #{ from => From, to => To };
-range({Line, Column}, macro, Macro, _Extra) when is_atom(Macro) ->
+range({Line, Column}, macro, Macro) when is_atom(Macro) ->
   From = {Line, Column},
   To = {Line, Column + length(atom_to_list(Macro))},
   #{ from => From, to => To };
-range({Line, Column}, module, _, _Extra) ->
+range({Line, Column}, module, _) ->
   From = {Line, Column},
   To = From,
   #{ from => From, to => To };
-range(Pos, record_access, {Record, Field}, _Extra) ->
+range(Pos, record_access, {Record, Field}) ->
   #{ from => minus(Pos, "#"), to => plus(Pos, Record ++ "." ++ Field) };
-range({Line, Column}, record_expr, Record, _Extra) ->
+range({Line, Column}, record_expr, Record) ->
   From = {Line, Column - 1},
   To = {Line, Column + length(Record) - 1},
   #{ from => From, to => To };
-%% TODO: Distinguish between usage poi and definition poi
-range({Line, _Column}, record, _Record, _Extra) ->
+range({Line, _Column}, record, _Record) ->
   From = {Line, 1},
   To = From,
   #{ from => From, to => To };
-range({Line, Column}, spec, _, _Extra) ->
+range({Line, Column}, spec, _) ->
   #{ from => {Line, Column}
    , to => {Line, Column}
    };
-%% TODO: Do we really need the StartLocation there?
-range({_Line, _Column}, type_application, {Type, StartLocation}, _Extra) ->
-  {FromLine, FromColumn} = From = StartLocation,
-  Length = length(atom_to_list(Type)),
-  To = {FromLine, FromColumn + Length - 1},
+range({Line, Column}, type_application, {F, _A}) ->
+  From = {Line, Column - 1},
+  To = {Line, Column + length(atom_to_list(F)) - 1},
   #{ from => From, to => To };
-range({Line, Column}, type_definition, _Type, _Extra) ->
+range({Line, Column}, type_application, {M, F, _A}) ->
+  From = {Line, Column - 1},
+  To = {Line, Column + length(atom_to_list(M)), + length(atom_to_list(F)) - 1},
+  #{ from => From, to => To };
+range({Line, Column}, type_definition, _Type) ->
   From = {Line, Column},
   To = From,
   #{ from => From, to => To };
-range({Line, Column}, variable, Name, _Extra) ->
+range({Line, Column}, variable, Name) ->
   From = {Line, Column},
   To = {Line, Column + length(atom_to_list(Name))},
   #{ from => From, to => To }.
 
--spec get_entry_range(atom(), atom(), non_neg_integer(), extra()) ->
-   poi_range().
-get_entry_range(Key, F, A, Extra) ->
-  Locations = maps:get(Key, Extra, []),
-  {FromLine, FromColumn} = proplists:get_value({F, A}, Locations),
-  From = {FromLine, FromColumn - 1},
+-spec get_entry_range(pos(), atom(), non_neg_integer()) -> poi_range().
+get_entry_range({Line, Column}, F, A) ->
+  From = {Line, Column - 1},
   Length = length(atom_to_list(F)) + length(integer_to_list(A)) + 1,
-  To = {FromLine, FromColumn + Length - 1},
+  To = {Line, Column + Length - 1},
   #{ from => From, to => To }.
 
 -spec minus(pos(), string()) -> pos().
