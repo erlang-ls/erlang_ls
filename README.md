@@ -46,7 +46,7 @@ These are the command-line arguments that can be provided to the
 
 ### Emacs Setup
 
-The official `lsp-mode` package already includea a client for the
+The official `lsp-mode` package already includes a client for the
 Erlang Language Server, so simply add the following to your `.emacs`
 file (assuming the `erlang_ls` executable is available in your `PATH`:
 
