@@ -107,7 +107,7 @@ extra(Form, Tokens, Extra, attribute) ->
                                  ),
       maps:put(import_locations, NewLocations, Extra);
     {spec, {spec, {{F, A}, FTs}}} ->
-      SpecLocations = [spec_locations(FT) || FT <- FTs],
+      SpecLocations = [find_spec_points_of_interest(FT) || FT <- FTs],
       OldLocations  = maps:get(spec_locations, Extra, []),
       NewLocations  = [{{F, A}, lists:append(SpecLocations)} | OldLocations],
       maps:put(spec_locations, NewLocations, Extra);
@@ -117,34 +117,29 @@ extra(Form, Tokens, Extra, attribute) ->
 extra(_Form, _Tokens, Extra, _Type) ->
   Extra.
 
--spec spec_locations(tree()) -> [{atom(), erl_anno:location()}].
-spec_locations(FT) ->
-  case erl_syntax:type(FT) of
-    function_type ->
-      FTR = erl_syntax:function_type_return(FT),
-      FTA = erl_syntax:function_type_arguments(FT),
-      do_spec_locations([FTR | FTA], []);
-    constrained_function_type ->
-      %% TODO
-      []
-  end.
+%% @edoc Find points of interest in a spec attribute.
+-spec find_spec_points_of_interest(tree()) -> [any()].
+find_spec_points_of_interest(Tree) ->
+  erl_syntax_lib:fold(fun do_find_spec_points_of_interest/2, [], Tree).
 
--spec do_spec_locations([any()], [{atom(), erl_anno:location()}]) ->
-   [{atom(), erl_anno:location()}].
-do_spec_locations(any, Acc) ->
-  Acc;
-do_spec_locations([], Acc) ->
-  Acc;
-do_spec_locations([{type, StartLocation, Type, any}|T], Acc) ->
-  do_spec_locations(T, [{Type, StartLocation}|Acc]);
-do_spec_locations([{type, StartLocation, Type, Args}|T], Acc) ->
-  do_spec_locations(T ++ Args, [{Type, StartLocation}|Acc]);
-do_spec_locations([{user_type, StartLocation, Type, any}|T], Acc) ->
-  do_spec_locations(T, [{Type, StartLocation}|Acc]);
-do_spec_locations([{user_type, StartLocation, Type, Args}|T], Acc) ->
-  do_spec_locations(T ++ Args, [{Type, StartLocation}|Acc]);
-do_spec_locations([_Else|T], Acc) ->
-  do_spec_locations(T, Acc).
+%% TODO: Return pois instead
+-spec do_find_spec_points_of_interest(tree(), [any()]) -> [any()].
+do_find_spec_points_of_interest(Tree, Acc) ->
+  case is_type_application(Tree) of
+    true ->
+        case Tree of
+          {remote_type, StartLocation, Type, _Args} ->
+            [{Type, StartLocation}|Acc];
+          {type, StartLocation, Type, _Args} ->
+            [{Type, StartLocation}|Acc];
+          {user_type, StartLocation, Type, _Args} ->
+            [{Type, StartLocation}|Acc];
+          _ ->
+            Acc
+        end;
+    false ->
+      Acc
+  end.
 
 -spec tmp_path() -> binary().
 tmp_path() ->
@@ -260,19 +255,19 @@ attribute(Tree, Extra) ->
       case {Name, erl_syntax:attribute_arguments(Tree)} of
         {define, [Define|_]} ->
           [els_poi:new( Tree
-                            , define
-                            , define_name(Define)
-                            , Extra )];
+                      , define
+                      , define_name(Define)
+                      , Extra )];
         {include, [String]} ->
           [els_poi:new( Tree
-                            , include
-                            , erl_syntax:string_value(String)
-                            , Extra )];
+                      , include
+                      , erl_syntax:string_value(String)
+                      , Extra )];
         {include_lib, [String]} ->
           [els_poi:new( Tree
-                            , include_lib
-                            , erl_syntax:string_value(String)
-                            , Extra )];
+                      , include_lib
+                      , erl_syntax:string_value(String)
+                      , Extra )];
         _ ->
           []
       end;
@@ -384,6 +379,11 @@ node_name(Tree) ->
     macro ->
       node_name(erl_syntax:macro_name(Tree))
   end.
+
+-spec is_type_application(tree()) -> boolean().
+is_type_application(Tree) ->
+  Types = [type_application, user_type_application],
+  lists:member(erl_syntax:type(Tree), Types).
 
 %% TODO: Support type
 %% TODO: Support remote_type
