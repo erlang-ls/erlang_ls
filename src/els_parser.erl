@@ -298,7 +298,19 @@ attribute(Tree, Extra) ->
 -spec function(tree(), extra()) -> [poi()].
 function(Tree, Extra) ->
   {F, A} = erl_syntax_lib:analyze_function(Tree),
-  [els_poi:new(Tree, function, {F, A}, Extra)].
+  Args   = function_args(Tree, A),
+  [els_poi:new(Tree, function, {F, A}, Args, Extra)].
+
+-spec function_args(tree(), arity()) -> [{integer(), string()}].
+function_args(Tree, Arity) ->
+  Clause   = hd(erl_syntax:function_clauses(Tree)),
+  Patterns = erl_syntax:clause_patterns(Clause),
+  [ case erl_syntax:type(P) of
+      variable -> {N, erl_syntax:variable_literal(P)};
+      _        -> {N, "Arg" ++ integer_to_list(N)}
+    end
+    || {N, P} <- lists:zip(lists:seq(1, Arity), Patterns)
+  ].
 
 -spec implicit_fun(tree(), extra()) -> [poi()].
 implicit_fun(Tree, Extra) ->

@@ -38,7 +38,7 @@ functions(Uri) ->
                    , location => #{ uri   => Uri
                                   , range => els_protocol:range(Range)
                                   }
-                   } || #{data := {F, A}, range := Range} <- POIs ]).
+                   } || #{id := {F, A}, range := Range} <- POIs ]).
 
 -spec function_name(atom(), non_neg_integer()) -> binary().
 function_name(F, A) ->

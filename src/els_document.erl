@@ -65,9 +65,9 @@ points_of_interest(Document, Kinds) ->
 points_of_interest(#{pois := POIs}, Kinds, undefined) ->
   [POI || #{ kind := Kind } = POI <- POIs, lists:member(Kind, Kinds)];
 points_of_interest(#{pois := POIs}, Kinds, Pattern) ->
-  [POI || #{ kind := Kind, data := Data } = POI <- POIs
+  [POI || #{ kind := Kind, id := Id } = POI <- POIs
             , lists:member(Kind, Kinds)
-            , Pattern =:= Data
+            , Pattern =:= Id
   ].
 
 -spec get_element_at_pos(document(), non_neg_integer(), non_neg_integer()) ->

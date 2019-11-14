@@ -22,7 +22,7 @@
 -spec goto_definition(uri(), poi()) ->
    {ok, uri(), poi()} | {error, any()}.
 goto_definition( _Uri
-               , #{ kind := Kind, data := {M, F, A} }
+               , #{ kind := Kind, id := {M, F, A} }
                ) when Kind =:= application;
                       Kind =:= implicit_fun;
                       Kind =:= import_entry ->
@@ -31,24 +31,24 @@ goto_definition( _Uri
     {error, Error} -> {error, Error}
   end;
 goto_definition( Uri
-               , #{ kind := Kind, data := {F, A}}
+               , #{ kind := Kind, id := {F, A}}
                ) when Kind =:= application;
                       Kind =:= implicit_fun;
                       Kind =:= exports_entry ->
   find(Uri, function, {F, A});
-goto_definition(_Uri, #{ kind := behaviour, data := Behaviour }) ->
+goto_definition(_Uri, #{ kind := behaviour, id := Behaviour }) ->
   case els_utils:find_module(Behaviour) of
     {ok, Uri}      -> find(Uri, module, Behaviour);
     {error, Error} -> {error, Error}
   end;
-goto_definition(Uri, #{ kind := macro, data := Define }) ->
+goto_definition(Uri, #{ kind := macro, id := Define }) ->
   find(Uri, define, Define);
 goto_definition(Uri, #{ kind := record_access
-                      , data := {Record, _}}) ->
+                      , id := {Record, _}}) ->
   find(Uri, record, Record);
-goto_definition(Uri, #{ kind := record_expr, data := Record }) ->
+goto_definition(Uri, #{ kind := record_expr, id := Record }) ->
   find(Uri, record, Record);
-goto_definition(_Uri, #{ kind := Kind, data := Include }
+goto_definition(_Uri, #{ kind := Kind, id := Include }
                ) when Kind =:= include;
                       Kind =:= include_lib ->
   %% TODO: Index header definitions as well
@@ -58,7 +58,7 @@ goto_definition(_Uri, #{ kind := Kind, data := Include }
     {ok, Uri}      -> {ok, Uri, beginning()};
     {error, Error} -> {error, Error}
   end;
-goto_definition(Uri, #{ kind := type_application, data := {Type, _} }) ->
+goto_definition(Uri, #{ kind := type_application, id := {Type, _} }) ->
   find(Uri, type_definition, Type);
 goto_definition(_Filename, _) ->
   {error, not_found}.
@@ -90,7 +90,7 @@ include_uris(Document) ->
   lists:foldl(fun add_include_uri/2, [], POIs).
 
 -spec add_include_uri(poi(), [uri()]) -> [uri()].
-add_include_uri(#{ data := String }, Acc) ->
+add_include_uri(#{ id := String }, Acc) ->
   FileName = filename:basename(String),
   M = list_to_atom(FileName),
   case els_utils:find_module(M, hrl) of

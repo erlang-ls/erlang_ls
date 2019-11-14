@@ -41,12 +41,12 @@ handle_request({references, Params}, State) ->
 
 -spec find_references(binary(), poi()) -> any().
 find_references(Uri, #{ kind := Kind
-                      , data := Data
+                      , id   := Id
                       }) when Kind =:= application;
                               Kind =:= implicit_fun;
                               Kind =:= function;
                               Kind =:= exports_entry ->
-  Key = case Data of
+  Key = case Id of
           {F, A}    -> {els_uri:module(Uri), F, A};
           {M, F, A} -> {M, F, A}
         end,

@@ -77,7 +77,7 @@ index(Document) ->
   ok = els_db:store(modules, Module, Uri),
   Specs  = els_document:points_of_interest(Document, [spec]),
   [els_db:store(signatures, {Module, F, A}, Tree) ||
-    #{data := {{F, A}, Tree}} <- Specs],
+    #{id := {{F, A}, Tree}} <- Specs],
   Kinds = [application, implicit_fun],
   POIs  = els_document:points_of_interest(Document, Kinds),
   [register_reference(Uri, POI) || POI <- POIs],
@@ -123,7 +123,7 @@ index_dir(Dir) ->
                                           , {0, 0}
                                           ]
                                         ),
-  lager:info("Finished indexing directory. [dir=~s] [time=~p]"
+  lager:info("Finished indexing directory. [dir=~s] [time=~p] "
              "[succeeded=~p] "
              "[failed=~p]", [Dir, Time/1000/1000, Succeeded, Failed]),
   {Succeeded, Failed}.
@@ -197,11 +197,11 @@ index_document(Document, sync) ->
 %% TODO: Specific for references
 
 -spec register_reference(uri(), poi()) -> ok.
-register_reference(Uri, #{data := {M, F, A}, range := Range}) ->
+register_reference(Uri, #{id := {M, F, A}, range := Range}) ->
   Ref = #{uri => Uri, range => Range},
   add_reference({M, F, A}, Ref),
   ok;
-register_reference(Uri, #{data := {F, A}, range := Range}) ->
+register_reference(Uri, #{id := {F, A}, range := Range}) ->
   Ref = #{uri => Uri, range => Range},
   M = els_uri:module(Uri),
   add_reference({M, F, A}, Ref),
