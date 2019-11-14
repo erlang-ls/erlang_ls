@@ -44,7 +44,7 @@ documentation(Uri, Line, Character) ->
   end.
 
 -spec documentation(poi()) -> binary().
-documentation(#{kind := application, data := {M, F, A}}) ->
+documentation(#{kind := application, id := {M, F, A}}) ->
   case {specs(M, F, A), edoc(M, F, A)} of
     {<<>>, <<>>} ->
       <<>>;

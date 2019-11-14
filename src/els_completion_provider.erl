@@ -126,20 +126,20 @@ functions(Document, _OnlyExported = false, Arity) ->
 functions(Document, _OnlyExported = true, Arity) ->
   Exports   = els_document:points_of_interest(Document, [exports_entry]),
   Functions = els_document:points_of_interest(Document, [function]),
-  ExportsFA = [FA || #{data := FA} <- Exports],
+  ExportsFA = [FA || #{id := FA} <- Exports],
   List      = [ completion_item_function(POI, Arity)
-                || #{data := FA} = POI <- Functions, lists:member(FA, ExportsFA)
+                || #{id := FA} = POI <- Functions, lists:member(FA, ExportsFA)
               ],
   lists:usort(List).
 
 -spec completion_item_function(poi(), boolean()) -> map().
-completion_item_function(#{data := {F, A}, tree := Tree}, false) ->
+completion_item_function(#{id := {F, A}, data := ArgsNames}, false) ->
   #{ label            => list_to_binary(io_lib:format("~p/~p", [F, A]))
    , kind             => ?COMPLETION_ITEM_KIND_FUNCTION
-   , insertText       => snippet_function_call(F, function_args(Tree, A))
+   , insertText       => snippet_function_call(F, ArgsNames)
    , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
    };
-completion_item_function(#{data := {F, A}}, true) ->
+completion_item_function(#{id := {F, A}}, true) ->
   #{ label            => list_to_binary(io_lib:format("~p/~p", [F, A]))
    , kind             => ?COMPLETION_ITEM_KIND_FUNCTION
    , insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
@@ -154,17 +154,6 @@ exported_functions(Module, Arity) ->
     {error, _Error} ->
       null
   end.
-
--spec function_args(tree(), arity()) -> [{integer(), string()}].
-function_args(Tree, Arity) ->
-  Clause   = hd(erl_syntax:function_clauses(Tree)),
-  Patterns = erl_syntax:clause_patterns(Clause),
-  [ case erl_syntax:type(P) of
-      variable -> {N, erl_syntax:variable_literal(P)};
-      _        -> {N, "Arg" ++ integer_to_list(N)}
-    end
-    || {N, P} <- lists:zip(lists:seq(1, Arity), Patterns)
-  ].
 
 -spec snippet_function_call(atom(), [{integer(), string()}]) -> binary().
 snippet_function_call(Function, Args0) ->
@@ -184,7 +173,7 @@ variables(Document) ->
   Vars = [ #{ label => atom_to_binary(Name, utf8)
             , kind  => ?COMPLETION_ITEM_KIND_VARIABLE
             }
-           || #{data := Name} <- POIs
+           || #{id := Name} <- POIs
          ],
   lists:usort(Vars).
 
@@ -203,14 +192,14 @@ local_macros(Document) ->
    [ #{ label => atom_to_binary(Name, utf8)
       , kind  => ?COMPLETION_ITEM_KIND_CONSTANT
       }
-     || #{data := Name} <- POIs
+     || #{id := Name} <- POIs
    ].
 
 -spec included_macros(els_document:document()) -> [[map()]].
 included_macros(Document) ->
   Kinds = [include, include_lib],
   POIs  = els_document:points_of_interest(Document, Kinds),
-  [include_file_macros(Name) || #{data := Name} <- POIs].
+  [include_file_macros(Name) || #{id := Name} <- POIs].
 
 -spec include_file_macros(string()) -> [map()].
 include_file_macros(Name) ->
