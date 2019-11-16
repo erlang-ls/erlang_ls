@@ -79,7 +79,7 @@ range({Line, Column}, type_application, {F, _A}) ->
   #{ from => From, to => To };
 range({Line, Column}, type_application, {M, F, _A}) ->
   From = {Line, Column - 1},
-  To = {Line, Column + length(atom_to_list(M)) + length(atom_to_list(F)) - 1},
+  To = {Line, Column + length(atom_to_list(M)) + length(atom_to_list(F))},
   #{ from => From, to => To };
 range({Line, Column}, type_definition, _Type) ->
   From = {Line, Column},
