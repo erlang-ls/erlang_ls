@@ -34,7 +34,7 @@ goto_definition( Uri
                , #{ kind := Kind, id := {F, A}}
                ) when Kind =:= application;
                       Kind =:= implicit_fun;
-                      Kind =:= exports_entry ->
+                      Kind =:= export_entry ->
   find(Uri, function, {F, A});
 goto_definition(_Uri, #{ kind := behaviour, id := Behaviour }) ->
   case els_utils:find_module(Behaviour) of
@@ -51,15 +51,19 @@ goto_definition(Uri, #{ kind := record_expr, id := Record }) ->
 goto_definition(_Uri, #{ kind := Kind, id := Include }
                ) when Kind =:= include;
                       Kind =:= include_lib ->
-  %% TODO: Index header definitions as well
   FileName = filename:basename(Include),
   M = list_to_atom(FileName),
   case els_utils:find_module(M) of
     {ok, Uri}      -> {ok, Uri, beginning()};
     {error, Error} -> {error, Error}
   end;
-goto_definition(Uri, #{ kind := type_application, id := {Type, _} }) ->
-  find(Uri, type_definition, Type);
+goto_definition(_Uri, #{ kind := type_application, id := {M, T, A} }) ->
+  case els_utils:find_module(M) of
+    {ok, Uri}      -> find(Uri, type_definition, {T, A});
+    {error, Error} -> {error, Error}
+  end;
+goto_definition(Uri, #{ kind := type_application, id := {T, A} }) ->
+  find(Uri, type_definition, {T, A});
 goto_definition(_Filename, _) ->
   {error, not_found}.
 

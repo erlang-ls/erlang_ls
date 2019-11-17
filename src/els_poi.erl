@@ -4,8 +4,8 @@
 -module(els_poi).
 
 %% Constructor
--export([ new/4
-        , new/5
+-export([ new/3
+        , new/4
         ]).
 
 -export([ match_pos/2 ]).
@@ -20,15 +20,14 @@
 %%==============================================================================
 
 %% @edoc Constructor for a Point of Interest.
--spec new(tree(), poi_kind(), any(), extra()) -> poi().
-new(Tree, Kind, Id, Extra) ->
-  new(Tree, Kind, Id, undefined, Extra).
+-spec new(pos(), poi_kind(), any()) -> poi().
+new(Pos, Kind, Id) ->
+  new(Pos, Kind, Id, undefined).
 
 %% @edoc Constructor for a Point of Interest.
--spec new(tree(), poi_kind(), any(), any(), extra()) -> poi().
-new(Tree, Kind, Id, Data, Extra) ->
-  Pos   = erl_syntax:get_pos(Tree),
-  Range = els_range:range(Pos, Kind, Id, Extra),
+-spec new(pos(), poi_kind(), any(), any()) -> poi().
+new(Pos, Kind, Id, Data) ->
+  Range = els_range:range(Pos, Kind, Id),
   #{ kind  => Kind
    , id    => Id
    , data  => Data

@@ -34,7 +34,9 @@
         , record_access_included/1
         , record_expr/1
         , record_expr_included/1
-        , type_application/1
+        , type_application_remote/1
+        , type_application_undefined/1
+        , type_application_user/1
         ]).
 
 %%==============================================================================
@@ -291,8 +293,27 @@ record_expr_included(Config) ->
               , Range),
   ok.
 
--spec type_application(config()) -> ok.
-type_application(Config) ->
+-spec type_application_remote(config()) -> ok.
+type_application_remote(Config) ->
+  ExtraUri = ?config(code_navigation_extra_uri, Config),
+  TypesUri = ?config(code_navigation_types_uri, Config),
+  Def = els_client:definition(ExtraUri, 11, 38),
+  #{result := #{range := Range, uri := DefUri}} = Def,
+  ?assertEqual(TypesUri, DefUri),
+  ?assertEqual( els_protocol:range(#{from => {3, 2}, to => {3, 2}})
+              , Range),
+  ok.
+
+-spec type_application_undefined(config()) -> ok.
+type_application_undefined(Config) ->
+  Uri = ?config(code_navigation_uri, Config),
+  Def = els_client:definition(Uri, 55, 42),
+  #{result := Result} =  Def,
+  ?assertEqual(null, Result),
+  ok.
+
+-spec type_application_user(config()) -> ok.
+type_application_user(Config) ->
   Uri = ?config(code_navigation_uri, Config),
   Def = els_client:definition(Uri, 55, 25),
   #{result := #{range := Range, uri := DefUri}} = Def,

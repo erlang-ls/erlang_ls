@@ -77,7 +77,7 @@ index(Document) ->
   ok = els_db:store(modules, Module, Uri),
   Specs  = els_document:points_of_interest(Document, [spec]),
   [els_db:store(signatures, {Module, F, A}, Tree) ||
-    #{id := {{F, A}, Tree}} <- Specs],
+    #{id := {F, A}, data := Tree} <- Specs],
   Kinds = [application, implicit_fun],
   POIs  = els_document:points_of_interest(Document, Kinds),
   [register_reference(Uri, POI) || POI <- POIs],

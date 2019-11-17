@@ -48,6 +48,9 @@ init_per_suite(Config) ->
   ExtraPath              = filename:join([ RootPath
                                          , <<"src">>
                                          , <<"code_navigation_extra.erl">>]),
+  TypesPath              = filename:join([ RootPath
+                                         , <<"src">>
+                                         , <<"code_navigation_types.erl">>]),
   BehaviourPath          = filename:join([ RootPath
                                          , <<"src">>
                                          , <<"behaviour_a.erl">>]),
@@ -63,6 +66,7 @@ init_per_suite(Config) ->
 
   Uri                    = els_uri:uri(Path),
   ExtraUri               = els_uri:uri(ExtraPath),
+  TypesUri               = els_uri:uri(TypesPath),
   BehaviourUri           = els_uri:uri(BehaviourPath),
   IncludeUri             = els_uri:uri(IncludePath),
   DiagnosticsUri         = els_uri:uri(DiagnosticsPath),
@@ -78,6 +82,7 @@ init_per_suite(Config) ->
   , {code_navigation_uri, Uri}
   , {code_navigation_text, Text}
   , {code_navigation_extra_uri, ExtraUri}
+  , {code_navigation_types_uri, TypesUri}
   , {behaviour_uri, BehaviourUri}
   , {include_uri, IncludeUri}
   , {diagnostics_uri, DiagnosticsUri}
@@ -118,10 +123,12 @@ init_per_testcase(_TestCase, Config) ->
   els_client:did_open(Uri, erlang, 1, Text),
 
   %% Ensure modules used in test suites are indexed
-  els_indexer:find_and_index_file("behaviour_a", async),
-  els_indexer:find_and_index_file("code_navigation_extra", async),
-  els_indexer:find_and_index_file("code_navigation.hrl", async),
-  els_indexer:find_and_index_file("diagnostics.hrl", async),
+  els_indexer:find_and_index_file("behaviour_a", sync),
+  els_indexer:find_and_index_file("code_navigation", sync),
+  els_indexer:find_and_index_file("code_navigation_extra", sync),
+  els_indexer:find_and_index_file("code_navigation_types", sync),
+  els_indexer:find_and_index_file("code_navigation.hrl", sync),
+  els_indexer:find_and_index_file("diagnostics.hrl", sync),
 
   [{started, Started} | Config].
 

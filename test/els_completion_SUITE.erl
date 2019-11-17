@@ -84,12 +84,16 @@ atom_completions(Config) ->
                 }
              , #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
                 , kind             => ?COMPLETION_ITEM_KIND_MODULE
+                , label            => <<"code_navigation_types">>
+                }
+             , #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+                , kind             => ?COMPLETION_ITEM_KIND_MODULE
                 , label            => <<"code_navigation.hrl">>
                 }
-             , #{ insertText => <<"do_3()">>
+             , #{ insertText => <<"do_3(${1:Arg1}, ${2:Arg2})">>
                 , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
                 , kind             => ?COMPLETION_ITEM_KIND_FUNCTION,
-                  label => <<"do_3/0">>
+                  label => <<"do_3/2">>
                 }
              , #{ insertText => <<"do_2()">>
                 , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET

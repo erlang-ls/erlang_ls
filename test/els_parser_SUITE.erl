@@ -42,7 +42,7 @@ all() -> els_test_utils:all(?MODULE).
 specs_location(_Config) ->
   Text = "-spec foo(integer()) -> any(); (atom()) -> pid().",
   {ok, POIs} = els_parser:parse(Text),
-  Spec = [POI || #{id := {{foo, 1}, _}, kind := spec} = POI <- POIs],
+  Spec = [POI || #{id := {foo, 1}, kind := spec} = POI <- POIs],
   ?assertEqual(1, length(Spec)),
   ok.
 
