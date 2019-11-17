@@ -80,6 +80,18 @@ To enable logging on the client-side, just:
 
     (setq lsp-log-io t)
 
+### VSCode Setup
+
+The Erlang Language Server is available in VSCode via a [dedicated
+extension](https://github.com/erlang-ls/vscode).
+
+To try it out, simply open VSCode and install the extension via the
+Marketplace:
+
+    Preferences > Extensions
+
+Look for the `erlang-ls` extension and install it. That's it.
+
 ### IntelliJ Setup
 
 > **WARNING**: The current version of the IntelliJ LSP plugin (1.5.4)
