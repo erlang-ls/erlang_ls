@@ -17,6 +17,7 @@
         , fun_local/1
         , fun_remote/1
         , export_entry/1
+        , flush_references_db/1
         ]).
 
 %%==============================================================================
@@ -146,6 +147,24 @@ export_entry(Config) ->
                          }
                       ],
   assert_locations(Locations, ExpectedLocations),
+  ok.
+
+%% Issue #245
+-spec flush_references_db(config()) -> ok.
+flush_references_db(_Config) ->
+  els_db:flush_all_tables(),
+  Uri = <<"file://tmp/foo.erl">>,
+  Text0 = "-spec foo(integer()) -> ok.\nfoo _X -> ok.\nbar() -> foo(1).",
+  Text1 = "\n-spec foo(integer()) -> ok.\nfoo _X -> ok.\nbar() -> foo(1).",
+  Doc0 = els_document:create(Uri, Text0),
+  Doc1 = els_document:create(Uri, Text1),
+  els_indexer:index(Doc0),
+  els_indexer:index(Doc1),
+  ?assertEqual([{foo,<<"file://tmp/foo.erl">>}],els_db:list(modules)),
+  ?assertEqual([{{foo,foo,1},
+                 [#{range => #{from => {4,10},to => {4,13}},
+                    uri => <<"file://tmp/foo.erl">>}]}],
+               els_db:list(references)),
   ok.
 
 %%==============================================================================

@@ -7,6 +7,7 @@
         , store/3
         , update/4
         , delete/2
+        , flush_all_tables/0
         , start_link/0
         ]).
 
@@ -78,6 +79,12 @@ delete(Table, Key) ->
   true = ets:delete(Table, Key),
   ok.
 
+-spec flush_all_tables() -> ok.
+flush_all_tables() ->
+  [delete_table(Name) || Name <- ?TABLES],
+  [create_table(Name) || Name <- ?TABLES],
+  ok.
+
 %%==============================================================================
 %% gen_server Callback Functions
 %%==============================================================================
@@ -106,4 +113,9 @@ create_table(Name) ->
          , compressed
          ],
   ets:new(Name, Opts),
+  ok.
+
+-spec delete_table(atom()) -> ok.
+delete_table(Name) ->
+  ets:delete(Name),
   ok.
