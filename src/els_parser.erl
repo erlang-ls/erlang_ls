@@ -40,7 +40,7 @@ parse_file(Path) ->
       %% The specs for the epp_dodger API are slightly incorrect.
       %% A bug has been reported (see https://bugs.erlang.org/browse/ERL-1005)
       %% Meanwhile, let's trick Dialyzer with an apply.
-      {ok, Forms} = erlang:apply(epp_dodger, parse, [IoDevice, {1, 1}]),
+      {ok, Forms} = els_dodger:parse(IoDevice, {1, 1}),
       Tree = erl_syntax:form_list(Forms),
       %% Reset file pointer position.
       {ok, 0} = file:position(IoDevice, 0),
