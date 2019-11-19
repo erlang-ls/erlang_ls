@@ -18,39 +18,21 @@
 %%==============================================================================
 %% API
 %%==============================================================================
--spec parse(binary()) -> {ok, [poi()]} | {error, any()}.
+-spec parse(binary()) -> {ok, [poi()]}.
 parse(Text) ->
-  %% epp_dodger only works with source files,
-  %% so let's use a temporary file.
-  %% TODO: Ideally avoid writing to file at all (require epp changes)
-  TmpPath = tmp_path(),
-  try
-    ok = file:write_file(TmpPath, Text),
-    parse_file(TmpPath)
-  after
-    file:delete(TmpPath)
-  end.
+  Pid = els_io_string:new(Text),
+  parse_file(Pid).
 
--spec parse_file(binary()) -> {ok, [poi()]} | {error, any()}.
-parse_file(Path) ->
-  case file:open(Path, [read]) of
-    {ok, IoDevice} ->
-      %% Providing `{1, 1}` as the initial location ensures
-      %% that the returned forms include column numbers, as well.
-      %% The specs for the epp_dodger API are slightly incorrect.
-      %% A bug has been reported (see https://bugs.erlang.org/browse/ERL-1005)
-      %% Meanwhile, let's trick Dialyzer with an apply.
-      {ok, Forms} = els_dodger:parse(IoDevice, {1, 1}),
-      Tree = erl_syntax:form_list(Forms),
-      %% Reset file pointer position.
-      {ok, 0} = file:position(IoDevice, 0),
-      {ok, Extra} = parse_attribute_pois(IoDevice, [], {1, 1}),
-      ok = file:close(IoDevice),
-      POIs = points_of_interest(Tree),
-      {ok, Extra ++ POIs};
-    {error, Error} ->
-      {error, Error}
-  end.
+-spec parse_file(file:io_device()) -> {ok, [poi()]}.
+parse_file(IoDevice) ->
+  {ok, Forms} = els_dodger:parse(IoDevice, {1, 1}),
+  Tree = erl_syntax:form_list(Forms),
+  %% Reset file pointer position.
+  {ok, 0} = file:position(IoDevice, 0),
+  {ok, Extra} = parse_attribute_pois(IoDevice, [], {1, 1}),
+  ok = file:close(IoDevice),
+  POIs = points_of_interest(Tree),
+  {ok, Extra ++ POIs}.
 
 %%==============================================================================
 %% Internal Functions
@@ -129,11 +111,6 @@ do_find_spec_points_of_interest(Tree, Acc) ->
     _ ->
       Acc
   end.
-
--spec tmp_path() -> binary().
-tmp_path() ->
-  RandBin = integer_to_binary(erlang:unique_integer([positive, monotonic])),
-  <<"/tmp/els_tmp_", RandBin/binary>>.
 
 -spec points_of_interest(tree()) -> [poi()].
 points_of_interest(Tree) ->

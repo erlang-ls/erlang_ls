@@ -80,6 +80,7 @@ init_per_suite(Config) ->
 
   [ {root_uri, RootUri}
   , {code_navigation_uri, Uri}
+  , {code_navigation_path, Path}
   , {code_navigation_text, Text}
   , {code_navigation_extra_uri, ExtraUri}
   , {code_navigation_types_uri, TypesUri}
