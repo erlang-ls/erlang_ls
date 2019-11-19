@@ -33,7 +33,8 @@
                | include_paths
                | otp_path
                | otp_paths
-               | root_uri.
+               | root_uri
+               | search_paths.
 -type path()  :: file:filename().
 -type state() :: #{ app_paths     => [path()]
                   , deps_dirs     => [path()]
@@ -43,6 +44,7 @@
                   , otp_path      => path()
                   , otp_paths     => [path()]
                   , root_uri      => uri()
+                  , search_paths  => [path()]
                   }.
 
 %%==============================================================================
@@ -64,10 +66,17 @@ initialize(RootUri, Capabilities, InitOptions) ->
   ok = set(deps_dirs     , DepsDirs),
   ok = set(include_dirs  , IncludeDirs),
   %% Calculated from the above
-  ok = set(app_paths     , app_paths(RootUri)),
-  ok = set(deps_paths    , deps_paths(RootUri, DepsDirs)),
-  ok = set(include_paths , include_paths(RootUri, IncludeDirs)),
-  ok = set(otp_paths     , otp_paths(OtpPath)),
+  ok = set(app_paths     , app_paths(RootUri, false)),
+  ok = set(deps_paths    , deps_paths(RootUri, DepsDirs, false)),
+  ok = set(include_paths , include_paths(RootUri, IncludeDirs, false)),
+  ok = set(otp_paths     , otp_paths(OtpPath, false)),
+  %% All (including subdirs) paths used to search files with file:path_open/3
+  ok = set( search_paths
+          , lists:append([ app_paths(RootUri, true)
+                         , deps_paths(RootUri, DepsDirs, true)
+                         , otp_paths(OtpPath, true)
+                         ])
+          ),
   %% Init Options
   ok = set(capabilities  , Capabilities),
   ok.
@@ -128,46 +137,55 @@ consult_config(Path) ->
       #{}
   end.
 
--spec app_paths(uri()) -> [string()].
-app_paths(RootUri) ->
+-spec app_paths(uri(), boolean()) -> [string()].
+app_paths(RootUri, Recursive) ->
   RootPath = binary_to_list(els_uri:path(RootUri)),
   resolve_paths( [ [RootPath, "src"]
                  , [RootPath, "test"]
                  , [RootPath, "include"]
-                 ]).
+                 ]
+               , Recursive
+               ).
 
--spec include_paths(uri(), string()) -> [string()].
-include_paths(RootUri, IncludeDirs) ->
+-spec include_paths(uri(), string(), boolean()) -> [string()].
+include_paths(RootUri, IncludeDirs, Recursive) ->
   RootPath = binary_to_list(els_uri:path(RootUri)),
-  Paths = [resolve_paths( [ [RootPath, Dir] ]) || Dir <- IncludeDirs],
+  Paths = [resolve_paths([[RootPath, Dir]], Recursive) || Dir <- IncludeDirs],
   lists:append(Paths).
 
--spec deps_paths(uri(), [string()]) -> [string()].
-deps_paths(RootUri, DepsDirs) ->
+-spec deps_paths(uri(), [string()], boolean()) -> [string()].
+deps_paths(RootUri, DepsDirs, Recursive) ->
   RootPath = binary_to_list(els_uri:path(RootUri)),
   Paths = [ resolve_paths( [ [RootPath, Dir, "src"]
                            , [RootPath, Dir, "test"]
                            , [RootPath, Dir, "include"]
-                           ])
+                           ]
+                         , Recursive
+                         )
             || Dir <- DepsDirs
           ],
   lists:append(Paths).
 
--spec otp_paths(string()) -> [string()].
-otp_paths(OtpPath) ->
+-spec otp_paths(string(), boolean()) -> [string()].
+otp_paths(OtpPath, Recursive) ->
   resolve_paths( [ [OtpPath, "lib", "*", "src"]
                  , [OtpPath, "lib", "*", "include"]
-                 ]).
+                 ]
+               , Recursive
+               ).
 
--spec resolve_paths([[string()]]) -> [[string()]].
-resolve_paths(PathSpecs) ->
-  lists:append([resolve_path(PathSpec) || PathSpec <- PathSpecs]).
+-spec resolve_paths([[string()]], boolean()) -> [[string()]].
+resolve_paths(PathSpecs, Recursive) ->
+  lists:append([resolve_path(PathSpec, Recursive) || PathSpec <- PathSpecs]).
 
--spec resolve_path([string()]) -> [string()].
-resolve_path(PathSpec) ->
-  Path = filename:join(PathSpec),
-  Paths = [[P | subdirs(P)] || P <- filelib:wildcard(Path)],
-  lists:append(Paths).
+-spec resolve_path([string()], boolean()) -> [string()].
+resolve_path(PathSpec, Recursive) ->
+  Path  = filename:join(PathSpec),
+  Paths = filelib:wildcard(Path),
+  case Recursive of
+    true  -> lists:append([[P | subdirs(P)] || P <- Paths]);
+    false -> Paths
+  end.
 
 %% Returns all subdirectories for the provided path
 -spec subdirs(string()) -> [string()].
