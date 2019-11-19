@@ -139,11 +139,11 @@ exported_functions(Config) ->
 
   #{result := Completion1} =
     els_client:completion(Uri, 32, 25, TriggerKind, <<":">>),
-  ?assertEqual(lists:sort(Completion1), lists:sort(ExpectedCompletion)),
+  ?assertEqual(lists:sort(ExpectedCompletion), lists:sort(Completion1)),
 
   #{result := Completion2} =
     els_client:completion(Uri, 52, 34, TriggerKind, <<":">>),
-  ?assertEqual(lists:sort(Completion2), lists:sort(ExpectedCompletion)),
+  ?assertEqual(lists:sort(ExpectedCompletion), lists:sort(Completion2)),
 
   ok.
 
@@ -163,7 +163,7 @@ exported_functions_arity(Config) ->
 
   #{result := Completion} =
     els_client:completion(Uri, 52, 35, TriggerKind, <<"">>),
-  ?assertEqual(lists:sort(Completion), lists:sort(ExpectedCompletion)),
+  ?assertEqual(lists:sort(ExpectedCompletion), lists:sort(Completion)),
 
   ok.
 
@@ -232,11 +232,11 @@ macros(Config) ->
 
   #{result := Completion1} =
     els_client:completion(Uri, 24, 1, TriggerKindChar, <<"?">>),
-  ?assertEqual(lists:sort(Completion1), lists:sort(Expected)),
+  ?assertEqual(lists:sort(Expected), lists:sort(Completion1)),
 
   #{result := Completion2} =
     els_client:completion(Uri, 40, 5, TriggerKindInvoked, <<"">>),
-  ?assertEqual(lists:sort(Completion2), lists:sort(Expected)),
+  ?assertEqual(lists:sort(Expected), lists:sort(Completion2)),
 
   ok.
 
@@ -258,7 +258,7 @@ only_exported_functions_after_colon(Config) ->
 
   #{result := Completion} =
     els_client:completion(Uri, 32, 26, TriggerKind, <<"d">>),
-  ?assertEqual(lists:sort(Completion), lists:sort(ExpectedCompletion)),
+  ?assertEqual(lists:sort(ExpectedCompletion), lists:sort(Completion)),
 
   ok.
 
@@ -272,6 +272,6 @@ variables(Config) ->
 
   #{result := Completion} =
     els_client:completion(Uri, 5, 8, TriggerKind, <<"">>),
-  ?assertEqual(lists:sort(Completion), lists:sort(Expected)),
+  ?assertEqual(lists:sort(Expected), lists:sort(Completion)),
 
   ok.
