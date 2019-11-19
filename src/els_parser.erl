@@ -242,6 +242,8 @@ attribute(Tree) ->
       [els_poi:new(Pos, spec, {F, A}, Tree)];
     {type, {type, {Type, _, Args}}} ->
       [els_poi:new(Pos, type_definition, {Type, length(Args)})];
+    {opaque, {opaque, {Type, _, Args}}} ->
+      [els_poi:new(Pos, type_definition, {Type, length(Args)})];
     _ ->
       []
   catch throw:syntax_error ->

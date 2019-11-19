@@ -37,6 +37,8 @@
         , type_application_remote/1
         , type_application_undefined/1
         , type_application_user/1
+        , opaque_application_remote/1
+        , opaque_application_user/1
         ]).
 
 %%==============================================================================
@@ -319,5 +321,26 @@ type_application_user(Config) ->
   #{result := #{range := Range, uri := DefUri}} = Def,
   ?assertEqual(Uri, DefUri),
   ?assertEqual( els_protocol:range(#{from => {37, 2}, to => {37, 2}})
+              , Range),
+  ok.
+
+-spec opaque_application_remote(config()) -> ok.
+opaque_application_remote(Config) ->
+  ExtraUri = ?config(code_navigation_extra_uri, Config),
+  TypesUri = ?config(code_navigation_types_uri, Config),
+  Def = els_client:definition(ExtraUri, 15, 61),
+  #{result := #{range := Range, uri := DefUri}} = Def,
+  ?assertEqual(TypesUri, DefUri),
+  ?assertEqual( els_protocol:range(#{from => {7, 2}, to => {7, 2}})
+              , Range),
+  ok.
+
+-spec opaque_application_user(config()) -> ok.
+opaque_application_user(Config) ->
+  ExtraUri = ?config(code_navigation_extra_uri, Config),
+  Def      = els_client:definition(ExtraUri, 15, 24),
+  #{result := #{range := Range, uri := DefUri}} = Def,
+  ?assertEqual(ExtraUri, DefUri),
+  ?assertEqual( els_protocol:range(#{from => {19, 2}, to => {19, 2}})
               , Range),
   ok.
