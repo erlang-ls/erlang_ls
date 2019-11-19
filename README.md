@@ -199,14 +199,18 @@ A sample `erlang_ls.config` file would look like the following:
     otp_path: "/path/to/otp/lib/erlang"
     deps_dirs:
       - "lib/*"
+    include_dirs:
+      - "include"
+      - "_build/default/lib"
 
 Currently, the following customizations are possible:
 
-| Parameter     | Description                                                                          |
-|---------------|--------------------------------------------------------------------------------------|
-| otp\_path     | Path to the OTP installation                                                         |
-| deps\_dirs    | List of directories containing dependencies. It supports wildcards.                  |
-| include\_dirs | List of directories provided to the compiler as include dirs. It supports wildcards. |
+| Parameter          | Description                                                                             |
+|--------------------|-----------------------------------------------------------------------------------------|
+| otp\_path          | Path to the OTP installation                                                            |
+| deps\_dirs         | List of directories containing dependencies. It supports wildcards.                     |
+| include\_dirs      | List of directories provided to the compiler as include dirs. It supports wildcards.    |
+| otp\_apps\_exclude | List of OTP applications that will not be indexed (default: megaco, diameter, snmp, wx) |
 
 ## Troubleshooting
 
