@@ -11,3 +11,9 @@ do_2() ->
 -spec do_3(nat(), wot()) -> {atom(), code_navigation_types:type_a()}.
 do_3(_, _) ->
   code_navigation:function_j().
+
+-spec do_4(nat(), opaque_local()) -> {atom(), code_navigation_types:opaque_type_a()}.
+do_4(_, _) ->
+  code_navigation:function_j().
+
+-opaque opaque_local() :: atom().
