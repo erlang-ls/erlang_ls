@@ -260,11 +260,11 @@ handle_call({initialize, RootUri, InitOptions}, From, State) ->
                  #{ <<"textDocument">> =>
                       #{ <<"completion">> =>
                            #{ <<"contextSupport">> => 'true' }
-                       }
-                  , <<"hover">> =>
-                      #{ <<"contentFormat">> => [ ?MARKDOWN
-                                                , ?PLAINTEXT
-                                                ]
+                       , <<"hover">> =>
+                           #{ <<"contentFormat">> => [ ?MARKDOWN
+                                                     , ?PLAINTEXT
+                                                     ]
+                            }
                        }
                   }
              },
