@@ -22,6 +22,13 @@
 %% Macros
 %%==============================================================================
 -define(DEFAULT_CONFIG_PATH, "erlang_ls.config").
+-define( DEFAULT_EXCLUDED_OTP_APPS
+       , [ "megaco"
+         , "diameter"
+         , "snmp"
+         , "wx"
+         ]
+       ).
 -define(SERVER, ?MODULE).
 
 %% TODO: Refine names to avoid confusion
@@ -33,18 +40,20 @@
                | include_paths
                | otp_path
                | otp_paths
+               | otp_apps_exclude
                | root_uri
                | search_paths.
 -type path()  :: file:filename().
--type state() :: #{ app_paths     => [path()]
-                  , deps_dirs     => [path()]
-                  , deps_paths    => [path()]
-                  , include_dirs  => [path()]
-                  , include_paths => [path()]
-                  , otp_path      => path()
-                  , otp_paths     => [path()]
-                  , root_uri      => uri()
-                  , search_paths  => [path()]
+-type state() :: #{ app_paths         => [path()]
+                  , deps_dirs         => [path()]
+                  , deps_paths        => [path()]
+                  , include_dirs      => [path()]
+                  , include_paths     => [path()]
+                  , otp_path          => path()
+                  , otp_paths         => [path()]
+                  , otp_apps_exclude  => [string()]
+                  , root_uri          => uri()
+                  , search_paths      => [path()]
                   }.
 
 %%==============================================================================
@@ -56,9 +65,17 @@ initialize(RootUri, Capabilities, InitOptions) ->
   Config = consult_config(filename:join([ els_uri:path(RootUri)
                                         , config_path(InitOptions)
                                         ])),
-  OtpPath = maps:get("otp_path", Config, code:root_dir()),
-  DepsDirs = maps:get("deps_dirs", Config, []),
-  IncludeDirs = maps:get("include_dirs", Config, ["include"]),
+  OtpPath        = maps:get("otp_path", Config, code:root_dir()),
+  DepsDirs       = maps:get("deps_dirs", Config, []),
+  IncludeDirs    = maps:get("include_dirs", Config, ["include"]),
+  OtpAppsExclude = maps:get( "otp_apps_exclude"
+                           , Config
+                           , ?DEFAULT_EXCLUDED_OTP_APPS
+                           ),
+  ExcludePathsSpecs = [[OtpPath, "lib", P ++ "*"]|| P <- OtpAppsExclude],
+  ExcludePaths      = resolve_paths(ExcludePathsSpecs, true),
+  lager:info("Excluded OTP Applications: ~p", [OtpAppsExclude]),
+
   %% Passed by the LSP client
   ok = set(root_uri      , RootUri),
   %% Read from the erlang_ls.config file
@@ -69,7 +86,7 @@ initialize(RootUri, Capabilities, InitOptions) ->
   ok = set(app_paths     , app_paths(RootUri, false)),
   ok = set(deps_paths    , deps_paths(RootUri, DepsDirs, false)),
   ok = set(include_paths , include_paths(RootUri, IncludeDirs, false)),
-  ok = set(otp_paths     , otp_paths(OtpPath, false)),
+  ok = set(otp_paths     , otp_paths(OtpPath, false) -- ExcludePaths),
   %% All (including subdirs) paths used to search files with file:path_open/3
   ok = set( search_paths
           , lists:append([ app_paths(RootUri, true)
