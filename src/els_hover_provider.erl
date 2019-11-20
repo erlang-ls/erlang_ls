@@ -97,9 +97,13 @@ format(Signature, Desc) when is_map(Desc) ->
 
 -spec content_kind() -> markup_kind().
 content_kind() ->
-  Capabilities      = els_config:get(capabilities),
-  HoverCapabilities = maps:get(<<"hover">>, Capabilities, #{}),
-  ContentFormat     = maps:get(<<"contentFormat">>, HoverCapabilities, []),
+  ContentFormat =
+    case els_config:get(capabilities) of
+      #{<<"textDocument">> := #{<<"hover">> := #{<<"contentFormat">> := X}}} ->
+        X;
+      _ ->
+        []
+    end,
   case lists:member(atom_to_binary(?MARKDOWN, utf8), ContentFormat) of
     true  -> ?MARKDOWN;
     false -> ?PLAINTEXT
