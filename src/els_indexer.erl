@@ -51,11 +51,8 @@ find_and_index_file(FileName) ->
 -spec find_and_index_file(string(), async | sync) ->
    {ok, uri()} | {error, any()}.
 find_and_index_file(FileName, SyncAsync) ->
-  Paths = lists:append([ els_config:get(app_paths)
-                       , els_config:get(deps_paths)
-                       , els_config:get(otp_paths)
-                       ]),
-  case file:path_open(Paths, list_to_binary(FileName), [read]) of
+  SearchPaths = els_config:get(search_paths),
+  case file:path_open(SearchPaths, list_to_binary(FileName), [read]) of
     {ok, IoDevice, FullName} ->
       %% TODO: Avoid opening file twice
       file:close(IoDevice),
