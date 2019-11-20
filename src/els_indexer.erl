@@ -77,6 +77,7 @@ index(Document) ->
     #{id := {F, A}, data := Tree} <- Specs],
   Kinds = [application, implicit_fun],
   POIs  = els_document:points_of_interest(Document, Kinds),
+  purge_reference_uri(Uri),
   [register_reference(Uri, POI) || POI <- POIs],
   ok.
 
@@ -208,3 +209,28 @@ register_reference(Uri, #{id := {F, A}, range := Range}) ->
 add_reference(Key, Value) ->
   UpdateFun = fun(OldRefs) -> ordsets:add_element(Value, OldRefs) end,
   ok = els_db:update(references, Key, UpdateFun, ordsets:new()).
+
+%% @edoc Remove all references to a given uri()
+-spec purge_reference_uri(uri()) -> ok.
+purge_reference_uri(Uri) ->
+    %% TODO:AZ questions:
+    %%   1) does this need locking? A gen_server for this whole thing?
+    %%   2) does this functionality belong in els_db.erl instead?
+    RefsAsList = els_db:list(references),
+    FilterMapFun = fun({Key, Vals}) ->
+                       case filter_uri(Uri, Vals) of
+                           [] -> false;
+                           Vals1 -> {true, {Key, Vals1}}
+                       end
+                   end,
+    RefsAsList1 = lists:filtermap(FilterMapFun, RefsAsList),
+    ets:delete_all_objects(references),
+    ets:insert(references, RefsAsList1),
+    ok.
+
+-spec filter_uri(uri(), ordsets:ordset(T)) -> ordsets:ordset(T).
+filter_uri(Uri, Set) ->
+    FilterFun = fun(#{uri := Uri1, range := _Range}) ->
+                    Uri1 /= Uri
+                end,
+    ordsets:filter(FilterFun, Set).
