@@ -99,5 +99,11 @@ handle_cast(_Msg, State) -> {noreply, State}.
 
 -spec create_table(atom()) -> ok.
 create_table(Name) ->
-  ets:new(Name, [named_table, set, public, {write_concurrency, true}]),
+  Opts = [ named_table
+         , set
+         , public
+         , {write_concurrency, true}
+         , compressed
+         ],
+  ets:new(Name, Opts),
   ok.
