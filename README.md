@@ -92,6 +92,9 @@ Marketplace:
 
 Look for the `erlang-ls` extension and install it. That's it.
 
+Remember that the Erlang Language Server requires Erlang/OTP 21 or
+higher to run, so ensure that OTP 21+ is available in your `PATH`.
+
 ### IntelliJ Setup
 
 > **WARNING**: The current version of the IntelliJ LSP plugin (1.5.4)
