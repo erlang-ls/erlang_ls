@@ -90,6 +90,11 @@ atom_completions(Config) ->
                 , kind             => ?COMPLETION_ITEM_KIND_MODULE
                 , label            => <<"code_navigation.hrl">>
                 }
+             , #{ insertText => <<"do_4(${1:Arg1}, ${2:Arg2})">>
+                , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+                , kind             => ?COMPLETION_ITEM_KIND_FUNCTION,
+                  label => <<"do_4/2">>
+                }
              , #{ insertText => <<"do_3(${1:Arg1}, ${2:Arg2})">>
                 , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
                 , kind             => ?COMPLETION_ITEM_KIND_FUNCTION,
