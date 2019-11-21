@@ -29,6 +29,7 @@
 %% Includes
 %%==============================================================================
 -include("erlang_ls.hrl").
+-include_lib("stdlib/include/ms_transform.hrl").
 
 %%==============================================================================
 %% Types
@@ -77,6 +78,7 @@ index(Document) ->
     #{id := {F, A}, data := Tree} <- Specs],
   Kinds = [application, implicit_fun],
   POIs  = els_document:points_of_interest(Document, Kinds),
+  purge_uri_references(Uri),
   [register_reference(Uri, POI) || POI <- POIs],
   ok.
 
@@ -193,6 +195,9 @@ index_document(Document, sync) ->
 
 %% TODO: Specific for references
 
+-type ref_key()   :: {any(), any(), any()}. %% {M, F, A}
+-type ref_value() :: #{ uri := uri(), range := poi_range() }.
+
 -spec register_reference(uri(), poi()) -> ok.
 register_reference(Uri, #{id := {M, F, A}, range := Range}) ->
   Ref = #{uri => Uri, range => Range},
@@ -204,7 +209,13 @@ register_reference(Uri, #{id := {F, A}, range := Range}) ->
   add_reference({M, F, A}, Ref),
   ok.
 
--spec add_reference(any(), any()) -> ok.
+-spec add_reference(ref_key(), ref_value()) -> ok.
 add_reference(Key, Value) ->
-  UpdateFun = fun(OldRefs) -> ordsets:add_element(Value, OldRefs) end,
-  ok = els_db:update(references, Key, UpdateFun, ordsets:new()).
+  ok = els_db:store(references, Key, Value).
+
+%% @edoc Remove all references to a given uri()
+-spec purge_uri_references(uri()) -> ok.
+purge_uri_references(Uri) ->
+    MatchSpec = ets:fun2ms(fun({_K, #{uri => U}}) -> U =:= Uri end),
+    _DeletedCount = ets:select_delete(references, MatchSpec),
+    ok.
