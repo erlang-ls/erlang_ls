@@ -25,46 +25,47 @@ parse(Text) ->
 
 -spec parse_file(file:io_device()) -> {ok, [poi()]}.
 parse_file(IoDevice) ->
-  {ok, Forms} = els_dodger:parse(IoDevice, {1, 1}),
-  Tree = erl_syntax:form_list(Forms),
-  %% Reset file pointer position.
-  {ok, 0} = file:position(IoDevice, 0),
-  {ok, Extra} = parse_attribute_pois(IoDevice, [], {1, 1}),
+  {ok, NestedPOIs} = els_dodger:parse(IoDevice, {1, 1}, fun parse_form/3, []),
   ok = file:close(IoDevice),
-  POIs = points_of_interest(Tree),
-  {ok, Extra ++ POIs}.
+  {ok, lists:flatten(NestedPOIs)}.
+
+-spec parse_form(file:io_device(), any(), [any()]) ->
+    {'ok', erl_syntax:forms()
+  | none, integer()}
+  | {'eof', integer()}
+  | {'error', any(), integer()}.
+parse_form(Dev, L0, Options) ->
+  parse_form(Dev, L0, fun els_dodger:normal_parser/2, Options).
+
+-spec parse_form(file:io_device(), any(), function(), [any()]) ->
+  {'ok', erl_syntax:forms() | none, integer()}
+  | {'eof', integer()}
+  | {'error', any(), integer()}.
+parse_form(Dev, L0, Parser, _Options) ->
+  case io:scan_erl_form(Dev, "", L0) of
+    {ok, Ts, L1} ->
+      case catch {ok, Parser(Ts, undefined)} of
+        {ok, F} ->
+          POIs = [find_attribute_pois(F, Ts), points_of_interest(F)],
+          {ok, POIs, L1};
+        _ ->
+          {ok, [], L1}
+      end;
+    {error, _IoErr, _L1} = Err -> Err;
+    {error, _Reason} -> {eof, L0}; % This is probably encoding problem
+    {eof, _L1} = Eof -> Eof
+  end.
 
 %%==============================================================================
 %% Internal Functions
 %%==============================================================================
-
--spec parse_attribute_pois(io:device(), [poi()], erl_anno:location()) ->
-   {ok, [poi()]} | {error, any()}.
-parse_attribute_pois(IoDevice, Acc, StartLoc) ->
-  case io:scan_erl_form(IoDevice, "", StartLoc) of
-    {ok, Tokens, EndLoc} ->
-      case erl_parse:parse_form(Tokens) of
-        {ok, Form} ->
-          POIs = find_attribute_pois(Form, Tokens),
-          parse_attribute_pois(IoDevice, POIs ++ Acc, EndLoc);
-        {error, _Error} ->
-          parse_attribute_pois(IoDevice, Acc, EndLoc)
-      end;
-    {eof, _} ->
-      {ok, Acc};
-    {error, ErrorInfo, EndLoc} ->
-      lager:warning( "Could not parse extra information [end_loc=p] ~p"
-                   , [EndLoc, ErrorInfo]
-                   ),
-      {ok, Acc}
-  end.
 
 -spec find_attribute_pois(erl_parse:abstract_form(), [erl_scan:token()]) ->
    [poi()].
 find_attribute_pois(Form, Tokens) ->
   case erl_syntax:type(Form) of
     attribute ->
-      case erl_syntax_lib:analyze_attribute(Form) of
+      case catch erl_syntax_lib:analyze_attribute(Form) of
         {export, Exports} ->
           %% The first atom is the attribute name, so we skip it.
           [_|Atoms] = [T|| {atom, _, _} = T <- Tokens],
@@ -114,11 +115,8 @@ do_find_spec_points_of_interest(Tree, Acc) ->
 
 -spec points_of_interest(tree()) -> [poi()].
 points_of_interest(Tree) ->
-  lists:flatten(
-    erl_syntax_lib:fold(
-      fun(T, Acc) ->
-          [do_points_of_interest(T)|Acc]
-      end, [], Tree)).
+  FoldFun = fun(T, Acc) -> do_points_of_interest(T) ++ Acc end,
+  erl_syntax_lib:fold(FoldFun, [], Tree).
 
 %% @edoc Return the list of points of interest for a given `Tree`.
 -spec do_points_of_interest(tree()) -> [poi()].

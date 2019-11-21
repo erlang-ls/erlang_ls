@@ -79,9 +79,9 @@
 
 -export([parse_file/1, quick_parse_file/1, parse_file/2,
          quick_parse_file/2, parse/1, quick_parse/1, parse/2,
-         quick_parse/2, parse/3, quick_parse/3, parse_form/2,
+         quick_parse/2, parse/3, parse/4, quick_parse/3, parse_form/2,
          parse_form/3, quick_parse_form/2, quick_parse_form/3,
-         format_error/1, tokens_to_string/1]).
+         format_error/1, tokens_to_string/1, normal_parser/2]).
 
 
 %% The following should be: 1) pseudo-uniquely identifiable, and 2)
