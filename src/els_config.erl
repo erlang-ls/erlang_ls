@@ -212,8 +212,8 @@ subdirs(Path) ->
 -spec subdirs(string(), [string()]) -> [string()].
 subdirs(Path, Subdirs) ->
   case file:list_dir(Path) of
-    {ok, Files}     -> subdirs_(Path, Files, Subdirs);
-    {error, enoent} -> Subdirs
+    {ok, Files} -> subdirs_(Path, Files, Subdirs);
+    {error, _}  -> Subdirs
   end.
 
 -spec subdirs_(string(), [string()], [string()]) -> [string()].
