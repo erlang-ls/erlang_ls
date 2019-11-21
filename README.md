@@ -157,6 +157,33 @@ logs:
 
     Help > Show Logs
 
+### NeoVim Setup
+
+**Note**: While these instructions are for NeoVim, they should be transferable
+to Vim.
+
+For [vim-plug](https://github.com/junegunn/vim-plug) users, install
+[Coc](https://github.com/neoclide/coc.nvim) and its plugin
+[coc-erlang_ls](https://github.com/hyhugh/coc-erlang_ls) enter:
+
+```vim
+" Use release branch (Recommend)
+Plug 'neoclide/coc.nvim', {'branch': 'release'}
+Plug 'hyhugh/coc-erlang_ls', {'do': 'yarn install --frozen-lockfile'}
+```
+
+in your `init.vim` or `.vimrc` plugin section, then restart vim and run
+`:PlugInstall`. If the erlang_ls server is running, then upon NeoVim starting
+you should see the message that Coc has connected to erlang_ls:
+
+```vim
+[coc.nvim] coc-erlang_ls is ready
+```
+
+For suggestions on configuring Coc see its [example configuration
+documentation](https://github.com/neoclide/coc.nvim#example-vim-configuration).
+
+
 ## Features
 
 This section summarizes the functionalities currently implemented by
