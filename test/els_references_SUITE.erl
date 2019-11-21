@@ -17,7 +17,7 @@
         , fun_local/1
         , fun_remote/1
         , export_entry/1
-        , flush_references_db/1
+        , purge_references/1
         ]).
 
 %%==============================================================================
@@ -150,8 +150,8 @@ export_entry(Config) ->
   ok.
 
 %% Issue #245
--spec flush_references_db(config()) -> ok.
-flush_references_db(_Config) ->
+-spec purge_references(config()) -> ok.
+purge_references(_Config) ->
   els_db:flush_all_tables(),
   Uri = <<"file://tmp/foo.erl">>,
   Text0 = "-spec foo(integer()) -> ok.\nfoo _X -> ok.\nbar() -> foo(1).",

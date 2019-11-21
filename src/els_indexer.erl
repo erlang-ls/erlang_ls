@@ -78,7 +78,7 @@ index(Document) ->
     #{id := {F, A}, data := Tree} <- Specs],
   Kinds = [application, implicit_fun],
   POIs  = els_document:points_of_interest(Document, Kinds),
-  purge_reference_uri(Uri),
+  purge_uri_references(Uri),
   [register_reference(Uri, POI) || POI <- POIs],
   ok.
 
@@ -214,8 +214,8 @@ add_reference(Key, Value) ->
   ok = els_db:store(references, Key, Value).
 
 %% @edoc Remove all references to a given uri()
--spec purge_reference_uri(uri()) -> ok.
-purge_reference_uri(Uri) ->
+-spec purge_uri_references(uri()) -> ok.
+purge_uri_references(Uri) ->
     MatchSpec = ets:fun2ms(fun({_K, #{uri => U}}) -> U =:= Uri end),
     _DeletedCount = ets:select_delete(references, MatchSpec),
     ok.
