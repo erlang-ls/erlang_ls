@@ -162,8 +162,8 @@ flush_references_db(_Config) ->
   els_indexer:index(Doc1),
   ?assertEqual([{foo,<<"file://tmp/foo.erl">>}],els_db:list(modules)),
   ?assertEqual([{{foo,foo,1},
-                 [#{range => #{from => {4,10},to => {4,13}},
-                    uri => <<"file://tmp/foo.erl">>}]}],
+                 #{range => #{from => {4,10},to => {4,13}},
+                   uri => <<"file://tmp/foo.erl">>}}],
                els_db:list(references)),
   ok.
 

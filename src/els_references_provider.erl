@@ -50,13 +50,11 @@ find_references(Uri, #{ kind := Kind
           {F, A}    -> {els_uri:module(Uri), F, A};
           {M, F, A} -> {M, F, A}
         end,
-  case els_db:find(references, Key) of
+  case els_db:find_multi(references, Key) of
     {error, not_found} ->
       null;
-    {ok, []} ->
-      null;
     {ok, Refs} ->
-      [location(U, R) || #{uri := U, range := R} <- ordsets:to_list(Refs)]
+      [location(U, R) || {_, #{uri := U, range := R}} <- Refs]
   end;
 find_references(_Uri, _POI) ->
   null.

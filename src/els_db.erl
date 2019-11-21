@@ -2,6 +2,7 @@
 
 %% API
 -export([ find/2
+        , find_multi/2
         , keys/1
         , list/1
         , store/3
@@ -18,10 +19,10 @@
         ]).
 
 -define(SERVER, ?MODULE).
--define(TABLES, [ documents
-                , modules
-                , references
-                , signatures
+-define(TABLES, [ {documents,  set}
+                , {modules,    set}
+                , {references, duplicate_bag}
+                , {signatures, set}
                 ]).
 
 -type state() :: #{}.
@@ -41,6 +42,15 @@ find(Table, Key) ->
   case ets:lookup(Table, Key) of
     [] -> {error, not_found};
     [{Key, Value}] -> {ok, Value}
+  end.
+
+-spec find_multi(table(), key()) -> {ok, nonempty_list(any())}
+                                    | {error, not_found}.
+find_multi(Table, Key) ->
+  case ets:lookup(Table, Key) of
+    [] -> {error, not_found};
+    KVs -> {ok, KVs} %% Return as is, we need to iterate the result
+                     %% anyway, no point doing it twice.
   end.
 
 -spec keys(table()) -> [any()].
@@ -70,6 +80,8 @@ update(Table, Key, UpdateFun, Default) ->
       Replace = [{{Key, Old}, [], [{const, {Key, New}}]}],
       case ets:select_replace(Table, Replace) of
         1 -> ok;
+        %% AZ: The next line is a recursive call. If it is ever hit,
+        %%     will we have an infinite loop?
         0 -> update(Table, Key, UpdateFun, Default)
       end
   end.
@@ -81,8 +93,8 @@ delete(Table, Key) ->
 
 -spec flush_all_tables() -> ok.
 flush_all_tables() ->
-  [delete_table(Name) || Name <- ?TABLES],
-  [create_table(Name) || Name <- ?TABLES],
+  [delete_table(Details) || Details <- ?TABLES],
+  [create_table(Details) || Details <- ?TABLES],
   ok.
 
 %%==============================================================================
@@ -104,10 +116,10 @@ handle_cast(_Msg, State) -> {noreply, State}.
 %% Internal functions
 %%==============================================================================
 
--spec create_table(atom()) -> ok.
-create_table(Name) ->
+-spec create_table({atom(), atom()}) -> ok.
+create_table({Name, Type}) ->
   Opts = [ named_table
-         , set
+         , Type
          , public
          , {write_concurrency, true}
          , compressed
@@ -115,7 +127,7 @@ create_table(Name) ->
   ets:new(Name, Opts),
   ok.
 
--spec delete_table(atom()) -> ok.
-delete_table(Name) ->
+-spec delete_table({atom(), atom()}) -> ok.
+delete_table({Name, _}) ->
   ets:delete(Name),
   ok.
