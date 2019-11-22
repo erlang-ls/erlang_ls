@@ -39,7 +39,15 @@
 dispatch(Method, Params, State) ->
   Function = method_to_function_name(Method),
   try do_dispatch(Function, Params, State)
-  catch error:undef -> not_implemented_method(Method, State)
+  catch
+    error:undef ->
+      not_implemented_method(Method, State);
+    Type:Reason ->
+      lager:error("Unexpected error [type=~p] [error=~p]", [Type, Reason]),
+      Error = #{ code    => ?ERR_UNKNOWN_ERROR_CODE
+               , message => <<"Unexpected error while ", Method/binary>>
+               },
+      {error, Error, State}
   end.
 
 -spec do_dispatch(atom(), params(), state()) -> result().
