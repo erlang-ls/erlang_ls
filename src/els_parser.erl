@@ -20,8 +20,8 @@
 %%==============================================================================
 -spec parse(binary()) -> {ok, [poi()]}.
 parse(Text) ->
-  Pid = els_io_string:new(Text),
-  parse_file(Pid).
+  IoDevice = els_io_string:new(Text),
+  parse_file(IoDevice).
 
 -spec parse_file(file:io_device()) -> {ok, [poi()]}.
 parse_file(IoDevice) ->
@@ -29,43 +29,46 @@ parse_file(IoDevice) ->
   ok = file:close(IoDevice),
   {ok, lists:flatten(NestedPOIs)}.
 
+%%==============================================================================
+%% Internal Functions
+%%==============================================================================
+
+%% Adapted from els_dodger
 -spec parse_form(file:io_device(), any(), [any()]) ->
     {'ok', erl_syntax:forms()
   | none, integer()}
   | {'eof', integer()}
   | {'error', any(), integer()}.
-parse_form(Dev, L0, Options) ->
-  parse_form(Dev, L0, fun els_dodger:normal_parser/2, Options).
+parse_form(IoDevice, Location, Options) ->
+  parse_form(IoDevice, Location, fun els_dodger:normal_parser/2, Options).
 
+%% Adapted from els_dodger
 -spec parse_form(file:io_device(), any(), function(), [any()]) ->
   {'ok', erl_syntax:forms() | none, integer()}
   | {'eof', integer()}
   | {'error', any(), integer()}.
-parse_form(Dev, L0, Parser, _Options) ->
-  case io:scan_erl_form(Dev, "", L0) of
-    {ok, Ts, L1} ->
-      case catch {ok, Parser(Ts, undefined)} of
+parse_form(IoDevice, Location0, Parser, _Options) ->
+  case io:scan_erl_form(IoDevice, "", Location0) of
+    {ok, Tokens, Location1} ->
+      try {ok, Parser(Tokens, undefined)} of
         {ok, F} ->
-          POIs = [find_attribute_pois(F, Ts), points_of_interest(F)],
-          {ok, POIs, L1};
-        _ ->
-          {ok, [], L1}
+          POIs = [find_attribute_pois(F, Tokens), points_of_interest(F)],
+          {ok, POIs, Location1}
+      catch
+        _:_ ->
+          {ok, [], Location1}
       end;
-    {error, _IoErr, _L1} = Err -> Err;
-    {error, _Reason} -> {eof, L0}; % This is probably encoding problem
-    {eof, _L1} = Eof -> Eof
+    {error, _IoErr, _Location1} = Err -> Err;
+    {error, _Reason} -> {eof, Location0};
+    {eof, _Location1} = Eof -> Eof
   end.
-
-%%==============================================================================
-%% Internal Functions
-%%==============================================================================
 
 -spec find_attribute_pois(erl_parse:abstract_form(), [erl_scan:token()]) ->
    [poi()].
 find_attribute_pois(Form, Tokens) ->
   case erl_syntax:type(Form) of
     attribute ->
-      case catch erl_syntax_lib:analyze_attribute(Form) of
+      try erl_syntax_lib:analyze_attribute(Form) of
         {export, Exports} ->
           %% The first atom is the attribute name, so we skip it.
           [_|Atoms] = [T|| {atom, _, _} = T <- Tokens],
@@ -79,8 +82,9 @@ find_attribute_pois(Form, Tokens) ->
             || {{F, A}, {atom, Pos, _}} <- lists:zip(Imports, Atoms)];
         {spec, {spec, {_, FTs}}} ->
           lists:flatten([find_spec_points_of_interest(FT) || FT <- FTs]);
-        _ ->
-          []
+        _ -> []
+      catch
+        error:syntax_error -> []
       end;
     _ ->
       []
@@ -115,7 +119,7 @@ do_find_spec_points_of_interest(Tree, Acc) ->
 
 -spec points_of_interest(tree()) -> [poi()].
 points_of_interest(Tree) ->
-  FoldFun = fun(T, Acc) -> do_points_of_interest(T) ++ Acc end,
+  FoldFun = fun(T, Acc) -> [do_points_of_interest(T), Acc] end,
   erl_syntax_lib:fold(FoldFun, [], Tree).
 
 %% @edoc Return the list of points of interest for a given `Tree`.
