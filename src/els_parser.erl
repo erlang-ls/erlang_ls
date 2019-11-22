@@ -84,7 +84,7 @@ find_attribute_pois(Form, Tokens) ->
           lists:flatten([find_spec_points_of_interest(FT) || FT <- FTs]);
         _ -> []
       catch
-        error:syntax_error -> []
+        throw:syntax_error -> []
       end;
     _ ->
       []
