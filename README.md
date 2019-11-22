@@ -7,16 +7,15 @@
 
 An Erlang server implementing Microsoft's Language Server Protocol 3.0.
 
-## Disclaimer
+## Getting in Touch
 
-This project is still under heavy development and it is therefore not
-still suitable as a fully-functional language server for daily usage.
-Said that, contributors and early users are extremely welcome.
+If you have any questions about the project, feel free to open a new
+issue. You can also join the `#language-server` channel in the
+_Erlanger_ Slack if you would like to get involved or if you prefer a
+more informal mean of communication.
 
-If you have any issues or questions about the project, feel free to
-open a new issue. You can also join the #language-server channel in
-the _Erlanger_ Slack if you would like to get involved or if you
-prefer a more informal mean of communication.
+All contributions are welcome, be them in the form of a bug report, a
+question, feedback, or code.
 
 A [wiki](https://github.com/erlang-ls/erlang_ls/wiki) is also
 available and I occasionally blog about the project on
