@@ -78,7 +78,7 @@ functions(Config) ->
                 } || {Name, {FromL, FromC}, {ToL, ToC}}
                        <- lists:append([functions()])],
   ?assertEqual(length(Expected), length(Symbols)),
-  Pairs = lists:zip(Expected, Symbols),
+  Pairs = lists:zip(lists:sort(Expected), lists:sort(Symbols)),
   [?assertEqual(E, S) || {E, S} <- Pairs],
   ok.
 
