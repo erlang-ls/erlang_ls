@@ -216,7 +216,7 @@ attribute(Tree) ->
           []
       end;
     {record, {Record, _Fields}} ->
-      [els_poi:new(Pos, record, atom_to_list(Record))];
+      [els_poi:new(Pos, record, Record)];
     {spec, {spec, {{F, A}, _}}} ->
       [els_poi:new(Pos, spec, {F, A}, Tree)];
     {type, {type, {Type, _, Args}}} ->
@@ -272,7 +272,7 @@ record_access(Tree) ->
   RecordNode = erl_syntax:record_access_type(Tree),
   case erl_syntax:type(RecordNode) of
     atom ->
-      Record = erl_syntax:atom_name(RecordNode),
+      Record = erl_syntax:atom_value(RecordNode),
       Field = erl_syntax:atom_name(erl_syntax:record_access_field(Tree)),
       [els_poi:new(erl_syntax:get_pos(Tree), record_access, {Record, Field})];
     _ ->
@@ -284,7 +284,7 @@ record_expr(Tree) ->
   RecordNode = erl_syntax:record_expr_type(Tree),
   case erl_syntax:type(RecordNode) of
     atom ->
-      Record = erl_syntax:atom_name(RecordNode),
+      Record = erl_syntax:atom_value(RecordNode),
       [els_poi:new(erl_syntax:get_pos(Tree), record_expr, Record)];
     _ ->
       []

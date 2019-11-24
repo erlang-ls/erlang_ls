@@ -60,10 +60,11 @@ range({Line, Column}, module, _) ->
   To = From,
   #{ from => From, to => To };
 range(Pos, record_access, {Record, Field}) ->
-  #{ from => minus(Pos, "#"), to => plus(Pos, Record ++ "." ++ Field) };
+  #{ from => minus(Pos, "#")
+   , to => plus(Pos, atom_to_list(Record) ++ "." ++ Field) };
 range({Line, Column}, record_expr, Record) ->
   From = {Line, Column - 1},
-  To = {Line, Column + length(Record) - 1},
+  To = plus({Line, Column}, atom_to_list(Record)),
   #{ from => From, to => To };
 range({Line, _Column}, record, _Record) ->
   From = {Line, 1},
