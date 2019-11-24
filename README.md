@@ -64,6 +64,11 @@ file (assuming the `erlang_ls` executable is available in your `PATH`:
     ;; Enable LSP automatically for Erlang files
     (add-hook 'erlang-mode-hook #'lsp)
 
+    ;; TCP connection timeout
+    (setq lsp-tcp-connection-timeout 500)
+    ;; Set path to erlang_ls escript (unless it's in your path)
+    (setq lsp-erlang-server-path "/path/to/erlang_ls")
+
     ;; Override the key bindings from erlang-mode to use LSP for completion
     (eval-after-load 'erlang
       '(define-key erlang-mode-map (kbd "C-M-i") #'company-lsp))
@@ -78,6 +83,9 @@ of your Emacs path. If you don't, you can try the following:
 To enable logging on the client-side, just:
 
     (setq lsp-log-io t)
+
+Remember that the Erlang Language Server requires Erlang/OTP 21 or
+higher to run, so ensure that OTP 21+ is available in your `PATH`.
 
 ### VSCode Setup
 
