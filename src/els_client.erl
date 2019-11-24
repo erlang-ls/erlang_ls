@@ -78,45 +78,46 @@
                 ) ->
   ok.
 completion(Uri, Line, Char, TriggerKind, TriggerCharacter) ->
+  Opts = {Uri, Line, Char, TriggerKind, TriggerCharacter},
   gen_server:call( ?SERVER
-                 , {completion, Uri, Line, Char, TriggerKind, TriggerCharacter}
+                 , {completion, Opts}
                  ).
 
 -spec definition(uri(), non_neg_integer(), non_neg_integer()) ->
   ok.
 definition(Uri, Line, Char) ->
-  gen_server:call(?SERVER, {definition, Uri, Line, Char}).
+  gen_server:call(?SERVER, {definition, {Uri, Line, Char}}).
 
 -spec hover(uri(), non_neg_integer(), non_neg_integer()) ->
   ok.
 hover(Uri, Line, Char) ->
-  gen_server:call(?SERVER, {hover, Uri, Line, Char}).
+  gen_server:call(?SERVER, {hover, {Uri, Line, Char}}).
 
 -spec references(uri(), non_neg_integer(), non_neg_integer()) ->
   ok.
 references(Uri, Line, Char) ->
-  gen_server:call(?SERVER, {references, Uri, Line, Char}).
+  gen_server:call(?SERVER, {references, {Uri, Line, Char}}).
 
 -spec did_open(uri(), binary(), number(), binary()) -> ok.
 did_open(Uri, LanguageId, Version, Text) ->
-  gen_server:call(?SERVER, {did_open, Uri, LanguageId, Version, Text}).
+  gen_server:call(?SERVER, {did_open, {Uri, LanguageId, Version, Text}}).
 
 -spec did_save(uri()) -> ok.
 did_save(Uri) ->
-  gen_server:call(?SERVER, {did_save, Uri}).
+  gen_server:call(?SERVER, {did_save, {Uri}}).
 
 -spec did_close(uri()) -> ok.
 did_close(Uri) ->
-  gen_server:call(?SERVER, {did_close, Uri}).
+  gen_server:call(?SERVER, {did_close, {Uri}}).
 
 -spec document_symbol(uri()) ->
   ok.
 document_symbol(Uri) ->
-  gen_server:call(?SERVER, {document_symbol, Uri}).
+  gen_server:call(?SERVER, {document_symbol, {Uri}}).
 
 -spec initialize(uri(), init_options()) -> map().
 initialize(RootUri, InitOptions) ->
-  gen_server:call(?SERVER, {initialize, RootUri, InitOptions}).
+  gen_server:call(?SERVER, {initialize, {RootUri, InitOptions}}).
 
 -spec shutdown() -> map().
 shutdown() ->
@@ -139,7 +140,7 @@ stop() ->
 -spec workspace_symbol(string()) ->
   ok.
 workspace_symbol(Query) ->
-  gen_server:call(?SERVER, {workspace_symbol, Query}).
+  gen_server:call(?SERVER, {workspace_symbol, {Query}}).
 
 %%==============================================================================
 %% gen_server Callback Functions
@@ -155,133 +156,21 @@ init({stdio, IoDevice}) ->
   {ok, #state{transport = stdio, connection = IoDevice}}.
 
 -spec handle_call(any(), any(), state()) -> {reply, any(), state()}.
-handle_call( {completion, Uri, Line, Char, TriggerKind, TriggerCharacter}
-           , From
-           , State) ->
-  #state{request_id = RequestId} = State,
-  Method = <<"textDocument/completion">>,
-  Params = #{ position     => #{ line      => Line - 1
-                               , character => Char - 1
-                               }
-            , textDocument => #{ uri  => Uri }
-            , context      => #{ triggerKind      => TriggerKind
-                               , triggerCharacter => TriggerCharacter
-                               }
-            },
-  Content = els_protocol:request(RequestId, Method, Params),
-  send(Content, State),
-  {noreply, State#state{ request_id = RequestId + 1
-                       , pending    = [{RequestId, From} | State#state.pending]
-                       }};
-handle_call({definition, Uri, Line, Char}, From, State) ->
-  #state{request_id = RequestId} = State,
-  Method = <<"textDocument/definition">>,
-  TextDocument = #{ uri  => Uri },
-  Position = #{ line      => Line - 1
-              , character => Char - 1
-              },
-  Params = #{ position     => Position
-            , textDocument => TextDocument
-            },
-  Content = els_protocol:request(RequestId, Method, Params),
-  send(Content, State),
-  {noreply, State#state{ request_id = RequestId + 1
-                       , pending    = [{RequestId, From} | State#state.pending]
-                       }};
-handle_call({document_symbol, Uri}, From, State) ->
-  RequestId = State#state.request_id,
-  Method = <<"textDocument/documentSymbol">>,
-  TextDocument = #{ uri  => Uri },
-  Params = #{ textDocument => TextDocument },
-  Content = els_protocol:request(RequestId, Method, Params),
-  send(Content, State),
-  {noreply, State#state{ request_id = RequestId + 1
-                       , pending    = [{RequestId, From} | State#state.pending]
-                       }};
-handle_call({references, Uri, Line, Char}, From, State) ->
-  RequestId = State#state.request_id,
-  Method = <<"textDocument/references">>,
-  Params = #{ position     => #{ line      => Line - 1
-                               , character => Char - 1
-                               }
-            , textDocument => #{ uri  => Uri }
-            },
-  Content = els_protocol:request(RequestId, Method, Params),
-  send(Content, State),
-  {noreply, State#state{ request_id = RequestId + 1
-                       , pending    = [{RequestId, From} | State#state.pending]
-                       }};
-handle_call({did_open, Uri, LanguageId, Version, Text}, _From, State) ->
-  Method = <<"textDocument/didOpen">>,
-  TextDocument = #{ uri        => Uri
-                  , languageId => LanguageId
-                  , version    => Version
-                  , text       => Text
-                  },
-  Params = #{textDocument => TextDocument},
+handle_call({Action, Opts}, _From, State) when Action =:= did_save
+                                        orelse Action =:= did_close
+                                        orelse Action =:= did_open ->
+  Method = method_lookup(Action),
+  Params = notification_params(Opts),
   Content = els_protocol:notification(Method, Params),
   send(Content, State),
   {reply, ok, State};
-handle_call({did_save, Uri}, _From, State) ->
-  Method = <<"textDocument/didSave">>,
-  TextDocument = #{ uri => Uri },
-  Params = #{textDocument => TextDocument},
-  Content = els_protocol:notification(Method, Params),
+handle_call({exit}, _From, State) ->
+  RequestId = State#state.request_id,
+  Method = <<"exit">>,
+  Params = #{},
+  Content = els_protocol:request(RequestId, Method, Params),
   send(Content, State),
   {reply, ok, State};
-handle_call({did_close, Uri}, _From, State) ->
-  Method = <<"textDocument/didClose">>,
-  TextDocument = #{ uri => Uri },
-  Params = #{textDocument => TextDocument},
-  Content = els_protocol:notification(Method, Params),
-  send(Content, State),
-  {reply, ok, State};
-handle_call({hover, Uri, Line, Char}, From, State) ->
-  RequestId = State#state.request_id,
-  Method = <<"textDocument/hover">>,
-  TextDocument = #{ uri  => Uri },
-  Position = #{ line      => Line - 1
-              , character => Char - 1
-              },
-  Params = #{ position     => Position
-            , textDocument => TextDocument
-            },
-  Content = els_protocol:request(RequestId, Method, Params),
-  send(Content, State),
-  {noreply, State#state{ request_id = RequestId + 1
-                       , pending    = [{RequestId, From} | State#state.pending]
-                       }};
-handle_call({initialize, RootUri, InitOptions}, From, State) ->
-  RequestId = State#state.request_id,
-  Method  = <<"initialize">>,
-  Params  = #{ <<"rootUri">> => RootUri
-             , <<"initializationOptions">> => InitOptions
-             , <<"capabilities">> =>
-                 #{ <<"textDocument">> =>
-                      #{ <<"completion">> =>
-                           #{ <<"contextSupport">> => 'true' }
-                       , <<"hover">> =>
-                           #{ <<"contentFormat">> => [ ?MARKDOWN
-                                                     , ?PLAINTEXT
-                                                     ]
-                            }
-                       }
-                  }
-             },
-  Content = els_protocol:request(RequestId, Method, Params),
-  send(Content, State),
-  {noreply, State#state{ request_id = RequestId + 1
-                       , pending    = [{RequestId, From} | State#state.pending]
-                       }};
-handle_call({workspace_symbol, Query}, From, State) ->
-  RequestId = State#state.request_id,
-  Method = <<"workspace/symbol">>,
-  Params = #{ query => Query },
-  Content = els_protocol:request(RequestId, Method, Params),
-  send(Content, State),
-  {noreply, State#state{ request_id = RequestId + 1
-                       , pending    = [{RequestId, From} | State#state.pending]
-                       }};
 handle_call({shutdown}, From, State) ->
   RequestId = State#state.request_id,
   Method = <<"shutdown">>,
@@ -291,13 +180,15 @@ handle_call({shutdown}, From, State) ->
   {noreply, State#state{ request_id = RequestId + 1
                        , pending    = [{RequestId, From} | State#state.pending]
                        }};
-handle_call({exit}, _From, State) ->
-  RequestId = State#state.request_id,
-  Method = <<"exit">>,
-  Params = #{},
+handle_call(Input = {Action, _}, From, State) ->
+  #state{request_id = RequestId} = State,
+  Method = method_lookup(Action),
+  Params = request_params(Input),
   Content = els_protocol:request(RequestId, Method, Params),
   send(Content, State),
-  {reply, ok, State}.
+  {noreply, State#state{ request_id = RequestId + 1
+                       , pending    = [{RequestId, From} | State#state.pending]
+                       }}.
 
 -spec handle_cast(any(), state()) -> {noreply, state()}.
 handle_cast( {messages, Responses}
@@ -375,3 +266,61 @@ send(Content, #state{transport = tcp, connection = Socket}) ->
   gen_tcp:send(Socket, Content);
 send(Content, #state{transport = stdio, connection = IoDevice}) ->
   io:format(IoDevice, iolist_to_binary(Content), []).
+
+-spec method_lookup(atom()) -> binary().
+method_lookup(completion)       -> <<"textDocument/completion">>;
+method_lookup(definition)       -> <<"textDocument/definition">>;
+method_lookup(document_symbol)  -> <<"textDocument/documentSymbol">>;
+method_lookup(references)       -> <<"textDocument/references">>;
+method_lookup(did_open)         -> <<"textDocument/didOpen">>;
+method_lookup(did_save)         -> <<"textDocument/didSave">>;
+method_lookup(did_close)        -> <<"textDocument/didClose">>;
+method_lookup(hover)            -> <<"textDocument/hover">>;
+method_lookup(workspace_symbol) -> <<"workspace/symbol">>;
+method_lookup(initialize)       -> <<"initialize">>.
+
+-spec request_params(tuple()) -> any().
+request_params({document_symbol, {Uri}}) ->
+  TextDocument = #{ uri => Uri },
+  #{ textDocument => TextDocument };
+request_params({workspace_symbol, {Query}}) ->
+  #{ query => Query };
+request_params({ completion
+               , {Uri, Line, Char, TriggerKind, TriggerCharacter}}) ->
+  #{ textDocument => #{ uri => Uri }
+   , position     => #{ line      => Line - 1
+                      , character => Char - 1
+                      }
+   , context => #{ triggerKind      => TriggerKind
+                 , triggerCharacter => TriggerCharacter
+                 }
+   };
+request_params({initialize, {RootUri, InitOptions}}) ->
+  ContentFormat = [ ?MARKDOWN , ?PLAINTEXT ],
+  TextDocument = #{ <<"completion">> =>
+                    #{ <<"contextSupport">> => 'true' }
+                  , <<"hover">> =>
+                    #{ <<"contentFormat">> => ContentFormat }
+                  },
+  #{ <<"rootUri">> => RootUri
+   , <<"initializationOptions">> => InitOptions
+   , <<"capabilities">> => #{ <<"textDocument">> => TextDocument }
+   };
+request_params({_Action, {Uri, Line, Char}}) ->
+  #{ textDocument => #{ uri => Uri }
+   , position     => #{ line      => Line - 1
+                      , character => Char - 1
+                      }
+   }.
+
+-spec notification_params(tuple()) -> map().
+notification_params({Uri}) ->
+  TextDocument = #{ uri => Uri },
+  #{textDocument => TextDocument};
+notification_params({Uri, LanguageId, Version, Text}) ->
+  TextDocument = #{ uri        => Uri
+                  , languageId => LanguageId
+                  , version    => Version
+                  , text       => Text
+                  },
+  #{textDocument => TextDocument}.
