@@ -67,7 +67,12 @@ find_completion( _Prefix
                , ?COMPLETION_TRIGGER_KIND_CHARACTER
                , #{trigger := <<"?">>, document := Document}
                ) ->
-  macros(Document);
+  definitions(Document, define);
+find_completion( _Prefix
+               , ?COMPLETION_TRIGGER_KIND_CHARACTER
+               , #{trigger := <<"#">>, document := Document}
+               ) ->
+  definitions(Document, record);
 find_completion( Prefix
                , ?COMPLETION_TRIGGER_KIND_INVOKED
                , #{document := Document}
@@ -81,7 +86,10 @@ find_completion( Prefix
       exported_functions(Module, false);
     %% Check for "[...] ?anything"
     [_, {'?', _} | _] ->
-      macros(Document);
+      definitions(Document, define);
+    %% Check for "[...] #anything"
+    [_, {'#', _} | _] ->
+      definitions(Document, record);
     %% Check for "[...] Variable"
     [{var, _, _} | _] ->
       variables(Document);
@@ -178,37 +186,41 @@ variables(Document) ->
   lists:usort(Vars).
 
 %%==============================================================================
-%% Macros
+%% Macros and Records
 %%==============================================================================
 
--spec macros(els_document:document()) -> [map()].
-macros(Document) ->
-  Macros = lists:flatten([local_macros(Document), included_macros(Document)]),
-  lists:usort(Macros).
+-type def_type() :: define | record.
 
--spec local_macros(els_document:document()) -> [map()].
-local_macros(Document) ->
-  POIs   = els_document:points_of_interest(Document, [define]),
+-spec definitions(els_document:document(), def_type()) -> [map()].
+definitions(Document, Type) ->
+  Definitions = lists:flatten([ local_definitions(Document, Type)
+                              , included_definitions(Document, Type)
+                              ]),
+  lists:usort(Definitions).
+
+-spec local_definitions(els_document:document(), def_type()) -> [map()].
+local_definitions(Document, Type) ->
+  POIs = els_document:points_of_interest(Document, [Type]),
    [ #{ label => atom_to_binary(Name, utf8)
-      , kind  => ?COMPLETION_ITEM_KIND_CONSTANT
+      , kind  => completion_item_kind(Type)
       }
      || #{id := Name} <- POIs
    ].
 
--spec included_macros(els_document:document()) -> [[map()]].
-included_macros(Document) ->
+-spec included_definitions(els_document:document(), def_type()) -> [[map()]].
+included_definitions(Document, Type) ->
   Kinds = [include, include_lib],
   POIs  = els_document:points_of_interest(Document, Kinds),
-  [include_file_macros(Name) || #{id := Name} <- POIs].
+  [include_file_definitions(Name, Type) || #{id := Name} <- POIs].
 
--spec include_file_macros(string()) -> [map()].
-include_file_macros(Name) ->
+-spec include_file_definitions(string(), def_type()) -> [map()].
+include_file_definitions(Name, Type) ->
   Filename = filename:basename(Name),
   M = list_to_atom(Filename),
   case els_utils:find_module(M) of
     {ok, Uri} ->
       {ok, IncludeDocument} = els_utils:find_document(Uri),
-      local_macros(IncludeDocument);
+      local_definitions(IncludeDocument, Type);
     {error, _} ->
       []
   end.
@@ -247,3 +259,13 @@ to_binary(X) when is_atom(X) ->
   atom_to_binary(X, utf8);
 to_binary(X) when is_binary(X) ->
   X.
+
+%%==============================================================================
+%% Maps definition types to completion item kinds
+%%==============================================================================
+
+-spec completion_item_kind(def_type()) -> completion_item_kind().
+completion_item_kind(define) ->
+  ?COMPLETION_ITEM_KIND_CONSTANT;
+completion_item_kind(record) ->
+  ?COMPLETION_ITEM_KIND_STRUCT.

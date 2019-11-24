@@ -21,6 +21,7 @@
         , handle_empty_lines/1
         , macros/1
         , only_exported_functions_after_colon/1
+        , records/1
         , variables/1
         ]).
 
@@ -264,6 +265,29 @@ only_exported_functions_after_colon(Config) ->
   #{result := Completion} =
     els_client:completion(Uri, 32, 26, TriggerKind, <<"d">>),
   ?assertEqual(lists:sort(ExpectedCompletion), lists:sort(Completion)),
+
+  ok.
+
+-spec records(config()) -> ok.
+records(Config) ->
+  Uri = ?config(code_navigation_uri, Config),
+  TriggerKindChar = ?COMPLETION_TRIGGER_KIND_CHARACTER,
+  TriggerKindInvoked = ?COMPLETION_TRIGGER_KIND_INVOKED,
+  Expected = [ #{ kind => ?COMPLETION_ITEM_KIND_STRUCT
+                , label => <<"included_record_a">>
+                }
+             , #{ kind => ?COMPLETION_ITEM_KIND_STRUCT
+                , label => <<"record_a">>
+                }
+             ],
+
+  #{result := Completion1} =
+    els_client:completion(Uri, 24, 1, TriggerKindChar, <<"#">>),
+  ?assertEqual(lists:sort(Expected), lists:sort(Completion1)),
+
+  #{result := Completion2} =
+    els_client:completion(Uri, 23, 6, TriggerKindInvoked, <<"">>),
+  ?assertEqual(lists:sort(Expected), lists:sort(Completion2)),
 
   ok.
 
