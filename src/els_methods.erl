@@ -111,8 +111,8 @@ initialize(Params, State) ->
                }
           , definitionProvider => els_definition_provider:is_enabled()
           , referencesProvider => els_references_provider:is_enabled()
-            %% AZ:TODO: different enable flag for documentHighlightProvider
-          , documentHighlightProvider => els_references_provider:is_enabled()
+          , documentHighlightProvider =>
+              els_document_highlight_provider:is_enabled()
           , documentSymbolProvider =>
               els_document_symbol_provider:is_enabled()
           , workspaceSymbolProvider =>
@@ -252,7 +252,7 @@ textdocument_references(Params, State) ->
 
 -spec textdocument_documenthighlight(params(), state()) -> result().
 textdocument_documenthighlight(Params, State) ->
-  Provider = els_references_provider,
+  Provider = els_document_highlight_provider,
   Response = els_provider:handle_request(Provider,
                                          {document_highlight, Params}),
   {response, Response, State}.
