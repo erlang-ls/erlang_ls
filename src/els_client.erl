@@ -22,6 +22,7 @@
         , hover/3
         , initialize/2
         , references/3
+        , document_highlight/3
         , shutdown/0
         , start_link/2
         , stop/0
@@ -97,6 +98,11 @@ hover(Uri, Line, Char) ->
   ok.
 references(Uri, Line, Char) ->
   gen_server:call(?SERVER, {references, {Uri, Line, Char}}).
+
+-spec document_highlight(uri(), non_neg_integer(), non_neg_integer()) ->
+  ok.
+document_highlight(Uri, Line, Char) ->
+  gen_server:call(?SERVER, {document_highlight, {Uri, Line, Char}}).
 
 -spec did_open(uri(), binary(), number(), binary()) -> ok.
 did_open(Uri, LanguageId, Version, Text) ->
@@ -268,16 +274,17 @@ send(Content, #state{transport = stdio, connection = IoDevice}) ->
   io:format(IoDevice, iolist_to_binary(Content), []).
 
 -spec method_lookup(atom()) -> binary().
-method_lookup(completion)       -> <<"textDocument/completion">>;
-method_lookup(definition)       -> <<"textDocument/definition">>;
-method_lookup(document_symbol)  -> <<"textDocument/documentSymbol">>;
-method_lookup(references)       -> <<"textDocument/references">>;
-method_lookup(did_open)         -> <<"textDocument/didOpen">>;
-method_lookup(did_save)         -> <<"textDocument/didSave">>;
-method_lookup(did_close)        -> <<"textDocument/didClose">>;
-method_lookup(hover)            -> <<"textDocument/hover">>;
-method_lookup(workspace_symbol) -> <<"workspace/symbol">>;
-method_lookup(initialize)       -> <<"initialize">>.
+method_lookup(completion)         -> <<"textDocument/completion">>;
+method_lookup(definition)         -> <<"textDocument/definition">>;
+method_lookup(document_symbol)    -> <<"textDocument/documentSymbol">>;
+method_lookup(references)         -> <<"textDocument/references">>;
+method_lookup(document_highlight) -> <<"textDocument/documentHighlight">>;
+method_lookup(did_open)           -> <<"textDocument/didOpen">>;
+method_lookup(did_save)           -> <<"textDocument/didSave">>;
+method_lookup(did_close)          -> <<"textDocument/didClose">>;
+method_lookup(hover)              -> <<"textDocument/hover">>;
+method_lookup(workspace_symbol)   -> <<"workspace/symbol">>;
+method_lookup(initialize)         -> <<"initialize">>.
 
 -spec request_params(tuple()) -> any().
 request_params({document_symbol, {Uri}}) ->

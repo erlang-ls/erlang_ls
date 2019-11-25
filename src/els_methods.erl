@@ -20,6 +20,7 @@
         , textdocument_hover/2
         , textdocument_definition/2
         , textdocument_references/2
+        , textdocument_documenthighlight/2
         , workspace_didchangewatchedfiles/2
         , workspace_symbol/2
         ]).
@@ -110,6 +111,8 @@ initialize(Params, State) ->
                }
           , definitionProvider => els_definition_provider:is_enabled()
           , referencesProvider => els_references_provider:is_enabled()
+          , documentHighlightProvider =>
+              els_document_highlight_provider:is_enabled()
           , documentSymbolProvider =>
               els_document_symbol_provider:is_enabled()
           , workspaceSymbolProvider =>
@@ -243,6 +246,16 @@ textdocument_references(Params, State) ->
   Response = els_provider:handle_request(Provider, {references, Params}),
   {response, Response, State}.
 
+%%==============================================================================
+%% textDocument/documentHightlight
+%%==============================================================================
+
+-spec textdocument_documenthighlight(params(), state()) -> result().
+textdocument_documenthighlight(Params, State) ->
+  Provider = els_document_highlight_provider,
+  Response = els_provider:handle_request(Provider,
+                                         {document_highlight, Params}),
+  {response, Response, State}.
 
 %%==============================================================================
 %% workspace/didChangeWatchedFiles
