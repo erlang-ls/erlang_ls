@@ -51,8 +51,16 @@ file (assuming the `erlang_ls` executable is available in your `PATH`:
 
     ;; Install the yasnippet dependency
     (package-install 'yasnippet)
+
+    ;; ----- lsp-mode -----
     ;; Install the official lsp-mode package
     (package-install 'lsp-mode)
+    ;; Set path to erlang_ls escript (unless it's in your PATH)
+    (setq lsp-erlang-server-path "/path/to/erlang_ls")
+    ;; Enable LSP automatically for Erlang files
+    (add-hook 'erlang-mode-hook #'lsp)
+
+    ;; ----- lsp-ui -----
     ;; It is usually a good idea to install lsp-ui as well
     (package-install 'lsp-ui)
     ;; The lsp-ui sideline can become a serious distraction, so you
@@ -61,17 +69,16 @@ file (assuming the `erlang_ls` executable is available in your `PATH`:
     ;; Ensure docs are visible
     (setq lsp-ui-doc-enable t)
 
-    ;; Enable LSP automatically for Erlang files
-    (add-hook 'erlang-mode-hook #'lsp)
+    ;; ----- company-lsp -----
+    ;; Enables better integration with company (auto-completion)
+    (package-install 'company-lsp)
+    (push 'company-lsp company-backends)
 
-    ;; TCP connection timeout
-    (setq lsp-tcp-connection-timeout 500)
-    ;; Set path to erlang_ls escript (unless it's in your path)
-    (setq lsp-erlang-server-path "/path/to/erlang_ls")
-
-    ;; Override the key bindings from erlang-mode to use LSP for completion
-    (eval-after-load 'erlang
-      '(define-key erlang-mode-map (kbd "C-M-i") #'company-lsp))
+    ;; ----- helm-lsp -----
+    ;; Provides commands to list workspace symbols:
+    ;; - helm-lsp-workspace-symbol
+    ;; - helm-lsp-global-workspace-symbol
+    (package-install 'helm-lsp)
 
 Ensure you have Erlang (i.e. `erl`, `escript` and friends) as part
 of your Emacs path. If you don't, you can try the following:
