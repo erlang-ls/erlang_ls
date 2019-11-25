@@ -79,7 +79,7 @@ find([Uri|Uris0], Kind, Data) ->
         [] ->
           find(lists:usort(include_uris(Document) ++ Uris0), Kind, Data);
         Definitions ->
-          {ok, Uri, hd(lists:sort(Definitions))}
+          {ok, Uri, hd(els_poi:sort(Definitions))}
       end;
     {error, not_found} ->
       find(Uris0, Kind, Data)

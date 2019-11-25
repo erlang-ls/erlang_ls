@@ -74,4 +74,5 @@ points_of_interest(#{pois := POIs}, Kinds, Pattern) ->
   [any()].
 get_element_at_pos(Document, Line, Column) ->
   POIs = maps:get(pois, Document),
-  els_poi:match_pos(POIs, {Line, Column}).
+  MatchedPOIs = els_poi:match_pos(POIs, {Line, Column}),
+  els_poi:sort(MatchedPOIs).

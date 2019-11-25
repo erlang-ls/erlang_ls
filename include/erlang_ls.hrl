@@ -553,6 +553,7 @@
 -type poi_kind()  :: application
                    | behaviour
                    | define
+                   | export
                    | exports_entry
                    | function
                    | implicit_fun

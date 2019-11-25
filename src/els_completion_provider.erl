@@ -44,6 +44,7 @@ handle_request({completion, Params}, State) ->
                end,
       Opts   = #{ trigger  => TriggerCharacter
                 , document => Document
+                , line     => Line + 1
                 },
       {find_completion(Prefix, TriggerKind, Opts), State};
     error ->
@@ -75,7 +76,9 @@ find_completion( _Prefix
   definitions(Document, record);
 find_completion( Prefix
                , ?COMPLETION_TRIGGER_KIND_INVOKED
-               , #{document := Document}
+               , #{ document := Document
+                  , line     := Line
+                  }
                ) ->
   case lists:reverse(els_text:tokens(Prefix)) of
     %% Check for "[...] fun atom:atom"
@@ -99,7 +102,8 @@ find_completion( Prefix
     %% Check for "[...] atom"
     [{atom, _, Name} | _] ->
       NameBinary = atom_to_binary(Name, utf8),
-      keywords() ++ modules(NameBinary) ++ functions(Document, false, false);
+      IsExport   = is_exports_entry(Document, Line),
+      keywords() ++ modules(NameBinary) ++ functions(Document, false, IsExport);
     _ ->
       []
   end;
@@ -170,6 +174,15 @@ snippet_function_call(Function, Args0) ->
             ],
   Snippet = [atom_to_list(Function), "(", string:join(Args, ", "), ")"],
   iolist_to_binary(Snippet).
+
+-spec is_exports_entry(els_document:document(), non_neg_integer()) -> boolean().
+is_exports_entry(Document, Line) ->
+  case els_document:points_of_interest(Document, [exports]) of
+    [#{range := #{from := {From, _}, to := {To, _}}}] ->
+      (From =< Line) andalso (Line =< To);
+    _ ->
+      false
+  end.
 
 %%==============================================================================
 %% Variables

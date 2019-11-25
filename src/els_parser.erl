@@ -56,7 +56,7 @@ parse_form(IoDevice, Location0, Parser, _Options) ->
           {ok, POIs, Location1}
       catch
         _:_ ->
-          {ok, [], Location1}
+          {ok, find_attribute_tokens(Tokens), Location1}
       end;
     {error, _IoErr, _Location1} = Err -> Err;
     {error, _Reason} -> {eof, Location0};
@@ -72,8 +72,11 @@ find_attribute_pois(Form, Tokens) ->
         {export, Exports} ->
           %% The first atom is the attribute name, so we skip it.
           [_|Atoms] = [T|| {atom, _, _} = T <- Tokens],
-          [ els_poi:new(Pos, export_entry, {F, A})
-            || {{F, A}, {atom, Pos, _}} <- lists:zip(Exports, Atoms)];
+          ExportEntries =
+            [ els_poi:new(Pos, export_entry, {F, A})
+              || {{F, A}, {atom, Pos, _}} <- lists:zip(Exports, Atoms)
+            ],
+          [find_attribute_tokens(Tokens), ExportEntries];
         {import, {M, Imports}} ->
           %% The first two atoms are the attribute name and the imported
           %% module, so we skip them.
@@ -84,11 +87,21 @@ find_attribute_pois(Form, Tokens) ->
           lists:flatten([find_spec_points_of_interest(FT) || FT <- FTs]);
         _ -> []
       catch
-        throw:syntax_error -> []
+        throw:syntax_error ->
+          []
       end;
     _ ->
       []
   end.
+
+-spec find_attribute_tokens([erl_scan:token()]) -> [poi()].
+find_attribute_tokens([{'-', Anno}, {atom, _, export} | Rest]) ->
+  {dot, LastAnno} = lists:last(Rest),
+  Pos = erl_anno:location(Anno),
+  LastPos = erl_anno:location(LastAnno),
+  [els_poi:new(Pos, exports, LastPos)];
+find_attribute_tokens(_) ->
+  [].
 
 %% @edoc Find points of interest in a spec attribute.
 -spec find_spec_points_of_interest(tree()) -> [poi()].

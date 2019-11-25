@@ -2,7 +2,20 @@
 
 -include("erlang_ls.hrl").
 
--export([ range/3 ]).
+-export([ compare/2
+        , range/3
+        ]).
+
+-spec compare(poi_range(), poi_range()) -> boolean().
+compare( #{from := FromA, to := ToA}
+       , #{from := FromB, to := ToB}
+       ) when FromB =< FromA, ToA =< ToB; %% Nested
+              ToA =< FromB;               %% Sequential
+              FromA =< FromB, ToA =< ToB  %% Sequential & Overlapped
+              ->
+  true;
+compare(_, _) ->
+  false.
 
 -spec range(pos(), poi_kind(), any()) -> poi_range().
 range({Line, Column}, application, {M, F, _A}) ->
@@ -30,6 +43,10 @@ range({Line, Column}, implicit_fun, {F, A}) ->
 range({Line, Column}, behaviour, Behaviour) ->
   From = {Line, Column - 1},
   To = {Line, Column + length("behaviour") + length(atom_to_list(Behaviour))},
+  #{ from => From, to => To };
+range({Line, Column}, exports, {ToLine, ToColumn}) ->
+  From = {Line, Column - 1},
+  To = {ToLine, ToColumn - 1},
   #{ from => From, to => To };
 range(Pos, export_entry, {F, A}) ->
   get_entry_range(Pos, F, A);
@@ -94,6 +111,7 @@ range({Line, Column}, variable, Name) ->
 -spec get_entry_range(pos(), atom(), non_neg_integer()) -> poi_range().
 get_entry_range({Line, Column}, F, A) ->
   From = {Line, Column - 1},
+  %% length("function/arity")
   Length = length(atom_to_list(F)) + length(integer_to_list(A)) + 1,
   To = {Line, Column + Length - 1},
   #{ from => From, to => To }.

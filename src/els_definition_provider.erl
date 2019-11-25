@@ -26,7 +26,7 @@ handle_request({definition, Params}, State) ->
   case
     els_document:get_element_at_pos(Document, Line + 1, Character + 1)
   of
-    [POI|_] ->
+    [POI | _] ->
       case els_code_navigation:goto_definition(Uri, POI) of
         {ok, DefUri, #{range := Range}} ->
           { #{ uri => DefUri, range => els_protocol:range(Range) }
