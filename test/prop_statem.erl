@@ -101,6 +101,7 @@ initialize_post(_S, _Args, Res) ->
                         }
                    , definitionProvider      => true
                    , referencesProvider      => true
+                   , documentHighlightProvider => true
                    , documentSymbolProvider  => true
                    , workspaceSymbolProvider => true
                    , didChangeWatchedFiles =>
