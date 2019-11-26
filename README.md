@@ -73,6 +73,9 @@ file (assuming the `erlang_ls` executable is available in your `PATH`:
     ;; Enables better integration with company (auto-completion)
     (package-install 'company-lsp)
     (push 'company-lsp company-backends)
+    ;; Override the default erlang-compile-tag to use completion-at-point
+    (eval-after-load 'erlang
+      '(define-key erlang-mode-map (kbd "C-M-i") #'company-lsp))
 
     ;; ----- helm-lsp -----
     ;; Provides commands to list workspace symbols:
