@@ -93,6 +93,9 @@ To enable logging on the client-side, just:
 
 Remember that the Erlang Language Server requires Erlang/OTP 21 or
 higher to run, so ensure that OTP 21+ is available in your `PATH`.
+This can be achieved, for example, by using the
+[exec-path-from-shell](https://github.com/purcell/exec-path-from-shell)
+Emacs package.
 
 ### VSCode Setup
 
