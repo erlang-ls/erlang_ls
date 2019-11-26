@@ -19,9 +19,11 @@ compare(_, _) ->
 
 -spec range(pos(), poi_kind(), any()) -> poi_range().
 range({Line, Column}, application, {M, F, _A}) ->
+  %% Column indicates the position of the :
   CFrom = Column - length(atom_to_list(M)),
   From = {Line, CFrom},
-  CTo = Column + length(atom_to_list(F)),
+  %% module:function
+  CTo = Column + length(atom_to_list(F)) + 1,
   To = {Line, CTo},
   #{ from => From, to => To };
 range({Line, Column}, application, {F, _A}) ->

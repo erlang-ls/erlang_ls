@@ -80,7 +80,7 @@ application_local(Config) ->
 application_remote(Config) ->
   Uri = ?config(code_navigation_uri, Config),
   #{result := Locations} = els_client:document_highlight(Uri, 32, 13),
-  ExpectedLocations = [ #{ range => #{from => {32, 3}, to => {32, 26}}
+  ExpectedLocations = [ #{ range => #{from => {32, 3}, to => {32, 27}}
                          }
                       , #{ range => #{from => {52, 8}, to => {52, 38}}
                          }
@@ -117,7 +117,7 @@ fun_local(Config) ->
 fun_remote(Config) ->
   Uri = ?config(code_navigation_uri, Config),
   #{result := Locations} = els_client:document_highlight(Uri, 52, 14),
-  ExpectedLocations = [ #{ range => #{from => {32, 3}, to => {32, 26}}
+  ExpectedLocations = [ #{ range => #{from => {32, 3}, to => {32, 27}}
                          }
                       , #{ range => #{from => {52, 8}, to => {52, 38}}
                          }

@@ -81,11 +81,11 @@ compiler(Config) ->
   ?assertEqual(1, length(Errors)),
   [#{range := WarningRange}] = Warnings,
   [#{range := ErrorRange}] = Errors,
-  ?assertEqual( #{'end' => #{character => 0,line => 5},
+  ?assertEqual( #{'end' => #{character => 0,line => 6},
                   start => #{character => 0,line => 5}}
               , WarningRange
               ),
-  ?assertEqual( #{'end' => #{character => 0,line => 4},
+  ?assertEqual( #{'end' => #{character => 0,line => 5},
                   start => #{character => 0,line => 4}}
               , ErrorRange
               ),

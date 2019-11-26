@@ -84,7 +84,7 @@ application_remote(Config) ->
   Uri = ?config(code_navigation_uri, Config),
   #{result := Locations} = els_client:references(Uri, 32, 13),
   ExpectedLocations = [ #{ uri => Uri
-                         , range => #{from => {32, 3}, to => {32, 26}}
+                         , range => #{from => {32, 3}, to => {32, 27}}
                          }
                       , #{ uri => Uri
                          , range => #{from => {52, 8}, to => {52, 38}}
@@ -126,7 +126,7 @@ fun_remote(Config) ->
   Uri = ?config(code_navigation_uri, Config),
   #{result := Locations} = els_client:references(Uri, 52, 14),
   ExpectedLocations = [ #{ uri => Uri
-                         , range => #{from => {32, 3}, to => {32, 26}}
+                         , range => #{from => {32, 3}, to => {32, 27}}
                          }
                       , #{ uri => Uri
                          , range => #{from => {52, 8}, to => {52, 38}}
