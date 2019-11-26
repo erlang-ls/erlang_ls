@@ -53,18 +53,22 @@ diagnostics(Uri) ->
 %%==============================================================================
 -spec diagnostics([compiler_msg()], severity()) -> [diagnostic()].
 diagnostics(List, Severity) ->
-  lists:flatten([[ diagnostic(Line, Module, Desc, Severity)
+  lists:flatten([[ diagnostic(location(Line), Module, Desc, Severity)
                    || {Line, Module, Desc} <- Info]
                  || {_Filename, Info } <- List]).
 
--spec diagnostic(integer(), module(), string(), integer()) -> diagnostic().
-diagnostic(Line, Module, Desc, Severity) ->
-  Range   = case is_integer(Line) of
-              true  -> #{from => {Line, 1}, to => {Line, 1}};
-              false -> #{from => {1, 1}, to => {1, 1}}
-            end,
+-spec diagnostic(erl_anno:location(), module(), string(), integer()) ->
+  diagnostic().
+diagnostic({Line, Col}, Module, Desc, Severity) ->
+  Range   = #{from => {Line, Col}, to => {Line + 1, 1}},
   Message = list_to_binary(lists:flatten(Module:format_error(Desc))),
   #{ range    => els_protocol:range(Range)
    , message  => Message
    , severity => Severity
    }.
+
+-spec location(erl_anno:line() | none) -> erl_anno:location().
+location(Line) when is_integer(Line) ->
+  {Line, 1};
+location(none) ->
+  {1, 1}.
