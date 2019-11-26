@@ -129,7 +129,17 @@ initialize(Params, State) ->
 
 -spec initialized(params(), state()) -> result().
 initialized(_Params, State) ->
-  {noresponse, State#{status => initialized}}.
+  %% Report to the user the server version
+  {ok,     App} = application:get_application(),
+  {ok, Version} = application:get_key(App, vsn),
+  lager:info("initialized: [App=~p] [Version=~p]", [App, Version]),
+  BinVersion = list_to_binary(Version),
+  Message = <<"Erlang LS version: ", BinVersion/binary>>,
+  Method  = <<"window/showMessage">>,
+  Params  = #{ type    => ?MESSAGE_TYPE_INFO
+             , message => Message
+             },
+  {notification, Method, Params, State#{status => initialized}}.
 
 %%==============================================================================
 %% shutdown
