@@ -1,6 +1,6 @@
 { application, erlang_ls
 , [ {description, "The Erlang Language Server"}
-  , {vsn, "1.0.0"}
+  , {vsn, git}
   , {registered, []}
   , {mod, { els_app, []}}
   , { applications
