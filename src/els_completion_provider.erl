@@ -178,10 +178,12 @@ snippet_function_call(Function, Args0) ->
 -spec is_exports_entry(els_document:document(), non_neg_integer()) -> boolean().
 is_exports_entry(Document, Line) ->
   case els_document:points_of_interest(Document, [exports]) of
-    [#{range := #{from := {From, _}, to := {To, _}}}] ->
-      (From =< Line) andalso (Line =< To);
-    _ ->
-      false
+    [] -> false;
+    Exports ->
+      IsInside = fun(#{range := #{from := {From, _}, to := {To, _}}}) ->
+                     (From =< Line) andalso (Line =< To)
+                 end,
+      lists:any(IsInside, Exports)
   end.
 
 %%==============================================================================
