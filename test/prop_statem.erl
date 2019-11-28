@@ -253,9 +253,11 @@ prop_main() ->
 setup() ->
   meck:new(els_compiler_diagnostics, [no_link, passthrough]),
   meck:new(els_dialyzer_diagnostics, [no_link, passthrough]),
+  meck:new(els_elvis_diagnostics, [no_link, passthrough]),
   meck:new(els_utils, [no_link, passthrough]),
   meck:expect(els_compiler_diagnostics, diagnostics, 1, []),
   meck:expect(els_dialyzer_diagnostics, diagnostics, 1, []),
+  meck:expect(els_elvis_diagnostics, diagnostics, 1, []),
   Self    = erlang:self(),
   HaltFun = fun(_X) -> Self ! halt_called, {noresponse, #{}} end,
   meck:expect(els_utils, halt, HaltFun),
@@ -272,6 +274,7 @@ setup() ->
 teardown(_) ->
   meck:unload(els_compiler_diagnostics),
   meck:unload(els_dialyzer_diagnostics),
+  meck:unload(els_elvis_diagnostics),
   meck:unload(els_utils),
   ok.
 

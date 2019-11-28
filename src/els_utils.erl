@@ -4,6 +4,7 @@
         , find_module/1
         , find_module/2
         , fold_files/4
+        , project_relative/1
         , halt/1
         , start_epmd/0
         ]).
@@ -65,6 +66,16 @@ halt(ExitCode) ->
 start_epmd() ->
     [] = os:cmd(epmd_path() ++ " -daemon"),
     ok.
+
+%% @doc Returns a project-relative file path for a given URI
+-spec project_relative(uri()) -> file:filename().
+project_relative(Uri) ->
+  Path = els_uri:path(Uri),
+  RootDir = els_config:get(root_uri),
+  RootPath = els_uri:path(RootDir),
+  RelativeBin = string:prefix(string:prefix(Path, RootPath), <<"/">>),
+  binary_to_list(RelativeBin).
+
 
 %%==============================================================================
 %% Internal functions

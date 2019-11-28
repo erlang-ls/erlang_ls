@@ -19,9 +19,10 @@ did_save(Params, Server) ->
   Uri          = maps:get(<<"uri">>         , TextDocument),
   CDiagnostics = els_compiler_diagnostics:diagnostics(Uri),
   DDiagnostics = els_dialyzer_diagnostics:diagnostics(Uri),
+  EDiagnostics = els_elvis_diagnostics:diagnostics(Uri),
   Method = <<"textDocument/publishDiagnostics">>,
   Params1  = #{ uri => Uri
-              , diagnostics => CDiagnostics ++ DDiagnostics
+              , diagnostics => CDiagnostics ++ DDiagnostics ++ EDiagnostics
               },
   els_server:send_notification(Server, Method, Params1).
 
