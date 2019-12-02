@@ -66,3 +66,6 @@ function_i() -> two.
 -spec function_j() -> pos_integer().
 function_j() ->
   53.
+
+%% [#283] Macro as function name crashes parser
+?macro_A() -> ok.
