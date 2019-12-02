@@ -138,16 +138,19 @@ points_of_interest(Tree) ->
 %% @edoc Return the list of points of interest for a given `Tree`.
 -spec do_points_of_interest(tree()) -> [poi()].
 do_points_of_interest(Tree) ->
-  case erl_syntax:type(Tree) of
-    application   -> application(Tree);
-    attribute     -> attribute(Tree);
-    function      -> function(Tree);
-    implicit_fun  -> implicit_fun(Tree);
-    macro         -> macro(Tree);
-    record_access -> record_access(Tree);
-    record_expr   -> record_expr(Tree);
-    variable      -> variable(Tree);
-    _             -> []
+  try
+    case erl_syntax:type(Tree) of
+      application   -> application(Tree);
+      attribute     -> attribute(Tree);
+      function      -> function(Tree);
+      implicit_fun  -> implicit_fun(Tree);
+      macro         -> macro(Tree);
+      record_access -> record_access(Tree);
+      record_expr   -> record_expr(Tree);
+      variable      -> variable(Tree);
+      _             -> []
+    end
+  catch throw:syntax_error -> []
   end.
 
 -spec application(tree()) -> [poi()].
