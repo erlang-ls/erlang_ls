@@ -24,7 +24,7 @@
 %% API
 -export([ process_requests/2
         , set_connection/2
-        , send_notification/3
+        , send_notification/2
         ]).
 
 %% Testing
@@ -35,6 +35,11 @@
 %% Includes
 %%==============================================================================
 -include("erlang_ls.hrl").
+
+%%==============================================================================
+%% Macros
+%%==============================================================================
+-define(SERVER, ?MODULE).
 
 %%==============================================================================
 %% Record Definitions
@@ -55,7 +60,7 @@
 %%==============================================================================
 -spec start_link(module()) -> {ok, pid()}.
 start_link(Transport) ->
-  {ok, Pid} = gen_server:start_link({local, ?MODULE}, ?MODULE, Transport, []),
+  {ok, Pid} = gen_server:start_link({local, ?SERVER}, ?MODULE, Transport, []),
   {ok, _} = Transport:start_listener(Pid),
   {ok, Pid}.
 
@@ -67,9 +72,9 @@ process_requests(Server, Requests) ->
 set_connection(Server, Connection) ->
   gen_server:call(Server, {set_connection, Connection}).
 
--spec send_notification(pid(), binary(), map()) -> ok.
-send_notification(Server, Method, Params) ->
-  gen_server:cast(Server, {notification, Method, Params}).
+-spec send_notification(binary(), map()) -> ok.
+send_notification(Method, Params) ->
+  gen_server:cast(?SERVER, {notification, Method, Params}).
 
 %%==============================================================================
 %% Testing
