@@ -76,7 +76,7 @@ loop(#state{buffer = Buffer} = State) ->
     {tcp, Socket, Packet} ->
       Data = <<Buffer/binary, Packet/binary>>,
       {Requests, NewBuffer} = els_jsonrpc:split(Data, [return_maps]),
-      ok = els_server:process_requests(els_server, Requests),
+      ok = els_server:process_requests(Requests),
       inet:setopts(Socket, [{active, once}]),
       loop(State#state{buffer = NewBuffer});
     {tcp_closed, _Socket} ->

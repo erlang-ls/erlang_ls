@@ -22,7 +22,7 @@
         ]).
 
 %% API
--export([ process_requests/2
+-export([ process_requests/1
         , set_connection/1
         , send_notification/2
         ]).
@@ -64,9 +64,9 @@ start_link(Transport) ->
   {ok, _} = Transport:start_listener(Pid),
   {ok, Pid}.
 
--spec process_requests(pid(), [any()]) -> ok.
-process_requests(Server, Requests) ->
-  gen_server:cast(Server, {messages, Requests}).
+-spec process_requests([any()]) -> ok.
+process_requests(Requests) ->
+  gen_server:cast(?SERVER, {process_requests, Requests}).
 
 -spec set_connection(any()) -> ok.
 set_connection(Connection) ->
@@ -102,11 +102,13 @@ handle_call({reset_state}, _From, State) ->
   {reply, ok, State#state{state = #{}}}.
 
 -spec handle_cast(any(), state()) -> {noreply, state()}.
-handle_cast({messages, Requests}, State0) ->
+handle_cast({process_requests, Requests}, State0) ->
   State = lists:foldl(fun handle_request/2, State0, Requests),
   {noreply, State};
 handle_cast({notification, Method, Params}, State) ->
   do_send_notification(Method, Params, State),
+  {noreply, State};
+handle_cast(_, State) ->
   {noreply, State}.
 
 %%==============================================================================

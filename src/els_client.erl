@@ -197,7 +197,7 @@ handle_call(Input = {Action, _}, From, State) ->
                        }}.
 
 -spec handle_cast(any(), state()) -> {noreply, state()}.
-handle_cast( {messages, Responses}
+handle_cast( {process_requests, Responses}
            , #state{pending = Pending, transport = stdio} = State
            ) ->
   Pending1 = handle_responses(Responses, Pending),
