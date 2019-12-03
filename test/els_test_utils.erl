@@ -60,6 +60,9 @@ init_per_suite(Config) ->
   DiagnosticsPath        = filename:join([ RootPath
                                          , <<"src">>
                                          , <<"diagnostics.erl">>]),
+  ElvisDiagnosticsPath   = filename:join([ RootPath
+                                         , <<"src">>
+                                         , <<"elvis_diagnostics.erl">>]),
   DiagnosticsIncludePath = filename:join([ RootPath
                                          , <<"include">>
                                          , <<"diagnostics.hrl">>]),
@@ -70,6 +73,7 @@ init_per_suite(Config) ->
   BehaviourUri           = els_uri:uri(BehaviourPath),
   IncludeUri             = els_uri:uri(IncludePath),
   DiagnosticsUri         = els_uri:uri(DiagnosticsPath),
+  ElvisDiagnosticsUri    = els_uri:uri(ElvisDiagnosticsPath),
   DiagnosticsIncludeUri  = els_uri:uri(DiagnosticsIncludePath),
 
   {ok, Text} = file:read_file(Path),
@@ -79,6 +83,7 @@ init_per_suite(Config) ->
   application:set_env(erlang_ls, index_deps, false),
 
   [ {root_uri, RootUri}
+  , {root_path, RootPath}
   , {code_navigation_uri, Uri}
   , {code_navigation_path, Path}
   , {code_navigation_text, Text}
@@ -87,6 +92,7 @@ init_per_suite(Config) ->
   , {behaviour_uri, BehaviourUri}
   , {include_uri, IncludeUri}
   , {diagnostics_uri, DiagnosticsUri}
+  , {elvis_diagnostics_uri, ElvisDiagnosticsUri}
   , {diagnostics_include_uri, DiagnosticsIncludeUri}
   | Config
   ].

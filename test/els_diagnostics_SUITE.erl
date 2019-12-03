@@ -12,6 +12,7 @@
 
 %% Test cases
 -export([ compiler/1
+        , elvis/1
         ]).
 
 %%==============================================================================
@@ -79,8 +80,8 @@ compiler(Config) ->
   Errors   = [D || #{severity := ?DIAGNOSTIC_ERROR}   = D <- Diagnostics],
   ?assertEqual(1, length(Warnings)),
   ?assertEqual(1, length(Errors)),
-  [#{range := WarningRange}] = Warnings,
-  [#{range := ErrorRange}] = Errors,
+  [ #{range := WarningRange} ] = Warnings,
+  [ #{range := ErrorRange} ] = Errors,
   ?assertEqual( #{'end' => #{character => 0,line => 6},
                   start => #{character => 0,line => 5}}
               , WarningRange
@@ -89,6 +90,41 @@ compiler(Config) ->
                   start => #{character => 0,line => 4}}
               , ErrorRange
               ),
+  ok.
+
+-spec elvis(config()) -> ok.
+elvis(Config) ->
+  Cwd = file:get_cwd(),
+  RootPath = ?config(root_path, Config),
+  try
+      file:set_cwd(RootPath),
+      Uri = ?config(elvis_diagnostics_uri, Config),
+      ok = els_client:did_save(Uri),
+      {Method, Params} = wait_for_notification(),
+      ?assertEqual( <<"textDocument/publishDiagnostics">>
+                  , Method),
+      ?assert(maps:is_key(uri, Params)),
+      #{uri := Uri} = Params,
+      ?assert(maps:is_key(diagnostics, Params)),
+      #{diagnostics := Diagnostics} = Params,
+      ?assertEqual(2, length(Diagnostics)),
+      Warnings = [D || #{severity := ?DIAGNOSTIC_WARNING} = D <- Diagnostics],
+      Errors   = [D || #{severity := ?DIAGNOSTIC_ERROR}   = D <- Diagnostics],
+      ?assertEqual(2, length(Warnings)),
+      ?assertEqual(0, length(Errors)),
+      [ #{range := WarningRange1}
+      , #{range := WarningRange2} ] = Warnings,
+      ?assertEqual( #{'end' => #{character => 0,line => 6},
+                      start => #{character => 0,line => 5}}
+                  , WarningRange1
+                  ),
+      ?assertEqual( #{'end' => #{character => 0,line => 7},
+                      start => #{character => 0,line => 6}}
+                  , WarningRange2
+                  )
+  catch _Err ->
+      file:set_cwd(Cwd)
+  end,
   ok.
 
 %%==============================================================================
