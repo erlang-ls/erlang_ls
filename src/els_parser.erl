@@ -71,7 +71,7 @@ find_attribute_pois(Form, Tokens) ->
       try erl_syntax_lib:analyze_attribute(Form) of
         {export, Exports} ->
           %% The first atom is the attribute name, so we skip it.
-          [_|Atoms] = [T|| {atom, _, _} = T <- Tokens],
+          [_|Atoms] = [T || {atom, _, _} = T <- Tokens],
           ExportEntries =
             [ els_poi:new(Pos, export_entry, {F, A})
               || {{F, A}, {atom, Pos, _}} <- lists:zip(Exports, Atoms)
@@ -80,7 +80,7 @@ find_attribute_pois(Form, Tokens) ->
         {import, {M, Imports}} ->
           %% The first two atoms are the attribute name and the imported
           %% module, so we skip them.
-          [_, _|Atoms] = [T|| {atom, _, _} = T <- Tokens],
+          [_, _|Atoms] = [T || {atom, _, _} = T <- Tokens],
           [ els_poi:new(Pos, import_entry, {M, F, A})
             || {{F, A}, {atom, Pos, _}} <- lists:zip(Imports, Atoms)];
         {spec, {spec, {_, FTs}}} ->
