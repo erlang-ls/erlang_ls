@@ -70,12 +70,10 @@ start_epmd() ->
 %% @doc Returns a project-relative file path for a given URI
 -spec project_relative(uri()) -> file:filename().
 project_relative(Uri) ->
-  Path = els_uri:path(Uri),
-  RootDir = els_config:get(root_uri),
-  RootPath = els_uri:path(RootDir),
-  RelativeBin = string:prefix(string:prefix(Path, RootPath), <<"/">>),
-  binary_to_list(RelativeBin).
-
+  RootUri     = els_config:get(root_uri),
+  RootUriSize = byte_size(RootUri),
+  <<RootUri:RootUriSize/binary, RelativePath/binary>> = Uri,
+  binary_to_list(string:trim(RelativePath, leading, [$/, $\\ ])).
 
 %%==============================================================================
 %% Internal functions
