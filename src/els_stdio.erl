@@ -21,7 +21,7 @@ start_listener(Server) ->
 init({Server, IoDevice}) ->
   lager:info("Starting stdio server..."),
   ok = io:setopts(IoDevice, [binary]),
-  ok = els_server:set_connection(Server, IoDevice),
+  ok = els_server:set_connection(IoDevice),
   ?MODULE:loop([], IoDevice, Server, [return_maps]).
 
 -spec send(any(), binary()) -> ok.

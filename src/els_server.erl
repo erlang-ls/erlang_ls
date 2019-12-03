@@ -23,7 +23,7 @@
 
 %% API
 -export([ process_requests/2
-        , set_connection/2
+        , set_connection/1
         , send_notification/2
         ]).
 
@@ -68,9 +68,9 @@ start_link(Transport) ->
 process_requests(Server, Requests) ->
   gen_server:cast(Server, {messages, Requests}).
 
--spec set_connection(pid(), any()) -> ok.
-set_connection(Server, Connection) ->
-  gen_server:call(Server, {set_connection, Connection}).
+-spec set_connection(any()) -> ok.
+set_connection(Connection) ->
+  gen_server:call(?SERVER, {set_connection, Connection}).
 
 -spec send_notification(binary(), map()) -> ok.
 send_notification(Method, Params) ->

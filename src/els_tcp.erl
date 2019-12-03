@@ -61,7 +61,7 @@ init({Ref, Socket, Transport, Opts}) ->
   ok         = Transport:setopts(Socket, [{active, once}, {packet, 0}]),
 
   Connection = #connection{socket = Socket, transport = Transport},
-  ok         = els_server:set_connection(Server, Connection),
+  ok         = els_server:set_connection(Connection),
 
   loop(#state{buffer = <<>>, server = Server}).
 
