@@ -135,7 +135,7 @@ mock_notifications() ->
   Self = self(),
   meck:expect( els_server
              , send_notification
-             , fun(_Server, Method, Params) ->
+             , fun(Method, Params) ->
                    Self ! {notification_sent, Method, Params},
                    ok
                end

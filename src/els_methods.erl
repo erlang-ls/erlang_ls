@@ -193,7 +193,7 @@ textdocument_didchange(Params, State) ->
 
 -spec textdocument_didsave(params(), state()) -> result().
 textdocument_didsave(Params, State) ->
-  spawn(els_text_synchronization, did_save, [Params, self()]),
+  spawn(els_text_synchronization, did_save, [Params]),
   {noresponse, State}.
 
 %%==============================================================================

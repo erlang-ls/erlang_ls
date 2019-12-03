@@ -1,7 +1,7 @@
 -module(els_text_synchronization).
 
 -export([ did_open/1
-        , did_save/2
+        , did_save/1
         , did_close/1
         ]).
 
@@ -13,8 +13,8 @@ did_open(Params) ->
   Document     = els_document:create(Uri, Text),
   ok           = els_indexer:index(Document).
 
--spec did_save(map(), pid()) -> ok.
-did_save(Params, Server) ->
+-spec did_save(map()) -> ok.
+did_save(Params) ->
   TextDocument = maps:get(<<"textDocument">>, Params),
   Uri          = maps:get(<<"uri">>         , TextDocument),
   CDiagnostics = els_compiler_diagnostics:diagnostics(Uri),
@@ -24,7 +24,7 @@ did_save(Params, Server) ->
   Params1  = #{ uri => Uri
               , diagnostics => CDiagnostics ++ DDiagnostics ++ EDiagnostics
               },
-  els_server:send_notification(Server, Method, Params1).
+  els_server:send_notification(Method, Params1).
 
 -spec did_close(map()) -> ok.
 did_close(_Params) -> ok.

@@ -22,13 +22,13 @@
         ]).
 
 %% API
--export([ process_requests/2
-        , set_connection/2
-        , send_notification/3
+-export([ process_requests/1
+        , set_connection/1
+        , send_notification/2
         ]).
 
 %% Testing
--export([ reset_state/0
+-export([ reset_internal_state/0
         ]).
 
 %%==============================================================================
@@ -37,12 +37,17 @@
 -include("erlang_ls.hrl").
 
 %%==============================================================================
+%% Macros
+%%==============================================================================
+-define(SERVER, ?MODULE).
+
+%%==============================================================================
 %% Record Definitions
 %%==============================================================================
--record(state, { transport  :: module()
-               , connection :: any()
-               , buffer     :: binary()
-               , state      :: map()
+-record(state, { transport      :: module()
+               , connection     :: any()
+               , buffer         :: binary()
+               , internal_state :: map()
                }).
 
 %%==============================================================================
@@ -55,28 +60,28 @@
 %%==============================================================================
 -spec start_link(module()) -> {ok, pid()}.
 start_link(Transport) ->
-  {ok, Pid} = gen_server:start_link({local, ?MODULE}, ?MODULE, Transport, []),
+  {ok, Pid} = gen_server:start_link({local, ?SERVER}, ?MODULE, Transport, []),
   {ok, _} = Transport:start_listener(Pid),
   {ok, Pid}.
 
--spec process_requests(pid(), [any()]) -> ok.
-process_requests(Server, Requests) ->
-  gen_server:cast(Server, {messages, Requests}).
+-spec process_requests([any()]) -> ok.
+process_requests(Requests) ->
+  gen_server:cast(?SERVER, {process_requests, Requests}).
 
--spec set_connection(pid(), any()) -> ok.
-set_connection(Server, Connection) ->
-  gen_server:call(Server, {set_connection, Connection}).
+-spec set_connection(any()) -> ok.
+set_connection(Connection) ->
+  gen_server:call(?SERVER, {set_connection, Connection}).
 
--spec send_notification(pid(), binary(), map()) -> ok.
-send_notification(Server, Method, Params) ->
-  gen_server:cast(Server, {notification, Method, Params}).
+-spec send_notification(binary(), map()) -> ok.
+send_notification(Method, Params) ->
+  gen_server:cast(?SERVER, {notification, Method, Params}).
 
 %%==============================================================================
 %% Testing
 %%==============================================================================
--spec reset_state() -> ok.
-reset_state() ->
-  gen_server:call(?MODULE, {reset_state}).
+-spec reset_internal_state() -> ok.
+reset_internal_state() ->
+  gen_server:call(?MODULE, {reset_internal_state}).
 
 %%==============================================================================
 %% gen_server callbacks
@@ -84,31 +89,33 @@ reset_state() ->
 -spec init(module()) -> no_return().
 init(Transport) ->
   lager:info("Starting els_server..."),
-  State = #state{ transport = Transport
-                , buffer    = <<>>
-                , state     = #{}
+  State = #state{ transport      = Transport
+                , buffer         = <<>>
+                , internal_state = #{}
                 },
   {ok, State}.
 
 -spec handle_call(any(), any(), state()) -> {reply, any(), state()}.
 handle_call({set_connection, Connection}, _From, State) ->
   {reply, ok, State#state{connection = Connection}};
-handle_call({reset_state}, _From, State) ->
-  {reply, ok, State#state{state = #{}}}.
+handle_call({reset_internal_state}, _From, State) ->
+  {reply, ok, State#state{internal_state = #{}}}.
 
 -spec handle_cast(any(), state()) -> {noreply, state()}.
-handle_cast({messages, Requests}, State0) ->
+handle_cast({process_requests, Requests}, State0) ->
   State = lists:foldl(fun handle_request/2, State0, Requests),
   {noreply, State};
 handle_cast({notification, Method, Params}, State) ->
   do_send_notification(Method, Params, State),
+  {noreply, State};
+handle_cast(_, State) ->
   {noreply, State}.
 
 %%==============================================================================
 %% Internal Functions
 %%==============================================================================
 -spec handle_request(map(), state()) -> state().
-handle_request(Request, #state{state = InternalState} = State0) ->
+handle_request(Request, #state{internal_state = InternalState} = State0) ->
   Method = maps:get(<<"method">>, Request),
   Params = maps:get(<<"params">>, Request),
   case els_methods:dispatch(Method, Params, InternalState) of
@@ -117,7 +124,7 @@ handle_request(Request, #state{state = InternalState} = State0) ->
       Response = els_protocol:response(RequestId, Result),
       lager:debug("[SERVER] Sending response [response=~p]", [Response]),
       send(Response, State0),
-      State0#state{state = NewInternalState};
+      State0#state{internal_state = NewInternalState};
     {error, Error, NewInternalState} ->
       RequestId = maps:get(<<"id">>, Request, null),
       ErrorResponse = els_protocol:error(RequestId, Error),
@@ -125,13 +132,13 @@ handle_request(Request, #state{state = InternalState} = State0) ->
                  , [ErrorResponse]
                  ),
       send(ErrorResponse, State0),
-      State0#state{state = NewInternalState};
+      State0#state{internal_state = NewInternalState};
     {noresponse, NewInternalState} ->
       lager:debug("[SERVER] No response", []),
-      State0#state{state = NewInternalState};
+      State0#state{internal_state = NewInternalState};
     {notification, M, P, NewInternalState} ->
       do_send_notification(M, P, State0),
-      State0#state{state = NewInternalState}
+      State0#state{internal_state = NewInternalState}
   end.
 
 -spec do_send_notification(binary(), map(), state()) -> ok.

@@ -21,7 +21,7 @@ start_listener(Server) ->
 init({Server, IoDevice}) ->
   lager:info("Starting stdio server..."),
   ok = io:setopts(IoDevice, [binary]),
-  ok = els_server:set_connection(Server, IoDevice),
+  ok = els_server:set_connection(IoDevice),
   ?MODULE:loop([], IoDevice, Server, [return_maps]).
 
 -spec send(any(), binary()) -> ok.
@@ -42,7 +42,7 @@ loop(Lines, IoDevice, Server, JsonOpts) ->
       %% Use file:read/2 since it reads bytes
       {ok, Payload} = file:read(IoDevice, Length),
       Request       = jsx:decode(Payload, JsonOpts),
-      els_server:process_requests(Server, [Request]),
+      gen_server:cast(Server, {process_requests, [Request]}),
       ?MODULE:loop([], IoDevice, Server, JsonOpts);
     Line ->
       ?MODULE:loop([Line | Lines], IoDevice, Server, JsonOpts)

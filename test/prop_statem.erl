@@ -285,7 +285,7 @@ cleanup() ->
   catch disconnect(),
   %% Restart the server, since though the client disconnects the
   %% server keeps its state.
-  els_server:reset_state(),
+  els_server:reset_internal_state(),
   ok.
 
 %%==============================================================================
