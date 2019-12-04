@@ -43,8 +43,9 @@ dispatch(Method, Params, State) ->
   catch
     error:undef ->
       not_implemented_method(Method, State);
-    Type:Reason ->
-      lager:error("Unexpected error [type=~p] [error=~p]", [Type, Reason]),
+    Type:Reason:Stack ->
+      lager:error( "Unexpected error [type=~p] [error=~p] [stack=~p]"
+                 , [Type, Reason, Stack]),
       Error = #{ code    => ?ERR_UNKNOWN_ERROR_CODE
                , message => <<"Unexpected error while ", Method/binary>>
                },

@@ -95,10 +95,9 @@ find_attribute_pois(Form, Tokens) ->
   end.
 
 -spec find_attribute_tokens([erl_scan:token()]) -> [poi()].
-find_attribute_tokens([{'-', Anno}, {atom, _, export} | Rest]) ->
-  {dot, LastAnno} = lists:last(Rest),
+find_attribute_tokens([ {'-', Anno}, {atom, _, export} | [_|_] = Rest]) ->
+  LastPos = erl_scan:location(lists:last(Rest)),
   Pos = erl_anno:location(Anno),
-  LastPos = erl_anno:location(LastAnno),
   [els_poi:new(Pos, exports, LastPos)];
 find_attribute_tokens(_) ->
   [].
