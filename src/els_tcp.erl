@@ -41,8 +41,8 @@ start_link(Ref, Socket, Transport, Opts) ->
 %% els_transport callbacks
 %%==============================================================================
 
--spec start_listener(pid()) -> {ok, pid()}.
-start_listener(_Server) ->
+-spec start_listener(function()) -> {ok, pid()}.
+start_listener(_Cb) ->
   lager:info("Starting ranch listener.."),
   {ok, Port} = application:get_env(erlang_ls, port),
   {ok, _} = ranch:start_listener( erlang_ls

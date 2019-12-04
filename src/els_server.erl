@@ -46,7 +46,6 @@
 %%==============================================================================
 -record(state, { transport      :: module()
                , connection     :: any()
-               , buffer         :: binary()
                , internal_state :: map()
                }).
 
@@ -61,7 +60,10 @@
 -spec start_link(module()) -> {ok, pid()}.
 start_link(Transport) ->
   {ok, Pid} = gen_server:start_link({local, ?SERVER}, ?MODULE, Transport, []),
-  {ok, _} = Transport:start_listener(Pid),
+  Cb = fun(Requests) ->
+           gen_server:cast(Pid, {process_requests, Requests})
+       end,
+  {ok, _} = Transport:start_listener(Cb),
   {ok, Pid}.
 
 -spec process_requests([any()]) -> ok.
@@ -86,11 +88,10 @@ reset_internal_state() ->
 %%==============================================================================
 %% gen_server callbacks
 %%==============================================================================
--spec init(module()) -> no_return().
+-spec init(module()) -> {ok, state()}.
 init(Transport) ->
   lager:info("Starting els_server..."),
   State = #state{ transport      = Transport
-                , buffer         = <<>>
                 , internal_state = #{}
                 },
   {ok, State}.
