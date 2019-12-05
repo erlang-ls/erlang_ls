@@ -91,6 +91,17 @@ To enable logging on the client-side, just:
 
     (setq lsp-log-io t)
 
+Whenever opening a project for the first time, you will be prompted by
+`emacs-lsp` to select the correct project root. In that occasion, you
+also have the opportunity to _blacklist_ projects. Information about
+projects is stored in a file pointed by the `lsp-session-file`
+variable. Its default location is `~/.emacs.d/.lsp-session-v1`. You
+may need to prune or amend this file if you change your mind about
+blacklisting a project or if you erroneously select a project
+root. For more information about the `lsp-session-file` and
+`emacs-lsp` in general, please refer to the [official
+documentation](https://github.com/emacs-lsp/lsp-mode/blob/master/README.org).
+
 Remember that the Erlang Language Server requires Erlang/OTP 21 or
 higher to run, so ensure that OTP 21+ is available in your `PATH`.
 This can be achieved, for example, by using the
