@@ -32,6 +32,9 @@
         , initialize/2
         , references/3
         , document_highlight/3
+        , document_formatting/2
+        , document_rangeformatting/3
+        , document_ontypeformatting/4
         , shutdown/0
         , start_link/2
         , stop/0
@@ -97,6 +100,24 @@ references(Uri, Line, Char) ->
 -spec document_highlight(uri(), non_neg_integer(), non_neg_integer()) -> ok.
 document_highlight(Uri, Line, Char) ->
   gen_server:call(?SERVER, {document_highlight, {Uri, Line, Char}}).
+
+-spec document_formatting(uri(), formatting_options()) ->
+  ok.
+document_formatting(Uri, FormattingOptions) ->
+  gen_server:call(?SERVER, {document_formatting, {Uri, FormattingOptions}}).
+
+-spec document_rangeformatting(uri(), range(), formatting_options()) ->
+  ok.
+document_rangeformatting(Uri, Range, FormattingOptions) ->
+  gen_server:call(?SERVER, {document_rangeformatting,
+                            {Uri, Range, FormattingOptions}}).
+
+-spec document_ontypeformatting(uri(), position(), string()
+                               , formatting_options()) ->
+  ok.
+document_ontypeformatting(Uri, Position, Char, FormattingOptions) ->
+  gen_server:call(?SERVER, {document_ontypeformatting,
+                            {Uri, Position, Char, FormattingOptions}}).
 
 -spec did_open(uri(), binary(), number(), binary()) -> ok.
 did_open(Uri, LanguageId, Version, Text) ->

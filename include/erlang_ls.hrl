@@ -546,6 +546,22 @@
                                   }.
 
 %%------------------------------------------------------------------------------
+%% Formatting
+%%------------------------------------------------------------------------------
+-type formatting_options() :: #{ tabSize           := integer()
+                               , insertSpaces      := boolean()
+                               %% Spec says further properties must
+                               %% meet the following signature
+                               %%   [key: string]: boolean | number | string;
+                               , furtherProperties => any()
+                               }.
+
+-type document_ontypeformatting_options() :: false |
+       #{ first_trigger_character := string()
+        , more_trigger_character  => string()
+        }.
+
+%%------------------------------------------------------------------------------
 %% Internals
 %%------------------------------------------------------------------------------
 -type pos()       :: {integer(), integer()}.

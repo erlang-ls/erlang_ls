@@ -21,6 +21,9 @@
         , textdocument_definition/2
         , textdocument_references/2
         , textdocument_documenthighlight/2
+        , textdocument_formatting/2
+        , textdocument_rangeformatting/2
+        , textdocument_ontypeformatting/2
         , workspace_didchangewatchedfiles/2
         , workspace_symbol/2
         ]).
@@ -103,15 +106,15 @@ initialize(Params, State) ->
   ok = els_provider:initialize(),
   Result =
     #{ capabilities =>
-         #{ hoverProvider => els_hover_provider:is_enabled()
-          , completionProvider =>
-              #{ resolveProvider => false
-               , triggerCharacters => [<<":">>, <<"#">>, <<"?">>, <<".">>]
-               }
-          , textDocumentSync =>
+         #{ textDocumentSync =>
               #{ openClose => true
                , change    => ?TEXT_DOCUMENT_SYNC_KIND_FULL
                , save      => #{includeText => true}
+               }
+          , hoverProvider => els_hover_provider:is_enabled()
+          , completionProvider =>
+              #{ resolveProvider => false
+               , triggerCharacters => [<<":">>, <<"#">>, <<"?">>, <<".">>]
                }
           , definitionProvider => els_definition_provider:is_enabled()
           , referencesProvider => els_references_provider:is_enabled()
@@ -121,6 +124,14 @@ initialize(Params, State) ->
               els_document_symbol_provider:is_enabled()
           , workspaceSymbolProvider =>
               els_workspace_symbol_provider:is_enabled()
+          , documentFormattingProvider =>
+              els_formatting_provider:is_enabled_document()
+          , documentRangeFormattingProvider =>
+              els_formatting_provider:is_enabled_range()
+          , documentOnTypeFormattingProvider =>
+              els_formatting_provider:is_enabled_on_type()
+          %% AZ: didchangewatchedfiles is not listed in
+          %%     ServerCapabilities in the LSP spec.
           , didChangeWatchedFiles =>
               #{ dynamicRegistration => false }
           }
@@ -269,6 +280,39 @@ textdocument_documenthighlight(Params, State) ->
   Provider = els_document_highlight_provider,
   Response = els_provider:handle_request(Provider,
                                          {document_highlight, Params}),
+  {response, Response, State}.
+
+%%==============================================================================
+%% textDocument/formatting
+%%==============================================================================
+
+-spec textdocument_formatting(params(), state()) -> result().
+textdocument_formatting(Params, State) ->
+  Provider = els_formatting_provider,
+  Response = els_provider:handle_request(Provider,
+                                         {document_formatting, Params}),
+  {response, Response, State}.
+
+%%==============================================================================
+%% textDocument/rangeFormatting
+%%==============================================================================
+
+-spec textdocument_rangeformatting(params(), state()) -> result().
+textdocument_rangeformatting(Params, State) ->
+  Provider = els_formatting_provider,
+  Response = els_provider:handle_request(Provider,
+                                         {document_rangeformatting, Params}),
+  {response, Response, State}.
+
+%%==============================================================================
+%% textDocument/onTypeFormatting
+%%==============================================================================
+
+-spec textdocument_ontypeformatting(params(), state()) -> result().
+textdocument_ontypeformatting(Params, State) ->
+  Provider = els_formatting_provider,
+  Response = els_provider:handle_request(Provider,
+                                         {document_ontypeformatting, Params}),
   {response, Response, State}.
 
 %%==============================================================================
