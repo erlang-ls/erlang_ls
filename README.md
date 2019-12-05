@@ -53,7 +53,7 @@ file (assuming the `erlang_ls` executable is available in your `PATH`:
     (package-install 'yasnippet)
 
     ;; ----- lsp-mode -----
-    ;; Install the official lsp-mode package
+    ;; Install the official lsp-mode package (minimum required version 6.2)
     (package-install 'lsp-mode)
     ;; Set path to erlang_ls escript (unless it's in your PATH)
     (setq lsp-erlang-server-path "/path/to/erlang_ls")
