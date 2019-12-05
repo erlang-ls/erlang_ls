@@ -73,7 +73,7 @@ application_local(Config) ->
                       , #{ range => #{from => {51, 7}, to => {51, 23}}
                          }
                       ],
-  assert_locations(Locations, ExpectedLocations),
+  assert_locations(ExpectedLocations, Locations),
   ok.
 
 -spec application_remote(config()) -> ok.
@@ -85,7 +85,7 @@ application_remote(Config) ->
                       , #{ range => #{from => {52, 8}, to => {52, 38}}
                          }
                       ],
-  assert_locations(Locations, ExpectedLocations),
+  assert_locations(ExpectedLocations, Locations),
   ok.
 
 -spec function_definition(config()) -> ok.
@@ -98,7 +98,7 @@ function_definition(Config) ->
                       , #{ range => #{from => {51, 7}, to => {51, 23}}
                          }
                       ],
-  assert_locations(Locations, ExpectedLocations),
+  assert_locations(ExpectedLocations, Locations),
   ok.
 
 -spec fun_local(config()) -> ok.
@@ -110,7 +110,7 @@ fun_local(Config) ->
                       , #{ range => #{from => {51, 7}, to => {51, 23}}
                          }
                       ],
-  assert_locations(Locations, ExpectedLocations),
+  assert_locations(ExpectedLocations, Locations),
   ok.
 
 -spec fun_remote(config()) -> ok.
@@ -122,20 +122,20 @@ fun_remote(Config) ->
                       , #{ range => #{from => {52, 8}, to => {52, 38}}
                          }
                       ],
-  assert_locations(Locations, ExpectedLocations),
+  assert_locations(ExpectedLocations, Locations),
   ok.
 
 -spec export_entry(config()) -> ok.
 export_entry(Config) ->
   Uri = ?config(code_navigation_uri, Config),
   #{result := Locations} = els_client:document_highlight(Uri, 5, 39),
-    %% TODO:AZ: I would expect to also see 5,39 to 5,48
+  %% TODO:AZ: I would expect to also see 5,39 to 5,48
   ExpectedLocations = [ #{ range => #{from => {22, 3}, to => {22, 13}}
                          }
                       , #{ range => #{from => {51, 7}, to => {51, 23}}
                          }
                       ],
-  assert_locations(Locations, ExpectedLocations),
+  assert_locations(ExpectedLocations, Locations),
   ok.
 
 
@@ -144,7 +144,7 @@ export_entry(Config) ->
 %%==============================================================================
 
 -spec assert_locations([map()], [map()]) -> ok.
-assert_locations(Locations, ExpectedLocations) ->
+assert_locations(ExpectedLocations, Locations) ->
   ?assertEqual(length(ExpectedLocations), length(Locations)),
   Pairs = lists:zip(lists:sort(Locations), ExpectedLocations),
   [ begin

@@ -215,6 +215,6 @@ add_reference(Key, Value) ->
 %% @edoc Remove all references to a given uri()
 -spec purge_uri_references(uri()) -> ok.
 purge_uri_references(Uri) ->
-    MatchSpec = ets:fun2ms(fun({_K, #{uri => U}}) -> U =:= Uri end),
-    _DeletedCount = ets:select_delete(references, MatchSpec),
-    ok.
+  MatchSpec = ets:fun2ms(fun({_K, #{uri => U}}) -> U =:= Uri end),
+  _DeletedCount = ets:select_delete(references, MatchSpec),
+  ok.

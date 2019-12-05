@@ -21,7 +21,7 @@
 -define(SERVER, ?MODULE).
 -define(TABLES, [ {documents,  set}
                 , {modules,    set}
-                , {references, duplicate_bag}
+                , {references, bag}
                 , {signatures, set}
                 ]).
 
@@ -63,7 +63,7 @@ list(Table) ->
 
 -spec store(table(), key(), any()) -> ok.
 store(Table, Key, Value) ->
-  true = ets:insert(Table, {Key, Value}),
+  ets:insert(Table, {Key, Value}),
   ok.
 
 -spec update(table(), key(), function(), any()) -> ok.
