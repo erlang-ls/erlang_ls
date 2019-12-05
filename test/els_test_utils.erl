@@ -113,10 +113,10 @@ init_per_testcase(_TestCase, Config) ->
 
         ok = application:set_env(erlang_ls, transport, els_stdio),
         ok = application:set_env(erlang_ls, io_device, ServerIo),
-        {stdio, ClientIo};
+        {stdio, #{io_device => ClientIo}};
       tcp ->
         ok = application:set_env(erlang_ls, transport, els_tcp),
-        {tcp, {?HOSTNAME, ?PORT}}
+        {tcp, #{host => ?HOSTNAME, port => ?PORT}}
     end,
 
   {ok, Started} = application:ensure_all_started(erlang_ls),

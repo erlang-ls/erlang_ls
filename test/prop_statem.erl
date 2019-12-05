@@ -52,7 +52,7 @@ weight(_S, _Cmd)     -> 5.
 %% Connect
 %%------------------------------------------------------------------------------
 connect() ->
-  els_client:start_link(tcp, {?HOSTNAME, ?PORT}).
+  els_client:start_link(tcp, #{ host => ?HOSTNAME, port => ?PORT}).
 
 connect_args(_S) ->
   [].

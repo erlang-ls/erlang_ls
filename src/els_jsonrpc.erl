@@ -6,7 +6,8 @@
 %%==============================================================================
 %% Exports
 %%==============================================================================
--export([ split/1
+-export([ default_opts/0
+        , split/1
         , split/2
         ]).
 
@@ -20,7 +21,7 @@
 %%==============================================================================
 -spec split(binary()) -> {[map()], binary()}.
 split(Data) ->
-  split(Data, [], []).
+  split(Data, default_opts()).
 
 -spec split(binary(), [any()]) -> {[map()], binary()}.
 split(Data, DecodeOpts) ->
@@ -44,3 +45,7 @@ split(Data, DecodeOpts, Responses) ->
   catch _:_ ->
       {lists:reverse(Responses), Data}
   end.
+
+-spec default_opts() -> [any()].
+default_opts() ->
+  [return_maps, {labels, atom}].

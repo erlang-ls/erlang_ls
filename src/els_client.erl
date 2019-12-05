@@ -3,10 +3,19 @@
 %%==============================================================================
 -module(els_client).
 
+-callback start_link(any())     -> {ok, pid()}.
+-callback send(pid(), iolist()) -> ok.
+
 %%==============================================================================
 %% Behaviours
 %%==============================================================================
 -behaviour(gen_server).
+%% gen_server callbacks
+-export([ init/1
+        , handle_call/3
+        , handle_cast/2
+        , code_change/3
+        ]).
 
 %%==============================================================================
 %% Exports
@@ -29,14 +38,7 @@
         , workspace_symbol/1
         ]).
 
-%% gen_server callbacks
--export([ init/1
-        , handle_call/3
-        , handle_cast/2
-        , handle_info/2
-        , terminate/2
-        , code_change/3
-        ]).
+-export([ handle_responses/1 ]).
 
 %%==============================================================================
 %% Includes
@@ -47,25 +49,23 @@
 %% Defines
 %%==============================================================================
 -define(SERVER, ?MODULE).
--define(JSON_OPTS, [return_maps, {labels, atom}]).
 
 %%==============================================================================
 %% Record Definitions
 %%==============================================================================
--record(state, { transport :: tcp | stdio
-               , connection
-               , request_id = 1
-               , pending    = []
-               , buffer   = <<>>
+-record(state, { transport_cb     :: transport_cb()
+               , transport_server :: pid()
+               , request_id        = 1
+               , pending           = []
                }).
 
 %%==============================================================================
 %% Type Definitions
 %%==============================================================================
 -type state()        :: #state{}.
--type hostname()     :: tuple().
--type port_no()      :: pos_integer().
 -type init_options() :: [].
+-type transport()    :: stdio | tcp.
+-type transport_cb() :: els_stdio_client | els_tcp_client.
 
 %%==============================================================================
 %% API
@@ -80,27 +80,21 @@
   ok.
 completion(Uri, Line, Char, TriggerKind, TriggerCharacter) ->
   Opts = {Uri, Line, Char, TriggerKind, TriggerCharacter},
-  gen_server:call( ?SERVER
-                 , {completion, Opts}
-                 ).
+  gen_server:call(?SERVER, {completion, Opts}).
 
--spec definition(uri(), non_neg_integer(), non_neg_integer()) ->
-  ok.
+-spec definition(uri(), non_neg_integer(), non_neg_integer()) -> ok.
 definition(Uri, Line, Char) ->
   gen_server:call(?SERVER, {definition, {Uri, Line, Char}}).
 
--spec hover(uri(), non_neg_integer(), non_neg_integer()) ->
-  ok.
+-spec hover(uri(), non_neg_integer(), non_neg_integer()) -> ok.
 hover(Uri, Line, Char) ->
   gen_server:call(?SERVER, {hover, {Uri, Line, Char}}).
 
--spec references(uri(), non_neg_integer(), non_neg_integer()) ->
-  ok.
+-spec references(uri(), non_neg_integer(), non_neg_integer()) -> ok.
 references(Uri, Line, Char) ->
   gen_server:call(?SERVER, {references, {Uri, Line, Char}}).
 
--spec document_highlight(uri(), non_neg_integer(), non_neg_integer()) ->
-  ok.
+-spec document_highlight(uri(), non_neg_integer(), non_neg_integer()) -> ok.
 document_highlight(Uri, Line, Char) ->
   gen_server:call(?SERVER, {document_highlight, {Uri, Line, Char}}).
 
@@ -133,11 +127,9 @@ shutdown() ->
 exit() ->
   gen_server:call(?SERVER, {exit}).
 
--spec start_link(tcp | stdio, any()) -> {ok, pid()}.
-start_link(tcp, {Host, Port}) ->
-  gen_server:start_link({local, ?SERVER}, ?MODULE, {tcp, Host, Port}, []);
-start_link(stdio, IoDevice) ->
-  gen_server:start_link({local, ?SERVER}, ?MODULE, {stdio, IoDevice}, []).
+-spec start_link(transport(), any()) -> {ok, pid()}.
+start_link(Transport, Args) ->
+  gen_server:start_link({local, ?SERVER}, ?MODULE, {Transport, Args}, []).
 
 -spec stop() -> ok.
 stop() ->
@@ -148,89 +140,68 @@ stop() ->
 workspace_symbol(Query) ->
   gen_server:call(?SERVER, {workspace_symbol, {Query}}).
 
+-spec handle_responses([map()]) -> ok.
+handle_responses(Responses) ->
+  gen_server:cast(?SERVER, {handle_responses, Responses}).
+
 %%==============================================================================
 %% gen_server Callback Functions
 %%==============================================================================
--spec init({tcp, hostname(), port_no()}) -> {ok, state()}.
-init({tcp, Host, Port}) ->
-  Opts         = [binary, {active, once}, {packet, 0}],
-  {ok, Socket} = gen_tcp:connect(Host, Port, Opts),
-  {ok, #state{transport = tcp, connection = Socket}};
-init({stdio, IoDevice}) ->
-  Self = self(),
-  proc_lib:spawn_link(els_stdio, loop, [[], IoDevice, Self, ?JSON_OPTS]),
-  {ok, #state{transport = stdio, connection = IoDevice}}.
+-spec init({transport(), any()}) -> {ok, state()}.
+init({Transport, Args}) ->
+  Cb = transport_cb(Transport),
+  {ok, Pid} = Cb:start_link(Args),
+  State = #state{transport_cb = Cb, transport_server = Pid},
+  {ok, State}.
 
 -spec handle_call(any(), any(), state()) -> {reply, any(), state()}.
 handle_call({Action, Opts}, _From, State) when Action =:= did_save
-                                        orelse Action =:= did_close
-                                        orelse Action =:= did_open ->
+                                               orelse Action =:= did_close
+                                               orelse Action =:= did_open ->
+  #state{transport_cb = Cb, transport_server = Server} = State,
   Method = method_lookup(Action),
   Params = notification_params(Opts),
   Content = els_protocol:notification(Method, Params),
-  send(Content, State),
+  Cb:send(Server, Content),
   {reply, ok, State};
 handle_call({exit}, _From, State) ->
+  #state{transport_cb = Cb, transport_server = Server} = State,
   RequestId = State#state.request_id,
   Method = <<"exit">>,
   Params = #{},
   Content = els_protocol:request(RequestId, Method, Params),
-  send(Content, State),
+  Cb:send(Server, Content),
   {reply, ok, State};
 handle_call({shutdown}, From, State) ->
+  #state{transport_cb = Cb, transport_server = Server} = State,
   RequestId = State#state.request_id,
   Method = <<"shutdown">>,
   Params = #{},
   Content = els_protocol:request(RequestId, Method, Params),
-  send(Content, State),
+  Cb:send(Server, Content),
   {noreply, State#state{ request_id = RequestId + 1
                        , pending    = [{RequestId, From} | State#state.pending]
                        }};
 handle_call(Input = {Action, _}, From, State) ->
-  #state{request_id = RequestId} = State,
+  #state{ transport_cb     = Cb
+        , transport_server = Server
+        , request_id       = RequestId
+        } = State,
   Method = method_lookup(Action),
   Params = request_params(Input),
   Content = els_protocol:request(RequestId, Method, Params),
-  send(Content, State),
+  Cb:send(Server, Content),
   {noreply, State#state{ request_id = RequestId + 1
                        , pending    = [{RequestId, From} | State#state.pending]
                        }}.
 
 -spec handle_cast(any(), state()) -> {noreply, state()}.
-handle_cast( {process_requests, Responses}
-           , #state{pending = Pending, transport = stdio} = State
-           ) ->
-  Pending1 = handle_responses(Responses, Pending),
-  {noreply, State#state{pending = Pending1}};
-handle_cast(_Msg, State) ->
+handle_cast({handle_responses, Responses}, State) ->
+  #state{pending = Pending0} = State,
+  Pending = do_handle_responses(Responses, Pending0),
+  {noreply, State#state{pending = Pending}};
+handle_cast(_Request, State) ->
   {noreply, State}.
-
--spec handle_info(any(), state()) -> {noreply, state()}.
-handle_info({tcp, _Socket, Packet}, #state{ buffer    = Buffer
-                                          , pending   = Pending
-                                          , transport = tcp
-                                          } = State) ->
-  inet:setopts(State#state.connection, [{active, once}]),
-  {Responses, NewBuffer} = process_packet(Buffer, Packet),
-  Pending1 = handle_responses(Responses, Pending),
-  {noreply, State#state{ buffer = NewBuffer, pending = Pending1 }};
-handle_info({tcp_closed, _Socket}, State) ->
-  lager:debug("[CLIENT] TCP closed", []),
-  {noreply, State};
-handle_info({tcp_error, _Socket, Reason}, State) ->
-  lager:debug("[CLIENT] TCP error [reason=~p]", [Reason]),
-  {noreply, State}.
-
--spec terminate(any(), state()) -> ok.
-terminate( _Reason
-         , #state{transport = tcp, connection = Socket} = _State
-         ) ->
-  ok = gen_tcp:close(Socket);
-terminate( _Reason
-         , #state{transport = stdio, connection = IoDevice} = _State
-         ) ->
-  true = erlang:exit(IoDevice, normal),
-  ok.
 
 -spec code_change(any(), state(), any()) -> {ok, state()}.
 code_change(_OldVsn, State, _Extra) ->
@@ -239,39 +210,27 @@ code_change(_OldVsn, State, _Extra) ->
 %%==============================================================================
 %% Internal Functions
 %%==============================================================================
--spec process_packet(binary(), binary()) -> {[map()], binary()}.
-process_packet(Buffer, Packet) ->
-  lager:debug("[SERVER] TCP Packet [buffer=~p] [packet=~p] ", [ Buffer
-                                                              , Packet]),
-  Data = <<Buffer/binary, Packet/binary>>,
-  els_jsonrpc:split(Data, ?JSON_OPTS).
 
--spec handle_responses([map()], [any()]) -> [any()].
-handle_responses([], Pending) ->
+-spec do_handle_responses([map()], [any()]) -> [any()].
+do_handle_responses([], Pending) ->
   Pending;
-handle_responses([Response|Responses], Pending) ->
+do_handle_responses([Response|Responses], Pending) ->
   case maps:find(id, Response) of
     {ok, RequestId} ->
       lager:debug("[CLIENT] Handling Response [response=~p]", [Response]),
       case lists:keyfind(RequestId, 1, Pending) of
         {RequestId, From} ->
           gen_server:reply(From, Response),
-          handle_responses( Responses
+          do_handle_responses( Responses
                           , lists:keydelete(RequestId, 1, Pending));
         false ->
-          handle_responses(Responses, Pending)
+          do_handle_responses(Responses, Pending)
       end;
     error ->
       lager:debug( "[CLIENT] Handling Notification [notification=~p]"
                  , [Response]),
-      handle_responses(Responses, Pending)
+      do_handle_responses(Responses, Pending)
   end.
-
--spec send(iolist(), state()) -> any().
-send(Content, #state{transport = tcp, connection = Socket}) ->
-  gen_tcp:send(Socket, Content);
-send(Content, #state{transport = stdio, connection = IoDevice}) ->
-  io:format(IoDevice, iolist_to_binary(Content), []).
 
 -spec method_lookup(atom()) -> binary().
 method_lookup(completion)         -> <<"textDocument/completion">>;
@@ -331,3 +290,7 @@ notification_params({Uri, LanguageId, Version, Text}) ->
                   , text       => Text
                   },
   #{textDocument => TextDocument}.
+
+-spec transport_cb(transport()) -> transport_cb().
+transport_cb(stdio)             -> els_stdio_client;
+transport_cb(tcp)               -> els_tcp_client.
