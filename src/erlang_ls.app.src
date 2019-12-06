@@ -15,6 +15,7 @@
       , docsh
       , worker_pool
       , elvis
+      , mnesia
       ]
     }
   , { env
@@ -29,6 +30,7 @@
         %% Logging
       , {logging_enabled, false}
       , {log_dir, "/usr/local/var/log/erlang_ls"}
+      , {db_dir, "/usr/local/var/cache/erlang_ls"}
       ]
     }
   , {modules, []}

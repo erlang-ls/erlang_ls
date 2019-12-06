@@ -12,6 +12,7 @@ main(Args) ->
   ok = parse_args(Args),
   ok = init_node_name(is_debug()),
   ok = lager_config(),
+  els_db:install(),
   %% Start the Erlang Language Server
   application:ensure_all_started(?APP),
   lager:info("Started erlang_ls server ~p", [node()]),

@@ -1,8 +1,11 @@
 -module(els_db).
 
 %% API
--export([ find/2
+-export([ add/2
+        , find/2
         , find_multi/2
+        , install/0
+        , install/1
         , keys/1
         , list/1
         , store/3
@@ -10,6 +13,8 @@
         , delete/2
         , flush_all_tables/0
         , start_link/0
+        , wait_for_tables/0
+        , wait_for_tables/1
         ]).
 
 %% gen_server callbacks
@@ -24,6 +29,11 @@
                 , {references, bag}
                 , {signatures, set}
                 ]).
+-define(TIMEOUT, 5000).
+
+-record(poi, { uri   :: erlang_ls_uri:uri()
+             , value :: erlang_ls_poi:poi()
+             }).
 
 -type state() :: #{}.
 -type table() :: atom().
@@ -33,9 +43,35 @@
 %% Exported functions
 %%==============================================================================
 
+-spec install() -> ok.
+install() ->
+  {ok, Dir} = application:get_env(erlang_ls, db_dir),
+  install(Dir).
+
+-spec install(string()) -> ok.
+install(Dir) ->
+  lager:info("Creating DB. [dir=~s]", [Dir]),
+  ok = filelib:ensure_dir(filename:join([Dir, "dummy"])),
+  ok = application:set_env(mnesia, dir, Dir),
+  mnesia:create_schema([node()]),
+  application:start(mnesia),
+  %% TODO: Move to a separate function
+  mnesia:create_table( poi
+                     , [ {attributes, record_info(fields, poi)}
+                       , {disc_copies, []}
+                       ]),
+  application:stop(mnesia).
+
 -spec start_link() -> {ok, pid()}.
 start_link() ->
   gen_server:start_link({local, ?SERVER}, ?MODULE, {}, []).
+
+%% TODO: Rename into store when ready
+-spec add(erlang_ls_uri:uri(), erlang_ls_poi:poi()) -> ok.
+add(Uri, POI) ->
+  F = fun() -> mnesia:write(#poi{uri = Uri, value = POI}) end,
+  %% TODO: We probably do not need a transactions per each poi
+  mnesia:activity(transaction, F).
 
 -spec find(table(), key()) -> {ok, any()} | {error, not_found}.
 find(Table, Key) ->
@@ -96,6 +132,15 @@ flush_all_tables() ->
   [delete_table(Details) || Details <- ?TABLES],
   [create_table(Details) || Details <- ?TABLES],
   ok.
+
+-spec wait_for_tables() -> ok.
+wait_for_tables() ->
+  wait_for_tables(?TIMEOUT).
+
+-spec wait_for_tables(pos_integer()) -> ok.
+wait_for_tables(Timeout) ->
+  %% TODO: Macro for table names
+  ok = mnesia:wait_for_tables([poi], Timeout).
 
 %%==============================================================================
 %% gen_server Callback Functions

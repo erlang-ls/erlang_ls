@@ -177,7 +177,10 @@ try_index_file(FullName, SyncAsync) ->
     {ok, Text} = file:read_file(FullName),
     Uri        = els_uri:uri(FullName),
     Document   = els_document:create(Uri, Text),
-    ok         = index_document(Document, SyncAsync)
+    ok         = index_document(Document, SyncAsync),
+    #{pois := POIs} = Document,
+    [els_db:add(Uri, POI) || POI <- POIs],
+    ok
   catch Type:Reason:St ->
       lager:error("Error indexing file "
                   "[filename=~s] "
