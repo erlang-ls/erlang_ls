@@ -60,6 +60,9 @@ init_per_suite(Config) ->
   DiagnosticsPath        = filename:join([ RootPath
                                          , <<"src">>
                                          , <<"diagnostics.erl">>]),
+  DiagnosticsDiffPath    = filename:join([ RootPath
+                                         , <<"src">>
+                                         , <<"diagnostics.new.erl">>]),
   ElvisDiagnosticsPath   = filename:join([ RootPath
                                          , <<"src">>
                                          , <<"elvis_diagnostics.erl">>]),
@@ -95,6 +98,7 @@ init_per_suite(Config) ->
   , {behaviour_uri, BehaviourUri}
   , {include_uri, IncludeUri}
   , {diagnostics_uri, DiagnosticsUri}
+  , {diagnostics_diff_path, DiagnosticsDiffPath}
   , {elvis_diagnostics_uri, ElvisDiagnosticsUri}
   , {diagnostics_include_uri, DiagnosticsIncludeUri}
   | Config

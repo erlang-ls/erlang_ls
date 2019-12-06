@@ -77,8 +77,8 @@ handle_request({document_ontypeformatting, Params}, State) ->
    , <<"textDocument">> := #{<<"uri">> := Uri}
    } = Params,
   {ok, Document} = els_utils:find_document(Uri),
-  case ontypeformat_document(Uri, Document, Line+1, Character+1, Char, Options)
-  of
+  case ontypeformat_document(Uri, Document, Line + 1, Character + 1, Char
+                            , Options) of
     {ok, TextEdit} -> {TextEdit, State};
     _ -> {null, State}
   end.
