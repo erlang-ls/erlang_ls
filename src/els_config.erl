@@ -72,7 +72,7 @@ initialize(RootUri, Capabilities, InitOptions) ->
                            , Config
                            , ?DEFAULT_EXCLUDED_OTP_APPS
                            ),
-  ExcludePathsSpecs = [[OtpPath, "lib", P ++ "*"]|| P <- OtpAppsExclude],
+  ExcludePathsSpecs = [[OtpPath, "lib", P ++ "*"] || P <- OtpAppsExclude],
   ExcludePaths      = resolve_paths(ExcludePathsSpecs, true),
   lager:info("Excluded OTP Applications: ~p", [OtpAppsExclude]),
 
