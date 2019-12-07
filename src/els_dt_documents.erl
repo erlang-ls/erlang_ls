@@ -49,7 +49,7 @@ name() -> ?MODULE.
 -spec opts() -> proplists:proplist().
 opts() ->
   [ {attributes , record_info(fields, els_dt_documents)}
-  , {disc_copies, []}
+  , {disc_copies, [node()]}
   , {index      , []}
   , {type       , set}
   ].

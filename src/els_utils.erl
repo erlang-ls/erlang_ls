@@ -45,6 +45,7 @@ find_document(Uri) ->
     {ok, [#{document := Document}]} ->
       {ok, Document};
     {ok, []} ->
+      %% TODO: Maybe we should not index this
       Path = els_uri:path(Uri),
       {ok, Uri} = els_indexer:index_file(Path, sync),
       {ok, _} = els_dt_documents:lookup(Uri)
