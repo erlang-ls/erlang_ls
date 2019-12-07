@@ -26,10 +26,10 @@ find_module(M) ->
 %% `URI'. If the module is not in the DB, try to index it.
 -spec find_module(atom(), erl | hrl) -> {ok, uri()} | {error, any()}.
 find_module(M, Extension) ->
-  case els_db:find(modules, M) of
-    {ok, Uri} ->
+  case els_dt_module:find_by_module(M) of
+    {ok, [#{uri := Uri}]} ->
       {ok, Uri};
-    {error, not_found} ->
+    {ok, []} ->
       FileName = atom_to_list(M) ++ extension(Extension),
       els_indexer:find_and_index_file(FileName, sync)
   end.

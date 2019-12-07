@@ -37,6 +37,7 @@
 %%% API
 %%%=============================================================================
 
+%% TODO: Add MD5
 -spec create(uri(), binary()) -> document().
 create(Uri, Text) ->
   {ok, POIs} = els_parser:parse(Text),

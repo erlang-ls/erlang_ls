@@ -114,9 +114,11 @@ find_completion(_Prefix, _TriggerKind, _Opts) ->
 %% Modules
 %%==============================================================================
 
+%% TODO: Improve efficiency
 -spec modules(binary()) -> [map()].
 modules(Prefix) ->
-  Modules = els_db:keys(modules),
+  {ok, All} = els_dt_module:find_all(),
+  Modules = [Module || #{module := Module} <- All],
   filter_by_prefix(Prefix, Modules, fun to_binary/1, fun item_kind_module/1).
 
 -spec item_kind_module(binary()) -> map().
@@ -258,6 +260,7 @@ keywords() ->
 %% Filter by prefix
 %%==============================================================================
 
+%% TODO: Implement as select
 -spec filter_by_prefix(binary(), [binary()], function(), function()) -> [map()].
 filter_by_prefix(Prefix, List, ToBinary, ItemFun) ->
   FilterMapFun = fun(X) ->

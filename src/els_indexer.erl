@@ -72,7 +72,7 @@ index(Document) ->
   Uri    = els_document:uri(Document),
   ok     = els_db:store(documents, Uri, Document),
   Module = els_uri:module(Uri),
-  ok = els_db:store(modules, Module, Uri),
+  els_dt_module:insert(#{module => Module, uri => Uri}),
   Specs  = els_document:points_of_interest(Document, [spec]),
   [els_db:store(signatures, {Module, F, A}, Tree) ||
     #{id := {F, A}, data := Tree} <- Specs],
@@ -177,10 +177,7 @@ try_index_file(FullName, SyncAsync) ->
     {ok, Text} = file:read_file(FullName),
     Uri        = els_uri:uri(FullName),
     Document   = els_document:create(Uri, Text),
-    ok         = index_document(Document, SyncAsync),
-    #{pois := POIs} = Document,
-    [els_db:add(Uri, POI) || POI <- POIs],
-    ok
+    ok         = index_document(Document, SyncAsync)
   catch Type:Reason:St ->
       lager:error("Error indexing file "
                   "[filename=~s] "
@@ -218,6 +215,7 @@ add_reference(Key, Value) ->
 %% @edoc Remove all references to a given uri()
 -spec purge_uri_references(uri()) -> ok.
 purge_uri_references(Uri) ->
+  %% TODO: Compile MS
   MatchSpec = ets:fun2ms(fun({_K, #{uri => U}}) -> U =:= Uri end),
   _DeletedCount = ets:select_delete(references, MatchSpec),
   ok.

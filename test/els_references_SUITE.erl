@@ -160,7 +160,8 @@ purge_references(_Config) ->
   Doc1 = els_document:create(Uri, Text1),
   els_indexer:index(Doc0),
   els_indexer:index(Doc1),
-  ?assertEqual([{foo,<<"file://tmp/foo.erl">>}],els_db:list(modules)),
+  ?assertEqual({ok, [#{module => foo, uri => <<"file://tmp/foo.erl">>}]}
+              , els_dt_module:find_all()),
   ?assertEqual([{{foo,foo,1},
                  #{range => #{from => {4,10},to => {4,13}},
                    uri => <<"file://tmp/foo.erl">>}}],

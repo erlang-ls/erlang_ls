@@ -105,5 +105,3 @@ add_include_uri(#{ id := String }, Acc) ->
 -spec beginning() -> #{range => #{from => {1, 1}, to => {1, 1}}}.
 beginning() ->
   #{range => #{from => {1, 1}, to => {1, 1}}}.
-
-%% TODO: Handle multiple header files with the same name?

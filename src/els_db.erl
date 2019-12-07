@@ -1,12 +1,16 @@
+%% TODO: No need for a gen_server
 -module(els_db).
 
+%% Experimental API
+-export([ match/1
+        , write/1
+        ]).
+
 %% API
--export([ add/2
-        , find/2
+-export([ find/2
         , find_multi/2
         , install/0
         , install/1
-        , keys/1
         , list/1
         , store/3
         , update/4
@@ -25,15 +29,12 @@
 
 -define(SERVER, ?MODULE).
 -define(TABLES, [ {documents,  set}
-                , {modules,    set}
                 , {references, bag}
                 , {signatures, set}
                 ]).
+%% TODO: Merge with TABLES
+-define(DB_TABLES, [els_dt_module]).
 -define(TIMEOUT, 5000).
-
--record(poi, { uri   :: erlang_ls_uri:uri()
-             , value :: erlang_ls_poi:poi()
-             }).
 
 -type state() :: #{}.
 -type table() :: atom().
@@ -55,23 +56,34 @@ install(Dir) ->
   ok = application:set_env(mnesia, dir, Dir),
   mnesia:create_schema([node()]),
   application:start(mnesia),
-  %% TODO: Move to a separate function
-  mnesia:create_table( poi
-                     , [ {attributes, record_info(fields, poi)}
-                       , {disc_copies, []}
-                       ]),
+  create_tables(),
   application:stop(mnesia).
+
+-spec create_tables() -> ok.
+create_tables() ->
+  [els_db_table:create(T) || T <- ?DB_TABLES],
+  ok.
 
 -spec start_link() -> {ok, pid()}.
 start_link() ->
   gen_server:start_link({local, ?SERVER}, ?MODULE, {}, []).
 
-%% TODO: Rename into store when ready
--spec add(erlang_ls_uri:uri(), erlang_ls_poi:poi()) -> ok.
-add(Uri, POI) ->
-  F = fun() -> mnesia:write(#poi{uri = Uri, value = POI}) end,
-  %% TODO: We probably do not need a transactions per each poi
-  mnesia:activity(transaction, F).
+-spec match(tuple()) -> {ok, [tuple()]} | {error, any()}.
+match(Pattern) when is_tuple(Pattern) ->
+  F = fun() -> mnesia:match_object(Pattern) end,
+  case mnesia:transaction(F) of
+    {atomic, Items}   -> {ok, Items};
+    {aborted, Reason} -> {error, Reason}
+  end.
+
+-spec write(tuple()) -> ok | {error, any()}.
+write(Record) when is_tuple(Record) ->
+  F = fun() -> mnesia:write(Record) end,
+  case mnesia:transaction(F) of
+    {aborted, Reason} -> {error, {aborted, Reason}};
+    {atomic, ok}      -> ok;
+    {atomic, Result}  -> {error, Result}
+  end.
 
 -spec find(table(), key()) -> {ok, any()} | {error, not_found}.
 find(Table, Key) ->
@@ -88,10 +100,6 @@ find_multi(Table, Key) ->
     KVs -> {ok, KVs} %% Return as is, we need to iterate the result
                      %% anyway, no point doing it twice.
   end.
-
--spec keys(table()) -> [any()].
-keys(Table) ->
-  [K || {K, _} <- ets:tab2list(Table)].
 
 -spec list(table()) -> [any()].
 list(Table) ->
@@ -127,9 +135,11 @@ delete(Table, Key) ->
   true = ets:delete(Table, Key),
   ok.
 
+%% TODO: Merge
 -spec flush_all_tables() -> ok.
 flush_all_tables() ->
   [delete_table(Details) || Details <- ?TABLES],
+  [clear_table(T) || T <- ?DB_TABLES],
   [create_table(Details) || Details <- ?TABLES],
   ok.
 
@@ -139,8 +149,7 @@ wait_for_tables() ->
 
 -spec wait_for_tables(pos_integer()) -> ok.
 wait_for_tables(Timeout) ->
-  %% TODO: Macro for table names
-  ok = mnesia:wait_for_tables([poi], Timeout).
+  ok = mnesia:wait_for_tables(?DB_TABLES, Timeout).
 
 %%==============================================================================
 %% gen_server Callback Functions
@@ -175,4 +184,10 @@ create_table({Name, Type}) ->
 -spec delete_table({atom(), atom()}) -> ok.
 delete_table({Name, _}) ->
   ets:delete(Name),
+  ok.
+
+%% TODO: Merge with above
+-spec clear_table(atom()) -> ok.
+clear_table(Table) ->
+  mnesia:clear_table(Table),
   ok.
