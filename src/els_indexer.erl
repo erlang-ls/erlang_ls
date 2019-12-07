@@ -74,7 +74,9 @@ index(Document) ->
   Module = els_uri:module(Uri),
   els_dt_module:insert(#{module => Module, uri => Uri}),
   Specs  = els_document:points_of_interest(Document, [spec]),
-  [els_db:store(signatures, {Module, F, A}, Tree) ||
+  [els_dt_signatures:insert(#{ mfa  => {Module, F, A}
+                             , tree => Tree
+                             }) ||
     #{id := {F, A}, data := Tree} <- Specs],
   Kinds = [application, implicit_fun],
   POIs  = els_document:points_of_interest(Document, Kinds),

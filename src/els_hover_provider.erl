@@ -61,9 +61,9 @@ documentation(_POI) ->
 %%==============================================================================
 -spec specs(atom(), atom(), non_neg_integer()) -> binary().
 specs(M, F, A) ->
-  case els_db:find(signatures, {M, F, A}) of
-    {ok, Doc}          -> list_to_binary(erl_prettypr:format(Doc));
-    {error, not_found} -> <<>>
+  case els_dt_signatures:lookup({M, F, A}) of
+    {ok, [#{tree := Tree}]} -> list_to_binary(erl_prettypr:format(Tree));
+    {ok, []}                -> <<>>
   end.
 
 -spec edoc(atom(), atom(), non_neg_integer()) -> binary().

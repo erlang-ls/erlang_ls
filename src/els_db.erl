@@ -30,11 +30,11 @@
 
 -define(SERVER, ?MODULE).
 -define(TABLES, [ {references, bag}
-                , {signatures, set}
                 ]).
 %% TODO: Merge with TABLES
 -define(DB_TABLES, [ els_dt_module
                    , els_dt_documents
+                   , els_dt_signatures
                    ]).
 -define(TIMEOUT, 5000).
 
