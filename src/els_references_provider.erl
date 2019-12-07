@@ -54,7 +54,7 @@ find_references(Uri, #{ kind := Kind
     {ok, []} ->
       null;
     {ok, Refs} ->
-      [location(U, R) || {_, #{uri := U, range := R}} <- Refs]
+      [location(U, R) || #{uri := U, range := R} <- Refs]
   end;
 find_references(_Uri, _POI) ->
   null.
