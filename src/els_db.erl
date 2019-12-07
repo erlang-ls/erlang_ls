@@ -2,7 +2,8 @@
 -module(els_db).
 
 %% Experimental API
--export([ match/1
+-export([ lookup/2
+        , match/1
         , write/1
         ]).
 
@@ -28,12 +29,13 @@
         ]).
 
 -define(SERVER, ?MODULE).
--define(TABLES, [ {documents,  set}
-                , {references, bag}
+-define(TABLES, [ {references, bag}
                 , {signatures, set}
                 ]).
 %% TODO: Merge with TABLES
--define(DB_TABLES, [els_dt_module]).
+-define(DB_TABLES, [ els_dt_module
+                   , els_dt_documents
+                   ]).
 -define(TIMEOUT, 5000).
 
 -type state() :: #{}.
@@ -67,6 +69,14 @@ create_tables() ->
 -spec start_link() -> {ok, pid()}.
 start_link() ->
   gen_server:start_link({local, ?SERVER}, ?MODULE, {}, []).
+
+-spec lookup(atom(), any()) -> {ok, [tuple()]} | {error, any()}.
+lookup(Table, Key) ->
+  F = fun() -> mnesia:read({Table, Key}) end,
+  case mnesia:transaction(F) of
+    {atomic, Items}   -> {ok, Items};
+    {aborted, Reason} -> {error, Reason}
+  end.
 
 -spec match(tuple()) -> {ok, [tuple()]} | {error, any()}.
 match(Pattern) when is_tuple(Pattern) ->

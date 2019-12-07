@@ -72,8 +72,8 @@ goto_definition(_Filename, _) ->
 find([], _Kind, _Data) ->
   {error, not_found};
 find([Uri|Uris0], Kind, Data) ->
-  case els_db:find(documents, Uri) of
-    {ok, Document} ->
+  case els_dt_documents:lookup(Uri) of
+    {ok, [#{document := Document}]} ->
       POIs = els_document:points_of_interest(Document, [Kind], Data),
       case POIs of
         [] ->

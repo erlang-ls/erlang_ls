@@ -70,7 +70,7 @@ index_file(Path, SyncAsync) ->
 -spec index(els_document:document()) -> ok.
 index(Document) ->
   Uri    = els_document:uri(Document),
-  ok     = els_db:store(documents, Uri, Document),
+  ok     = els_dt_documents:insert(#{uri => Uri, document => Document}),
   Module = els_uri:module(Uri),
   els_dt_module:insert(#{module => Module, uri => Uri}),
   Specs  = els_document:points_of_interest(Document, [spec]),
