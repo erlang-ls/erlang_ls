@@ -8,6 +8,7 @@
         , install/1
         , lookup/2
         , match/1
+        , transaction/1
         , wait_for_tables/0
         , wait_for_tables/1
         , write/1
@@ -48,35 +49,22 @@ create_tables() ->
 -spec delete(atom(), any()) -> ok | {error, any()}.
 delete(Table, Key) ->
   F = fun() -> mnesia:delete({Table, Key}) end,
-  case mnesia:transaction(F) of
-    {atomic, ok}      -> ok;
-    {aborted, Reason} -> {error, Reason}
-  end.
+  transaction(F).
 
 -spec lookup(atom(), any()) -> {ok, [tuple()]} | {error, any()}.
 lookup(Table, Key) ->
   F = fun() -> mnesia:read({Table, Key}) end,
-  case mnesia:transaction(F) of
-    {atomic, Items}   -> {ok, Items};
-    {aborted, Reason} -> {error, Reason}
-  end.
+  transaction(F).
 
 -spec match(tuple()) -> {ok, [tuple()]} | {error, any()}.
 match(Pattern) when is_tuple(Pattern) ->
   F = fun() -> mnesia:match_object(Pattern) end,
-  case mnesia:transaction(F) of
-    {atomic, Items}   -> {ok, Items};
-    {aborted, Reason} -> {error, Reason}
-  end.
+  transaction(F).
 
 -spec write(tuple()) -> ok | {error, any()}.
 write(Record) when is_tuple(Record) ->
   F = fun() -> mnesia:write(Record) end,
-  case mnesia:transaction(F) of
-    {aborted, Reason} -> {error, {aborted, Reason}};
-    {atomic, ok}      -> ok;
-    {atomic, Result}  -> {error, Result}
-  end.
+  transaction(F).
 
 -spec clear_tables() -> ok.
 clear_tables() ->
@@ -95,3 +83,11 @@ wait_for_tables(Timeout) ->
 clear_table(Table) ->
   mnesia:clear_table(Table),
   ok.
+
+-spec transaction(function()) -> ok | {ok, any()} | {error, any()}.
+transaction(F) ->
+  case mnesia:transaction(F) of
+    {aborted, Reason} -> {error, {aborted, Reason}};
+    {atomic, ok}      -> ok;
+    {atomic, Result}  -> {ok, Result}
+  end.

@@ -67,23 +67,37 @@ index_file(Path, SyncAsync) ->
   try_index_file(Path, SyncAsync),
   {ok, els_uri:uri(Path)}.
 
+%% TODO: Avoid nested transactions
 -spec index(els_document:document()) -> ok.
 index(Document) ->
-  Uri    = els_document:uri(Document),
-  ok     = els_dt_documents:insert(#{uri => Uri, document => Document}),
-  Module = els_uri:module(Uri),
-  els_dt_module:insert(#{module => Module, uri => Uri}),
-  Specs  = els_document:points_of_interest(Document, [spec]),
-  [els_dt_signatures:insert(#{ mfa  => {Module, F, A}
-                             , tree => Tree
-                             }) ||
-    #{id := {F, A}, data := Tree} <- Specs],
-  Kinds = [application, implicit_fun],
-  POIs  = els_document:points_of_interest(Document, Kinds),
-  %% TODO: Transaction
-  ok = els_dt_references:delete_by_uri(Uri),
-  [register_reference(Uri, POI) || POI <- POIs],
-  ok.
+  Uri = els_document:uri(Document),
+  MD5 = els_document:md5(Document),
+  case els_dt_documents:lookup(Uri) of
+    {ok, [#{document := #{md5 := MD5}}]} ->
+      %% The module is already indexed, no action needed.
+      ok;
+    _ ->
+      %% TODO: Refactor schema
+      %% TODO: Avoid duplicated uri in document
+      F = fun() ->
+              ok = els_dt_documents:insert(#{ uri      => Uri
+                                            , document => Document
+                                            }),
+              Module = els_uri:module(Uri),
+              els_dt_module:insert(#{module => Module, uri => Uri}),
+              Specs  = els_document:points_of_interest(Document, [spec]),
+              [els_dt_signatures:insert(#{ mfa  => {Module, F, A}
+                                         , tree => Tree
+                                         }) ||
+                #{id := {F, A}, data := Tree} <- Specs],
+              Kinds = [application, implicit_fun],
+              POIs  = els_document:points_of_interest(Document, Kinds),
+              ok = els_dt_references:delete_by_uri(Uri),
+              [register_reference(Uri, POI) || POI <- POIs],
+              ok
+          end,
+      els_db:transaction(F)
+  end.
 
 -spec index_app() -> any().
 index_app() ->

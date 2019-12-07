@@ -32,15 +32,15 @@
 %% Item Definition
 %%==============================================================================
 
--record(els_dt_references, { id    :: atom()            | '_'
-                           , uri   :: uri()             | '_'
-                           , range :: els_range:range() | '_'
+-record(els_dt_references, { id    :: any()       | '_'
+                           , uri   :: uri()       | '_'
+                           , range :: poi_range() | '_'
                            }).
 -type els_dt_references() :: #els_dt_references{}.
 
 -type item() :: #{ id    := any()
                  , uri   := uri()
-                 , range := els_range:range()
+                 , range := poi_range()
                  }.
 -export_type([ item/0 ]).
 

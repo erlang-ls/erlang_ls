@@ -81,7 +81,7 @@ find([Uri|Uris0], Kind, Data) ->
         Definitions ->
           {ok, Uri, hd(els_poi:sort(Definitions))}
       end;
-    {error, not_found} ->
+    {ok, []} ->
       find(Uris0, Kind, Data)
   end;
 find(Uri, Kind, Data) ->

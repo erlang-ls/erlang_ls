@@ -11,6 +11,7 @@
 -export([ create/2
         , uri/1
         , text/1
+        , md5/1
         , points_of_interest/1
         , points_of_interest/2
         , points_of_interest/3
@@ -23,6 +24,7 @@
 
 -type document() :: #{ uri  := uri()
                      , text := binary()
+                     , md5  := binary()
                      , pois := [poi()]
                      }.
 
@@ -37,12 +39,12 @@
 %%% API
 %%%=============================================================================
 
-%% TODO: Add MD5
 -spec create(uri(), binary()) -> document().
 create(Uri, Text) ->
   {ok, POIs} = els_parser:parse(Text),
   #{ uri  => Uri
    , text => Text
+   , md5  => erlang:md5(Text)
    , pois => POIs
    }.
 
@@ -53,6 +55,10 @@ uri(#{uri := Uri}) ->
 -spec text(document()) -> binary().
 text(#{text := Text}) ->
   Text.
+
+-spec md5(document()) -> binary().
+md5(#{md5 := MD5}) ->
+  MD5.
 
 -spec points_of_interest(document()) -> [poi()].
 points_of_interest(Document) ->

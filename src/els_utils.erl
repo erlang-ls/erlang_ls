@@ -44,7 +44,7 @@ find_document(Uri) ->
   case els_dt_documents:lookup(Uri) of
     {ok, [#{document := Document}]} ->
       {ok, Document};
-    {error, not_found} ->
+    {ok, []} ->
       Path = els_uri:path(Uri),
       {ok, Uri} = els_indexer:index_file(Path, sync),
       {ok, _} = els_dt_documents:lookup(Uri)

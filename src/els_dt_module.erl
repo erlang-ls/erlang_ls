@@ -20,6 +20,7 @@
         , find_by/1
         , find_by_module/1
         , insert/1
+        , lookup/1
         ]).
 
 %%==============================================================================
@@ -95,4 +96,13 @@ find_by(Pattern) ->
       {ok, [to_map(Item) || Item <- Items]};
     {error, Error} ->
       {error, Error}
+  end.
+
+-spec lookup(uri()) -> {ok, [item()]} | {error, any()}.
+lookup(Uri) ->
+  case els_db:lookup(name(), Uri) of
+    {ok, Items} ->
+      {ok, [to_map(Item) || Item <- Items]};
+    {error, Reason} ->
+      {error, Reason}
   end.
