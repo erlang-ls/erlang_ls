@@ -80,7 +80,8 @@ index(Document) ->
     #{id := {F, A}, data := Tree} <- Specs],
   Kinds = [application, implicit_fun],
   POIs  = els_document:points_of_interest(Document, Kinds),
-  purge_uri_references(Uri),
+  %% TODO: Transaction
+  ok = els_dt_references:delete_by_uri(Uri),
   [register_reference(Uri, POI) || POI <- POIs],
   ok.
 
@@ -194,30 +195,12 @@ index_document(Document, sync) ->
   %% Don't use the pool for synchronous indexing
   ok = index(Document).
 
-%% TODO: Specific for references
-
--type ref_key()   :: {any(), any(), any()}. %% {M, F, A}
--type ref_value() :: #{ uri := uri(), range := poi_range() }.
-
 -spec register_reference(uri(), poi()) -> ok.
-register_reference(Uri, #{id := {M, F, A}, range := Range}) ->
-  Ref = #{uri => Uri, range => Range},
-  add_reference({M, F, A}, Ref),
-  ok;
-register_reference(Uri, #{id := {F, A}, range := Range}) ->
-  Ref = #{uri => Uri, range => Range},
+register_reference(Uri, #{id := {F, A}} = POI) ->
   M = els_uri:module(Uri),
-  add_reference({M, F, A}, Ref),
-  ok.
-
--spec add_reference(ref_key(), ref_value()) -> ok.
-add_reference(Key, Value) ->
-  ok = els_db:store(references, Key, Value).
-
-%% @edoc Remove all references to a given uri()
--spec purge_uri_references(uri()) -> ok.
-purge_uri_references(Uri) ->
-  %% TODO: Compile MS
-  MatchSpec = ets:fun2ms(fun({_K, #{uri => U}}) -> U =:= Uri end),
-  _DeletedCount = ets:select_delete(references, MatchSpec),
-  ok.
+  register_reference(Uri, POI#{ id => {M, F, A}});
+register_reference(Uri, #{id := {M, F, A}, range := Range}) ->
+  els_dt_references:insert(#{ id    => {M, F, A}
+                            , uri   => Uri
+                            , range => Range
+                            }).

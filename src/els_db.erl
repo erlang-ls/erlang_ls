@@ -2,20 +2,18 @@
 -module(els_db).
 
 %% Experimental API
--export([ lookup/2
+-export([ delete/2
+        , lookup/2
         , match/1
         , write/1
         ]).
 
 %% API
 -export([ find/2
-        , find_multi/2
         , install/0
         , install/1
         , list/1
         , store/3
-        , update/4
-        , delete/2
         , flush_all_tables/0
         , start_link/0
         , wait_for_tables/0
@@ -29,11 +27,11 @@
         ]).
 
 -define(SERVER, ?MODULE).
--define(TABLES, [ {references, bag}
-                ]).
+-define(TABLES, []).
 %% TODO: Merge with TABLES
 -define(DB_TABLES, [ els_dt_module
                    , els_dt_documents
+                   , els_dt_references
                    , els_dt_signatures
                    ]).
 -define(TIMEOUT, 5000).
@@ -70,6 +68,14 @@ create_tables() ->
 start_link() ->
   gen_server:start_link({local, ?SERVER}, ?MODULE, {}, []).
 
+-spec delete(atom(), any()) -> ok | {error, any()}.
+delete(Table, Key) ->
+  F = fun() -> mnesia:delete({Table, Key}) end,
+  case mnesia:transaction(F) of
+    {atomic, ok}      -> ok;
+    {aborted, Reason} -> {error, Reason}
+  end.
+
 -spec lookup(atom(), any()) -> {ok, [tuple()]} | {error, any()}.
 lookup(Table, Key) ->
   F = fun() -> mnesia:read({Table, Key}) end,
@@ -102,15 +108,7 @@ find(Table, Key) ->
     [{Key, Value}] -> {ok, Value}
   end.
 
--spec find_multi(table(), key()) -> {ok, nonempty_list(any())}
-                                    | {error, not_found}.
-find_multi(Table, Key) ->
-  case ets:lookup(Table, Key) of
-    [] -> {error, not_found};
-    KVs -> {ok, KVs} %% Return as is, we need to iterate the result
-                     %% anyway, no point doing it twice.
-  end.
-
+%% TODO: Remove all ets functions
 -spec list(table()) -> [any()].
 list(Table) ->
   ets:tab2list(Table).
@@ -120,37 +118,10 @@ store(Table, Key, Value) ->
   ets:insert(Table, {Key, Value}),
   ok.
 
--spec update(table(), key(), function(), any()) -> ok.
-update(Table, Key, UpdateFun, Default) ->
-  case find(Table, Key) of
-    {error, not_found} ->
-      New = UpdateFun(Default),
-      case ets:insert_new(Table, {Key, New}) of
-        true  -> ok;
-        false -> update(Table, Key, UpdateFun, Default)
-      end;
-    {ok, Old} ->
-      New = UpdateFun(Old),
-      Replace = [{{Key, Old}, [], [{const, {Key, New}}]}],
-      case ets:select_replace(Table, Replace) of
-        1 -> ok;
-        %% AZ: The next line is a recursive call. If it is ever hit,
-        %%     will we have an infinite loop?
-        0 -> update(Table, Key, UpdateFun, Default)
-      end
-  end.
-
--spec delete(table(), key()) -> ok.
-delete(Table, Key) ->
-  true = ets:delete(Table, Key),
-  ok.
-
 %% TODO: Merge
 -spec flush_all_tables() -> ok.
 flush_all_tables() ->
-  [delete_table(Details) || Details <- ?TABLES],
   [clear_table(T) || T <- ?DB_TABLES],
-  [create_table(Details) || Details <- ?TABLES],
   ok.
 
 -spec wait_for_tables() -> ok.
@@ -189,11 +160,6 @@ create_table({Name, Type}) ->
          , compressed
          ],
   ets:new(Name, Opts),
-  ok.
-
--spec delete_table({atom(), atom()}) -> ok.
-delete_table({Name, _}) ->
-  ets:delete(Name),
   ok.
 
 %% TODO: Merge with above

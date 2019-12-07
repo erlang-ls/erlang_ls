@@ -50,8 +50,8 @@ find_references(Uri, #{ kind := Kind
           {F, A}    -> {els_uri:module(Uri), F, A};
           {M, F, A} -> {M, F, A}
         end,
-  case els_db:find_multi(references, Key) of
-    {error, not_found} ->
+  case els_dt_references:find_by_id(Key) of
+    {ok, []} ->
       null;
     {ok, Refs} ->
       [location(U, R) || {_, #{uri := U, range := R}} <- Refs]
