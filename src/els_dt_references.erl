@@ -17,6 +17,7 @@
 %%==============================================================================
 
 -export([ delete_by_uri/1
+        , find_all/0
         , find_by/1
         , find_by_id/1
         , insert/1
@@ -85,6 +86,12 @@ delete_by_uri(Uri) ->
 insert(Map) when is_map(Map) ->
   Record = from_map(Map),
   els_db:write(Record).
+
+%% @edoc Find all
+-spec find_all() -> {ok, [item()]} | {error, any()}.
+find_all() ->
+  Pattern = #els_dt_references{_ = '_'},
+  find_by(Pattern).
 
 %% @edoc Find by id
 -spec find_by_id(any()) -> {ok, [item()]} | {error, any()}.
