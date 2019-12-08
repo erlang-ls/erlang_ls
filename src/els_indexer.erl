@@ -72,7 +72,7 @@ index_file(Path, SyncAsync) ->
 index(Document) ->
   Uri = els_document:uri(Document),
   MD5 = els_document:md5(Document),
-  case els_dt_documents:lookup(Uri) of
+  case els_dt_document:lookup(Uri) of
     {ok, [#{document := #{md5 := MD5}}]} ->
       %% The module is already indexed, no action needed.
       ok;
@@ -80,9 +80,9 @@ index(Document) ->
       %% TODO: Refactor schema
       %% TODO: Avoid duplicated uri in document
       F = fun() ->
-              ok = els_dt_documents:insert(#{ uri      => Uri
-                                            , document => Document
-                                            }),
+              ok = els_dt_document:insert(#{ uri      => Uri
+                                           , document => Document
+                                           }),
               Module = els_uri:module(Uri),
               els_dt_module:insert(#{module => Module, uri => Uri}),
               Specs  = els_document:points_of_interest(Document, [spec]),

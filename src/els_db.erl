@@ -16,7 +16,7 @@
 
 -define(SERVER, ?MODULE).
 -define(TABLES, [ els_dt_module
-                , els_dt_documents
+                , els_dt_document
                 , els_dt_references
                 , els_dt_signatures
                 ]).

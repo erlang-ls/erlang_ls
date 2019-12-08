@@ -41,14 +41,14 @@ find_module(M, Extension) ->
 -spec find_document(uri()) ->
   {ok, els_document:document()} | {error, any()}.
 find_document(Uri) ->
-  case els_dt_documents:lookup(Uri) of
+  case els_dt_document:lookup(Uri) of
     {ok, [#{document := Document}]} ->
       {ok, Document};
     {ok, []} ->
       %% TODO: Maybe we should not index this
       Path = els_uri:path(Uri),
       {ok, Uri} = els_indexer:index_file(Path, sync),
-      {ok, _} = els_dt_documents:lookup(Uri)
+      {ok, _} = els_dt_document:lookup(Uri)
   end.
 
 %% @doc Folds over all files in a directory recursively

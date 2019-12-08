@@ -1,8 +1,8 @@
 %%==============================================================================
-%% The 'documents' table
+%% The 'document' table
 %%==============================================================================
 
--module(els_dt_documents).
+-module(els_dt_document).
 
 %%==============================================================================
 %% Behaviour els_db_table
@@ -29,10 +29,10 @@
 %% Item Definition
 %%==============================================================================
 
--record(els_dt_documents, { uri      :: uri()  | '_'
-                          , document :: els_document:document()
-                          }).
--type els_dt_documents() :: #els_dt_documents{}.
+-record(els_dt_document, { uri      :: uri()  | '_'
+                         , document :: els_document:document()
+                         }).
+-type els_dt_document() :: #els_dt_document{}.
 
 -type item() :: #{ uri      := uri()
                  , document := els_document:document()
@@ -48,7 +48,7 @@ name() -> ?MODULE.
 
 -spec opts() -> proplists:proplist().
 opts() ->
-  [ {attributes , record_info(fields, els_dt_documents)}
+  [ {attributes , record_info(fields, els_dt_document)}
   , {disc_copies, [node()]}
   , {index      , []}
   , {type       , set}
@@ -58,12 +58,12 @@ opts() ->
 %% API
 %%==============================================================================
 
--spec from_map(item()) -> els_dt_documents().
+-spec from_map(item()) -> els_dt_document().
 from_map(#{ uri := Uri, document := Document }) ->
-  #els_dt_documents{ uri = Uri, document = Document }.
+  #els_dt_document{ uri = Uri, document = Document }.
 
--spec to_map(els_dt_documents()) -> item().
-to_map(#els_dt_documents{ uri = Uri, document = Document }) ->
+-spec to_map(els_dt_document()) -> item().
+to_map(#els_dt_document{ uri = Uri, document = Document }) ->
   #{ uri      => Uri
    , document => Document
    }.
