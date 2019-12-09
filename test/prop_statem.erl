@@ -109,7 +109,7 @@ initialize_post(_S, _Args, Res) ->
                    , documentSymbolProvider  => true
                    , workspaceSymbolProvider => true
                    , documentFormattingProvider => true
-                   , documentRangeFormattingProvider => true
+                   , documentRangeFormattingProvider => false
                    , documentOnTypeFormattingProvider => false
                    , didChangeWatchedFiles =>
                        #{ dynamicRegistration => false

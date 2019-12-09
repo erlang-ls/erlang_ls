@@ -28,8 +28,7 @@ is_enabled_document() -> true.
 
 -spec is_enabled_range() -> boolean().
 is_enabled_range() ->
-  true.
-  %% false.
+  false.
 
 %% NOTE: because erlang_ls does not send incremental document changes
 %%       via `textDocument/didChange`, this kind of formatting does not
@@ -52,8 +51,7 @@ handle_request({document_formatting, Params}, State) ->
             , [Options]),
   {ok, Document} = els_utils:find_document(Uri),
   case format_document(Uri, Document, Options) of
-    {ok, TextEdit} -> {TextEdit, State};
-    _ -> {null, State}
+    {ok, TextEdit} -> {TextEdit, State}
   end;
 handle_request({document_rangeformatting, Params}, State) ->
   #{ <<"range">>     := #{ <<"start">> := StartPos
@@ -65,8 +63,7 @@ handle_request({document_rangeformatting, Params}, State) ->
   Range = #{ start => StartPos, 'end' => EndPos },
   {ok, Document} = els_utils:find_document(Uri),
   case rangeformat_document(Uri, Document, Range, Options) of
-    {ok, TextEdit} -> {TextEdit, State};
-    _ -> {null, State}
+    {ok, TextEdit} -> {TextEdit, State}
   end;
 handle_request({document_ontypeformatting, Params}, State) ->
   #{ <<"position">>     := #{ <<"line">>      := Line
@@ -79,8 +76,7 @@ handle_request({document_ontypeformatting, Params}, State) ->
   {ok, Document} = els_utils:find_document(Uri),
   case ontypeformat_document(Uri, Document, Line + 1, Character + 1, Char
                             , Options) of
-    {ok, TextEdit} -> {TextEdit, State};
-    _ -> {null, State}
+    {ok, TextEdit} -> {TextEdit, State}
   end.
 
 %%==============================================================================
@@ -88,21 +84,32 @@ handle_request({document_ontypeformatting, Params}, State) ->
 %%==============================================================================
 
 -spec format_document(uri(), els_document:document(), formatting_options())
-                     -> {ok, text_edit()} | {err, _}.
+                     -> {ok, [text_edit()]}.
 format_document(Uri, _Document, Options) ->
     lager:info("format_document: ~p", [{Uri, Options}]),
-    {err, not_implemented}.
+    Path = els_uri:path(Uri),
+    BaseName = filename:basename(Path),
+    Fun = fun(Dir) ->
+            OutFile = filename:join(Dir, BaseName),
+            Opts = #{output_dir => Dir},
+            rebar3_formatter:format(binary_to_list(Path), Opts),
+            els_text_edit:diff_files(Path, OutFile)
+          end,
+    TextEdits = tempdir:mktmp(Fun),
+    lager:info("format_document: [TextEdits=~p]", [TextEdits]),
+    {ok, TextEdits}.
+
 
 -spec rangeformat_document(uri(), els_document:document(), range()
                           , formatting_options())
-                          -> {ok, text_edit()} | {err, _}.
+                          -> {ok, [text_edit()]}.
 rangeformat_document(Uri, _Document, Range, Options) ->
     lager:info("rangeformat_document: ~p", [{Uri, Range, Options}]),
-    {err, not_implemented}.
+    {ok, []}.
 
 -spec ontypeformat_document(binary(), els_document:document(), number()
                            , number(), string(), formatting_options())
-                           -> {ok, text_edit()} | {err, _}.
+                           -> {ok, [text_edit()]}.
 ontypeformat_document(Uri, _Document, Line, Col, Char, Options) ->
     lager:info("ontypeformat_document: ~p", [{Uri, Line, Col, Char, Options}]),
-    {err, not_implemented}.
+    {ok, []}.

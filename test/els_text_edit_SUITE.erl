@@ -66,17 +66,15 @@ text_edit_diff(Config) ->
   DiagnosticsUri = ?config(diagnostics_uri, Config),
   DiagnosticsPath = els_uri:path(DiagnosticsUri),
   DiagnosticsDiffPath = ?config(diagnostics_diff_path, Config),
-  %% ?assertEqual(<<"foo">>, DiagnosticsPath),
-  %% ?assertEqual(<<"foo">>, DiagnosticsDiffPath),
   Result = els_text_edit:diff_files(DiagnosticsPath, DiagnosticsDiffPath),
   [Edit1,Edit2] = Result,
-  ?assertEqual( #{new_text =>
-                   ["%% Changed diagnostics.erl, to test diff generation\n"],
+  ?assertEqual( #{newText =>
+                   <<"%% Changed diagnostics.erl, to test diff generation\n">>,
                   range =>
                       #{'end' => #{character => 0,line => 1},
                         start => #{character => 0,line => 1}}}
               , Edit1),
-  ?assertEqual( #{new_text => ["main(X) -> X + 1.\n"],
+  ?assertEqual( #{newText => <<"main(X) -> X + 1.\n">>,
                   range =>
                       #{'end' => #{character => 0,line => 7},
                         start => #{character => 0,line => 5}}}

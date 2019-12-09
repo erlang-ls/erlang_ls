@@ -15,10 +15,8 @@
 %% `DestinationFile'
 -spec diff_files(els_uri:path(), els_uri:path()) -> [text_edit()].
 diff_files(SourceFile, DestinationFile) ->
-    %% lager:info("diff_files: [Paths=~p]", [{SourceFile, DestinationFile}]),
     Diffs = tdiff:diff_files(SourceFile, DestinationFile),
     Patch = make_text_edits(Diffs),
-    lager:info("diff_files: [Patch=~p]", [Patch]),
     Patch.
 
 
@@ -35,7 +33,7 @@ diff_files(SourceFile, DestinationFile) ->
 %% change:
 %%    start and end are original range, text is replacement text
 
--type diff() :: {del, [binary()]} | {eq, [binary()]} | {ins, [binary()]}.
+-type diff() :: {del, [string()]} | {eq, [string()]} | {ins, [string()]}.
 
 -spec make_text_edits([diff()]) -> [text_edit()].
 make_text_edits(Diffs) ->
@@ -50,14 +48,14 @@ make_text_edits([{del, Del}, {ins, Ins}|T], Line, Acc) ->
     Pos1 = #{ line => Line,       character => 0 },
     Pos2 = #{ line => Line + Len, character => 0 },
     Edit = #{ range => #{ start => Pos1, 'end' => Pos2 }
-            , new_text => Ins
+            , newText => list_to_binary(lists:concat(Ins))
             },
     make_text_edits(T, Line + Len, [Edit|Acc]);
 
 make_text_edits([{ins, Data}|T], Line, Acc) ->
     Pos = #{ line => Line, character => 0 },
     Edit = #{ range => #{ start => Pos, 'end' => Pos }
-            , new_text => Data
+            , newText => list_to_binary(lists:concat(Data))
             },
     make_text_edits(T, Line, [Edit|Acc]);
 
@@ -66,7 +64,7 @@ make_text_edits([{del, Data}|T], Line, Acc) ->
     Pos1 = #{ line => Line,       character => 0 },
     Pos2 = #{ line => Line + Len, character => 0 },
     Edit = #{ range => #{ start => Pos1, 'end' => Pos2 }
-            , new_text => <<"">>
+            , newText => <<"">>
             },
     make_text_edits(T, Line + Len, [Edit|Acc]);
 
