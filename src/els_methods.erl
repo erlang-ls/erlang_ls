@@ -183,7 +183,7 @@ textdocument_didchange(Params, State) ->
   case ContentChanges of
     []                      -> ok;
     [#{<<"text">> := Text}] ->
-      Document = els_document:create(Uri, Text),
+      Document = els_dt_document:new(Uri, Text),
       els_indexer:index(Document)
   end,
   {noresponse, State}.

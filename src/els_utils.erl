@@ -1,9 +1,9 @@
 -module(els_utils).
 
--export([ find_document/1
+-export([ find_header/1
         , find_module/1
-        , find_module/2
         , fold_files/4
+        , lookup_document/1
         , project_relative/1
         , halt/1
         , start_epmd/0
@@ -15,22 +15,27 @@
 %% File and module functions
 %%==============================================================================
 
-%% @equiv find_module(Module, erl)
--spec find_module(atom()) -> {ok, uri()} | {error, any()}.
-find_module(M) ->
-  find_module(M, erl).
-
-%% @doc Look for a module in the DB.
-%%
-%% Look for a given module in the DB and return the respective
-%% `URI'. If the module is not in the DB, try to index it.
--spec find_module(atom(), erl | hrl) -> {ok, uri()} | {error, any()}.
-find_module(M, Extension) ->
-  case els_dt_module:find_by_module(M) of
-    {ok, [#{uri := Uri}]} ->
+%% @doc Look for a header in the DB
+-spec find_header(atom()) -> {ok, uri()} | {error, any()}.
+find_header(Id0) ->
+  {ok, Headers} = els_dt_document:find_by_kind(header),
+  case [Uri || #{id := Id, uri := Uri} <- Headers, Id0 =:= Id] of
+    [Uri] ->
       {ok, Uri};
-    {ok, []} ->
-      FileName = atom_to_list(M) ++ extension(Extension),
+    [] ->
+      FileName = atom_to_list(Id0) ++ ".hrl",
+      els_indexer:find_and_index_file(FileName, sync)
+  end.
+
+%% @doc Look for a module in the DB
+-spec find_module(atom()) -> {ok, uri()} | {error, any()}.
+find_module(Id0) ->
+  {ok, Modules} = els_dt_document:find_by_kind(module),
+  case [Uri || #{id := Id, uri := Uri} <- Modules, Id0 =:= Id] of
+    [Uri] ->
+      {ok, Uri};
+    [] ->
+      FileName = atom_to_list(Id0) ++ ".erl",
       els_indexer:find_and_index_file(FileName, sync)
   end.
 
@@ -38,17 +43,17 @@ find_module(M, Extension) ->
 %%
 %% Look for a given document in the DB and return it.
 %% If the module is not in the DB, try to index it.
--spec find_document(uri()) ->
-  {ok, els_document:document()} | {error, any()}.
-find_document(Uri) ->
+-spec lookup_document(uri()) ->
+  {ok, els_dt_document:item()} | {error, any()}.
+lookup_document(Uri) ->
   case els_dt_document:lookup(Uri) of
-    {ok, [#{document := Document}]} ->
+    {ok, [Document]} ->
       {ok, Document};
     {ok, []} ->
-      %% TODO: Maybe we should not index this
       Path = els_uri:path(Uri),
       {ok, Uri} = els_indexer:index_file(Path, sync),
-      {ok, _} = els_dt_document:lookup(Uri)
+      {ok, [Document]} = els_dt_document:lookup(Uri),
+      {ok, Document}
   end.
 
 %% @doc Folds over all files in a directory recursively
@@ -95,10 +100,6 @@ epmd_path() ->
         Epmd ->
             Epmd
     end.
-
--spec extension(erl | hrl) -> string().
-extension(erl) -> ".erl";
-extension(hrl) -> "".
 
 %% Folding over files
 

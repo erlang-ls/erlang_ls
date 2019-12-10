@@ -1,9 +1,6 @@
-%% TODO: Show progress messages to client
 -module(els_indexer).
 
-%% TODO: Move all code in one place
-%% TODO: Rename tables
--callback index(els_document:document()) -> ok.
+-callback index(els_dt_document:item()) -> ok.
 
 %% TODO: Solve API mix (gen_server and not)
 %% API
@@ -68,30 +65,25 @@ index_file(Path, SyncAsync) ->
   {ok, els_uri:uri(Path)}.
 
 %% TODO: Avoid nested transactions
--spec index(els_document:document()) -> ok.
-index(Document) ->
-  Uri = els_document:uri(Document),
-  MD5 = els_document:md5(Document),
+-spec index(els_dt_document:item()) -> ok.
+index(#{uri := Uri, text := Text} = Document) ->
+  MD5 = erlang:md5(Text),
   case els_dt_document:lookup(Uri) of
-    {ok, [#{document := #{md5 := MD5}}]} ->
+    {ok, [#{md5 := MD5}]} ->
       %% The module is already indexed, no action needed.
       ok;
     _ ->
-      %% TODO: Refactor schema
-      %% TODO: Avoid duplicated uri in document
       F = fun() ->
-              ok = els_dt_document:insert(#{ uri      => Uri
-                                           , document => Document
-                                           }),
+              ok = els_dt_document:insert(Document),
               Module = els_uri:module(Uri),
-              els_dt_module:insert(#{module => Module, uri => Uri}),
-              Specs  = els_document:points_of_interest(Document, [spec]),
+              Specs  = els_dt_document:pois(Document, [spec]),
               [els_dt_signatures:insert(#{ mfa  => {Module, F, A}
                                          , tree => Tree
                                          }) ||
                 #{id := {F, A}, data := Tree} <- Specs],
-              Kinds = [application, implicit_fun],
-              POIs  = els_document:points_of_interest(Document, Kinds),
+              POIs  = els_dt_document:pois(Document, [ application
+                                                     , implicit_fun
+                                                     ]),
               ok = els_dt_references:delete_by_uri(Uri),
               [register_reference(Uri, POI) || POI <- POIs],
               ok
@@ -193,7 +185,7 @@ try_index_file(FullName, SyncAsync) ->
     lager:debug("Indexing file. [filename=~s]", [FullName]),
     {ok, Text} = file:read_file(FullName),
     Uri        = els_uri:uri(FullName),
-    Document   = els_document:create(Uri, Text),
+    Document   = els_dt_document:new(Uri, Text),
     ok         = index_document(Document, SyncAsync)
   catch Type:Reason:St ->
       lager:error("Error indexing file "
@@ -202,7 +194,7 @@ try_index_file(FullName, SyncAsync) ->
       {error, {Type, Reason}}
   end.
 
--spec index_document(els_document:document(), async | sync) -> ok.
+-spec index_document(els_dt_document:item(), async | sync) -> ok.
 index_document(Document, async) ->
   ok = wpool:cast(indexers, {?MODULE, index, [Document]});
 index_document(Document, sync) ->

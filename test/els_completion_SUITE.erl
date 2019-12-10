@@ -88,10 +88,6 @@ atom_completions(Config) ->
                 , kind             => ?COMPLETION_ITEM_KIND_MODULE
                 , label            => <<"code_navigation_types">>
                 }
-             , #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
-                , kind             => ?COMPLETION_ITEM_KIND_MODULE
-                , label            => <<"code_navigation.hrl">>
-                }
              , #{ insertText => <<"do_4(${1:Arg1}, ${2:Arg2})">>
                 , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
                 , kind             => ?COMPLETION_ITEM_KIND_FUNCTION,
@@ -270,11 +266,11 @@ macros(Config) ->
 
   #{result := Completion1} =
     els_client:completion(Uri, 24, 1, TriggerKindChar, <<"?">>),
-  ?assertEqual(lists:sort(Expected), lists:sort(Completion1)),
+  [?assert(lists:member(E, Completion1)) || E <- Expected],
 
   #{result := Completion2} =
     els_client:completion(Uri, 40, 5, TriggerKindInvoked, <<"">>),
-  ?assertEqual(lists:sort(Expected), lists:sort(Completion2)),
+  [?assert(lists:member(E, Completion2)) || E <- Expected],
 
   ok.
 

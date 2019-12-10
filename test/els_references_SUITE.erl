@@ -156,17 +156,18 @@ purge_references(_Config) ->
   Uri = <<"file://tmp/foo.erl">>,
   Text0 = "-spec foo(integer()) -> ok.\nfoo _X -> ok.\nbar() -> foo(1).",
   Text1 = "\n-spec foo(integer()) -> ok.\nfoo _X -> ok.\nbar() -> foo(1).",
-  Doc0 = els_document:create(Uri, Text0),
-  Doc1 = els_document:create(Uri, Text1),
+  Doc0 = els_dt_document:new(Uri, Text0),
+  Doc1 = els_dt_document:new(Uri, Text1),
   els_indexer:index(Doc0),
   els_indexer:index(Doc1),
-  ?assertEqual({ok, [#{ module => foo
-                      , uri => <<"file://tmp/foo.erl">>
+  ?assertMatch({ok, [#{ id   := foo
+                      , kind := module
+                      , uri  := <<"file://tmp/foo.erl">>
                       }]}
-              , els_dt_module:find_all()),
-  ?assertEqual({ok, [#{ id    => {foo,foo,1}
-                      , range => #{from => {4,10},to => {4,13}}
-                      , uri   => <<"file://tmp/foo.erl">>
+              , els_dt_document:find_by_kind(module)),
+  ?assertMatch({ok, [#{ id    := {foo,foo,1}
+                      , range := #{from := {4,10},to := {4,13}}
+                      , uri   := <<"file://tmp/foo.erl">>
                       }]}
               , els_dt_references:find_all()
               ),

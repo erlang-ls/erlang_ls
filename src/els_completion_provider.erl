@@ -27,8 +27,7 @@ handle_request({completion, Params}, State) ->
                             }
    , <<"textDocument">> := #{<<"uri">> := Uri}
    } = Params,
-  {ok, Document} = els_utils:find_document(Uri),
-  Text = els_document:text(Document),
+  {ok, #{text := Text} = Document} = els_utils:lookup_document(Uri),
   case maps:find(<<"context">>, Params) of
     {ok, Context} ->
       TriggerKind = maps:get(<<"triggerKind">>, Context),
@@ -114,11 +113,10 @@ find_completion(_Prefix, _TriggerKind, _Opts) ->
 %% Modules
 %%==============================================================================
 
-%% TODO: Improve efficiency
 -spec modules(binary()) -> [map()].
 modules(Prefix) ->
-  {ok, All} = els_dt_module:find_all(),
-  Modules = [Module || #{module := Module} <- All],
+  {ok, All} = els_dt_document:find_by_kind(module),
+  Modules = [Id || #{id := Id} <- All],
   filter_by_prefix(Prefix, Modules, fun to_binary/1, fun item_kind_module/1).
 
 -spec item_kind_module(binary()) -> map().
@@ -132,14 +130,14 @@ item_kind_module(Module) ->
 %% Functions
 %%==============================================================================
 
--spec functions(els_document:document(), boolean(), boolean()) -> [map()].
+-spec functions(els_dt_document:item(), boolean(), boolean()) -> [map()].
 functions(Document, _OnlyExported = false, Arity) ->
-  POIs = els_document:points_of_interest(Document, [function]),
+  POIs = els_dt_document:pois(Document, [function]),
   List = [completion_item_function(POI, Arity) || POI <- POIs],
   lists:usort(List);
 functions(Document, _OnlyExported = true, Arity) ->
-  Exports   = els_document:points_of_interest(Document, [export_entry]),
-  Functions = els_document:points_of_interest(Document, [function]),
+  Exports   = els_dt_document:pois(Document, [export_entry]),
+  Functions = els_dt_document:pois(Document, [function]),
   ExportsFA = [FA || #{id := FA} <- Exports],
   List      = [ completion_item_function(POI, Arity)
                 || #{id := FA} = POI <- Functions, lists:member(FA, ExportsFA)
@@ -163,7 +161,7 @@ completion_item_function(#{id := {F, A}}, true) ->
 exported_functions(Module, Arity) ->
   case els_utils:find_module(Module) of
     {ok, Uri} ->
-      {ok, Document} = els_utils:find_document(Uri),
+      {ok, Document} = els_utils:lookup_document(Uri),
       functions(Document, true, Arity);
     {error, _Error} ->
       null
@@ -177,9 +175,9 @@ snippet_function_call(Function, Args0) ->
   Snippet = [atom_to_list(Function), "(", string:join(Args, ", "), ")"],
   iolist_to_binary(Snippet).
 
--spec is_exports_entry(els_document:document(), non_neg_integer()) -> boolean().
+-spec is_exports_entry(els_dt_document:item(), non_neg_integer()) -> boolean().
 is_exports_entry(Document, Line) ->
-  case els_document:points_of_interest(Document, [exports]) of
+  case els_dt_document:pois(Document, [exports]) of
     [] -> false;
     Exports ->
       IsInside = fun(#{range := #{from := {From, _}, to := {To, _}}}) ->
@@ -192,9 +190,9 @@ is_exports_entry(Document, Line) ->
 %% Variables
 %%==============================================================================
 
--spec variables(els_document:document()) -> [map()].
+-spec variables(els_dt_document:item()) -> [map()].
 variables(Document) ->
-  POIs = els_document:points_of_interest(Document, [variable]),
+  POIs = els_dt_document:pois(Document, [variable]),
   Vars = [ #{ label => atom_to_binary(Name, utf8)
             , kind  => ?COMPLETION_ITEM_KIND_VARIABLE
             }
@@ -208,35 +206,34 @@ variables(Document) ->
 
 -type def_type() :: define | record.
 
--spec definitions(els_document:document(), def_type()) -> [map()].
+-spec definitions(els_dt_document:item(), def_type()) -> [map()].
 definitions(Document, Type) ->
   Definitions = lists:flatten([ local_definitions(Document, Type)
                               , included_definitions(Document, Type)
                               ]),
   lists:usort(Definitions).
 
--spec local_definitions(els_document:document(), def_type()) -> [map()].
+-spec local_definitions(els_dt_document:item(), def_type()) -> [map()].
 local_definitions(Document, Type) ->
-  POIs = els_document:points_of_interest(Document, [Type]),
+  POIs = els_dt_document:pois(Document, [Type]),
    [ #{ label => atom_to_binary(Name, utf8)
       , kind  => completion_item_kind(Type)
       }
      || #{id := Name} <- POIs
    ].
 
--spec included_definitions(els_document:document(), def_type()) -> [[map()]].
+-spec included_definitions(els_dt_document:item(), def_type()) -> [[map()]].
 included_definitions(Document, Type) ->
-  Kinds = [include, include_lib],
-  POIs  = els_document:points_of_interest(Document, Kinds),
+  POIs  = els_dt_document:pois(Document, [include, include_lib]),
   [include_file_definitions(Name, Type) || #{id := Name} <- POIs].
 
 -spec include_file_definitions(string(), def_type()) -> [map()].
 include_file_definitions(Name, Type) ->
-  Filename = filename:basename(Name),
-  M = list_to_atom(Filename),
-  case els_utils:find_module(M) of
+  Filename = filename:basename(Name, filename:extension(Name)),
+  H = list_to_atom(Filename),
+  case els_utils:find_header(H) of
     {ok, Uri} ->
-      {ok, IncludeDocument} = els_utils:find_document(Uri),
+      {ok, IncludeDocument} = els_utils:lookup_document(Uri),
       local_definitions(IncludeDocument, Type);
     {error, _} ->
       []

@@ -27,9 +27,9 @@ handle_request({document_highlight, Params}, State) ->
                             }
    , <<"textDocument">> := #{<<"uri">> := Uri}
    } = Params,
-  {ok, Document} = els_utils:find_document(Uri),
+  {ok, Document} = els_utils:lookup_document(Uri),
   case
-    els_document:get_element_at_pos(Document, Line + 1, Character + 1)
+    els_dt_document:get_element_at_pos(Document, Line + 1, Character + 1)
   of
     [POI | _] -> {find_highlights(Uri, POI), State};
     []        -> {null, State}

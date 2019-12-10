@@ -36,8 +36,8 @@ handle_request({hover, Params}, State) ->
 
 -spec documentation(uri(), non_neg_integer(), non_neg_integer()) -> binary().
 documentation(Uri, Line, Character) ->
-  {ok, Document} = els_utils:find_document(Uri),
-  case els_document:get_element_at_pos(Document, Line + 1, Character + 1)
+  {ok, Document} = els_utils:lookup_document(Uri),
+  case els_dt_document:get_element_at_pos(Document, Line + 1, Character + 1)
   of
     [POI|_] -> documentation(POI);
     []      -> <<>>

@@ -28,20 +28,19 @@ handle_request({symbol, Params}, State) ->
 %% Internal Functions
 %%==============================================================================
 
-%% TODO: Convert to select
 -spec modules(binary()) -> [symbol_information()].
 modules(Query) ->
-  {ok, All} = els_dt_module:find_all(),
+  {ok, All} = els_dt_document:find_by_kind(module),
   {ok, RePattern} = re:compile(Query),
   ReOpts = [{capture, none}],
-  F = fun(#{module := Module, uri := Uri}) ->
+  F = fun(#{kind := module, id := Module, uri := Uri}) ->
           filename:extension(Uri) =:= <<".erl">> andalso
             re:run(atom_to_binary(Module, utf8), RePattern, ReOpts) =:= match
       end,
   lists:map(fun symbol_information/1, lists:filter(F, All)).
 
--spec symbol_information(els_dt_module:item()) -> symbol_information().
-symbol_information(#{module := Module, uri := Uri}) ->
+-spec symbol_information(els_dt_document:item()) -> symbol_information().
+symbol_information(#{kind := module, id := Module, uri := Uri}) ->
   Range = #{from => {1, 1}, to => {1, 1}},
   #{ name => atom_to_binary(Module, utf8)
    , kind => ?SYMBOLKIND_MODULE
