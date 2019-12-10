@@ -30,10 +30,6 @@ range({Line, Column}, application, {F, _A}) ->
   From = {Line, Column},
   To = {Line, Column + length(atom_to_list(F))},
   #{ from => From, to => To };
-range({Line, Column}, header, _H) ->
-  From = {Line, Column},
-  To = From,
-  #{ from => From, to => To };
 range({Line, Column}, implicit_fun, {M, F, A}) ->
   From = {Line, Column},
   %% Assumes "fun M:F/A"

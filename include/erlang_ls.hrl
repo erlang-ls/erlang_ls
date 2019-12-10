@@ -556,7 +556,6 @@
                    | export
                    | exports_entry
                    | function
-                   | header
                    | implicit_fun
                    | import_entry
                    | include
