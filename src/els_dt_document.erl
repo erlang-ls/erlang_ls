@@ -8,6 +8,7 @@
 %% Behaviour els_db_table
 %%==============================================================================
 
+-behaviour(els_db_table).
 -export([ name/0
         , opts/0
         ]).
