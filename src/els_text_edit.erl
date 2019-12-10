@@ -48,14 +48,14 @@ make_text_edits([{del, Del}, {ins, Ins}|T], Line, Acc) ->
     Pos1 = #{ line => Line,       character => 0 },
     Pos2 = #{ line => Line + Len, character => 0 },
     Edit = #{ range => #{ start => Pos1, 'end' => Pos2 }
-            , newText => list_to_binary(lists:concat(Ins))
+            , newText => unicode:characters_to_binary(lists:concat(Ins))
             },
     make_text_edits(T, Line + Len, [Edit|Acc]);
 
 make_text_edits([{ins, Data}|T], Line, Acc) ->
     Pos = #{ line => Line, character => 0 },
     Edit = #{ range => #{ start => Pos, 'end' => Pos }
-            , newText => list_to_binary(lists:concat(Data))
+            , newText => unicode:characters_to_binary(lists:concat(Data))
             },
     make_text_edits(T, Line, [Edit|Acc]);
 

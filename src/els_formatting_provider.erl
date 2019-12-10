@@ -35,9 +35,6 @@ is_enabled_range() ->
 %%       make sense.
 -spec is_enabled_on_type() -> document_ontypeformatting_options().
 is_enabled_on_type() -> false.
-%% is_enabled_on_type() -> #{ <<"firstTriggerCharacter">> => "\n"
-%%                          , <<"moreTriggerCharacter">>  => ",;."
-%%                          }.
 
 -spec handle_request(any(), els_provider:state()) ->
   {any(), els_provider:state()}.
@@ -49,7 +46,7 @@ handle_request({document_formatting, Params}, State) ->
    } = Params,
   lager:info("els_formatting_provide:document_formatting: [Options=~p]"
             , [Options]),
-  {ok, Document} = els_utils:find_document(Uri),
+  {ok, Document} = els_utils:lookup_document(Uri),
   case format_document(Uri, Document, Options) of
     {ok, TextEdit} -> {TextEdit, State}
   end;
@@ -61,7 +58,7 @@ handle_request({document_rangeformatting, Params}, State) ->
    , <<"textDocument">> := #{<<"uri">> := Uri}
    } = Params,
   Range = #{ start => StartPos, 'end' => EndPos },
-  {ok, Document} = els_utils:find_document(Uri),
+  {ok, Document} = els_utils:lookup_document(Uri),
   case rangeformat_document(Uri, Document, Range, Options) of
     {ok, TextEdit} -> {TextEdit, State}
   end;
@@ -73,7 +70,7 @@ handle_request({document_ontypeformatting, Params}, State) ->
    , <<"options">>      := Options
    , <<"textDocument">> := #{<<"uri">> := Uri}
    } = Params,
-  {ok, Document} = els_utils:find_document(Uri),
+  {ok, Document} = els_utils:lookup_document(Uri),
   case ontypeformat_document(Uri, Document, Line + 1, Character + 1, Char
                             , Options) of
     {ok, TextEdit} -> {TextEdit, State}
@@ -83,7 +80,7 @@ handle_request({document_ontypeformatting, Params}, State) ->
 %% Internal functions
 %%==============================================================================
 
--spec format_document(uri(), els_document:document(), formatting_options())
+-spec format_document(uri(), map(), formatting_options())
                      -> {ok, [text_edit()]}.
 format_document(Uri, _Document, Options) ->
     lager:info("format_document: ~p", [{Uri, Options}]),
@@ -100,15 +97,14 @@ format_document(Uri, _Document, Options) ->
     {ok, TextEdits}.
 
 
--spec rangeformat_document(uri(), els_document:document(), range()
-                          , formatting_options())
+-spec rangeformat_document(uri(), map(), range(), formatting_options())
                           -> {ok, [text_edit()]}.
 rangeformat_document(Uri, _Document, Range, Options) ->
     lager:info("rangeformat_document: ~p", [{Uri, Range, Options}]),
     {ok, []}.
 
--spec ontypeformat_document(binary(), els_document:document(), number()
-                           , number(), string(), formatting_options())
+-spec ontypeformat_document(binary(), map()
+                           , number(), number(), string(), formatting_options())
                            -> {ok, [text_edit()]}.
 ontypeformat_document(Uri, _Document, Line, Col, Char, Options) ->
     lager:info("ontypeformat_document: ~p", [{Uri, Line, Col, Char, Options}]),

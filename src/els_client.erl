@@ -32,7 +32,7 @@
         , initialize/2
         , references/3
         , document_highlight/3
-        , document_formatting/2
+        , document_formatting/3
         , document_rangeformatting/3
         , document_ontypeformatting/4
         , shutdown/0
@@ -101,10 +101,10 @@ references(Uri, Line, Char) ->
 document_highlight(Uri, Line, Char) ->
   gen_server:call(?SERVER, {document_highlight, {Uri, Line, Char}}).
 
--spec document_formatting(uri(), formatting_options()) ->
+-spec document_formatting(uri(), non_neg_integer(), boolean()) ->
   ok.
-document_formatting(Uri, FormattingOptions) ->
-  gen_server:call(?SERVER, {document_formatting, {Uri, FormattingOptions}}).
+document_formatting(Uri, TabSize, InsertSpaces) ->
+  gen_server:call(?SERVER, {document_formatting, {Uri, TabSize, InsertSpaces}}).
 
 -spec document_rangeformatting(uri(), range(), formatting_options()) ->
   ok.
@@ -254,17 +254,20 @@ do_handle_responses([Response|Responses], Pending) ->
   end.
 
 -spec method_lookup(atom()) -> binary().
-method_lookup(completion)         -> <<"textDocument/completion">>;
-method_lookup(definition)         -> <<"textDocument/definition">>;
-method_lookup(document_symbol)    -> <<"textDocument/documentSymbol">>;
-method_lookup(references)         -> <<"textDocument/references">>;
-method_lookup(document_highlight) -> <<"textDocument/documentHighlight">>;
-method_lookup(did_open)           -> <<"textDocument/didOpen">>;
-method_lookup(did_save)           -> <<"textDocument/didSave">>;
-method_lookup(did_close)          -> <<"textDocument/didClose">>;
-method_lookup(hover)              -> <<"textDocument/hover">>;
-method_lookup(workspace_symbol)   -> <<"workspace/symbol">>;
-method_lookup(initialize)         -> <<"initialize">>.
+method_lookup(completion)               -> <<"textDocument/completion">>;
+method_lookup(definition)               -> <<"textDocument/definition">>;
+method_lookup(document_symbol)          -> <<"textDocument/documentSymbol">>;
+method_lookup(references)               -> <<"textDocument/references">>;
+method_lookup(document_highlight)       -> <<"textDocument/documentHighlight">>;
+method_lookup(document_formatting)      -> <<"textDocument/formatting">>;
+method_lookup(document_rangeformatting) -> <<"textDocument/rangeFormatting">>;
+method_lookup(document_ontypeormatting) -> <<"textDocument/onTypeFormatting">>;
+method_lookup(did_open)                 -> <<"textDocument/didOpen">>;
+method_lookup(did_save)                 -> <<"textDocument/didSave">>;
+method_lookup(did_close)                -> <<"textDocument/didClose">>;
+method_lookup(hover)                    -> <<"textDocument/hover">>;
+method_lookup(workspace_symbol)         -> <<"workspace/symbol">>;
+method_lookup(initialize)               -> <<"initialize">>.
 
 -spec request_params(tuple()) -> any().
 request_params({document_symbol, {Uri}}) ->
@@ -292,6 +295,13 @@ request_params({initialize, {RootUri, InitOptions}}) ->
   #{ <<"rootUri">> => RootUri
    , <<"initializationOptions">> => InitOptions
    , <<"capabilities">> => #{ <<"textDocument">> => TextDocument }
+   };
+request_params({ document_formatting
+               , {Uri, TabSize, InsertSpaces}}) ->
+  #{ textDocument => #{ uri => Uri }
+   , options      => #{ tabSize      => TabSize
+                      , insertSpaces => InsertSpaces
+                      }
    };
 request_params({_Action, {Uri, Line, Char}}) ->
   #{ textDocument => #{ uri => Uri }

@@ -69,6 +69,9 @@ init_per_suite(Config) ->
   DiagnosticsIncludePath = filename:join([ RootPath
                                          , <<"include">>
                                          , <<"diagnostics.hrl">>]),
+  FormatInputPath        = filename:join([ RootPath
+                                         , <<"src">>
+                                         , <<"format_input.erl">>]),
 
   Uri                    = els_uri:uri(Path),
   ExtraUri               = els_uri:uri(ExtraPath),
@@ -78,6 +81,7 @@ init_per_suite(Config) ->
   DiagnosticsUri         = els_uri:uri(DiagnosticsPath),
   ElvisDiagnosticsUri    = els_uri:uri(ElvisDiagnosticsPath),
   DiagnosticsIncludeUri  = els_uri:uri(DiagnosticsIncludePath),
+  FormatInputUri         = els_uri:uri(FormatInputPath),
 
   {ok, Text} = file:read_file(Path),
 
@@ -101,6 +105,7 @@ init_per_suite(Config) ->
   , {diagnostics_diff_path, DiagnosticsDiffPath}
   , {elvis_diagnostics_uri, ElvisDiagnosticsUri}
   , {diagnostics_include_uri, DiagnosticsIncludeUri}
+  , {format_input_uri, FormatInputUri}
   | Config
   ].
 

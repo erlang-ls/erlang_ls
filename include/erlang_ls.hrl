@@ -553,7 +553,6 @@
                                %% Spec says further properties must
                                %% meet the following signature
                                %%   [key: string]: boolean | number | string;
-                               , furtherProperties => any()
                                }.
 
 -type document_ontypeformatting_options() :: false |
