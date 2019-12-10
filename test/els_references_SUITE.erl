@@ -160,14 +160,11 @@ purge_references(_Config) ->
   Doc1 = els_dt_document:new(Uri, Text1),
   els_indexer:index(Doc0),
   els_indexer:index(Doc1),
-  ?assertMatch({ok, [#{ id   := foo
-                      , kind := module
-                      , uri  := <<"file://tmp/foo.erl">>
-                      }]}
+  ?assertEqual({ok, [Doc1]}
               , els_dt_document:find_by_kind(module)),
-  ?assertMatch({ok, [#{ id    := {foo,foo,1}
-                      , range := #{from := {4,10},to := {4,13}}
-                      , uri   := <<"file://tmp/foo.erl">>
+  ?assertEqual({ok, [#{ id    => {foo,foo,1}
+                      , range => #{from => {4,10},to => {4,13}}
+                      , uri   => <<"file://tmp/foo.erl">>
                       }]}
               , els_dt_references:find_all()
               ),
