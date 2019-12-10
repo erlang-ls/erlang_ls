@@ -88,11 +88,11 @@ handle_request({document_ontypeformatting, Params}, State) ->
 format_document(Uri, _Document, Options) ->
     lager:info("format_document: ~p", [{Uri, Options}]),
     Path = els_uri:path(Uri),
-    BaseName = filename:basename(Path),
     Fun = fun(Dir) ->
-            OutFile = filename:join(Dir, BaseName),
+            RelPath = els_utils:project_relative(Uri),
+            OutFile = filename:join(Dir, RelPath),
             Opts = #{output_dir => Dir},
-            rebar3_formatter:format(binary_to_list(Path), Opts),
+            rebar3_formatter:format(RelPath, Opts),
             els_text_edit:diff_files(Path, OutFile)
           end,
     TextEdits = tempdir:mktmp(Fun),
