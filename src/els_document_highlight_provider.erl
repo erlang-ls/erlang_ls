@@ -67,7 +67,6 @@ find_highlights(_Uri, _POI) ->
 
 -spec document_highlight(poi_range()) -> map().
 document_highlight(Range) ->
-  %% TODO:AZ:range as displayed ends one col too early
   #{ range => els_protocol:range(Range)
    , kind => ?DOCUMENT_HIGHLIGHT_KIND_TEXT
    }.
