@@ -80,13 +80,14 @@ from_map(#{ uri  := Uri
           , id   := Id
           , kind := Kind
           , text := Text
+          , md5  := MD5
+          , pois := POIs
           }) ->
-  {ok, POIs} = els_parser:parse(Text),
   #els_dt_document{ uri  = Uri
                   , id   = Id
                   , kind = Kind
                   , text = Text
-                  , md5  = erlang:md5(Text)
+                  , md5  = MD5
                   , pois = POIs
                   }.
 
