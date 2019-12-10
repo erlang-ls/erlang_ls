@@ -75,14 +75,14 @@ opts() ->
 %% API
 %%==============================================================================
 
--spec from_map(item()) -> els_dt_document().
-from_map(#{ uri  := Uri
-          , id   := Id
-          , kind := Kind
-          , text := Text
-          , md5  := MD5
-          , pois := POIs
-          }) ->
+-spec from_item(item()) -> els_dt_document().
+from_item(#{ uri  := Uri
+           , id   := Id
+           , kind := Kind
+           , text := Text
+           , md5  := MD5
+           , pois := POIs
+           }) ->
   #els_dt_document{ uri  = Uri
                   , id   = Id
                   , kind = Kind
@@ -91,14 +91,14 @@ from_map(#{ uri  := Uri
                   , pois = POIs
                   }.
 
--spec to_map(els_dt_document()) -> item().
-to_map(#els_dt_document{ uri  = Uri
-                       , id   = Id
-                       , kind = Kind
-                       , text = Text
-                       , md5  = MD5
-                       , pois = POIs
-                       }) ->
+-spec to_item(els_dt_document()) -> item().
+to_item(#els_dt_document{ uri  = Uri
+                        , id   = Id
+                        , kind = Kind
+                        , text = Text
+                        , md5  = MD5
+                        , pois = POIs
+                        }) ->
   #{ uri  => Uri
    , id   => Id
    , kind => Kind
@@ -109,14 +109,14 @@ to_map(#els_dt_document{ uri  = Uri
 
 -spec insert(item()) -> ok | {error, any()}.
 insert(Map) when is_map(Map) ->
-  Record = from_map(Map),
+  Record = from_item(Map),
   els_db:write(Record).
 
 -spec lookup(uri()) -> {ok, [item()]} | {error, any()}.
 lookup(Uri) ->
   case els_db:lookup(name(), Uri) of
     {ok, Items} ->
-      {ok, [to_map(Item) || Item <- Items]};
+      {ok, [to_item(Item) || Item <- Items]};
     {error, Reason} ->
       {error, Reason}
   end.
@@ -138,7 +138,7 @@ find_by_kind(Kind) ->
 find_by(Pattern) ->
   case els_db:match(Pattern) of
     {ok, Items} ->
-      {ok, [to_map(Item) || Item <- Items]};
+      {ok, [to_item(Item) || Item <- Items]};
     {error, Error} ->
       {error, Error}
   end.

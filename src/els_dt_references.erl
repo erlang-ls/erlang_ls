@@ -63,12 +63,12 @@ opts() ->
 %% API
 %%==============================================================================
 
--spec from_map(item()) -> els_dt_references().
-from_map(#{ id := Id, uri := Uri, range := Range}) ->
+-spec from_item(item()) -> els_dt_references().
+from_item(#{ id := Id, uri := Uri, range := Range}) ->
   #els_dt_references{ id = Id, uri = Uri, range = Range}.
 
--spec to_map(els_dt_references()) -> item().
-to_map(#els_dt_references{ id = Id, uri = Uri, range = Range }) ->
+-spec to_item(els_dt_references()) -> item().
+to_item(#els_dt_references{ id = Id, uri = Uri, range = Range }) ->
   #{ id    => Id
    , uri   => Uri
    , range => Range
@@ -84,7 +84,7 @@ delete_by_uri(Uri) ->
 
 -spec insert(item()) -> ok | {error, any()}.
 insert(Map) when is_map(Map) ->
-  Record = from_map(Map),
+  Record = from_item(Map),
   els_db:write(Record).
 
 %% @edoc Find all
@@ -104,7 +104,7 @@ find_by_id(Id) ->
 find_by(Pattern) ->
   case els_db:match(Pattern) of
     {ok, Items} ->
-      {ok, [to_map(Item) || Item <- Items]};
+      {ok, [to_item(Item) || Item <- Items]};
     {error, Error} ->
       {error, Error}
   end.

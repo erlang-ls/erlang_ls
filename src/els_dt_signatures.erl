@@ -58,26 +58,26 @@ opts() ->
 %% API
 %%==============================================================================
 
--spec from_map(item()) -> els_dt_signatures().
-from_map(#{ mfa := MFA, tree := Tree }) ->
+-spec from_item(item()) -> els_dt_signatures().
+from_item(#{ mfa := MFA, tree := Tree }) ->
   #els_dt_signatures{ mfa = MFA, tree = Tree }.
 
--spec to_map(els_dt_signatures()) -> item().
-to_map(#els_dt_signatures{ mfa = MFA, tree = Tree }) ->
+-spec to_item(els_dt_signatures()) -> item().
+to_item(#els_dt_signatures{ mfa = MFA, tree = Tree }) ->
   #{ mfa  => MFA
    , tree => Tree
    }.
 
 -spec insert(item()) -> ok | {error, any()}.
 insert(Map) when is_map(Map) ->
-  Record = from_map(Map),
+  Record = from_item(Map),
   els_db:write(Record).
 
 -spec lookup(mfa()) -> {ok, [item()]} | {error, any()}.
 lookup(MFA) ->
   case els_db:lookup(name(), MFA) of
     {ok, Items} ->
-      {ok, [to_map(Item) || Item <- Items]};
+      {ok, [to_item(Item) || Item <- Items]};
     {error, Reason} ->
       {error, Reason}
   end.
