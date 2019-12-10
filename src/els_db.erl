@@ -27,8 +27,7 @@
 
 -spec install() -> ok.
 install() ->
-  {ok, Dir} = application:get_env(erlang_ls, db_dir),
-  install(Dir).
+  install(default_db_dir()).
 
 -spec install(string()) -> ok.
 install(Dir) ->
@@ -90,3 +89,7 @@ transaction(F) ->
     {atomic, ok}      -> ok;
     {atomic, Result}  -> {ok, Result}
   end.
+
+-spec default_db_dir() -> string().
+default_db_dir() ->
+  filename:basedir(user_cache, "erlang_ls").
