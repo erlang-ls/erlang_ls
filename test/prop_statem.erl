@@ -92,7 +92,11 @@ initialize_post(_S, _Args, Res) ->
                   #{ hoverProvider => true
                    , completionProvider =>
                        #{ resolveProvider => false
-                        , triggerCharacters => [<<":">>, <<"#">>, <<"?">>]
+                        , triggerCharacters => [ <<":">>
+                                               , <<"#">>
+                                               , <<"?">>
+                                               , <<".">>
+                                               ]
                         }
                    , textDocumentSync =>
                        #{ openClose => true

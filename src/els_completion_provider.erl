@@ -217,11 +217,12 @@ variables(Document) ->
 %%  Record Fields
 %%==============================================================================
 
--spec record_fields(els_document:document(), atom()) -> [map()].
+-spec record_fields(els_dt_document:item(), atom()) -> [map()].
 record_fields(Document, RecordName) ->
   case find_record_definition(Document, RecordName) of
     [] -> [];
-    [#{data := Fields}] ->
+    POIs ->
+      [#{data := Fields} | _] = els_poi:sort(POIs),
       [ #{ label => atom_to_binary(Name, utf8)
          , kind  => ?COMPLETION_ITEM_KIND_FIELD
          }
@@ -229,8 +230,7 @@ record_fields(Document, RecordName) ->
       ]
   end.
 
--spec find_record_definition(els_document:document(), atom()) ->
-  [els_poi:poi()].
+-spec find_record_definition(els_dt_document:item(), atom()) -> [poi()].
 find_record_definition(Document, RecordName) ->
   POIs = lists:flatten([ local_definitions(Document, record)
                        , included_definitions(Document, record)

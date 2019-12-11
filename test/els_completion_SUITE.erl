@@ -23,6 +23,7 @@
         , macros/1
         , only_exported_functions_after_colon/1
         , records/1
+        , record_fields/1
         , variables/1
         ]).
 
@@ -316,6 +317,43 @@ records(Config) ->
   #{result := Completion2} =
     els_client:completion(Uri, 23, 6, TriggerKindInvoked, <<"">>),
   ?assertEqual(lists:sort(Expected), lists:sort(Completion2)),
+
+  ok.
+
+-spec record_fields(config()) -> ok.
+record_fields(Config) ->
+  Uri = ?config(code_navigation_uri, Config),
+  TriggerKindChar = ?COMPLETION_TRIGGER_KIND_CHARACTER,
+  TriggerKindInvoked = ?COMPLETION_TRIGGER_KIND_INVOKED,
+  Expected1 = [ #{ kind => ?COMPLETION_ITEM_KIND_FIELD
+                 , label => <<"field_a">>
+                 }
+              , #{ kind => ?COMPLETION_ITEM_KIND_FIELD
+                 , label => <<"field_b">>
+                 }
+              ],
+  #{result := Completion1} =
+    els_client:completion(Uri, 34, 19, TriggerKindChar, <<".">>),
+  ?assertEqual(lists:sort(Expected1), lists:sort(Completion1)),
+
+  #{result := Completion2} =
+    els_client:completion(Uri, 34, 22, TriggerKindInvoked, <<"">>),
+  ?assertEqual(lists:sort(Expected1), lists:sort(Completion2)),
+
+  Expected2 = [ #{ kind => ?COMPLETION_ITEM_KIND_FIELD
+                 , label => <<"included_field_a">>
+                 }
+              , #{ kind => ?COMPLETION_ITEM_KIND_FIELD
+                 , label => <<"included_field_b">>
+                 }
+              ],
+  #{result := Completion3} =
+    els_client:completion(Uri, 52, 60, TriggerKindChar, <<".">>),
+  ?assertEqual(lists:sort(Expected2), lists:sort(Completion3)),
+
+  #{result := Completion4} =
+    els_client:completion(Uri, 52, 63, TriggerKindInvoked, <<"">>),
+  ?assertEqual(lists:sort(Expected2), lists:sort(Completion4)),
 
   ok.
 
