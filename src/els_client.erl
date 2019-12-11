@@ -36,6 +36,7 @@
         , initialize/2
         , references/3
         , document_highlight/3
+        , document_codeaction/3
         , document_formatting/3
         , document_rangeformatting/3
         , document_ontypeformatting/4
@@ -122,6 +123,10 @@ references(Uri, Line, Char) ->
 -spec document_highlight(uri(), non_neg_integer(), non_neg_integer()) -> ok.
 document_highlight(Uri, Line, Char) ->
   gen_server:call(?SERVER, {document_highlight, {Uri, Line, Char}}).
+
+-spec document_codeaction(uri(), range(), [diagnostic()]) -> ok.
+document_codeaction(Uri, Range, Diagnostics) ->
+  gen_server:call(?SERVER, {document_codeaction, {Uri, Range, Diagnostics}}).
 
 -spec document_formatting(uri(), non_neg_integer(), boolean()) ->
   ok.
@@ -309,6 +314,7 @@ method_lookup(definition)               -> <<"textDocument/definition">>;
 method_lookup(document_symbol)          -> <<"textDocument/documentSymbol">>;
 method_lookup(references)               -> <<"textDocument/references">>;
 method_lookup(document_highlight)       -> <<"textDocument/documentHighlight">>;
+method_lookup(document_codeaction)      -> <<"textDocument/codeAction">>;
 method_lookup(document_formatting)      -> <<"textDocument/formatting">>;
 method_lookup(document_rangeformatting) -> <<"textDocument/rangeFormatting">>;
 method_lookup(document_ontypeormatting) -> <<"textDocument/onTypeFormatting">>;
@@ -347,6 +353,11 @@ request_params({initialize, {RootUri, InitOptions}}) ->
   #{ <<"rootUri">> => RootUri
    , <<"initializationOptions">> => InitOptions
    , <<"capabilities">> => #{ <<"textDocument">> => TextDocument }
+   };
+request_params({ document_codeaction, {Uri, Range, Diagnostics}}) ->
+  #{ textDocument => #{ uri => Uri }
+   , range      => Range
+   , context    => #{ diagnostics => Diagnostics }
    };
 request_params({ document_formatting
                , {Uri, TabSize, InsertSpaces}}) ->

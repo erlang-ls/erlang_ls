@@ -115,6 +115,8 @@ initialize_post(_S, _Args, Res) ->
                    , documentHighlightProvider => true
                    , documentSymbolProvider  => true
                    , foldingRangeProvider => true
+                   , executeCommandProvider => #{ commands => ["foo"] }
+                   , codeActionProvider => true
                    , workspaceSymbolProvider => true
                    , documentFormattingProvider => true
                    , documentRangeFormattingProvider => false

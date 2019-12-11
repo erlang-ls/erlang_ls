@@ -29,6 +29,7 @@
       , {index_deps, true}
         %% Logging
       , {logging_enabled, false}
+      %% , {test_code_action, true}
       ]
     }
   , {modules, []}
