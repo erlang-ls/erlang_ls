@@ -74,6 +74,16 @@ find_completion( _Prefix
                ) ->
   definitions(Document, record);
 find_completion( Prefix
+               , ?COMPLETION_TRIGGER_KIND_CHARACTER
+               , #{trigger := <<".">>, document := Document}
+               ) ->
+  case lists:reverse(els_text:tokens(Prefix)) of
+    [{atom, _, RecordName}, {'#', _} | _] ->
+      record_fields(Document, RecordName);
+    _ ->
+      []
+    end;
+find_completion( Prefix
                , ?COMPLETION_TRIGGER_KIND_INVOKED
                , #{ document := Document
                   , line     := Line
@@ -89,6 +99,9 @@ find_completion( Prefix
     %% Check for "[...] ?anything"
     [_, {'?', _} | _] ->
       definitions(Document, define);
+    %% Check for "[...] #anything.something"
+    [_, {'.', _}, {atom, _, RecordName}, {'#', _} | _] ->
+      record_fields(Document, RecordName);
     %% Check for "[...] #anything"
     [_, {'#', _} | _] ->
       definitions(Document, record);
@@ -201,6 +214,30 @@ variables(Document) ->
   lists:usort(Vars).
 
 %%==============================================================================
+%%  Record Fields
+%%==============================================================================
+
+-spec record_fields(els_dt_document:item(), atom()) -> [map()].
+record_fields(Document, RecordName) ->
+  case find_record_definition(Document, RecordName) of
+    [] -> [];
+    POIs ->
+      [#{data := Fields} | _] = els_poi:sort(POIs),
+      [ #{ label => atom_to_binary(Name, utf8)
+         , kind  => ?COMPLETION_ITEM_KIND_FIELD
+         }
+        || {Name, _} <- Fields
+      ]
+  end.
+
+-spec find_record_definition(els_dt_document:item(), atom()) -> [poi()].
+find_record_definition(Document, RecordName) ->
+  POIs = lists:flatten([ local_definitions(Document, record)
+                       , included_definitions(Document, record)
+                       ]),
+  [X || X = #{id := Name} <- POIs, Name =:= RecordName].
+
+%%==============================================================================
 %% Macros and Records
 %%==============================================================================
 
@@ -208,19 +245,19 @@ variables(Document) ->
 
 -spec definitions(els_dt_document:item(), def_type()) -> [map()].
 definitions(Document, Type) ->
-  Definitions = lists:flatten([ local_definitions(Document, Type)
-                              , included_definitions(Document, Type)
-                              ]),
-  lists:usort(Definitions).
+  POIs = lists:flatten([ local_definitions(Document, Type)
+                       , included_definitions(Document, Type)
+                       ]),
+  Defs = [ #{ label => atom_to_binary(Name, utf8)
+            , kind  => completion_item_kind(Type)
+            }
+           || #{id := Name} <- POIs
+         ],
+  lists:usort(Defs).
 
 -spec local_definitions(els_dt_document:item(), def_type()) -> [map()].
 local_definitions(Document, Type) ->
-  POIs = els_dt_document:pois(Document, [Type]),
-   [ #{ label => atom_to_binary(Name, utf8)
-      , kind  => completion_item_kind(Type)
-      }
-     || #{id := Name} <- POIs
-   ].
+  els_dt_document:pois(Document, [Type]).
 
 -spec included_definitions(els_dt_document:item(), def_type()) -> [[map()]].
 included_definitions(Document, Type) ->

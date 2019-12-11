@@ -106,7 +106,7 @@ initialize(Params, State) ->
          #{ hoverProvider => els_hover_provider:is_enabled()
           , completionProvider =>
               #{ resolveProvider => false
-               , triggerCharacters => [<<":">>, <<"#">>, <<"?">>]
+               , triggerCharacters => [<<":">>, <<"#">>, <<"?">>, <<".">>]
                }
           , textDocumentSync =>
               #{ openClose => true

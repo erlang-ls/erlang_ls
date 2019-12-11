@@ -230,8 +230,8 @@ attribute(Tree) ->
         _ ->
           []
       end;
-    {record, {Record, _Fields}} ->
-      [els_poi:new(Pos, record, Record)];
+    {record, {Record, Fields}} ->
+      [els_poi:new(Pos, record, Record, Fields)];
     {spec, {spec, {{F, A}, _}}} ->
       [els_poi:new(Pos, spec, {F, A}, Tree)];
     {type, {type, {Type, _, Args}}} ->
