@@ -32,17 +32,28 @@ install(NodeName, BaseDir) ->
   lager:info("Creating DB [dir=~s]", [DbDir]),
   ok = filelib:ensure_dir(filename:join([DbDir, "dummy"])),
   ok = application:set_env(mnesia, dir, DbDir),
-  mnesia:create_schema([node()]),
-  application:start(mnesia),
-  lager:info("Creating tables", []),
-  create_tables(),
-  wait_for_tables(),
-  lager:info("DB Created"),
+  ensure_db(),
   ok.
 
--spec create_tables() -> ok.
-create_tables() ->
-  [ok = els_db_table:create(T) || T <- ?TABLES],
+-spec ensure_db() -> boolean().
+ensure_db() ->
+  case mnesia:create_schema([node()]) of
+    {error, {_, {already_exists, _}}} ->
+      lager:info("DB already exist, skipping"),
+      ok;
+    ok ->
+      ok
+  end,
+  lager:info("Preparing tables"),
+  application:start(mnesia),
+  ensure_tables(),
+  wait_for_tables(),
+  lager:info("DB Initialized"),
+  ok.
+
+-spec ensure_tables() -> ok.
+ensure_tables() ->
+  [els_db_table:create(T) || T <- ?TABLES],
   ok.
 
 -spec delete(atom(), any()) -> ok | {error, any()}.
