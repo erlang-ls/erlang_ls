@@ -32,10 +32,9 @@ install(NodeName, BaseDir) ->
   lager:info("Creating DB [dir=~s]", [DbDir]),
   ok = filelib:ensure_dir(filename:join([DbDir, "dummy"])),
   ok = application:set_env(mnesia, dir, DbDir),
-  ensure_db(),
-  ok.
+  ensure_db().
 
--spec ensure_db() -> boolean().
+-spec ensure_db() -> ok.
 ensure_db() ->
   case mnesia:create_schema([node()]) of
     {error, {_, {already_exists, _}}} ->
@@ -56,25 +55,21 @@ ensure_tables() ->
   [els_db_table:create(T) || T <- ?TABLES],
   ok.
 
--spec delete(atom(), any()) -> ok | {error, any()}.
+-spec delete(atom(), any()) -> ok.
 delete(Table, Key) ->
-  F = fun() -> mnesia:delete({Table, Key}) end,
-  transaction(F).
+  mnesia:dirty_delete({Table, Key}).
 
--spec lookup(atom(), any()) -> {ok, [tuple()]} | {error, any()}.
+-spec lookup(atom(), any()) -> {ok, [tuple()]}.
 lookup(Table, Key) ->
-  F = fun() -> mnesia:read({Table, Key}) end,
-  transaction(F).
+  {ok, mnesia:dirty_read(Table, Key)}.
 
--spec match(tuple()) -> {ok, [tuple()]} | {error, any()}.
+-spec match(tuple()) -> {ok, [tuple()]}.
 match(Pattern) when is_tuple(Pattern) ->
-  F = fun() -> mnesia:match_object(Pattern) end,
-  transaction(F).
+  {ok, mnesia:dirty_match_object(Pattern)}.
 
--spec write(tuple()) -> ok | {error, any()}.
+-spec write(tuple()) -> ok.
 write(Record) when is_tuple(Record) ->
-  F = fun() -> mnesia:write(Record) end,
-  transaction(F).
+  mnesia:dirty_write(Record).
 
 -spec clear_tables() -> ok.
 clear_tables() ->

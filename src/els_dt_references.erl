@@ -58,7 +58,10 @@ opts() ->
   , {disc_copies       , [node()]}
   , {index             , [#els_dt_references.uri]}
   , {type              , bag}
-  , {storage_properties, [{ets, [compressed]}]}
+  , {storage_properties, [{ets, [ compressed
+                                , {write_concurrency, true}
+                                , {read_concurrency, true}
+                                ]}]}
   ].
 
 %%==============================================================================
@@ -100,12 +103,7 @@ find_by_id(Id) ->
   Pattern = #els_dt_references{id = Id, _ = '_'},
   find_by(Pattern).
 
-%% TODO: Improve efficiency
--spec find_by(tuple()) -> {ok, [item()]} | {error, any()}.
+-spec find_by(tuple()) -> {ok, [item()]}.
 find_by(Pattern) ->
-  case els_db:match(Pattern) of
-    {ok, Items} ->
-      {ok, [to_item(Item) || Item <- Items]};
-    {error, Error} ->
-      {error, Error}
-  end.
+  {ok, Items} = els_db:match(Pattern),
+  {ok, [to_item(Item) || Item <- Items]}.

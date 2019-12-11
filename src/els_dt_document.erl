@@ -119,14 +119,10 @@ insert(Map) when is_map(Map) ->
   Record = from_item(Map),
   els_db:write(Record).
 
--spec lookup(uri()) -> {ok, [item()]} | {error, any()}.
+-spec lookup(uri()) -> {ok, [item()]}.
 lookup(Uri) ->
-  case els_db:lookup(name(), Uri) of
-    {ok, Items} ->
-      {ok, [to_item(Item) || Item <- Items]};
-    {error, Reason} ->
-      {error, Reason}
-  end.
+  {ok, Items} = els_db:lookup(name(), Uri),
+  {ok, [to_item(Item) || Item <- Items]}.
 
 %% @edoc Find by id
 -spec find_by_id(any()) -> {ok, [item()]} | {error, any()}.
@@ -140,15 +136,10 @@ find_by_kind(Kind) ->
   Pattern = #els_dt_document{kind = Kind, _ = '_'},
   find_by(Pattern).
 
-%% TODO: Improve efficiency
--spec find_by(tuple()) -> {ok, [item()]} | {error, any()}.
+-spec find_by(tuple()) -> {ok, [item()]}.
 find_by(Pattern) ->
-  case els_db:match(Pattern) of
-    {ok, Items} ->
-      {ok, [to_item(Item) || Item <- Items]};
-    {error, Error} ->
-      {error, Error}
-  end.
+  {ok, Items} = els_db:match(Pattern),
+  {ok, [to_item(Item) || Item <- Items]}.
 
 -spec new(uri(), binary()) -> item().
 new(Uri, Text) ->

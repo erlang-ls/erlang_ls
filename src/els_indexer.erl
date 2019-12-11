@@ -64,7 +64,6 @@ index_file(Path, SyncAsync) ->
   try_index_file(Path, SyncAsync),
   {ok, els_uri:uri(Path)}.
 
-%% TODO: Avoid nested transactions
 -spec index(els_dt_document:item()) -> ok.
 index(#{uri := Uri, text := Text} = Document) ->
   MD5 = erlang:md5(Text),

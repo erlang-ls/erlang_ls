@@ -75,11 +75,7 @@ insert(Map) when is_map(Map) ->
   Record = from_item(Map),
   els_db:write(Record).
 
--spec lookup(mfa()) -> {ok, [item()]} | {error, any()}.
+-spec lookup(mfa()) -> {ok, [item()]}.
 lookup(MFA) ->
-  case els_db:lookup(name(), MFA) of
-    {ok, Items} ->
-      {ok, [to_item(Item) || Item <- Items]};
-    {error, Reason} ->
-      {error, Reason}
-  end.
+  {ok, Items} = els_db:lookup(name(), MFA),
+  {ok, [to_item(Item) || Item <- Items]}.
