@@ -32,7 +32,8 @@
 -define(SERVER, ?MODULE).
 
 %% TODO: Refine names to avoid confusion
--type key()   :: app_paths
+-type key()   :: apps_dirs
+               | apps_paths
                | capabilities
                | deps_dirs
                | deps_paths
@@ -44,7 +45,8 @@
                | root_uri
                | search_paths.
 -type path()  :: file:filename().
--type state() :: #{ app_paths         => [path()]
+-type state() :: #{ apps_dirs         => [path()]
+                  , apps_paths        => [path()]
                   , deps_dirs         => [path()]
                   , deps_paths        => [path()]
                   , include_dirs      => [path()]
@@ -67,6 +69,7 @@ initialize(RootUri, Capabilities, InitOptions) ->
                                         ])),
   OtpPath        = maps:get("otp_path", Config, code:root_dir()),
   DepsDirs       = maps:get("deps_dirs", Config, []),
+  AppsDirs       = maps:get("apps_dirs", Config, ["."]),
   IncludeDirs    = maps:get("include_dirs", Config, ["include"]),
   OtpAppsExclude = maps:get( "otp_apps_exclude"
                            , Config
@@ -81,16 +84,17 @@ initialize(RootUri, Capabilities, InitOptions) ->
   %% Read from the erlang_ls.config file
   ok = set(otp_path      , OtpPath),
   ok = set(deps_dirs     , DepsDirs),
+  ok = set(apps_dirs     , AppsDirs),
   ok = set(include_dirs  , IncludeDirs),
   %% Calculated from the above
-  ok = set(app_paths     , app_paths(RootUri, false)),
-  ok = set(deps_paths    , deps_paths(RootUri, DepsDirs, false)),
+  ok = set(apps_paths    , project_paths(RootUri, AppsDirs, false)),
+  ok = set(deps_paths    , project_paths(RootUri, DepsDirs, false)),
   ok = set(include_paths , include_paths(RootUri, IncludeDirs, false)),
   ok = set(otp_paths     , otp_paths(OtpPath, false) -- ExcludePaths),
   %% All (including subdirs) paths used to search files with file:path_open/3
   ok = set( search_paths
-          , lists:append([ app_paths(RootUri, true)
-                         , deps_paths(RootUri, DepsDirs, true)
+          , lists:append([ project_paths(RootUri, AppsDirs, true)
+                         , project_paths(RootUri, DepsDirs, true)
                          , otp_paths(OtpPath, true)
                          ])
           ),
@@ -154,24 +158,14 @@ consult_config(Path) ->
       #{}
   end.
 
--spec app_paths(uri(), boolean()) -> [string()].
-app_paths(RootUri, Recursive) ->
-  RootPath = binary_to_list(els_uri:path(RootUri)),
-  resolve_paths( [ [RootPath, "src"]
-                 , [RootPath, "test"]
-                 , [RootPath, "include"]
-                 ]
-               , Recursive
-               ).
-
 -spec include_paths(uri(), string(), boolean()) -> [string()].
 include_paths(RootUri, IncludeDirs, Recursive) ->
   RootPath = binary_to_list(els_uri:path(RootUri)),
   Paths = [resolve_paths([[RootPath, Dir]], Recursive) || Dir <- IncludeDirs],
   lists:append(Paths).
 
--spec deps_paths(uri(), [string()], boolean()) -> [string()].
-deps_paths(RootUri, DepsDirs, Recursive) ->
+-spec project_paths(uri(), [string()], boolean()) -> [string()].
+project_paths(RootUri, Dirs, Recursive) ->
   RootPath = binary_to_list(els_uri:path(RootUri)),
   Paths = [ resolve_paths( [ [RootPath, Dir, "src"]
                            , [RootPath, Dir, "test"]
@@ -179,7 +173,7 @@ deps_paths(RootUri, DepsDirs, Recursive) ->
                            ]
                          , Recursive
                          )
-            || Dir <- DepsDirs
+            || Dir <- Dirs
           ],
   lists:append(Paths).
 

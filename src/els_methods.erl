@@ -97,7 +97,7 @@ initialize(Params, State) ->
   els_db:install( node_name(RootUri, list_to_binary(els_config:get(otp_path)))
                 , filename:basedir(user_cache, "erlang_ls")
                 ),
-  els_indexer:index_app(),
+  els_indexer:index_apps(),
   els_indexer:index_deps(),
   els_indexer:index_otp(),
   ok = els_provider:initialize(),
