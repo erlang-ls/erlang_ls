@@ -120,6 +120,8 @@ initialize_post(_S, _Args, Res) ->
                    , executeCommandProvider =>
                        #{ commands => [PrefixedCommand] }
                    , codeActionProvider => true
+                   , codeLensProvider =>
+                       #{resolveProvider => false}
                    , workspaceSymbolProvider => true
                    , documentFormattingProvider => true
                    , documentRangeFormattingProvider => false
