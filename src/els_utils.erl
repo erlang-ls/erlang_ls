@@ -1,12 +1,11 @@
 -module(els_utils).
 
--export([ find_document/1
+-export([ find_header/1
         , find_module/1
-        , find_module/2
         , fold_files/4
+        , lookup_document/1
         , project_relative/1
         , halt/1
-        , start_epmd/0
         ]).
 
 -include("erlang_ls.hrl").
@@ -15,22 +14,27 @@
 %% File and module functions
 %%==============================================================================
 
-%% @equiv find_module(Module, erl)
--spec find_module(atom()) -> {ok, uri()} | {error, any()}.
-find_module(M) ->
-  find_module(M, erl).
-
-%% @doc Look for a module in the DB.
-%%
-%% Look for a given module in the DB and return the respective
-%% `URI'. If the module is not in the DB, try to index it.
--spec find_module(atom(), erl | hrl) -> {ok, uri()} | {error, any()}.
-find_module(M, Extension) ->
-  case els_db:find(modules, M) of
-    {ok, Uri} ->
+%% @doc Look for a header in the DB
+-spec find_header(atom()) -> {ok, uri()} | {error, any()}.
+find_header(Id) ->
+  {ok, Candidates} = els_dt_document:find_by_id(Id),
+  case [Uri || #{kind := header, uri := Uri} <- Candidates] of
+    [Uri] ->
       {ok, Uri};
-    {error, not_found} ->
-      FileName = atom_to_list(M) ++ extension(Extension),
+    [] ->
+      FileName = atom_to_list(Id) ++ ".hrl",
+      els_indexer:find_and_index_file(FileName, sync)
+  end.
+
+%% @doc Look for a module in the DB
+-spec find_module(atom()) -> {ok, uri()} | {error, any()}.
+find_module(Id) ->
+  {ok, Candidates} = els_dt_document:find_by_id(Id),
+  case [Uri || #{kind := module, uri := Uri} <- Candidates] of
+    [Uri] ->
+      {ok, Uri};
+    [] ->
+      FileName = atom_to_list(Id) ++ ".erl",
       els_indexer:find_and_index_file(FileName, sync)
   end.
 
@@ -38,16 +42,17 @@ find_module(M, Extension) ->
 %%
 %% Look for a given document in the DB and return it.
 %% If the module is not in the DB, try to index it.
--spec find_document(uri()) ->
-  {ok, els_document:document()} | {error, any()}.
-find_document(Uri) ->
-  case els_db:find(documents, Uri) of
-    {ok, Document} ->
+-spec lookup_document(uri()) ->
+  {ok, els_dt_document:item()} | {error, any()}.
+lookup_document(Uri) ->
+  case els_dt_document:lookup(Uri) of
+    {ok, [Document]} ->
       {ok, Document};
-    {error, not_found} ->
+    {ok, []} ->
       Path = els_uri:path(Uri),
       {ok, Uri} = els_indexer:index_file(Path, sync),
-      {ok, _} = els_db:find(documents, Uri)
+      {ok, [Document]} = els_dt_document:lookup(Uri),
+      {ok, Document}
   end.
 
 %% @doc Folds over all files in a directory recursively
@@ -62,11 +67,6 @@ fold_files(F, Filter, Dir, Acc) ->
 halt(ExitCode) ->
   erlang:halt(ExitCode).
 
--spec start_epmd() -> ok.
-start_epmd() ->
-    [] = os:cmd(epmd_path() ++ " -daemon"),
-    ok.
-
 %% @doc Returns a project-relative file path for a given URI
 -spec project_relative(uri()) -> file:filename().
 project_relative(Uri) ->
@@ -78,26 +78,6 @@ project_relative(Uri) ->
 %%==============================================================================
 %% Internal functions
 %%==============================================================================
-
--spec epmd_path() -> string().
-epmd_path() ->
-    ErtsBinDir = filename:dirname(escript:script_name()),
-    Name = "epmd",
-    case os:find_executable(Name, ErtsBinDir) of
-        false ->
-            case os:find_executable(Name) of
-                false ->
-                    error("Could not find epmd.");
-                GlobalEpmd ->
-                    GlobalEpmd
-            end;
-        Epmd ->
-            Epmd
-    end.
-
--spec extension(erl | hrl) -> string().
-extension(erl) -> ".erl";
-extension(hrl) -> "".
 
 %% Folding over files
 

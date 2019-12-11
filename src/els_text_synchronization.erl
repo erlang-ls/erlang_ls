@@ -10,7 +10,7 @@ did_open(Params) ->
   TextDocument = maps:get(<<"textDocument">>, Params),
   Uri          = maps:get(<<"uri">>         , TextDocument),
   Text         = maps:get(<<"text">>        , TextDocument),
-  Document     = els_document:create(Uri, Text),
+  Document     = els_dt_document:new(Uri, Text),
   ok           = els_indexer:index(Document).
 
 -spec did_save(map()) -> ok.

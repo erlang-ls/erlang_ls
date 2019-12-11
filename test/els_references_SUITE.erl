@@ -152,19 +152,22 @@ export_entry(Config) ->
 %% Issue #245
 -spec purge_references(config()) -> ok.
 purge_references(_Config) ->
-  els_db:flush_all_tables(),
+  els_db:clear_tables(),
   Uri = <<"file://tmp/foo.erl">>,
   Text0 = "-spec foo(integer()) -> ok.\nfoo _X -> ok.\nbar() -> foo(1).",
   Text1 = "\n-spec foo(integer()) -> ok.\nfoo _X -> ok.\nbar() -> foo(1).",
-  Doc0 = els_document:create(Uri, Text0),
-  Doc1 = els_document:create(Uri, Text1),
+  Doc0 = els_dt_document:new(Uri, Text0),
+  Doc1 = els_dt_document:new(Uri, Text1),
   els_indexer:index(Doc0),
   els_indexer:index(Doc1),
-  ?assertEqual([{foo,<<"file://tmp/foo.erl">>}],els_db:list(modules)),
-  ?assertEqual([{{foo,foo,1},
-                 #{range => #{from => {4,10},to => {4,13}},
-                   uri => <<"file://tmp/foo.erl">>}}],
-               els_db:list(references)),
+  ?assertEqual({ok, [Doc1]}
+              , els_dt_document:find_by_kind(module)),
+  ?assertEqual({ok, [#{ id    => {foo,foo,1}
+                      , range => #{from => {4,10},to => {4,13}}
+                      , uri   => <<"file://tmp/foo.erl">>
+                      }]}
+              , els_dt_references:find_all()
+              ),
   ok.
 
 %%==============================================================================

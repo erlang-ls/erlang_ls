@@ -1,9 +1,6 @@
-%% TODO: Show progress messages to client
 -module(els_indexer).
 
-%% TODO: Move all code in one place
-%% TODO: Rename tables
--callback index(els_document:document()) -> ok.
+-callback index(els_dt_document:item()) -> ok.
 
 %% TODO: Solve API mix (gen_server and not)
 %% API
@@ -67,20 +64,30 @@ index_file(Path, SyncAsync) ->
   try_index_file(Path, SyncAsync),
   {ok, els_uri:uri(Path)}.
 
--spec index(els_document:document()) -> ok.
-index(Document) ->
-  Uri    = els_document:uri(Document),
-  ok     = els_db:store(documents, Uri, Document),
-  Module = els_uri:module(Uri),
-  ok = els_db:store(modules, Module, Uri),
-  Specs  = els_document:points_of_interest(Document, [spec]),
-  [els_db:store(signatures, {Module, F, A}, Tree) ||
-    #{id := {F, A}, data := Tree} <- Specs],
-  Kinds = [application, implicit_fun],
-  POIs  = els_document:points_of_interest(Document, Kinds),
-  purge_uri_references(Uri),
-  [register_reference(Uri, POI) || POI <- POIs],
-  ok.
+-spec index(els_dt_document:item()) -> ok.
+index(#{uri := Uri, text := Text} = Document) ->
+  MD5 = erlang:md5(Text),
+  case els_dt_document:lookup(Uri) of
+    {ok, [#{md5 := MD5}]} ->
+      ok;
+    _ ->
+      F = fun() ->
+              ok = els_dt_document:insert(Document),
+              Module = els_uri:module(Uri),
+              Specs  = els_dt_document:pois(Document, [spec]),
+              [els_dt_signatures:insert(#{ mfa  => {Module, F, A}
+                                         , tree => Tree
+                                         }) ||
+                #{id := {F, A}, data := Tree} <- Specs],
+              POIs  = els_dt_document:pois(Document, [ application
+                                                     , implicit_fun
+                                                     ]),
+              ok = els_dt_references:delete_by_uri(Uri),
+              [register_reference(Uri, POI) || POI <- POIs],
+              ok
+          end,
+      els_db:transaction(F)
+  end.
 
 -spec index_app() -> any().
 index_app() ->
@@ -176,7 +183,7 @@ try_index_file(FullName, SyncAsync) ->
     lager:debug("Indexing file. [filename=~s]", [FullName]),
     {ok, Text} = file:read_file(FullName),
     Uri        = els_uri:uri(FullName),
-    Document   = els_document:create(Uri, Text),
+    Document   = els_dt_document:new(Uri, Text),
     ok         = index_document(Document, SyncAsync)
   catch Type:Reason:St ->
       lager:error("Error indexing file "
@@ -185,36 +192,19 @@ try_index_file(FullName, SyncAsync) ->
       {error, {Type, Reason}}
   end.
 
--spec index_document(els_document:document(), async | sync) -> ok.
+-spec index_document(els_dt_document:item(), async | sync) -> ok.
 index_document(Document, async) ->
   ok = wpool:cast(indexers, {?MODULE, index, [Document]});
 index_document(Document, sync) ->
   %% Don't use the pool for synchronous indexing
   ok = index(Document).
 
-%% TODO: Specific for references
-
--type ref_key()   :: {any(), any(), any()}. %% {M, F, A}
--type ref_value() :: #{ uri := uri(), range := poi_range() }.
-
 -spec register_reference(uri(), poi()) -> ok.
-register_reference(Uri, #{id := {M, F, A}, range := Range}) ->
-  Ref = #{uri => Uri, range => Range},
-  add_reference({M, F, A}, Ref),
-  ok;
-register_reference(Uri, #{id := {F, A}, range := Range}) ->
-  Ref = #{uri => Uri, range => Range},
+register_reference(Uri, #{id := {F, A}} = POI) ->
   M = els_uri:module(Uri),
-  add_reference({M, F, A}, Ref),
-  ok.
-
--spec add_reference(ref_key(), ref_value()) -> ok.
-add_reference(Key, Value) ->
-  ok = els_db:store(references, Key, Value).
-
-%% @edoc Remove all references to a given uri()
--spec purge_uri_references(uri()) -> ok.
-purge_uri_references(Uri) ->
-  MatchSpec = ets:fun2ms(fun({_K, #{uri => U}}) -> U =:= Uri end),
-  _DeletedCount = ets:select_delete(references, MatchSpec),
-  ok.
+  register_reference(Uri, POI#{ id => {M, F, A}});
+register_reference(Uri, #{id := {M, F, A}, range := Range}) ->
+  els_dt_references:insert(#{ id    => {M, F, A}
+                            , uri   => Uri
+                            , range => Range
+                            }).

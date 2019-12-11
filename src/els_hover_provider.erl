@@ -36,8 +36,8 @@ handle_request({hover, Params}, State) ->
 
 -spec documentation(uri(), non_neg_integer(), non_neg_integer()) -> binary().
 documentation(Uri, Line, Character) ->
-  {ok, Document} = els_utils:find_document(Uri),
-  case els_document:get_element_at_pos(Document, Line + 1, Character + 1)
+  {ok, Document} = els_utils:lookup_document(Uri),
+  case els_dt_document:get_element_at_pos(Document, Line + 1, Character + 1)
   of
     [POI|_] -> documentation(POI);
     []      -> <<>>
@@ -61,9 +61,9 @@ documentation(_POI) ->
 %%==============================================================================
 -spec specs(atom(), atom(), non_neg_integer()) -> binary().
 specs(M, F, A) ->
-  case els_db:find(signatures, {M, F, A}) of
-    {ok, Doc}          -> list_to_binary(erl_prettypr:format(Doc));
-    {error, not_found} -> <<>>
+  case els_dt_signatures:lookup({M, F, A}) of
+    {ok, [#{tree := Tree}]} -> list_to_binary(erl_prettypr:format(Tree));
+    {ok, []}                -> <<>>
   end.
 
 -spec edoc(atom(), atom(), non_neg_integer()) -> binary().

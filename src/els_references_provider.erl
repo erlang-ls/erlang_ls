@@ -27,9 +27,9 @@ handle_request({references, Params}, State) ->
                             }
    , <<"textDocument">> := #{<<"uri">> := Uri}
    } = Params,
-  {ok, Document} = els_utils:find_document(Uri),
+  {ok, Document} = els_utils:lookup_document(Uri),
   case
-    els_document:get_element_at_pos(Document, Line + 1, Character + 1)
+    els_dt_document:get_element_at_pos(Document, Line + 1, Character + 1)
   of
     [POI | _] -> {find_references(Uri, POI), State};
     []        -> {null, State}
@@ -50,11 +50,11 @@ find_references(Uri, #{ kind := Kind
           {F, A}    -> {els_uri:module(Uri), F, A};
           {M, F, A} -> {M, F, A}
         end,
-  case els_db:find_multi(references, Key) of
-    {error, not_found} ->
+  case els_dt_references:find_by_id(Key) of
+    {ok, []} ->
       null;
     {ok, Refs} ->
-      [location(U, R) || {_, #{uri := U, range := R}} <- Refs]
+      [location(U, R) || #{uri := U, range := R} <- Refs]
   end;
 find_references(_Uri, _POI) ->
   null.

@@ -47,10 +47,6 @@ init([]) ->
                   , start    => {els_indexer, start_link, []}
                   , shutdown => brutal_kill
                   }
-               , #{ id       => els_db
-                  , start    => {els_db, start_link, []}
-                  , shutdown => brutal_kill
-                  }
                , #{ id       => els_providers_sup
                   , start    => {els_providers_sup, start_link, []}
                   , shutdown => brutal_kill

@@ -94,6 +94,9 @@ initialize(Params, State) ->
    } = Params,
   InitOptions = maps:get(<<"initializationOptions">>, Params, #{}),
   ok = els_config:initialize(RootUri, Capabilities, InitOptions),
+  els_db:install( node_name(RootUri, list_to_binary(els_config:get(otp_path)))
+                , filename:basedir(user_cache, "erlang_ls")
+                ),
   els_indexer:index_app(),
   els_indexer:index_deps(),
   els_indexer:index_otp(),
@@ -183,7 +186,7 @@ textdocument_didchange(Params, State) ->
   case ContentChanges of
     []                      -> ok;
     [#{<<"text">> := Text}] ->
-      Document = els_document:create(Uri, Text),
+      Document = els_dt_document:new(Uri, Text),
       els_indexer:index(Document)
   end,
   {noresponse, State}.
@@ -287,3 +290,11 @@ workspace_symbol(Params, State) ->
   Provider = els_workspace_symbol_provider,
   Response = els_provider:handle_request(Provider, {symbol, Params}),
   {response, Response, State}.
+
+%%==============================================================================
+%% Internal Functions
+%%==============================================================================
+-spec node_name(binary(), binary()) -> atom().
+node_name(RootUri, OtpPath) ->
+  <<SHA:160/integer>> = crypto:hash(sha, <<RootUri/binary, OtpPath/binary>>),
+  list_to_atom(lists:flatten(io_lib:format("erlang_ls_~40.16.0b", [SHA]))).

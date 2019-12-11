@@ -27,9 +27,9 @@ handle_request({document_highlight, Params}, State) ->
                             }
    , <<"textDocument">> := #{<<"uri">> := Uri}
    } = Params,
-  {ok, Document} = els_utils:find_document(Uri),
+  {ok, Document} = els_utils:lookup_document(Uri),
   case
-    els_document:get_element_at_pos(Document, Line + 1, Character + 1)
+    els_dt_document:get_element_at_pos(Document, Line + 1, Character + 1)
   of
     [POI | _] -> {find_highlights(Uri, POI), State};
     []        -> {null, State}
@@ -52,13 +52,14 @@ find_highlights(Uri, #{ kind := Kind
           {M, F, A} -> {M, F, A};
           V         -> {els_uri:module(Uri), V, 0}
         end,
-  case els_db:find_multi(references, Key) of
-    {error, not_found} ->
+  case els_dt_references:find_by_id(Key) of
+    {ok, []} ->
       null;
     {ok, Refs} ->
-      R = [document_highlight(R) ||
-          {_, #{uri := U, range := R}} <- ordsets:to_list(Refs)
-          , Uri == U ],
+      R = [ document_highlight(R) ||
+            #{uri := U, range := R} <- ordsets:to_list(Refs)
+              , Uri == U
+          ],
       R
   end;
 find_highlights(_Uri, _POI) ->
@@ -66,7 +67,6 @@ find_highlights(_Uri, _POI) ->
 
 -spec document_highlight(poi_range()) -> map().
 document_highlight(Range) ->
-    %% TODO:AZ:range as displayed ends one col too early
   #{ range => els_protocol:range(Range)
    , kind => ?DOCUMENT_HIGHLIGHT_KIND_TEXT
    }.

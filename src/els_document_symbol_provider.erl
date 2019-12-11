@@ -31,8 +31,8 @@ handle_request({document_symbol, Params}, State) ->
 %%==============================================================================
 -spec functions(uri()) -> [map()].
 functions(Uri) ->
-  {ok, Document} = els_utils:find_document(Uri),
-  POIs = els_document:points_of_interest(Document, [function]),
+  {ok, Document} = els_utils:lookup_document(Uri),
+  POIs = els_dt_document:pois(Document, [function]),
   lists:reverse([ #{ name => function_name(F, A)
                    , kind => ?SYMBOLKIND_FUNCTION
                    , location => #{ uri   => Uri

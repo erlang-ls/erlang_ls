@@ -10,11 +10,10 @@ main(Args) ->
   application:load(lager),
   application:load(?APP),
   ok = parse_args(Args),
-  ok = init_node_name(is_debug()),
   ok = lager_config(),
   %% Start the Erlang Language Server
   application:ensure_all_started(?APP),
-  lager:info("Started erlang_ls server ~p", [node()]),
+  lager:info("Started erlang_ls server", []),
   receive _ -> ok end.
 
 %%==============================================================================
@@ -80,22 +79,3 @@ log_root() ->
   {ok, CurrentDir} = file:get_cwd(),
   Dirname          = filename:basename(CurrentDir),
   filename:join([LogDir, Dirname]).
-
-%%==============================================================================
-%% Node name initialization
-%%==============================================================================
-
--spec init_node_name(boolean()) -> ok.
-init_node_name(true) ->
-  ok       = els_utils:start_epmd(),
-  Name     = "erlang_ls_" ++ integer_to_list(rand:uniform(16#FFFFFFFFF)),
-  NodeName = list_to_atom(Name),
-  net_kernel:start([NodeName, shortnames]),
-  ok;
-init_node_name(false) ->
-  ok.
-
--spec is_debug() -> boolean().
-is_debug() ->
-  {ok, DebugMode} = application:get_env(?APP, debug_mode),
-  DebugMode.

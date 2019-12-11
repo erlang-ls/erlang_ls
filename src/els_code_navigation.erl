@@ -51,9 +51,7 @@ goto_definition(Uri, #{ kind := record_expr, id := Record }) ->
 goto_definition(_Uri, #{ kind := Kind, id := Include }
                ) when Kind =:= include;
                       Kind =:= include_lib ->
-  FileName = filename:basename(Include),
-  M = list_to_atom(FileName),
-  case els_utils:find_module(M) of
+  case els_utils:find_header(filename_to_atom(Include)) of
     {ok, Uri}      -> {ok, Uri, beginning()};
     {error, Error} -> {error, Error}
   end;
@@ -72,32 +70,29 @@ goto_definition(_Filename, _) ->
 find([], _Kind, _Data) ->
   {error, not_found};
 find([Uri|Uris0], Kind, Data) ->
-  case els_db:find(documents, Uri) of
-    {ok, Document} ->
-      POIs = els_document:points_of_interest(Document, [Kind], Data),
-      case POIs of
+  case els_dt_document:lookup(Uri) of
+    {ok, [Document]} ->
+      POIs = els_dt_document:pois(Document, [Kind]),
+      case [POI || #{id := Id} = POI <- POIs, Id =:= Data] of
         [] ->
           find(lists:usort(include_uris(Document) ++ Uris0), Kind, Data);
         Definitions ->
           {ok, Uri, hd(els_poi:sort(Definitions))}
       end;
-    {error, not_found} ->
+    {ok, []} ->
       find(Uris0, Kind, Data)
   end;
 find(Uri, Kind, Data) ->
   find([Uri], Kind, Data).
 
--spec include_uris(els_document:document()) -> [uri()].
+-spec include_uris(els_dt_document:item()) -> [uri()].
 include_uris(Document) ->
-  POIs = els_document:points_of_interest( Document
-                                              , [include, include_lib]),
+  POIs = els_dt_document:pois(Document, [include, include_lib]),
   lists:foldl(fun add_include_uri/2, [], POIs).
 
--spec add_include_uri(poi(), [uri()]) -> [uri()].
+-spec add_include_uri(els_dt_document:item(), [uri()]) -> [uri()].
 add_include_uri(#{ id := String }, Acc) ->
-  FileName = filename:basename(String),
-  M = list_to_atom(FileName),
-  case els_utils:find_module(M, hrl) of
+  case els_utils:find_header(filename_to_atom(String)) of
     {ok, Uri}       -> [Uri | Acc];
     {error, _Error} -> Acc
   end.
@@ -106,4 +101,6 @@ add_include_uri(#{ id := String }, Acc) ->
 beginning() ->
   #{range => #{from => {1, 1}, to => {1, 1}}}.
 
-%% TODO: Handle multiple header files with the same name?
+-spec filename_to_atom(string()) -> atom().
+filename_to_atom(FileName) ->
+  list_to_atom(filename:basename(FileName, filename:extension(FileName))).
