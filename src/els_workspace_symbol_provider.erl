@@ -8,6 +8,8 @@
 
 -include("erlang_ls.hrl").
 
+-define(LIMIT, 100).
+
 %%==============================================================================
 %% els_provider functions
 %%==============================================================================
@@ -35,17 +37,37 @@ modules(Query) ->
   AllSorted = lists:sort(Compare, All),
   {ok, RePattern} = re:compile(Query),
   ReOpts = [{capture, none}],
-  F = fun(#{id := Id}) ->
-          re:run(atom_to_binary(Id, utf8), RePattern, ReOpts) =:= match
+  F = fun(Name) ->
+          re:run(Name, RePattern, ReOpts) =:= match
       end,
-  lists:map(fun symbol_information/1, lists:filter(F, AllSorted)).
+  Filtered = filter_with_limit(AllSorted, F, ?LIMIT, []),
+  [symbol_information(X) || X <- Filtered].
 
--spec symbol_information(els_dt_document_index:item()) -> symbol_information().
-symbol_information(#{id := Module, uri := Uri}) ->
+-spec symbol_information({binary(), uri()}) -> symbol_information().
+symbol_information({Name, Uri}) ->
   Range = #{from => {1, 1}, to => {1, 1}},
-  #{ name => atom_to_binary(Module, utf8)
+  #{ name => Name
    , kind => ?SYMBOLKIND_MODULE
    , location => #{ uri => Uri
                   , range => els_protocol:range(Range)
                   }
    }.
+
+-spec filter_with_limit( [els_dt_document_index:item()]
+                       , function()
+                       , integer()
+                       , [{binary(), uri()}]) ->
+  [{binary(), uri()}].
+filter_with_limit(_Modules, _Filter, 0, Result) ->
+  lists:reverse(Result);
+filter_with_limit([], _Filter, _Limit, Result) ->
+  lists:reverse(Result);
+filter_with_limit([Item | Items], Filter, Limit, Result) ->
+  #{kind := module, id := Module, uri := Uri} = Item,
+  Name = atom_to_binary(Module, utf8),
+  case Filter(Name) of
+    true  ->
+      filter_with_limit(Items, Filter, Limit - 1, [{Name, Uri} | Result]);
+    false ->
+      filter_with_limit(Items, Filter, Limit, Result)
+  end.
