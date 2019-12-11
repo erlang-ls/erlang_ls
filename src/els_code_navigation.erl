@@ -51,8 +51,7 @@ goto_definition(Uri, #{ kind := record_expr, id := Record }) ->
 goto_definition(_Uri, #{ kind := Kind, id := Include }
                ) when Kind =:= include;
                       Kind =:= include_lib ->
-  H = list_to_atom(filename:basename(Include, filename:extension(Include))),
-  case els_utils:find_header(H) of
+  case els_utils:find_header(filename_to_atom(Include)) of
     {ok, Uri}      -> {ok, Uri, beginning()};
     {error, Error} -> {error, Error}
   end;
@@ -93,8 +92,7 @@ include_uris(Document) ->
 
 -spec add_include_uri(els_dt_document:item(), [uri()]) -> [uri()].
 add_include_uri(#{ id := String }, Acc) ->
-  H = list_to_atom(filename:basename(String, filename:extension(String))),
-  case els_utils:find_header(H) of
+  case els_utils:find_header(filename_to_atom(String)) of
     {ok, Uri}       -> [Uri | Acc];
     {error, _Error} -> Acc
   end.
@@ -102,3 +100,7 @@ add_include_uri(#{ id := String }, Acc) ->
 -spec beginning() -> #{range => #{from => {1, 1}, to => {1, 1}}}.
 beginning() ->
   #{range => #{from => {1, 1}, to => {1, 1}}}.
+
+-spec filename_to_atom(string()) -> atom().
+filename_to_atom(FileName) ->
+  list_to_atom(filename:basename(FileName, filename:extension(FileName))).
