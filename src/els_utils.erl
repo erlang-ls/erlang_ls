@@ -16,25 +16,25 @@
 
 %% @doc Look for a header in the DB
 -spec find_header(atom()) -> {ok, uri()} | {error, any()}.
-find_header(Id0) ->
-  {ok, Headers} = els_dt_document:find_by_kind(header),
-  case [Uri || #{id := Id, uri := Uri} <- Headers, Id0 =:= Id] of
+find_header(Id) ->
+  {ok, Candidates} = els_dt_document:find_by_id(Id),
+  case [Uri || #{kind := header, uri := Uri} <- Candidates] of
     [Uri] ->
       {ok, Uri};
     [] ->
-      FileName = atom_to_list(Id0) ++ ".hrl",
+      FileName = atom_to_list(Id) ++ ".hrl",
       els_indexer:find_and_index_file(FileName, sync)
   end.
 
 %% @doc Look for a module in the DB
 -spec find_module(atom()) -> {ok, uri()} | {error, any()}.
-find_module(Id0) ->
-  {ok, Modules} = els_dt_document:find_by_kind(module),
-  case [Uri || #{id := Id, uri := Uri} <- Modules, Id0 =:= Id] of
+find_module(Id) ->
+  {ok, Candidates} = els_dt_document:find_by_id(Id),
+  case [Uri || #{kind := module, uri := Uri} <- Candidates] of
     [Uri] ->
       {ok, Uri};
     [] ->
-      FileName = atom_to_list(Id0) ++ ".erl",
+      FileName = atom_to_list(Id) ++ ".erl",
       els_indexer:find_and_index_file(FileName, sync)
   end.
 
