@@ -70,7 +70,6 @@ index(#{uri := Uri, text := Text} = Document) ->
   MD5 = erlang:md5(Text),
   case els_dt_document:lookup(Uri) of
     {ok, [#{md5 := MD5}]} ->
-      %% The module is already indexed, no action needed.
       ok;
     _ ->
       F = fun() ->

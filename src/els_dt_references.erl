@@ -76,7 +76,6 @@ to_item(#els_dt_references{ id = Id, uri = Uri, range = Range }) ->
    , range => Range
    }.
 
-%% TODO: Wrapper transaction
 -spec delete_by_uri(uri()) -> ok | {error, any()}.
 delete_by_uri(Uri) ->
   Pattern = #els_dt_references{uri = Uri, _ = '_'},
