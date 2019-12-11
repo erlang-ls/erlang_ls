@@ -15,7 +15,6 @@
       , docsh
       , worker_pool
       , elvis
-      , mnesia
       ]
     }
   , { env

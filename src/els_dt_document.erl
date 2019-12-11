@@ -36,21 +36,26 @@
 -include("erlang_ls.hrl").
 
 %%==============================================================================
+%% Type Definitions
+%%==============================================================================
+-type kind() :: module | header | src.
+
+%%==============================================================================
 %% Item Definition
 %%==============================================================================
 
--record(els_dt_document, { uri  :: uri()           | '_'
-                         , id   :: any()           | '_'
-                         , kind :: module | header | '_'
-                         , text :: binary()        | '_'
-                         , md5  :: binary()        | '_'
-                         , pois :: [poi()]         | '_'
+-record(els_dt_document, { uri  :: uri()    | '_'
+                         , id   :: any()    | '_'
+                         , kind :: kind()   | '_'
+                         , text :: binary() | '_'
+                         , md5  :: binary() | '_'
+                         , pois :: [poi()]  | '_'
                          }).
 -type els_dt_document() :: #els_dt_document{}.
 
 -type item() :: #{ uri  := uri()
                  , id   := any()
-                 , kind := module | header
+                 , kind := kind()
                  , text := binary()
                  , md5  => binary()
                  , pois => [poi()]
@@ -152,10 +157,12 @@ new(Uri, Text) ->
     <<".erl">> ->
       new(Uri, Text, Id, module);
     <<".hrl">> ->
-      new(Uri, Text, Id, header)
+      new(Uri, Text, Id, header);
+    <<".src">> ->
+      new(Uri, Text, Id, src)
   end.
 
--spec new(uri(), binary(), atom(), module | header) -> item().
+-spec new(uri(), binary(), atom(), kind()) -> item().
 new(Uri, Text, Id, Kind) ->
   {ok, POIs} = els_parser:parse(Text),
   MD5        = erlang:md5(Text),

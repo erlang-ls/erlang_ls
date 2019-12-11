@@ -4,13 +4,10 @@
 -export([ clear_table/1
         , clear_tables/0
         , delete/2
-        , install/0
-        , install/1
+        , install/2
         , lookup/2
         , match/1
         , transaction/1
-        , wait_for_tables/0
-        , wait_for_tables/1
         , write/1
         ]).
 
@@ -25,23 +22,27 @@
 %% Exported functions
 %%==============================================================================
 
--spec install() -> ok.
-install() ->
-  install(default_db_dir()).
-
--spec install(string()) -> ok.
-install(Dir) ->
-  lager:info("Creating DB. [dir=~s]", [Dir]),
-  ok = filelib:ensure_dir(filename:join([Dir, "dummy"])),
-  ok = application:set_env(mnesia, dir, Dir),
+-spec install(atom(), string()) -> ok.
+install(NodeName, BaseDir) ->
+  lager:info("Switching to distribute mode", []),
+  ok = start_epmd(),
+  net_kernel:start([NodeName, shortnames]),
+  lager:info("Distributed mode enabled [node=~p]", [NodeName]),
+  DbDir = filename:join([BaseDir, atom_to_list(NodeName)]),
+  lager:info("Creating DB [dir=~s]", [DbDir]),
+  ok = filelib:ensure_dir(filename:join([DbDir, "dummy"])),
+  ok = application:set_env(mnesia, dir, DbDir),
   mnesia:create_schema([node()]),
   application:start(mnesia),
+  lager:info("Creating tables", []),
   create_tables(),
-  application:stop(mnesia).
+  wait_for_tables(),
+  lager:info("DB Created"),
+  ok.
 
 -spec create_tables() -> ok.
 create_tables() ->
-  [els_db_table:create(T) || T <- ?TABLES],
+  [ok = els_db_table:create(T) || T <- ?TABLES],
   ok.
 
 -spec delete(atom(), any()) -> ok | {error, any()}.
@@ -90,6 +91,27 @@ transaction(F) ->
     {atomic, Result}  -> {ok, Result}
   end.
 
--spec default_db_dir() -> string().
-default_db_dir() ->
-  filename:basedir(user_cache, "erlang_ls").
+%%==============================================================================
+%% Internal functions
+%%==============================================================================
+
+-spec start_epmd() -> ok.
+start_epmd() ->
+    [] = os:cmd(epmd_path() ++ " -daemon"),
+    ok.
+
+-spec epmd_path() -> string().
+epmd_path() ->
+    ErtsBinDir = filename:dirname(escript:script_name()),
+    Name = "epmd",
+    case os:find_executable(Name, ErtsBinDir) of
+        false ->
+            case os:find_executable(Name) of
+                false ->
+                    error("Could not find epmd.");
+                GlobalEpmd ->
+                    GlobalEpmd
+            end;
+        Epmd ->
+            Epmd
+    end.

@@ -79,7 +79,7 @@ init_per_suite(Config) ->
   {ok, Text} = file:read_file(Path),
 
   Priv = ?config(priv_dir, Config),
-  els_db:install(Priv),
+  els_db:install(erlang_ls, Priv),
 
   application:load(erlang_ls),
   application:set_env(erlang_ls, index_otp, false),

@@ -21,7 +21,6 @@
 %%==============================================================================
 -spec start(normal, any()) -> {ok, pid()}.
 start(_StartType, _StartArgs) ->
-  els_db:wait_for_tables(),
   {ok, Transport} = application:get_env(erlang_ls, transport),
   {ok, _}   = els_server:start_link(Transport),
   els_sup:start_link().

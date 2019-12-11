@@ -321,6 +321,7 @@ records(Config) ->
 
 -spec variables(config()) -> ok.
 variables(Config) ->
+  erlang:display(node()),
   TriggerKind = ?COMPLETION_TRIGGER_KIND_INVOKED,
   Uri = ?config(code_navigation_extra_uri, Config),
   Expected = [ #{ kind => ?COMPLETION_ITEM_KIND_VARIABLE
