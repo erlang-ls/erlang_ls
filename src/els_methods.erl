@@ -94,10 +94,11 @@ initialize(Params, State) ->
    } = Params,
   InitOptions = maps:get(<<"initializationOptions">>, Params, #{}),
   ok = els_config:initialize(RootUri, Capabilities, InitOptions),
+  DbDir = application:get_env(erlang_ls, db_dir, default_db_dir()),
   els_db:install( node_name(RootUri, list_to_binary(els_config:get(otp_path)))
-                , filename:basedir(user_cache, "erlang_ls")
+                , DbDir
                 ),
-  els_indexer:index_app(),
+  els_indexer:index_apps(),
   els_indexer:index_deps(),
   els_indexer:index_otp(),
   ok = els_provider:initialize(),
@@ -298,3 +299,7 @@ workspace_symbol(Params, State) ->
 node_name(RootUri, OtpPath) ->
   <<SHA:160/integer>> = crypto:hash(sha, <<RootUri/binary, OtpPath/binary>>),
   list_to_atom(lists:flatten(io_lib:format("erlang_ls_~40.16.0b", [SHA]))).
+
+-spec default_db_dir() -> string().
+default_db_dir() ->
+  filename:basedir(user_cache, "erlang_ls").

@@ -264,6 +264,7 @@ Currently, the following customizations are possible:
 |--------------------|-----------------------------------------------------------------------------------------|
 | otp\_path          | Path to the OTP installation                                                            |
 | deps\_dirs         | List of directories containing dependencies. It supports wildcards.                     |
+| apps\_dirs         | List of directories containing project applications. It supports wildcards.             |
 | include\_dirs      | List of directories provided to the compiler as include dirs. It supports wildcards.    |
 | otp\_apps\_exclude | List of OTP applications that will not be indexed (default: megaco, diameter, snmp, wx) |
 

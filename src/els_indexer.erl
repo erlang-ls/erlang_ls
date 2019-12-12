@@ -10,7 +10,7 @@
         , index/1
         , index_dir/1
         , start_link/0
-        , index_app/0
+        , index_apps/0
         , index_deps/0
         , index_otp/0
         ]).
@@ -89,9 +89,9 @@ index(#{uri := Uri, text := Text} = Document) ->
       els_db:transaction(F)
   end.
 
--spec index_app() -> any().
-index_app() ->
-  gen_server:cast(?SERVER, {index_app}).
+-spec index_apps() -> any().
+index_apps() ->
+  gen_server:cast(?SERVER, {index_apps}).
 
 -spec index_deps() -> any().
 index_deps() ->
@@ -155,8 +155,8 @@ handle_call(_Request, _From, State) ->
   {noreply, State}.
 
 -spec handle_cast(any(), state()) -> {noreply, state()}.
-handle_cast({index_app}, State) ->
-  [index_dir(Dir) || Dir <- els_config:get(app_paths)],
+handle_cast({index_apps}, State) ->
+  [index_dir(Dir) || Dir <- els_config:get(apps_paths)],
   {noreply, State};
 handle_cast({index_deps}, State) ->
   [index_dir(Dir) || Dir <- els_config:get(deps_paths)],

@@ -1,0 +1,6 @@
+-sname rebar3_release
+
+-setcookie rebar3_release_cookie
+
++K true
++A30
