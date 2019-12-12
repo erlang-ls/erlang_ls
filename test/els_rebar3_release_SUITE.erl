@@ -71,7 +71,6 @@ init_per_testcase(_TestCase, Config) ->
   els_client:initialize(RootUri, []),
   {ok, AppText} = file:read_file(els_uri:path(AppUri)),
   els_client:did_open(AppUri, erlang, 1, AppText),
-  erlang:display({search, els_config:get(search_paths)}),
   els_indexer:find_and_index_file("rebar3_release_app.erl", sync),
   els_indexer:find_and_index_file("rebar3_release_sup.erl", sync),
   [{started, Started}|Config].
