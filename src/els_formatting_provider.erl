@@ -82,13 +82,20 @@ handle_request({document_ontypeformatting, Params}, State) ->
 
 -spec format_document(uri(), map(), formatting_options())
                      -> {ok, [text_edit()]}.
-format_document(Uri, _Document, Options) ->
+format_document(Uri, _Document, #{ <<"insertSpaces">> := InsertSpaces
+                                 , <<"tabSize">> := TabSize } = Options) ->
     lager:info("format_document: ~p", [{Uri, Options}]),
     Path = els_uri:path(Uri),
     Fun = fun(Dir) ->
             RelPath = els_utils:project_relative(Uri),
             OutFile = filename:join(Dir, RelPath),
-            Opts = #{output_dir => Dir},
+            Opts0 = #{ output_dir => Dir
+                     , remove_tabs => InsertSpaces
+                     , break_indent => TabSize },
+            Opts = case maps:get(<<"subIndent">>, Options, undefined) of
+                       undefined -> Opts0;
+                       Val -> maps:put(sub_indent, Val, Opts0)
+                   end,
             rebar3_formatter:format(RelPath, Opts),
             els_text_edit:diff_files(Path, OutFile)
           end,

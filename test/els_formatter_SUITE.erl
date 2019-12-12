@@ -79,7 +79,7 @@ format_doc(Config) ->
                    #{'end' => #{character => 0,line => 8},
                      start => #{character => 0,line => 8}}}]
              , Result)
-  catch _Err ->
+  after
       file:set_cwd(Cwd)
   end,
   ok.
