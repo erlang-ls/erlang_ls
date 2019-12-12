@@ -180,11 +180,17 @@ terminate(_, _State) ->
 -spec try_index_file(binary(), sync | async) -> ok | {error, any()}.
 try_index_file(FullName, SyncAsync) ->
   try
-    lager:debug("Indexing file. [filename=~s]", [FullName]),
-    {ok, Text} = file:read_file(FullName),
-    Uri        = els_uri:uri(FullName),
-    Document   = els_dt_document:new(Uri, Text),
-    ok         = index_document(Document, SyncAsync)
+    Uri = els_uri:uri(FullName),
+    Extension = filename:extension(Uri),
+    case els_dt_document:is_extension_supported(Extension) of
+      true ->
+        lager:debug("Indexing file. [filename=~s]", [FullName]),
+        {ok, Text} = file:read_file(FullName),
+        Document   = els_dt_document:new(Uri, Text),
+        ok         = index_document(Document, SyncAsync);
+      false ->
+        lager:debug("Skipping file. [filename=~s]", [FullName])
+    end
   catch Type:Reason:St ->
       lager:error("Error indexing file "
                   "[filename=~s] "
