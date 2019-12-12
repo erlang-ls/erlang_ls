@@ -16,7 +16,7 @@
                 , els_dt_references
                 , els_dt_signatures
                 ]).
--define(TIMEOUT, 5000).
+-define(TIMEOUT, 20000).
 
 %%==============================================================================
 %% Exported functions
