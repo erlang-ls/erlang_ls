@@ -7,6 +7,7 @@
         , groups/1
         , init_per_suite/1
         , init_per_testcase/2
+        , start/1
         , wait_for/2
         ]).
 
@@ -106,28 +107,11 @@ end_per_suite(_Config) ->
 
 -spec init_per_testcase(atom(), config()) -> config().
 init_per_testcase(_TestCase, Config) ->
-  {Transport, Args} =
-    case get_group(Config) of
-      stdio ->
-        ClientIo = els_fake_stdio:start(),
-        ServerIo = els_fake_stdio:start(),
-        els_fake_stdio:connect(ClientIo, ServerIo),
-        els_fake_stdio:connect(ServerIo, ClientIo),
-
-        ok = application:set_env(erlang_ls, transport, els_stdio),
-        ok = application:set_env(erlang_ls, io_device, ServerIo),
-        {stdio, #{io_device => ClientIo}};
-      tcp ->
-        ok = application:set_env(erlang_ls, transport, els_tcp),
-        {tcp, #{host => ?HOSTNAME, port => ?PORT}}
-    end,
-
-  {ok, Started} = application:ensure_all_started(erlang_ls),
-  {ok, _} = els_client:start_link(Transport, Args),
-
-  RootUri    = ?config(root_uri, Config),
-  Uri        = ?config(code_navigation_uri, Config),
-  Text       = ?config(code_navigation_text, Config),
+  Transport = get_group(Config),
+  Started   = start(Transport),
+  RootUri   = ?config(root_uri, Config),
+  Uri       = ?config(code_navigation_uri, Config),
+  Text      = ?config(code_navigation_text, Config),
 
   els_client:initialize(RootUri, []),
   els_client:did_open(Uri, erlang, 1, Text),
@@ -146,6 +130,23 @@ init_per_testcase(_TestCase, Config) ->
 end_per_testcase(_TestCase, Config) ->
   [application:stop(App) || App <- ?config(started, Config)],
   ok.
+
+-spec start(stdio | tcp) -> ok.
+start(stdio) ->
+  ClientIo = els_fake_stdio:start(),
+  ServerIo = els_fake_stdio:start(),
+  els_fake_stdio:connect(ClientIo, ServerIo),
+  els_fake_stdio:connect(ServerIo, ClientIo),
+  ok = application:set_env(erlang_ls, transport, els_stdio),
+  ok = application:set_env(erlang_ls, io_device, ServerIo),
+  {ok, Started} = application:ensure_all_started(erlang_ls),
+  els_client:start_link(stdio, #{io_device => ClientIo}),
+  Started;
+start(tcp) ->
+  ok = application:set_env(erlang_ls, transport, els_tcp),
+  {ok, Started} = application:ensure_all_started(erlang_ls),
+  els_client:start_link(tcp, #{host => ?HOSTNAME, port => ?PORT}),
+  Started.
 
 -spec wait_for(any(), non_neg_integer()) -> ok.
 wait_for(_Message, Timeout) when Timeout =< 0 ->
