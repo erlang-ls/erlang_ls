@@ -12,7 +12,7 @@
 %% Test cases
 -export([ index_erl_file/1
         , index_hrl_file/1
-        , skip_unkown_extension/1
+        , index_unkown_extension/1
         ]).
 
 %%==============================================================================
@@ -72,10 +72,10 @@ index_hrl_file(Config) ->
   {ok, [#{id := test, kind := header}]} = els_dt_document:lookup(Uri),
   ok.
 
--spec skip_unkown_extension(config()) -> ok.
-skip_unkown_extension(Config) ->
+-spec index_unkown_extension(config()) -> ok.
+index_unkown_extension(Config) ->
   DataDir = ?config(data_dir, Config),
   Path = filename:join(list_to_binary(DataDir), "test.foo"),
   {ok, Uri} = els_indexer:index_file(Path, sync),
-  {ok, []} = els_dt_document:lookup(Uri),
+  {ok, [#{kind := other}]} = els_dt_document:lookup(Uri),
   ok.

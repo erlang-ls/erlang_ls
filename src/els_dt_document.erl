@@ -25,7 +25,6 @@
         , pois/1
         , pois/2
         , get_element_at_pos/3
-        , is_extension_supported/1
         ]).
 
 %%==============================================================================
@@ -37,7 +36,7 @@
 %% Type Definitions
 %%==============================================================================
 -type id()   :: atom().
--type kind() :: module | header.
+-type kind() :: module | header | other.
 
 %%==============================================================================
 %% Item Definition
@@ -129,12 +128,14 @@ lookup(Uri) ->
 -spec new(uri(), binary()) -> item().
 new(Uri, Text) ->
   Extension = filename:extension(Uri),
-  Id         = binary_to_atom(filename:basename(Uri, Extension), utf8),
+  Id = binary_to_atom(filename:basename(Uri, Extension), utf8),
   case Extension of
     <<".erl">> ->
       new(Uri, Text, Id, module);
     <<".hrl">> ->
-      new(Uri, Text, Id, header)
+      new(Uri, Text, Id, header);
+    _  ->
+      new(Uri, Text, Id, other)
   end.
 
 -spec new(uri(), binary(), atom(), kind()) -> item().
@@ -166,7 +167,3 @@ get_element_at_pos(Item, Line, Column) ->
   POIs = maps:get(pois, Item),
   MatchedPOIs = els_poi:match_pos(POIs, {Line, Column}),
   els_poi:sort(MatchedPOIs).
-
--spec is_extension_supported(binary()) -> boolean().
-is_extension_supported(Extension) ->
-  lists:member(Extension, [<<".erl">>, <<".hrl">>]).
