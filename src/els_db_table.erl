@@ -15,17 +15,17 @@
 %% Exports
 %%==============================================================================
 
--export([ create/1 ]).
+-export([ ensure/1 ]).
 
 %%==============================================================================
 %% API
 %%==============================================================================
 
--spec create(module()) -> ok | {error, any()}.
-create(Table) ->
+-spec ensure(module()) -> ok.
+ensure(Table) ->
   case mnesia:create_table(Table:name(), Table:opts()) of
     {atomic, ok} ->
       ok;
-    Error ->
-      {error, Error}
+    {aborted, {already_exists, _}} ->
+      ok
   end.
