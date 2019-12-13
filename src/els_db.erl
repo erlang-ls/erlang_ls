@@ -52,7 +52,7 @@ ensure_db() ->
 
 -spec ensure_tables() -> ok.
 ensure_tables() ->
-  [els_db_table:create(T) || T <- ?TABLES],
+  [els_db_table:ensure(T) || T <- ?TABLES],
   ok.
 
 -spec delete(atom(), any()) -> ok.
