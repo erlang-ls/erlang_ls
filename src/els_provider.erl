@@ -22,6 +22,7 @@
                   | els_document_symbol_provider
                   | els_hover_provider
                   | els_references_provider
+                  | els_formatting_provider
                   | els_document_highlight_provider
                   | els_workspace_symbol_provider.
 -type request()  :: {atom(), map()}.
@@ -85,6 +86,7 @@ providers() ->
   , els_document_symbol_provider
   , els_hover_provider
   , els_references_provider
+  , els_formatting_provider
   , els_document_highlight_provider
   , els_workspace_symbol_provider
   ].

@@ -15,6 +15,9 @@
       , docsh
       , worker_pool
       , elvis
+      , ephemeral
+      , rebar3_format
+      , tdiff
       ]
     }
   , { env

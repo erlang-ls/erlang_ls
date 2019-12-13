@@ -108,6 +108,9 @@ initialize_post(_S, _Args, Res) ->
                    , documentHighlightProvider => true
                    , documentSymbolProvider  => true
                    , workspaceSymbolProvider => true
+                   , documentFormattingProvider => true
+                   , documentRangeFormattingProvider => false
+                   , documentOnTypeFormattingProvider => false
                    , didChangeWatchedFiles =>
                        #{ dynamicRegistration => false
                         }
