@@ -128,8 +128,8 @@ find_completion(_Prefix, _TriggerKind, _Opts) ->
 
 -spec modules(binary()) -> [map()].
 modules(Prefix) ->
-  {ok, All} = els_dt_document:find_by_kind(module),
-  Modules = [Id || #{id := Id} <- All],
+  {ok, Items} = els_dt_document_index:find_by_kind(module),
+  Modules = [Id || #{id := Id} <- Items],
   filter_by_prefix(Prefix, Modules, fun to_binary/1, fun item_kind_module/1).
 
 -spec item_kind_module(binary()) -> map().

@@ -17,7 +17,7 @@
 %% @doc Look for a header in the DB
 -spec find_header(atom()) -> {ok, uri()} | {error, any()}.
 find_header(Id) ->
-  {ok, Candidates} = els_dt_document:find_by_id(Id),
+  {ok, Candidates} = els_dt_document_index:lookup(Id),
   case [Uri || #{kind := header, uri := Uri} <- Candidates] of
     [Uri] ->
       {ok, Uri};
@@ -29,7 +29,7 @@ find_header(Id) ->
 %% @doc Look for a module in the DB
 -spec find_module(atom()) -> {ok, uri()} | {error, any()}.
 find_module(Id) ->
-  {ok, Candidates} = els_dt_document:find_by_id(Id),
+  {ok, Candidates} = els_dt_document_index:lookup(Id),
   case [Uri || #{kind := module, uri := Uri} <- Candidates] of
     [Uri] ->
       {ok, Uri};

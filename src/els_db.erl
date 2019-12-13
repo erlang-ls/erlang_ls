@@ -13,6 +13,7 @@
 
 -define(SERVER, ?MODULE).
 -define(TABLES, [ els_dt_document
+                , els_dt_document_index
                 , els_dt_references
                 , els_dt_signatures
                 ]).
@@ -36,6 +37,8 @@ install(NodeName, BaseDir) ->
 
 -spec ensure_db() -> ok.
 ensure_db() ->
+  %% Avoid mnesia overload while indexing
+  application:set_env(mnesia, dump_log_write_threshold, 50000),
   case mnesia:create_schema([node()]) of
     {error, {_, {already_exists, _}}} ->
       lager:info("DB already exist, skipping"),
