@@ -1,0 +1,29 @@
+name: Erlang CI
+
+on: [push]
+
+jobs:
+
+  build:
+
+    strategy:
+      matrix:
+        platform: [ubuntu-latest, macos-latest, windows-latest]
+
+    runs-on: ${{ matrix.platform }}
+
+    container:      
+      image: erlang:22.0.7
+
+    steps:
+    - uses: actions/checkout@v1
+    - name: Compile
+      run: rebar3 compile
+    - name: Run CT Tests
+      run: rebar3 ct
+    - name: Run PropEr Tests
+      run: rebar3 proper --cover --constraint_tries 100
+    - name: Run Checks
+      run: rebar3 dialyzer xref
+    - name: Create Cover Reports
+      run: rebar3 do cover coveralls send
