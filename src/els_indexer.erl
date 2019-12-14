@@ -76,14 +76,14 @@ index(#{uri := Uri, text := Text} = Document) ->
   end.
 
 -spec do_index(els_dt_document:item()) -> ok.
-do_index(#{uri := Uri, id := Module, kind := Kind} = Document) ->
+do_index(#{uri := Uri, id := Id, kind := Kind} = Document) ->
   ok = els_dt_document:insert(Document),
   %% Mapping from document id to uri
-  ModuleItem = els_dt_document_index:new(Module, Uri, Kind),
+  ModuleItem = els_dt_document_index:new(Id, Uri, Kind),
   ok = els_dt_document_index:insert(ModuleItem),
   %% Signatures
   Specs  = els_dt_document:pois(Document, [spec]),
-  [els_dt_signatures:insert(#{ mfa  => {Module, F, A}
+  [els_dt_signatures:insert(#{ mfa  => {Id, F, A}
                              , tree => Tree
                              }) ||
     #{id := {F, A}, data := Tree} <- Specs],

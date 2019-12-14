@@ -33,12 +33,12 @@ install(NodeName, BaseDir) ->
   lager:info("Creating DB [dir=~s]", [DbDir]),
   ok = filelib:ensure_dir(filename:join([DbDir, "dummy"])),
   ok = application:set_env(mnesia, dir, DbDir),
+  %% Avoid mnesia overload while indexing
+  ok = application:set_env(mnesia, dump_log_write_threshold, 50000),
   ensure_db().
 
 -spec ensure_db() -> ok.
 ensure_db() ->
-  %% Avoid mnesia overload while indexing
-  application:set_env(mnesia, dump_log_write_threshold, 50000),
   case mnesia:create_schema([node()]) of
     {error, {_, {already_exists, _}}} ->
       lager:info("DB already exist, skipping"),
