@@ -71,23 +71,29 @@ index(#{uri := Uri, text := Text} = Document) ->
     {ok, [#{md5 := MD5}]} ->
       ok;
     _ ->
-      F = fun() ->
-              ok = els_dt_document:insert(Document),
-              Module = els_uri:module(Uri),
-              Specs  = els_dt_document:pois(Document, [spec]),
-              [els_dt_signatures:insert(#{ mfa  => {Module, F, A}
-                                         , tree => Tree
-                                         }) ||
-                #{id := {F, A}, data := Tree} <- Specs],
-              POIs  = els_dt_document:pois(Document, [ application
-                                                     , implicit_fun
-                                                     ]),
-              ok = els_dt_references:delete_by_uri(Uri),
-              [register_reference(Uri, POI) || POI <- POIs],
-              ok
-          end,
+      F = fun() -> do_index(Document) end,
       els_db:transaction(F)
   end.
+
+-spec do_index(els_dt_document:item()) -> ok.
+do_index(#{uri := Uri, id := Id, kind := Kind} = Document) ->
+  ok = els_dt_document:insert(Document),
+  %% Mapping from document id to uri
+  ModuleItem = els_dt_document_index:new(Id, Uri, Kind),
+  ok = els_dt_document_index:insert(ModuleItem),
+  %% Signatures
+  Specs  = els_dt_document:pois(Document, [spec]),
+  [els_dt_signatures:insert(#{ mfa  => {Id, F, A}
+                             , tree => Tree
+                             }) ||
+    #{id := {F, A}, data := Tree} <- Specs],
+  %% References
+  POIs  = els_dt_document:pois(Document, [ application
+                                         , implicit_fun
+                                         ]),
+  ok = els_dt_references:delete_by_uri(Uri),
+  [register_reference(Uri, POI) || POI <- POIs],
+  ok.
 
 -spec index_apps() -> any().
 index_apps() ->

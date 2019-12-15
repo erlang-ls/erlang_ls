@@ -19,9 +19,6 @@
 
 -export([ insert/1
         , lookup/1
-        , find_by/1
-        , find_by_id/1
-        , find_by_kind/1
         ]).
 
 -export([ new/2
@@ -39,6 +36,7 @@
 %%==============================================================================
 %% Type Definitions
 %%==============================================================================
+-type id()   :: atom().
 -type kind() :: module | header.
 
 %%==============================================================================
@@ -46,7 +44,7 @@
 %%==============================================================================
 
 -record(els_dt_document, { uri  :: uri()    | '_'
-                         , id   :: any()    | '_'
+                         , id   :: id()     | '_'
                          , kind :: kind()   | '_'
                          , text :: binary() | '_'
                          , md5  :: binary() | '_'
@@ -55,13 +53,16 @@
 -type els_dt_document() :: #els_dt_document{}.
 
 -type item() :: #{ uri  := uri()
-                 , id   := any()
+                 , id   := id()
                  , kind := kind()
                  , text := binary()
                  , md5  => binary()
                  , pois => [poi()]
                  }.
--export_type([ item/0 ]).
+-export_type([ id/0
+             , item/0
+             , kind/0
+             ]).
 
 %%==============================================================================
 %% Callbacks for the els_db_table Behaviour
@@ -74,7 +75,7 @@ name() -> ?MODULE.
 opts() ->
   [ {attributes        , record_info(fields, els_dt_document)}
   , {disc_copies       , [node()]}
-  , {index             , [#els_dt_document.id, #els_dt_document.kind]}
+  , {index             , []}
   , {type              , set}
   , {storage_properties, [{ets, [compressed]}]}
   ].
@@ -125,23 +126,6 @@ lookup(Uri) ->
   {ok, Items} = els_db:lookup(name(), Uri),
   {ok, [to_item(Item) || Item <- Items]}.
 
-%% @edoc Find by id
--spec find_by_id(any()) -> {ok, [item()]} | {error, any()}.
-find_by_id(Id) ->
-  Pattern = #els_dt_document{id = Id, _ = '_'},
-  find_by(Pattern).
-
-%% @edoc Find by kind
--spec find_by_kind(any()) -> {ok, [item()]} | {error, any()}.
-find_by_kind(Kind) ->
-  Pattern = #els_dt_document{kind = Kind, _ = '_'},
-  find_by(Pattern).
-
--spec find_by(tuple()) -> {ok, [item()]}.
-find_by(Pattern) ->
-  {ok, Items} = els_db:match(Pattern),
-  {ok, [to_item(Item) || Item <- Items]}.
-
 -spec new(uri(), binary()) -> item().
 new(Uri, Text) ->
   Extension = filename:extension(Uri),
@@ -177,7 +161,7 @@ pois(Item, Kinds) ->
   [POI || #{kind := K} = POI <- pois(Item), lists:member(K, Kinds)].
 
 -spec get_element_at_pos(item(), non_neg_integer(), non_neg_integer()) ->
-  [any()].
+  [poi()].
 get_element_at_pos(Item, Line, Column) ->
   POIs = maps:get(pois, Item),
   MatchedPOIs = els_poi:match_pos(POIs, {Line, Column}),

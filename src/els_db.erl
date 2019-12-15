@@ -13,6 +13,7 @@
 
 -define(SERVER, ?MODULE).
 -define(TABLES, [ els_dt_document
+                , els_dt_document_index
                 , els_dt_references
                 , els_dt_signatures
                 ]).
@@ -32,6 +33,8 @@ install(NodeName, BaseDir) ->
   lager:info("Creating DB [dir=~s]", [DbDir]),
   ok = filelib:ensure_dir(filename:join([DbDir, "dummy"])),
   ok = application:set_env(mnesia, dir, DbDir),
+  %% Avoid mnesia overload while indexing
+  ok = application:set_env(mnesia, dump_log_write_threshold, 50000),
   ensure_db().
 
 -spec ensure_db() -> ok.

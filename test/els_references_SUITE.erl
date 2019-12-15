@@ -161,7 +161,7 @@ purge_references(_Config) ->
   els_indexer:index(Doc0),
   els_indexer:index(Doc1),
   ?assertEqual({ok, [Doc1]}
-              , els_dt_document:find_by_kind(module)),
+              , els_dt_document:lookup(Uri)),
   ?assertEqual({ok, [#{ id    => {foo,foo,1}
                       , range => #{from => {4,10},to => {4,13}}
                       , uri   => <<"file://tmp/foo.erl">>

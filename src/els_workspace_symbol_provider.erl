@@ -30,17 +30,18 @@ handle_request({symbol, Params}, State) ->
 
 -spec modules(binary()) -> [symbol_information()].
 modules(Query) ->
-  {ok, All} = els_dt_document:find_by_kind(module),
+  {ok, All} = els_dt_document_index:find_by_kind(module),
+  Compare   = fun(#{id := X}, #{id := Y}) -> X < Y end,
+  AllSorted = lists:sort(Compare, All),
   {ok, RePattern} = re:compile(Query),
   ReOpts = [{capture, none}],
-  F = fun(#{kind := module, id := Module, uri := Uri}) ->
-          filename:extension(Uri) =:= <<".erl">> andalso
-            re:run(atom_to_binary(Module, utf8), RePattern, ReOpts) =:= match
+  F = fun(#{id := Id}) ->
+          re:run(atom_to_binary(Id, utf8), RePattern, ReOpts) =:= match
       end,
-  lists:map(fun symbol_information/1, lists:filter(F, All)).
+  lists:map(fun symbol_information/1, lists:filter(F, AllSorted)).
 
--spec symbol_information(els_dt_document:item()) -> symbol_information().
-symbol_information(#{kind := module, id := Module, uri := Uri}) ->
+-spec symbol_information(els_dt_document_index:item()) -> symbol_information().
+symbol_information(#{id := Module, uri := Uri}) ->
   Range = #{from => {1, 1}, to => {1, 1}},
   #{ name => atom_to_binary(Module, utf8)
    , kind => ?SYMBOLKIND_MODULE
