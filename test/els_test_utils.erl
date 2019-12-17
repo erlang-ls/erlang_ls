@@ -120,11 +120,8 @@ init_per_testcase(_TestCase, Config) ->
   Transport = get_group(Config),
   Started   = start(Transport),
   RootUri   = ?config(root_uri, Config),
-  Uri       = ?config(code_navigation_uri, Config),
-  Text      = ?config(code_navigation_text, Config),
 
   els_client:initialize(RootUri, []),
-  els_client:did_open(Uri, erlang, 1, Text),
 
   %% Ensure modules used in test suites are indexed
   els_indexer:find_and_index_file("behaviour_a", sync),
