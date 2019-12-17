@@ -24,13 +24,16 @@ handle_request({symbol, Params}, State) ->
   %% TODO: Version 3.15 of the protocol introduces a much nicer way of
   %%       specifying queries, allowing clients to send the symbol kind.
   #{<<"query">> := Query} = Params,
-  {modules(Query), State}.
+  TrimmedQuery = string:trim(Query),
+  {modules(TrimmedQuery), State}.
 
 %%==============================================================================
 %% Internal Functions
 %%==============================================================================
 
 -spec modules(binary()) -> [symbol_information()].
+modules(<<>>) ->
+  [];
 modules(Query) ->
   {ok, All} = els_dt_document_index:find_by_kind(module),
   Compare   = fun(#{id := X}, #{id := Y}) -> X < Y end,
