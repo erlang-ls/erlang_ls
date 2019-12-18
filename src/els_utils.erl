@@ -19,7 +19,7 @@
 find_header(Id) ->
   {ok, Candidates} = els_dt_document_index:lookup(Id),
   case [Uri || #{kind := header, uri := Uri} <- Candidates] of
-    [Uri] ->
+    [Uri | _] ->
       {ok, Uri};
     [] ->
       FileName = atom_to_list(Id) ++ ".hrl",
@@ -31,7 +31,7 @@ find_header(Id) ->
 find_module(Id) ->
   {ok, Candidates} = els_dt_document_index:lookup(Id),
   case [Uri || #{kind := module, uri := Uri} <- Candidates] of
-    [Uri] ->
+    [Uri | _] ->
       {ok, Uri};
     [] ->
       FileName = atom_to_list(Id) ++ ".erl",
