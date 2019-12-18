@@ -25,8 +25,7 @@
 diagnostics(Uri) ->
   Path = els_uri:path(Uri),
   WS = try dialyzer:run([{files, [binary_to_list(Path)]}, {from, src_code}])
-       catch _:_ ->
-           []
+       catch _:_ -> []
        end,
   [diagnostic(W) || W <- WS].
 
@@ -35,8 +34,8 @@ diagnostics(Uri) ->
 %%==============================================================================
 -spec diagnostic({any(), {any(), integer()}, any()}) -> diagnostic().
 diagnostic({_, {_, Line}, _} = Warning) ->
-  Range   = els_protocol:range(#{ from => {Line - 1, 0}
-                                , to   => {Line - 1, 0}
+  Range   = els_protocol:range(#{ from => {Line, 0}
+                                , to   => {Line, 0}
                                 }),
   Message = list_to_binary(lists:flatten(dialyzer:format_warning(Warning))),
   #{ range    => Range
