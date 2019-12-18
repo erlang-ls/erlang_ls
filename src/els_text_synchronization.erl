@@ -7,6 +7,8 @@
         , did_close/1
         ]).
 
+-export([ generate_diagnostics/1 ]).
+
 -spec did_open(map()) -> ok.
 did_open(Params) ->
   TextDocument = maps:get(<<"textDocument">>, Params),
@@ -14,13 +16,15 @@ did_open(Params) ->
   Text         = maps:get(<<"text">>        , TextDocument),
   Document     = els_dt_document:new(Uri, Text),
   ok           = els_indexer:index(Document),
-  generate_diagnostics(Uri).
+  spawn (?MODULE, generate_diagnostics, [Uri]),
+  ok.
 
 -spec did_save(map()) -> ok.
 did_save(Params) ->
   TextDocument = maps:get(<<"textDocument">>, Params),
   Uri          = maps:get(<<"uri">>         , TextDocument),
-  generate_diagnostics(Uri).
+  spawn (?MODULE, generate_diagnostics, [Uri]),
+  ok.
 
 -spec did_close(map()) -> ok.
 did_close(_Params) -> ok.
