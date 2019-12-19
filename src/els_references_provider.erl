@@ -56,6 +56,21 @@ find_references(Uri, #{ kind := Kind
     {ok, Refs} ->
       [location(U, R) || #{uri := U, range := R} <- Refs]
   end;
+find_references(_Uri, #{kind := Kind, id := Name})
+  when Kind =:= record_expr; Kind =:= record ->
+  case els_dt_references:find_by_id({record, Name}) of
+    {ok, []} ->
+      null;
+    {ok, Refs} ->
+      [location(U, R) || #{uri := U, range := R} <- Refs]
+  end;
+find_references(_Uri, #{kind := record_access, id := {Name, _}}) ->
+  case els_dt_references:find_by_id({record, Name}) of
+    {ok, []} ->
+      null;
+    {ok, Refs} ->
+      [location(U, R) || #{uri := U, range := R} <- Refs]
+  end;
 find_references(_Uri, _POI) ->
   null.
 
