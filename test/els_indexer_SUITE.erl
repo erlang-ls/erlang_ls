@@ -10,7 +10,8 @@
         ]).
 
 %% Test cases
--export([ index_erl_file/1
+-export([ index_dir_not_dir/1
+        , index_erl_file/1
         , index_hrl_file/1
         , index_unkown_extension/1
         ]).
@@ -56,6 +57,19 @@ end_per_testcase(TestCase, Config) ->
 %%==============================================================================
 %% Testcases
 %%==============================================================================
+-spec index_dir_not_dir(config()) -> ok.
+index_dir_not_dir(Config) ->
+  DataDir    = ?config(data_dir, Config),
+  NotDirPath = filename:join(DataDir, "not_a_dir"),
+  file:write_file(NotDirPath, <<>>),
+  ok = els_utils:fold_files( fun(_, _) -> ok end
+                           , fun(_) -> true end
+                           , NotDirPath
+                           , ok
+                           ),
+  file:delete(NotDirPath),
+  ok.
+
 -spec index_erl_file(config()) -> ok.
 index_erl_file(Config) ->
   DataDir = ?config(data_dir, Config),

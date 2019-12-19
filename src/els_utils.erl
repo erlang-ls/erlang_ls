@@ -105,7 +105,7 @@ do_fold_file(F, Filter, Path, Acc) ->
 -spec do_fold_dir(function(), function(), string(), any()) ->
   any().
 do_fold_dir(F, Filter, Dir, Acc) ->
-  case not is_symlink(Dir) of
+  case not is_symlink(Dir) andalso filelib:is_dir(Dir) of
     true ->
       {ok, Files} = file:list_dir(Dir),
       do_fold_files(F, Filter, Dir, Files, Acc);
