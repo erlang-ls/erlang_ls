@@ -42,6 +42,7 @@
                | otp_path
                | otp_paths
                | otp_apps_exclude
+               | plt_path
                | root_uri
                | search_paths.
 -type path()  :: file:filename().
@@ -54,6 +55,7 @@
                   , otp_path          => path()
                   , otp_paths         => [path()]
                   , otp_apps_exclude  => [string()]
+                  , plt_path          => path()
                   , root_uri          => uri()
                   , search_paths      => [path()]
                   }.
@@ -67,14 +69,15 @@ initialize(RootUri, Capabilities, InitOptions) ->
   Config = consult_config(filename:join([ els_uri:path(RootUri)
                                         , config_path(InitOptions)
                                         ])),
-  OtpPath        = maps:get("otp_path", Config, code:root_dir()),
-  DepsDirs       = maps:get("deps_dirs", Config, []),
-  AppsDirs       = maps:get("apps_dirs", Config, ["."]),
-  IncludeDirs    = maps:get("include_dirs", Config, ["include"]),
-  OtpAppsExclude = maps:get( "otp_apps_exclude"
-                           , Config
-                           , ?DEFAULT_EXCLUDED_OTP_APPS
-                           ),
+  OtpPath         = maps:get("otp_path", Config, code:root_dir()),
+  DepsDirs        = maps:get("deps_dirs", Config, []),
+  AppsDirs        = maps:get("apps_dirs", Config, ["."]),
+  IncludeDirs     = maps:get("include_dirs", Config, ["include"]),
+  DialyzerPltPath = maps:get("plt_path", Config, undefined),
+  OtpAppsExclude  = maps:get( "otp_apps_exclude"
+                            , Config
+                            , ?DEFAULT_EXCLUDED_OTP_APPS
+                            ),
   ExcludePathsSpecs = [[OtpPath, "lib", P ++ "*"] || P <- OtpAppsExclude],
   ExcludePaths      = resolve_paths(ExcludePathsSpecs, true),
   lager:info("Excluded OTP Applications: ~p", [OtpAppsExclude]),
@@ -86,6 +89,7 @@ initialize(RootUri, Capabilities, InitOptions) ->
   ok = set(deps_dirs     , DepsDirs),
   ok = set(apps_dirs     , AppsDirs),
   ok = set(include_dirs  , IncludeDirs),
+  ok = set(plt_path      , DialyzerPltPath),
   %% Calculated from the above
   ok = set(apps_paths    , project_paths(RootUri, AppsDirs, false)),
   ok = set(deps_paths    , project_paths(RootUri, DepsDirs, false)),

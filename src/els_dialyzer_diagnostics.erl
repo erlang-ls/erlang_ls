@@ -24,19 +24,25 @@
 -spec diagnostics(uri()) -> [diagnostic()].
 diagnostics(Uri) ->
   Path = els_uri:path(Uri),
-  WS = try dialyzer:run([{files, [binary_to_list(Path)]}, {from, src_code}])
-       catch _:_ ->
-           []
-       end,
-  [diagnostic(W) || W <- WS].
+  case els_config:get(plt_path) of
+    undefined -> [];
+    DialyzerPltPath ->
+      WS = try dialyzer:run([ {files, [binary_to_list(Path)]}
+                            , {from, src_code}
+                            , {plts, [DialyzerPltPath]}
+                            ])
+           catch _:_ -> []
+           end,
+      [diagnostic(W) || W <- WS]
+  end.
 
 %%==============================================================================
 %% Internal Functions
 %%==============================================================================
 -spec diagnostic({any(), {any(), integer()}, any()}) -> diagnostic().
 diagnostic({_, {_, Line}, _} = Warning) ->
-  Range   = els_protocol:range(#{ from => {Line - 1, 0}
-                                , to   => {Line - 1, 0}
+  Range   = els_protocol:range(#{ from => {Line, 0}
+                                , to   => {Line, 0}
                                 }),
   Message = list_to_binary(lists:flatten(dialyzer:format_warning(Warning))),
   #{ range    => Range
