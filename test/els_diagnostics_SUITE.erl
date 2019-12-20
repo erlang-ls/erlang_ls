@@ -94,7 +94,7 @@ compiler(Config) ->
 
 -spec elvis(config()) -> ok.
 elvis(Config) ->
-  Cwd = file:get_cwd(),
+  {ok, Cwd} = file:get_cwd(),
   RootPath = ?config(root_path, Config),
   try
       file:set_cwd(RootPath),

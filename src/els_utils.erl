@@ -5,10 +5,13 @@
         , fold_files/4
         , lookup_document/1
         , project_relative/1
+        , resolve_paths/3
         , halt/1
         ]).
 
 -include("erlang_ls.hrl").
+
+-type path() :: file:filename().
 
 %%==============================================================================
 %% File and module functions
@@ -19,7 +22,7 @@
 find_header(Id) ->
   {ok, Candidates} = els_dt_document_index:lookup(Id),
   case [Uri || #{kind := header, uri := Uri} <- Candidates] of
-    [Uri] ->
+    [Uri | _] ->
       {ok, Uri};
     [] ->
       FileName = atom_to_list(Id) ++ ".hrl",
@@ -31,7 +34,7 @@ find_header(Id) ->
 find_module(Id) ->
   {ok, Candidates} = els_dt_document_index:lookup(Id),
   case [Uri || #{kind := module, uri := Uri} <- Candidates] of
-    [Uri] ->
+    [Uri | _] ->
       {ok, Uri};
     [] ->
       FileName = atom_to_list(Id) ++ ".erl",
@@ -62,6 +65,17 @@ lookup_document(Uri) ->
 -spec fold_files(function(), function(), string(), any()) -> any().
 fold_files(F, Filter, Dir, Acc) ->
   do_fold_dir(F, Filter, Dir, Acc).
+
+%% @doc Resolve paths based on path specs
+%%
+%% Gets a list of path specs and returns the expanded list of paths.
+%% Path specs can contains glob expressions. Resolved paths that contain
+%% symlinks will be ignored.
+-spec resolve_paths([[string()]], path(), boolean()) -> [[string()]].
+resolve_paths(PathSpecs, RootPath, Recursive) ->
+  lists:append([ resolve_path(PathSpec, RootPath, Recursive)
+                 || PathSpec <- PathSpecs
+               ]).
 
 -spec halt(integer()) -> no_return().
 halt(ExitCode) ->
@@ -118,4 +132,59 @@ is_symlink(Path) ->
   case file:read_link(Path) of
     {ok, _} -> true;
     {error, _} -> false
+  end.
+
+%% Resolve paths recursively
+
+-spec resolve_path([string()], path(), boolean()) -> [string()].
+resolve_path(PathSpec, RootPath, Recursive) ->
+  Path  = filename:join(PathSpec),
+  Paths = filelib:wildcard(Path),
+  case Recursive of
+    true  ->
+      lists:append([ [P | subdirs(P)]
+                     || P <- Paths, not contains_symlink(P, RootPath)
+                   ]);
+    false ->
+      [P || P <- Paths, not contains_symlink(P, RootPath)]
+  end.
+
+%% Returns all subdirectories for the provided path
+-spec subdirs(string()) -> [string()].
+subdirs(Path) ->
+  subdirs(Path, []).
+
+-spec subdirs(string(), [string()]) -> [string()].
+subdirs(Path, Subdirs) ->
+  case file:list_dir(Path) of
+    {ok, Files} -> subdirs_(Path, Files, Subdirs);
+    {error, _}  -> Subdirs
+  end.
+
+-spec subdirs_(string(), [string()], [string()]) -> [string()].
+subdirs_(Path, Files, Subdirs) ->
+  Fold = fun(F, Acc) ->
+             FullPath = filename:join([Path, F]),
+             case
+               not is_symlink(FullPath)
+               andalso filelib:is_dir(FullPath)
+             of
+               true  -> subdirs(FullPath, [FullPath | Acc]);
+               false -> Acc
+             end
+         end,
+  lists:foldl(Fold, Subdirs, Files).
+
+-spec contains_symlink(path(), path()) -> boolean().
+contains_symlink(RootPath, RootPath) ->
+  false;
+contains_symlink([], _RootPath) ->
+  false;
+contains_symlink(Path, RootPath) ->
+  Parts = filename:split(Path),
+  case lists:droplast(Parts) of
+    [] -> false;
+    ParentParts ->
+      Parent = filename:join(ParentParts),
+      is_symlink(Parent) orelse contains_symlink(Parent, RootPath)
   end.

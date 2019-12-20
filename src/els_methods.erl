@@ -339,7 +339,7 @@ workspace_symbol(Params, State) ->
 %%==============================================================================
 %% Internal Functions
 %%==============================================================================
--spec node_name(binary(), binary()) -> atom().
+-spec node_name(uri(), binary()) -> atom().
 node_name(RootUri, OtpPath) ->
   <<SHA:160/integer>> = crypto:hash(sha, <<RootUri/binary, OtpPath/binary>>),
   list_to_atom(lists:flatten(io_lib:format("erlang_ls_~40.16.0b", [SHA]))).

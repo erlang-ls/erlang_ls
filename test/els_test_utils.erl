@@ -23,7 +23,7 @@
 -define(HOSTNAME, {127,0,0,1}).
 -define(PORT    , 10000).
 
--spec groups(module()) -> [{atom(), [atom()]}].
+-spec groups(module()) -> [{atom(), [], [atom()]}].
 groups(Module) ->
   [ {tcp,   [], all(Module)}
   , {stdio, [], all(Module)}
@@ -138,7 +138,7 @@ end_per_testcase(_TestCase, Config) ->
   [application:stop(App) || App <- ?config(started, Config)],
   ok.
 
--spec start(stdio | tcp) -> ok.
+-spec start(stdio | tcp) -> [atom()].
 start(stdio) ->
   ClientIo = els_fake_stdio:start(),
   ServerIo = els_fake_stdio:start(),
