@@ -285,10 +285,14 @@ macro(Tree) ->
 -spec record_access(tree()) -> [poi()].
 record_access(Tree) ->
   RecordNode = erl_syntax:record_access_type(Tree),
+  FieldNode = erl_syntax:record_access_field(Tree),
   case erl_syntax:type(RecordNode) of
     atom ->
       Record = erl_syntax:atom_value(RecordNode),
-      Field = erl_syntax:atom_name(erl_syntax:record_access_field(Tree)),
+      Field = case erl_syntax:type(FieldNode) of
+                atom -> erl_syntax:atom_value(FieldNode);
+                _    -> 'UNKNOWN_FIELD'
+              end,
       [els_poi:new(erl_syntax:get_pos(Tree), record_access, {Record, Field})];
     _ ->
       []
