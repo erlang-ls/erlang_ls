@@ -37,6 +37,19 @@
 %%==============================================================================
 -spec diagnostics(uri()) -> [diagnostic()].
 diagnostics(Uri) ->
+  case filename:extension(Uri) of
+    <<".erl">> ->
+      compile(Uri);
+    _Ext ->
+      lager:debug("Unsupported extension during compilation [uri=~p]", [Uri]),
+      []
+  end.
+
+%%==============================================================================
+%% Internal Functions
+%%==============================================================================
+-spec compile(uri()) -> [diagnostic()].
+compile(Uri) ->
   Path = els_uri:path(Uri),
   Includes = [ {i, IncludePath}
                || IncludePath <- els_config:get(include_paths)
@@ -48,9 +61,7 @@ diagnostics(Uri) ->
       diagnostics(WS, ?DIAGNOSTIC_WARNING) ++ diagnostics(ES, ?DIAGNOSTIC_ERROR)
   end.
 
-%%==============================================================================
-%% Internal Functions
-%%==============================================================================
+
 -spec diagnostics([compiler_msg()], severity()) -> [diagnostic()].
 diagnostics(List, Severity) ->
   lists:flatten([[ diagnostic(location(Line), Module, Desc, Severity)
