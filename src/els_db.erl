@@ -17,7 +17,7 @@
                 , els_dt_references
                 , els_dt_signatures
                 ]).
--define(TIMEOUT, 20000).
+-define(TIMEOUT, infinity).
 
 %%==============================================================================
 %% Exported functions
@@ -83,7 +83,7 @@ clear_tables() ->
 wait_for_tables() ->
   wait_for_tables(?TIMEOUT).
 
--spec wait_for_tables(pos_integer()) -> ok.
+-spec wait_for_tables(timeout()) -> ok.
 wait_for_tables(Timeout) ->
   ok = mnesia:wait_for_tables(?TABLES, Timeout).
 
