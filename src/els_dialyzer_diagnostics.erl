@@ -31,7 +31,11 @@ diagnostics(Uri) ->
                             , {from, src_code}
                             , {plts, [DialyzerPltPath]}
                             ])
-           catch _:_ -> []
+           catch Type:Error ->
+               lager:error( "Error while running dialyzer [type=~p] [error=~p]"
+                          , [Type, Error]
+                          ),
+               []
            end,
       [diagnostic(W) || W <- WS]
   end.
