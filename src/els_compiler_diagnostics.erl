@@ -40,6 +40,11 @@ diagnostics(Uri) ->
   case filename:extension(Uri) of
     <<".erl">> ->
       compile(Uri);
+    <<".hrl">> ->
+      %% It does not make sense to 'compile' header files in
+      %% isolation, but we can still parse the files to identify
+      %% obvious mistakes in the code.
+      parse(Uri);
     _Ext ->
       lager:debug("Unsupported extension during compilation [uri=~p]", [Uri]),
       []
@@ -61,6 +66,18 @@ compile(Uri) ->
       diagnostics(WS, ?DIAGNOSTIC_WARNING) ++ diagnostics(ES, ?DIAGNOSTIC_ERROR)
   end.
 
+%% TODO: Write tests
+-spec parse(uri()) -> [diagnostic()].
+parse(Uri) ->
+  FileName = binary_to_list(els_uri:path(Uri)),
+  {ok, Epp} = epp:open([ {name, FileName}
+                         %% TODO: Pass includes
+                       , {includes, []}
+                       ]),
+  Res = [diagnostic(location(Line), Module, Desc, ?DIAGNOSTIC_ERROR)
+         || {error, {Line, Module, Desc}} <- epp:parse_file(Epp)],
+  epp:close(Epp),
+  Res.
 
 -spec diagnostics([compiler_msg()], severity()) -> [diagnostic()].
 diagnostics(List, Severity) ->
