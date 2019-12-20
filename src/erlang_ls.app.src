@@ -31,7 +31,6 @@
       , {index_deps, true}
         %% Logging
       , {logging_enabled, false}
-      , {log_dir, "/usr/local/var/log/erlang_ls"}
       ]
     }
   , {modules, []}

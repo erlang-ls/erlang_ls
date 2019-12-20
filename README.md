@@ -318,7 +318,8 @@ the Database Directory on your system:
 ### Logging
 
 When the escript is built using the `debug` profile as above, logging
-will be enabled and the logs will be written to `/usr/local/var/log/erlang_ls`.
+will be enabled and the logs will be written to your platform's log
+directory (i.e. return value from `filename:basedir(user_log, "erlang_ls")`).
 It's possible to change this directory either by modifying the default
 value in the `erlang_ls.app.src` file or by having the LSP client
 being used to provide a `--log-dir` option.

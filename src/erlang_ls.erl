@@ -75,7 +75,8 @@ lager_handlers(LogRoot) ->
 
 -spec log_root() -> string().
 log_root() ->
-  {ok, LogDir}     = application:get_env(?APP, log_dir),
+  DefaultLogDir    = filename:basedir(user_log, "erlang_ls"),
+  LogDir           = application:get_env(?APP, log_dir, DefaultLogDir),
   {ok, CurrentDir} = file:get_cwd(),
   Dirname          = filename:basename(CurrentDir),
   filename:join([LogDir, Dirname]).
