@@ -44,7 +44,8 @@
                | otp_apps_exclude
                | plt_path
                | root_uri
-               | search_paths.
+               | search_paths
+               | db_wait_timeout.
 -type path()  :: file:filename().
 -type state() :: #{ apps_dirs         => [path()]
                   , apps_paths        => [path()]
@@ -56,6 +57,7 @@
                   , otp_paths         => [path()]
                   , otp_apps_exclude  => [string()]
                   , plt_path          => path()
+                  , db_wait_timeout   => integer()
                   , root_uri          => uri()
                   , search_paths      => [path()]
                   }.
@@ -74,6 +76,7 @@ initialize(RootUri, Capabilities, InitOptions) ->
   AppsDirs        = maps:get("apps_dirs", Config, ["."]),
   IncludeDirs     = maps:get("include_dirs", Config, ["include"]),
   DialyzerPltPath = maps:get("plt_path", Config, undefined),
+  DbWaitTimeout   = maps:get("db_wait_timeout", Config, 20000),
   OtpAppsExclude  = maps:get( "otp_apps_exclude"
                             , Config
                             , ?DEFAULT_EXCLUDED_OTP_APPS
@@ -83,18 +86,19 @@ initialize(RootUri, Capabilities, InitOptions) ->
   lager:info("Excluded OTP Applications: ~p", [OtpAppsExclude]),
 
   %% Passed by the LSP client
-  ok = set(root_uri      , RootUri),
+  ok = set(root_uri        , RootUri),
   %% Read from the erlang_ls.config file
-  ok = set(otp_path      , OtpPath),
-  ok = set(deps_dirs     , DepsDirs),
-  ok = set(apps_dirs     , AppsDirs),
-  ok = set(include_dirs  , IncludeDirs),
-  ok = set(plt_path      , DialyzerPltPath),
+  ok = set(otp_path        , OtpPath),
+  ok = set(deps_dirs       , DepsDirs),
+  ok = set(apps_dirs       , AppsDirs),
+  ok = set(include_dirs    , IncludeDirs),
+  ok = set(plt_path        , DialyzerPltPath),
+  ok = set(db_wait_timeout , DbWaitTimeout),
   %% Calculated from the above
-  ok = set(apps_paths    , project_paths(RootUri, AppsDirs, false)),
-  ok = set(deps_paths    , project_paths(RootUri, DepsDirs, false)),
-  ok = set(include_paths , include_paths(RootUri, IncludeDirs, false)),
-  ok = set(otp_paths     , otp_paths(OtpPath, false) -- ExcludePaths),
+  ok = set(apps_paths      , project_paths(RootUri, AppsDirs, false)),
+  ok = set(deps_paths      , project_paths(RootUri, DepsDirs, false)),
+  ok = set(include_paths   , include_paths(RootUri, IncludeDirs, false)),
+  ok = set(otp_paths       , otp_paths(OtpPath, false) -- ExcludePaths),
   %% All (including subdirs) paths used to search files with file:path_open/3
   ok = set( search_paths
           , lists:append([ project_paths(RootUri, AppsDirs, true)

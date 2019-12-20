@@ -268,6 +268,7 @@ Currently, the following customizations are possible:
 | apps\_dirs         | List of directories containing project applications. It supports wildcards.                          |
 | include\_dirs      | List of directories provided to the compiler as include dirs. It supports wildcards.                 |
 | otp\_apps\_exclude | List of OTP applications that will not be indexed (default: megaco, diameter, snmp, wx)              |
+| db\_wait\_timeout  | Timeout to load all Mnesia tables                                                                    |
 
 ## Troubleshooting
 

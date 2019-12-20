@@ -17,7 +17,6 @@
                 , els_dt_references
                 , els_dt_signatures
                 ]).
--define(TIMEOUT, 20000).
 
 %%==============================================================================
 %% Exported functions
@@ -49,7 +48,7 @@ ensure_db() ->
   lager:info("Preparing tables"),
   application:start(mnesia),
   ensure_tables(),
-  wait_for_tables(),
+  wait_for_tables(els_config:get(db_wait_timeout)),
   lager:info("DB Initialized"),
   ok.
 
@@ -78,10 +77,6 @@ write(Record) when is_tuple(Record) ->
 clear_tables() ->
   [ok = clear_table(T) || T <- ?TABLES],
   ok.
-
--spec wait_for_tables() -> ok.
-wait_for_tables() ->
-  wait_for_tables(?TIMEOUT).
 
 -spec wait_for_tables(pos_integer()) -> ok.
 wait_for_tables(Timeout) ->
