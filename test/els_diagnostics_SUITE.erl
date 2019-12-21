@@ -75,21 +75,25 @@ compiler(Config) ->
   #{uri := Uri} = Params,
   ?assert(maps:is_key(diagnostics, Params)),
   #{diagnostics := Diagnostics} = Params,
-  ?assertEqual(2, length(Diagnostics)),
+  ?assertEqual(4, length(Diagnostics)),
   Warnings = [D || #{severity := ?DIAGNOSTIC_WARNING} = D <- Diagnostics],
   Errors   = [D || #{severity := ?DIAGNOSTIC_ERROR}   = D <- Diagnostics],
   ?assertEqual(1, length(Warnings)),
-  ?assertEqual(1, length(Errors)),
-  [ #{range := WarningRange} ] = Warnings,
-  [ #{range := ErrorRange} ] = Errors,
-  ?assertEqual( #{'end' => #{character => 0,line => 6},
-                  start => #{character => 0,line => 5}}
-              , WarningRange
-              ),
-  ?assertEqual( #{'end' => #{character => 0,line => 5},
-                  start => #{character => 0,line => 4}}
-              , ErrorRange
-              ),
+  ?assertEqual(3, length(Errors)),
+  WarningRanges = [ Range || #{range := Range} <- Warnings],
+  ExpectedWarningRanges = [ #{'end' => #{character => 0,line => 7},
+                              start => #{character => 0,line => 6}}
+                          ],
+  ?assertEqual(ExpectedWarningRanges, WarningRanges),
+  ErrorRanges = [ Range || #{range := Range} <- Errors],
+  ExpectedErrorRanges = [ #{'end' => #{character => 35,line => 3},
+                            start => #{character => 0,line => 3}},
+                          #{'end' => #{character => 35,line => 3},
+                            start => #{character => 0,line => 3}},
+                          #{'end' => #{character => 0,line => 6},
+                            start => #{character => 0,line => 5}}
+                        ],
+  ?assertEqual(ExpectedErrorRanges, ErrorRanges),
   ok.
 
 -spec elvis(config()) -> ok.

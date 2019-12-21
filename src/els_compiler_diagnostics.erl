@@ -41,12 +41,18 @@ diagnostics(Uri) ->
     <<".erl">> ->
       compile(Uri);
     <<".hrl">> ->
-      %% It does not make sense to 'compile' header files in
-      %% isolation, but we can still parse the files to identify
-      %% obvious mistakes in the code.
+      %% It does not make sense to 'compile' header files in isolation
+      %% (e.g. using the compile:forms/1 function). That would in fact
+      %% produce a big number of false positive errors and warnings,
+      %% including 'record not used' or 'module attribute not
+      %% specified'. An alternative could be to use a 'fake' module
+      %% that simply includes the file, but that feels a bit too
+      %% hackish. As a compromise, we decided to parse the include
+      %% file, since that allows us to identify most of the common
+      %% errors in header files.
       parse(Uri);
     _Ext ->
-      lager:debug("Unsupported extension during compilation [uri=~p]", [Uri]),
+      lager:debug("Skipping diagnostics due to extension [uri=~p]", [Uri]),
       []
   end.
 
@@ -55,48 +61,116 @@ diagnostics(Uri) ->
 %%==============================================================================
 -spec compile(uri()) -> [diagnostic()].
 compile(Uri) ->
-  Path = els_uri:path(Uri),
+  Path = binary_to_list(els_uri:path(Uri)),
   Includes = [ {i, IncludePath}
                || IncludePath <- els_config:get(include_paths)
              ],
-  case compile:file(binary_to_list(Path), Includes ++ ?COMPILER_OPTS) of
+  case compile:file(Path, Includes ++ ?COMPILER_OPTS) of
     {ok, _, WS} ->
-      diagnostics(WS, ?DIAGNOSTIC_WARNING);
+      diagnostics(Path, WS, ?DIAGNOSTIC_WARNING);
     {error, ES, WS} ->
-      diagnostics(WS, ?DIAGNOSTIC_WARNING) ++ diagnostics(ES, ?DIAGNOSTIC_ERROR)
+      diagnostics(Path, WS, ?DIAGNOSTIC_WARNING) ++
+        diagnostics(Path, ES, ?DIAGNOSTIC_ERROR)
   end.
 
-%% TODO: Write tests
 -spec parse(uri()) -> [diagnostic()].
 parse(Uri) ->
   FileName = binary_to_list(els_uri:path(Uri)),
   {ok, Epp} = epp:open([ {name, FileName}
-                         %% TODO: Pass includes
-                       , {includes, []}
+                       , {includes, els_config:get(include_paths)}
                        ]),
-  Res = [diagnostic(location(Line), Module, Desc, ?DIAGNOSTIC_ERROR)
+  Res = [diagnostic(range(Line), Module, Desc, ?DIAGNOSTIC_ERROR)
          || {error, {Line, Module, Desc}} <- epp:parse_file(Epp)],
   epp:close(Epp),
   Res.
 
--spec diagnostics([compiler_msg()], severity()) -> [diagnostic()].
-diagnostics(List, Severity) ->
-  lists:flatten([[ diagnostic(location(Line), Module, Desc, Severity)
+%% @doc Convert compiler messages into diagnostics
+%%
+%% Convert a list of compiler messages of a given severity (warning,
+%% error) into a list of diagnostic data structures, as expected by
+%% the LSP protocol.
+%% Compiler messages related to included files are grouped together
+%% and they are presented to the user by highlighting the line where
+%% the file inclusion happens.
+-spec diagnostics(list(), [compiler_msg()], severity()) -> [diagnostic()].
+diagnostics(Path, List, Severity) ->
+  Uri = els_uri:uri(list_to_binary(Path)),
+  {ok, [Document]} = els_dt_document:lookup(Uri),
+  lists:flatten([[ diagnostic( Path
+                             , MessagePath
+                             , range(Line)
+                             , Document
+                             , Module
+                             , Desc
+                             , Severity)
                    || {Line, Module, Desc} <- Info]
-                 || {_Filename, Info } <- List]).
+                 || {MessagePath, Info} <- List]).
 
--spec diagnostic(erl_anno:location(), module(), string(), integer()) ->
+-spec diagnostic( string()
+                , string()
+                , poi_range()
+                , els_dt_document:item()
+                , module()
+                , string()
+                , integer()) -> diagnostic().
+diagnostic(Path, Path, Range, _Document, Module, Desc, Severity) ->
+  %% The compiler message is related to the same .erl file, so
+  %% preserve the location information.
+  diagnostic(Range, Module, Desc, Severity);
+diagnostic(_Path, MessagePath, Range, Document, Module, Desc0, Severity) ->
+  #{from := {Line, _}} = Range,
+  InclusionRange = inclusion_range(MessagePath, Document),
+  %% The compiler message is related to an included file. Replace the
+  %% original location with the location of the file inclusion.
+  Desc = io_lib:format("Issue in included file (~p): ~s", [Line, Desc0]),
+  diagnostic(InclusionRange, Module, Desc, Severity).
+
+-spec diagnostic(poi_range(), module(), string(), integer()) ->
   diagnostic().
-diagnostic({Line, Col}, Module, Desc, Severity) ->
-  Range   = #{from => {Line, Col}, to => {Line + 1, 1}},
+diagnostic(Range, Module, Desc, Severity) ->
   Message = list_to_binary(lists:flatten(Module:format_error(Desc))),
   #{ range    => els_protocol:range(Range)
    , message  => Message
    , severity => Severity
    }.
 
--spec location(erl_anno:line() | none) -> erl_anno:location().
-location(Line) when is_integer(Line) ->
-  {Line, 1};
-location(none) ->
-  {1, 1}.
+-spec range(erl_anno:line() | none) -> poi_range().
+range(Line) when is_integer(Line) ->
+  #{from => {Line, 1}, to => {Line + 1, 1}};
+range(none) ->
+  range(1).
+
+%% @doc Find the inclusion range for a header file.
+%%
+%%      Given the path of e .hrl path, find its inclusion range within
+%%      a given document.
+-spec inclusion_range(string(), els_dt_document:item()) -> poi_range().
+inclusion_range(IncludePath, Document) ->
+  [Range|_] =
+    inclusion_range(IncludePath, Document, include) ++
+    inclusion_range(IncludePath, Document, include_lib),
+  Range.
+
+-spec inclusion_range( string()
+                     , els_dt_document:item()
+                     , include | include_lib) -> [poi_range()].
+inclusion_range(IncludePath, Document, include) ->
+  POIs       = els_dt_document:pois(Document, [include]),
+  IncludeId  = include_id(IncludePath),
+  [Range || #{id := Id, range := Range} <- POIs, Id =:= IncludeId];
+inclusion_range(IncludePath, Document, include_lib) ->
+  POIs       = els_dt_document:pois(Document, [include_lib]),
+  IncludeId  = include_lib_id(IncludePath),
+  [Range || #{id := Id, range := Range} <- POIs, Id =:= IncludeId].
+
+-spec include_id(string()) -> string().
+include_id(Path) ->
+  filename:basename(Path).
+
+-spec include_lib_id(string()) -> string().
+include_lib_id(Path) ->
+  Components = filename:split(Path),
+  Length     = length(Components),
+  End        = Length - 1,
+  Beginning  = max(1, Length - 2),
+  filename:join(lists:sublist(Components, Beginning, End)).
