@@ -34,7 +34,7 @@
 suite() ->
   [{timetrap, {seconds, 30}}].
 
--spec all() -> [atom()].
+-spec all() -> [{group, tcp | stdio}].
 all() ->
   [{group, tcp}, {group, stdio}].
 

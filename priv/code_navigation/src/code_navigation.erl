@@ -69,3 +69,7 @@ function_j() ->
 
 %% [#283] Macro as function name crashes parser
 ?macro_A() -> ok.
+
+%% [#333] Record field accessors assumed to be atoms
+function_k() ->
+  X#included_record_a.?MACRO_A.

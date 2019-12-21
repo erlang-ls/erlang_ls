@@ -80,7 +80,7 @@ range({Line, Column}, module, _) ->
   #{ from => From, to => To };
 range(Pos, record_access, {Record, Field}) ->
   #{ from => minus(Pos, "#")
-   , to => plus(Pos, atom_to_list(Record) ++ "." ++ Field) };
+   , to => plus(Pos, atom_to_list(Record) ++ "." ++ atom_to_list(Field)) };
 range({Line, Column}, record_expr, Record) ->
   From = {Line, Column - 1},
   To = plus({Line, Column}, atom_to_list(Record)),
