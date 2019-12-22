@@ -32,9 +32,10 @@
 %% Initial State
 %%==============================================================================
 initial_state() ->
-  #{ connected => false
-   , shutdown  => false
-   , documents => []
+  #{ connected   => false
+   , initialized => false
+   , shutdown    => false
+   , documents   => []
    }.
 
 %%==============================================================================
@@ -81,11 +82,13 @@ initialize_args(_S) ->
 initialize_pre(#{connected := Connected} = _S) ->
   Connected.
 
+initialize_next(#{shutdown := true} = S, _R, _Args) ->
+  S;
 initialize_next(S, _R, _Args) ->
-  S.
+  S#{initialized => true}.
 
 initialize_post(#{shutdown := true}, _Args, Res) ->
-  assert_shutdown_error(Res),
+  assert_invalid_request(Res),
   true;
 initialize_post(_S, _Args, Res) ->
   Expected = #{ capabilities =>
@@ -188,11 +191,16 @@ shutdown_args(_S) ->
 shutdown_pre(#{connected := Connected} = _S) ->
   Connected.
 
+shutdown_next(#{initialized := false} = S, _R, _Args) ->
+  S;
 shutdown_next(S, _R, _Args) ->
   S#{shutdown => true}.
 
 shutdown_post(#{shutdown := true}, _Args, Res) ->
-  assert_shutdown_error(Res),
+  assert_invalid_request(Res),
+  true;
+shutdown_post(#{initialized := false}, _Args, Res) ->
+  assert_server_not_initialized(Res),
   true;
 shutdown_post(_S, _Args, Res) ->
   ?assertMatch(#{result := null}, Res),
@@ -213,7 +221,7 @@ exit_pre(#{connected := Connected} = _S) ->
 exit_next(S, _R, _Args) ->
   %% We disconnect to simulate the server goes down
   catch disconnect(),
-  S#{shutdown => false, connected => false}.
+  S#{shutdown => false, connected => false, initialized => false}.
 
 exit_post(S, _Args, Res) ->
   ExpectedExitCode = case maps:get(shutdown, S, false) of
@@ -299,8 +307,13 @@ cleanup() ->
 %% Helper functions
 %%==============================================================================
 
-assert_shutdown_error(Res) ->
-  ?assertMatch(#{error := #{code := _, message := _}}, Res).
+assert_invalid_request(Res) ->
+  ?assertMatch( #{error := #{code := ?ERR_INVALID_REQUEST, message := _}}
+              , Res).
+
+assert_server_not_initialized(Res) ->
+  ?assertMatch( #{error := #{code := ?ERR_SERVER_NOT_INITIALIZED, message := _}}
+              , Res).
 
 meck_matcher_integer(N) ->
   meck_matcher:new(fun(X) -> X =:= N end).

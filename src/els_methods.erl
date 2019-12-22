@@ -64,8 +64,16 @@ do_dispatch(_Function, _Params, #{status := shutdown} = State) ->
              , message => Message
              },
   {error, Result, State};
-do_dispatch(Function, Params, State) ->
-  els_methods:Function(Params, State).
+do_dispatch(initialize, Params, State) ->
+  els_methods:initialize(Params, State);
+do_dispatch(Function, Params, #{status := initialized} = State) ->
+  els_methods:Function(Params, State);
+do_dispatch(_Function, _Params, State) ->
+  Message = <<"The server is not fully initialized yet, please wait.">>,
+  Result  = #{ code    => ?ERR_SERVER_NOT_INITIALIZED
+             , message => Message
+             },
+  {error, Result, State}.
 
 -spec not_implemented_method(method_name(), state()) -> result().
 not_implemented_method(Method, State) ->
