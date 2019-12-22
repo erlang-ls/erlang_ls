@@ -11,7 +11,9 @@
 %%==============================================================================
 %% Exports
 %%==============================================================================
--export([ diagnostics/1 ]).
+-export([ diagnostics/1
+        , source/0
+        ]).
 
 %%==============================================================================
 %% Includes
@@ -45,6 +47,10 @@ diagnostics(Uri) ->
       []
   end.
 
+-spec source() -> binary().
+source() ->
+  <<"Compiler">>.
+
 %%==============================================================================
 %% Internal Functions
 %%==============================================================================
@@ -76,6 +82,7 @@ diagnostic({Line, Col}, Module, Desc, Severity) ->
   #{ range    => els_protocol:range(Range)
    , message  => Message
    , severity => Severity
+   , source   => source()
    }.
 
 -spec location(erl_anno:line() | none) -> erl_anno:location().

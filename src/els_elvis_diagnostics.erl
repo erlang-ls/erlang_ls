@@ -11,7 +11,9 @@
 %%==============================================================================
 %% Exports
 %%==============================================================================
--export([ diagnostics/1 ]).
+-export([ diagnostics/1
+        , source/0
+        ]).
 
 %%==============================================================================
 %% Includes
@@ -34,6 +36,10 @@ diagnostics(Uri) ->
       lager:warning("Elvis error.[Err=~p] ", [Err]),
       []
   end.
+
+-spec source() -> binary().
+source() ->
+  <<"Elvis">>.
 
 %%==============================================================================
 %% Internal Functions
@@ -75,7 +81,7 @@ diagnostic(_File, Name, Msg, Ln, Info) ->
   [#{ range    => Range
     , severity => ?DIAGNOSTIC_WARNING
     , code     => Name
-    , source   => <<"elvis">>
+    , source   => source()
     , message  => Message
     , relatedInformation => []
     }].

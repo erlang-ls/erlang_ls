@@ -12,3 +12,4 @@
 %% Callback Functions Definitions
 %%==============================================================================
 -callback diagnostics(uri()) -> [diagnostic()].
+-callback source()           -> binary().
