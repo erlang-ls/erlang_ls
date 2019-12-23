@@ -21,7 +21,8 @@
 %% Exports
 %%==============================================================================
 %% API
--export([ completion/5
+-export([ cancel_request/1
+        , completion/5
         , definition/3
         , did_open/4
         , did_save/1
@@ -56,10 +57,10 @@
 %%==============================================================================
 %% Record Definitions
 %%==============================================================================
--record(state, { transport_cb     :: transport_cb()
-               , transport_server :: pid()
-               , request_id        = 1
-               , pending           = []
+-record(state, { transport_cb         :: transport_cb()
+               , transport_server     :: pid()
+               , request_id       = 1 :: request_id()
+               , pending          = []
                }).
 
 %%==============================================================================
@@ -69,10 +70,15 @@
 -type init_options() :: [].
 -type transport()    :: stdio | tcp.
 -type transport_cb() :: els_stdio_client | els_tcp_client.
+-type request_id()   :: pos_integer().
 
 %%==============================================================================
 %% API
 %%==============================================================================
+-spec cancel_request(request_id()) -> ok.
+cancel_request(Id) ->
+  gen_server:call(?SERVER, {cancel_request, Id}).
+
 %% TODO: More accurate and consistent parameters list
 -spec completion( uri()
                 , non_neg_integer()
@@ -203,6 +209,13 @@ handle_call({shutdown}, From, State) ->
   {noreply, State#state{ request_id = RequestId + 1
                        , pending    = [{RequestId, From} | State#state.pending]
                        }};
+handle_call({cancel_request, Id}, _From, State) ->
+  #state{transport_cb = Cb, transport_server = Server} = State,
+  Method = <<"$/cancelRequest">>,
+  Params = #{id => Id},
+  Content = els_protocol:notification(Method, Params),
+  Cb:send(Server, Content),
+  {reply, ok, State};
 handle_call(Input = {Action, _}, From, State) ->
   #state{ transport_cb     = Cb
         , transport_server = Server
