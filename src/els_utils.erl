@@ -1,6 +1,7 @@
 -module(els_utils).
 
--export([ find_header/1
+-export([ filename_to_atom/1
+        , find_header/1
         , find_module/1
         , fold_files/4
         , lookup_document/1
@@ -16,6 +17,10 @@
 %%==============================================================================
 %% File and module functions
 %%==============================================================================
+
+-spec filename_to_atom(els_dt_document:id()) -> atom().
+filename_to_atom(FileName) ->
+  list_to_atom(filename:basename(FileName, filename:extension(FileName))).
 
 %% @doc Look for a header in the DB
 -spec find_header(atom()) -> {ok, uri()} | {error, any()}.

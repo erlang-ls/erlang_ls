@@ -63,12 +63,12 @@ range({Line, _Column}, define, _Define) ->
   To = From,
   #{ from => From, to => To };
 range({Line, Column}, include, Include) ->
-  From = {Line, Column},
-  To = {Line, Column + length("include") + length(Include)},
+  From = {Line, Column - 1},
+  To = {Line, Column + length("include") + length(Include) + 5},
   #{ from => From, to => To };
 range({Line, Column}, include_lib, Include) ->
-  From = {Line, Column},
-  To = {Line, Column + length("include_lib") + length(Include)},
+  From = {Line, Column - 1},
+  To = {Line, Column + length("include_lib") + length(Include) + 5},
   #{ from => From, to => To };
 range({Line, Column}, macro, Macro) when is_atom(Macro) ->
   From = {Line, Column},
