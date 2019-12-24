@@ -11,7 +11,8 @@
         , exit/2
         ]).
 
--export([ textdocument_completion/2
+-export([ cancel_request/2
+        , textdocument_completion/2
         , textdocument_didopen/2
         , textdocument_didchange/2
         , textdocument_didsave/2
@@ -86,11 +87,21 @@ not_implemented_method(Method, State) ->
   {notification, Method1, Params, State}.
 
 -spec method_to_function_name(method_name()) -> atom().
+method_to_function_name(<<"$/cancelRequest">>) ->
+  cancel_request;
 method_to_function_name(Method) ->
   Replaced = string:replace(Method, <<"/">>, <<"_">>),
   Lower    = string:lowercase(Replaced),
   Binary   = erlang:iolist_to_binary(Lower),
   binary_to_atom(Binary, utf8).
+
+%%==============================================================================
+%% $/cancelRequest
+%%==============================================================================
+
+-spec cancel_request(params(), state()) -> result().
+cancel_request(_Params, State) ->
+  {noresponse, State}.
 
 %%==============================================================================
 %% Initialize

@@ -41,9 +41,10 @@ initial_state() ->
 %%==============================================================================
 %% Weights
 %%==============================================================================
-weight(_S, shutdown) -> 1;
-weight(_S, exit)     -> 1;
-weight(_S, _Cmd)     -> 5.
+weight(_S, cancel_request) -> 1;
+weight(_S, shutdown)       -> 1;
+weight(_S, exit)           -> 1;
+weight(_S, _Cmd)           -> 5.
 
 %%==============================================================================
 %% Commands
@@ -123,6 +124,28 @@ initialize_post(_S, _Args, Res) ->
   true.
 
 %%------------------------------------------------------------------------------
+%% $/cancelRequest
+%%------------------------------------------------------------------------------
+cancel_request(RequestId) ->
+  els_client:cancel_request(RequestId).
+
+cancel_request_args(_S) ->
+  [pos_integer()].
+
+cancel_request_pre(#{connected := Connected} = _S) ->
+  Connected.
+
+cancel_request_pre(_S, [_Id]) ->
+  true.
+
+cancel_request_next(S, _R, [_Id]) ->
+  S.
+
+cancel_request_post(_S, _Args, Res) ->
+  ?assertEqual(ok, Res),
+  true.
+
+%%------------------------------------------------------------------------------
 %% textDocument/didOpen
 %%------------------------------------------------------------------------------
 did_open(Uri, LanguageId, Version, Text) ->
@@ -134,8 +157,8 @@ did_open_args(_S) ->
 did_open_pre(#{connected := Connected} = _S) ->
   Connected.
 
-did_open_next(S, _R, [Uri, _, _, _]) ->
-  maps:put(documents, maps:get(documents, S) ++ [Uri], S).
+did_open_next(#{documents := Documents0} = S, _R, [Uri, _, _, _]) ->
+  S#{ documents => Documents0 ++ [Uri]}.
 
 did_open_post(_S, _Args, Res) ->
   ?assertEqual(ok, Res),
