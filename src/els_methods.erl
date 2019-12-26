@@ -43,6 +43,7 @@
 -spec dispatch(method_name(), params(), state()) -> result().
 dispatch(Method, Params, State) ->
   Function = method_to_function_name(Method),
+  lager:debug("Dispatching request [method=~p] [params=~p]", [Method, Params]),
   try do_dispatch(Function, Params, State)
   catch
     error:undef ->
