@@ -24,6 +24,7 @@
         , textdocument_formatting/2
         , textdocument_rangeformatting/2
         , textdocument_ontypeformatting/2
+        , textdocument_foldingrange/2
         , workspace_didchangewatchedfiles/2
         , workspace_symbol/2
         ]).
@@ -139,6 +140,8 @@ initialize(Params, State) ->
               els_formatting_provider:is_enabled_range()
           , documentOnTypeFormattingProvider =>
               els_formatting_provider:is_enabled_on_type()
+          , foldingRangeProvider =>
+              els_folding_range_provider:is_enabled()
           %% AZ: didchangewatchedfiles is not listed in
           %%     ServerCapabilities in the LSP spec.
           , didChangeWatchedFiles =>
@@ -322,6 +325,17 @@ textdocument_ontypeformatting(Params, State) ->
   Provider = els_formatting_provider,
   Response = els_provider:handle_request(Provider,
                                          {document_ontypeformatting, Params}),
+  {response, Response, State}.
+
+%%==============================================================================
+%% textDocument/foldingRange
+%%==============================================================================
+
+-spec textdocument_foldingrange(params(), state()) -> result().
+textdocument_foldingrange(Params, State) ->
+  Provider = els_folding_range_provider,
+  Response = els_provider:handle_request( Provider
+                                        , {document_foldingrange, Params}),
   {response, Response, State}.
 
 %%==============================================================================

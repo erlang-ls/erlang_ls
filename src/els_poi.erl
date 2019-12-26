@@ -22,14 +22,13 @@
 %%==============================================================================
 
 %% @edoc Constructor for a Point of Interest.
--spec new(pos(), poi_kind(), any()) -> poi().
-new(Pos, Kind, Id) ->
-  new(Pos, Kind, Id, undefined).
+-spec new(poi_range(), poi_kind(), any()) -> poi().
+new(Range, Kind, Id) ->
+  new(Range, Kind, Id, undefined).
 
 %% @edoc Constructor for a Point of Interest.
--spec new(pos(), poi_kind(), any(), any()) -> poi().
-new(Pos, Kind, Id, Data) ->
-  Range = els_range:range(Pos, Kind, Id),
+-spec new(poi_range(), poi_kind(), any(), any()) -> poi().
+new(Range, Kind, Id, Data) ->
   #{ kind  => Kind
    , id    => Id
    , data  => Data
