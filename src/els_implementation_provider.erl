@@ -58,19 +58,43 @@ implementation(_Document, _POI) ->
   [].
 
 -spec callback(mfa()) -> {atom(), non_neg_integer()} | undefined.
+%% gen_event
+callback({gen_event, add_handler, 3})     -> {init, 1};
+callback({gen_event, add_sup_handler, 3}) -> {init, 1};
+callback({gen_event, call, 3})            -> {handle_call, 2};
+callback({gen_event, call, 4})            -> {handle_call, 2};
+callback({gen_event, delete_handler, 1})  -> {terminate, 2};
+callback({gen_event, notify, 2})          -> {handle_event, 2};
+callback({gen_event, sync_notify, 2})     -> {handle_event, 2};
+callback({gen_event, stop, 1})            -> {terminate, 2};
+callback({gen_event, stop, 3})            -> {terminate, 2};
 %% gen_server
-callback({gen_server, abcast, 2})     -> {handle_cast, 2};
-callback({gen_server, abcast, 3})     -> {handle_cast, 2};
-callback({gen_server, call, 2})       -> {handle_call, 3};
-callback({gen_server, call, 3})       -> {handle_call, 3};
-callback({gen_server, cast, 2})       -> {handle_cast, 2};
-callback({gen_server, multi_call, 2}) -> {handle_call, 3};
-callback({gen_server, multi_call, 3}) -> {handle_call, 3};
-callback({gen_server, multi_call, 4}) -> {handle_call, 3};
-callback({gen_server, start, 3})      -> {init, 1};
-callback({gen_server, start, 4})      -> {init, 1};
-callback({gen_server, start_link, 3}) -> {init, 1};
-callback({gen_server, start_link, 4}) -> {init, 1};
-callback({gen_server, stop, 1})       -> {terminate, 2};
-callback({gen_server, stop, 3})       -> {terminate, 2};
-callback(_)                           -> undefined.
+callback({gen_server, abcast, 2})         -> {handle_cast, 2};
+callback({gen_server, abcast, 3})         -> {handle_cast, 2};
+callback({gen_server, call, 2})           -> {handle_call, 3};
+callback({gen_server, call, 3})           -> {handle_call, 3};
+callback({gen_server, cast, 2})           -> {handle_cast, 2};
+callback({gen_server, multi_call, 2})     -> {handle_call, 3};
+callback({gen_server, multi_call, 3})     -> {handle_call, 3};
+callback({gen_server, multi_call, 4})     -> {handle_call, 3};
+callback({gen_server, start, 3})          -> {init, 1};
+callback({gen_server, start, 4})          -> {init, 1};
+callback({gen_server, start_link, 3})     -> {init, 1};
+callback({gen_server, start_link, 4})     -> {init, 1};
+callback({gen_server, stop, 1})           -> {terminate, 2};
+callback({gen_server, stop, 3})           -> {terminate, 2};
+%% gen_statem
+callback({gen_statem, call, 2})           -> {handle_event, 4};
+callback({gen_statem, call, 3})           -> {handle_event, 4};
+callback({gen_statem, cast, 2})           -> {handle_event, 4};
+callback({gen_statem, start, 3})          -> {init, 1};
+callback({gen_statem, start, 4})          -> {init, 1};
+callback({gen_statem, start_link, 3})     -> {init, 1};
+callback({gen_statem, start_link, 4})     -> {init, 1};
+callback({gen_statem, stop, 1})           -> {terminate, 3};
+callback({gen_statem, stop, 3})           -> {terminate, 3};
+%% supervisor
+callback({supervisor, start_link, 2})     -> {init, 1};
+callback({supervisor, start_link, 3})     -> {init, 1};
+%% Everything else
+callback(_)                               -> undefined.
