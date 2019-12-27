@@ -423,6 +423,11 @@
          , publishDiagnostics =>
              #{ relatedInformation => boolean()
               }
+         , foldingRange =>
+             #{ dynamicRegistration => boolean()
+              , rangeLimit          => number()
+              , lineFoldingOnly     => boolean()
+              }
          }.
 
 -type server_capabilities() :: #{

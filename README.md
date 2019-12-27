@@ -80,6 +80,12 @@ file (assuming the `erlang_ls` executable is available in your `PATH`:
     ;; - helm-lsp-global-workspace-symbol
     (package-install 'helm-lsp)
 
+    ;; ----- lsp-origami -----
+    ;; Be able to fold ranges via origami.el
+    (package-install 'lsp-origami)
+    (add-hook 'origami-mode-hook #'lsp-origami-mode)
+    (add-hook 'erlang-mode-hook #'origami-mode)
+
 Ensure you have Erlang (i.e. `erl`, `escript` and friends) as part
 of your Emacs path. If you don't, you can try the following:
 

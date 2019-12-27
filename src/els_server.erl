@@ -123,13 +123,13 @@ handle_request(Request, #state{internal_state = InternalState} = State0) ->
     {response, Result, NewInternalState} ->
       RequestId = maps:get(<<"id">>, Request),
       Response = els_protocol:response(RequestId, Result),
-      lager:debug("[SERVER] Sending response [response=~p]", [Response]),
+      lager:debug("[SERVER] Sending response [response=~s]", [Response]),
       send(Response, State0),
       State0#state{internal_state = NewInternalState};
     {error, Error, NewInternalState} ->
       RequestId = maps:get(<<"id">>, Request, null),
       ErrorResponse = els_protocol:error(RequestId, Error),
-      lager:debug( "[SERVER] Sending error response [response=~p]"
+      lager:debug( "[SERVER] Sending error response [response=~s]"
                  , [ErrorResponse]
                  ),
       send(ErrorResponse, State0),
@@ -145,7 +145,7 @@ handle_request(Request, #state{internal_state = InternalState} = State0) ->
 -spec do_send_notification(binary(), map(), state()) -> ok.
 do_send_notification(Method, Params, State) ->
   Notification = els_protocol:notification(Method, Params),
-  lager:debug( "[SERVER] Sending notification [notification=~p]"
+  lager:debug( "[SERVER] Sending notification [notification=~s]"
              , [Notification]
              ),
   send(Notification, State).

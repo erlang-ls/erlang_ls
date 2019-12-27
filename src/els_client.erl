@@ -36,6 +36,7 @@
         , document_formatting/3
         , document_rangeformatting/3
         , document_ontypeformatting/4
+        , folding_range/1
         , shutdown/0
         , start_link/2
         , stop/0
@@ -141,6 +142,10 @@ did_close(Uri) ->
   ok.
 document_symbol(Uri) ->
   gen_server:call(?SERVER, {document_symbol, {Uri}}).
+
+-spec folding_range(uri()) -> ok.
+folding_range(Uri) ->
+  gen_server:call(?SERVER, {folding_range, {Uri}}).
 
 -spec initialize(uri(), init_options()) -> map().
 initialize(RootUri, InitOptions) ->
@@ -280,6 +285,7 @@ method_lookup(did_save)                 -> <<"textDocument/didSave">>;
 method_lookup(did_close)                -> <<"textDocument/didClose">>;
 method_lookup(hover)                    -> <<"textDocument/hover">>;
 method_lookup(workspace_symbol)         -> <<"workspace/symbol">>;
+method_lookup(folding_range)            -> <<"textDocument/foldingRange">>;
 method_lookup(initialize)               -> <<"initialize">>.
 
 -spec request_params(tuple()) -> any().
@@ -316,6 +322,9 @@ request_params({ document_formatting
                       , insertSpaces => InsertSpaces
                       }
    };
+request_params({folding_range, {Uri}}) ->
+  TextDocument = #{ uri => Uri },
+  #{ textDocument => TextDocument };
 request_params({_Action, {Uri, Line, Char}}) ->
   #{ textDocument => #{ uri => Uri }
    , position     => #{ line      => Line - 1

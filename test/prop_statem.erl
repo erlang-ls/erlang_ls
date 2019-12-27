@@ -111,6 +111,7 @@ initialize_post(_S, _Args, Res) ->
                    , referencesProvider      => true
                    , documentHighlightProvider => true
                    , documentSymbolProvider  => true
+                   , foldingRangeProvider => true
                    , workspaceSymbolProvider => true
                    , documentFormattingProvider => true
                    , documentRangeFormattingProvider => false
