@@ -30,6 +30,7 @@
         , document_symbol/1
         , exit/0
         , hover/3
+        , implementation/3
         , initialize/2
         , references/3
         , document_highlight/3
@@ -99,6 +100,10 @@ definition(Uri, Line, Char) ->
 -spec hover(uri(), non_neg_integer(), non_neg_integer()) -> ok.
 hover(Uri, Line, Char) ->
   gen_server:call(?SERVER, {hover, {Uri, Line, Char}}).
+
+-spec implementation(uri(), non_neg_integer(), non_neg_integer()) -> ok.
+implementation(Uri, Line, Char) ->
+  gen_server:call(?SERVER, {implementation, {Uri, Line, Char}}).
 
 -spec references(uri(), non_neg_integer(), non_neg_integer()) -> ok.
 references(Uri, Line, Char) ->
@@ -284,6 +289,7 @@ method_lookup(did_open)                 -> <<"textDocument/didOpen">>;
 method_lookup(did_save)                 -> <<"textDocument/didSave">>;
 method_lookup(did_close)                -> <<"textDocument/didClose">>;
 method_lookup(hover)                    -> <<"textDocument/hover">>;
+method_lookup(implementation)           -> <<"textDocument/implementation">>;
 method_lookup(workspace_symbol)         -> <<"workspace/symbol">>;
 method_lookup(folding_range)            -> <<"textDocument/foldingRange">>;
 method_lookup(initialize)               -> <<"initialize">>.

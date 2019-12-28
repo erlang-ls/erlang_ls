@@ -20,6 +20,7 @@
         , textdocument_documentsymbol/2
         , textdocument_hover/2
         , textdocument_definition/2
+        , textdocument_implementation/2
         , textdocument_references/2
         , textdocument_documenthighlight/2
         , textdocument_formatting/2
@@ -154,6 +155,8 @@ initialize(Params, State) ->
               els_formatting_provider:is_enabled_on_type()
           , foldingRangeProvider =>
               els_folding_range_provider:is_enabled()
+          , implementationProvider =>
+              els_implementation_provider:is_enabled()
           %% AZ: didchangewatchedfiles is not listed in
           %%     ServerCapabilities in the LSP spec.
           , didChangeWatchedFiles =>
@@ -348,6 +351,16 @@ textdocument_foldingrange(Params, State) ->
   Provider = els_folding_range_provider,
   Response = els_provider:handle_request( Provider
                                         , {document_foldingrange, Params}),
+  {response, Response, State}.
+
+%%==============================================================================
+%% textDocument/implementation
+%%==============================================================================
+
+-spec textdocument_implementation(params(), state()) -> result().
+textdocument_implementation(Params, State) ->
+  Provider = els_implementation_provider,
+  Response = els_provider:handle_request(Provider, {implementation, Params}),
   {response, Response, State}.
 
 %%==============================================================================

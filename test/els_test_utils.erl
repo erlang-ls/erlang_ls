@@ -74,6 +74,9 @@ init_per_suite(Config) ->
   FormatInputPath        = filename:join([ RootPath
                                          , <<"src">>
                                          , <<"format_input.erl">>]),
+  GenServerPath          = filename:join([ RootPath
+                                         , <<"src">>
+                                         , <<"my_gen_server.erl">>]),
 
   Uri                    = els_uri:uri(Path),
   ExtraUri               = els_uri:uri(ExtraPath),
@@ -84,6 +87,7 @@ init_per_suite(Config) ->
   ElvisDiagnosticsUri    = els_uri:uri(ElvisDiagnosticsPath),
   DiagnosticsIncludeUri  = els_uri:uri(DiagnosticsIncludePath),
   FormatInputUri         = els_uri:uri(FormatInputPath),
+  GenServerUri           = els_uri:uri(GenServerPath),
 
   {ok, Text} = file:read_file(Path),
 
@@ -108,6 +112,7 @@ init_per_suite(Config) ->
   , {elvis_diagnostics_uri, ElvisDiagnosticsUri}
   , {diagnostics_include_uri, DiagnosticsIncludeUri}
   , {format_input_uri, FormatInputUri}
+  , {gen_server_uri, GenServerUri}
   | Config
   ].
 
@@ -130,6 +135,7 @@ init_per_testcase(_TestCase, Config) ->
   els_indexer:find_and_index_file("code_navigation_types", sync),
   els_indexer:find_and_index_file("code_navigation.hrl", sync),
   els_indexer:find_and_index_file("diagnostics.hrl", sync),
+  els_indexer:find_and_index_file("my_gen_server", sync),
 
   [{started, Started} | Config].
 

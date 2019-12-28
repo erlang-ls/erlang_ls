@@ -108,6 +108,7 @@ initialize_post(_S, _Args, Res) ->
                         , save      => #{includeText => true}
                         }
                    , definitionProvider      => true
+                   , implementationProvider  => true
                    , referencesProvider      => true
                    , documentHighlightProvider => true
                    , documentSymbolProvider  => true
