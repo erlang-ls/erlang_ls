@@ -7,6 +7,7 @@
         , install/2
         , lookup/2
         , match/1
+        , stop/0
         , transaction/1
         , write/1
         ]).
@@ -36,6 +37,10 @@ install(NodeName, BaseDir) ->
   %% Avoid mnesia overload while indexing
   ok = application:set_env(mnesia, dump_log_write_threshold, 50000),
   ensure_db().
+
+-spec stop() -> ok | {error, any()}.
+stop() ->
+  application:stop(mnesia).
 
 -spec ensure_db() -> ok.
 ensure_db() ->
