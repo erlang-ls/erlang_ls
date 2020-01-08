@@ -154,16 +154,26 @@ export_entry(Config) ->
 purge_references(_Config) ->
   els_db:clear_tables(),
   Uri = <<"file://tmp/foo.erl">>,
-  Text0 = "-spec foo(integer()) -> ok.\nfoo _X -> ok.\nbar() -> foo(1).",
-  Text1 = "\n-spec foo(integer()) -> ok.\nfoo _X -> ok.\nbar() -> foo(1).",
+  Text0 = "-spec foo(integer()) -> ok.\nfoo(_X) -> ok.\nbar() -> foo(1).",
+  Text1 = "\n-spec foo(integer()) -> ok.\nfoo(_X)-> ok.\nbar() -> foo(1).",
   Doc0 = els_dt_document:new(Uri, Text0),
   Doc1 = els_dt_document:new(Uri, Text1),
+
   els_indexer:index(Doc0),
+  ?assertEqual({ok, [Doc0]}
+              , els_dt_document:lookup(Uri)),
+  ?assertEqual({ok, [#{ id    => {foo, foo, 1}
+                      , range => #{from => {3, 10}, to => {3, 13}}
+                      , uri   => <<"file://tmp/foo.erl">>
+                      }]}
+              , els_dt_references:find_all()
+              ),
+
   els_indexer:index(Doc1),
   ?assertEqual({ok, [Doc1]}
               , els_dt_document:lookup(Uri)),
-  ?assertEqual({ok, [#{ id    => {foo,foo,1}
-                      , range => #{from => {4,10},to => {4,13}}
+  ?assertEqual({ok, [#{ id    => {foo, foo, 1}
+                      , range => #{from => {4, 10}, to => {4, 13}}
                       , uri   => <<"file://tmp/foo.erl">>
                       }]}
               , els_dt_references:find_all()
