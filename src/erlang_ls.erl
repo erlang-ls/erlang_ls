@@ -64,11 +64,11 @@ lager_config() ->
 
 -spec lager_handlers(string()) -> [any()].
 lager_handlers(LogRoot) ->
-  LogFile = filename:join([LogRoot, "info.log"]),
+  LogFile = filename:join([LogRoot, "debug.log"]),
   ok      = filelib:ensure_dir(LogFile),
   [ { lager_file_backend
     , [ {file, LogFile}
-      , {level, info}
+      , {level, debug}
       ]
     }
   ].
