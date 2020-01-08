@@ -4,6 +4,7 @@
 -export([ clear_table/1
         , clear_tables/0
         , delete/2
+        , delete_object/1
         , install/2
         , lookup/2
         , match/1
@@ -66,6 +67,10 @@ ensure_tables() ->
 -spec delete(atom(), any()) -> ok.
 delete(Table, Key) ->
   mnesia:dirty_delete({Table, Key}).
+
+-spec delete_object(any()) -> ok.
+delete_object(Item) ->
+  mnesia:dirty_delete_object(Item).
 
 -spec lookup(atom(), any()) -> {ok, [tuple()]}.
 lookup(Table, Key) ->

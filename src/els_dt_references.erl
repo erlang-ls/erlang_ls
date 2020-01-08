@@ -82,8 +82,8 @@ to_item(#els_dt_references{ id = Id, uri = Uri, range = Range }) ->
 -spec delete_by_uri(uri()) -> ok | {error, any()}.
 delete_by_uri(Uri) ->
   Pattern = #els_dt_references{uri = Uri, _ = '_'},
-  {ok, Items} = find_by(Pattern),
-  [ok = els_db:delete(name(), Id) ||  #{ id := Id } <- Items],
+  {ok, Items} = els_db:match(Pattern),
+  [ok = els_db:delete_object(Item) ||  Item <- Items],
   ok.
 
 -spec insert(item()) -> ok | {error, any()}.
