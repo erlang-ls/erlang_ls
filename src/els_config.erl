@@ -21,7 +21,6 @@
 %%==============================================================================
 %% Macros
 %%==============================================================================
--define(DEFAULT_CONFIG_PATH, "erlang_ls.config").
 -define( DEFAULT_EXCLUDED_OTP_APPS
        , [ "megaco"
          , "diameter"
@@ -67,9 +66,7 @@
 -spec initialize(uri(), map(), map()) -> ok.
 initialize(RootUri, Capabilities, InitOptions) ->
   RootPath = binary_to_list(els_uri:path(RootUri)),
-  Config   = consult_config(filename:join([ RootPath
-                                          , config_path(InitOptions)
-                                          ])),
+  Config = consult_config(config_paths(RootPath, InitOptions)),
   OtpPath         = maps:get("otp_path", Config, code:root_dir()),
   DepsDirs        = maps:get("deps_dirs", Config, []),
   AppsDirs        = maps:get("apps_dirs", Config, ["."]),
@@ -143,14 +140,22 @@ handle_cast(_Msg, State) -> {noreply, State}.
 %% Internal functions
 %%==============================================================================
 
--spec config_path(map()) -> els_uri:path().
-config_path(#{<<"erlang">> := #{<<"config_path">> := ConfigPath}}) ->
-  ConfigPath;
-config_path(_) ->
-  ?DEFAULT_CONFIG_PATH.
+-spec config_paths(path(), map()) -> [path()].
+config_paths(RootPath, #{<<"erlang">> := #{<<"config_path">> := ConfigPath}}) ->
+  [filename:join([RootPath, ConfigPath]) | default_config_paths(RootPath)];
+config_paths(RootPath, _Config) ->
+  default_config_paths(RootPath).
 
--spec consult_config(els_uri:path()) -> map().
-consult_config(Path) ->
+-spec default_config_paths(path()) -> [path()].
+default_config_paths(RootPath) ->
+  GlobalConfigDir = filename:basedir(user_config, "erlang_ls"),
+  [ filename:join([RootPath, "erlang_ls.config"])
+  , filename:join([GlobalConfigDir, "erlang_ls.config"])
+  ].
+
+-spec consult_config([path()]) -> map().
+consult_config([]) -> #{};
+consult_config([Path | Paths]) ->
   lager:info("Reading config file. path=~p", [Path]),
   Options = [{map_node_format, map}],
   try yamerl:decode_file(Path, Options) of
@@ -160,7 +165,7 @@ consult_config(Path) ->
     Class:Error ->
       lager:warning( "Could not read config file: path=~p class=~p error=~p"
                    , [Path, Class, Error]),
-      #{}
+      consult_config(Paths)
   end.
 
 -spec include_paths(path(), string(), boolean()) -> [string()].
