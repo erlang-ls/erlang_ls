@@ -21,6 +21,7 @@
 %%==============================================================================
 %% Macros
 %%==============================================================================
+-define(DEFAULT_CONFIG_FILE, "erlang_ls.config").
 -define( DEFAULT_EXCLUDED_OTP_APPS
        , [ "megaco"
          , "diameter"
@@ -149,8 +150,8 @@ config_paths(RootPath, _Config) ->
 -spec default_config_paths(path()) -> [path()].
 default_config_paths(RootPath) ->
   GlobalConfigDir = filename:basedir(user_config, "erlang_ls"),
-  [ filename:join([RootPath, "erlang_ls.config"])
-  , filename:join([GlobalConfigDir, "erlang_ls.config"])
+  [ filename:join([RootPath, ?DEFAULT_CONFIG_FILE])
+  , filename:join([GlobalConfigDir, ?DEFAULT_CONFIG_FILE])
   ].
 
 -spec consult_config([path()]) -> map().
