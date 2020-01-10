@@ -11,7 +11,7 @@
         ]).
 
 %% Test cases
--export([ add_todo_comment/1
+-export([ add_underscore_to_unused_var/1
         ]).
 
 %%==============================================================================
@@ -59,26 +59,32 @@ end_per_testcase(TestCase, Config) ->
 %%==============================================================================
 %% Testcases
 %%==============================================================================
--spec add_todo_comment(config()) -> ok.
-add_todo_comment(Config) ->
+-spec add_underscore_to_unused_var(config()) -> ok.
+add_underscore_to_unused_var(Config) ->
   Uri = ?config(code_navigation_uri, Config),
-  application:set_env(erlang_ls, test_code_action, true),
+  Diag = #{<<"message">>  => <<"variable 'A' is unused">>
+          ,<<"range">>    =>
+                     #{<<"end">>   => #{<<"character">> => 0,<<"line">> => 79}
+                      ,<<"start">> => #{<<"character">> => 0,<<"line">> => 78}}
+          ,<<"severity">> => 2
+          ,<<"source">>   => <<"Compiler">>},
   Res = els_client:document_codeaction
-          (Uri, els_protocol:range(#{from => {22, 3}, to => {22, 13}}), []),
+          (Uri, els_protocol:range(#{from => {79, 1}, to => {80, 1}}), [Diag]),
   #{ result := Result } = Res,
   Expected = [#{command =>
                          #{arguments =>
-                               [#{before => 21,
-                                  lines => <<"%% TODO: something\n">>,
-                                  uri => Uri}],
-                           command => <<"add-lines">>,
-                           title => <<"Add TODO comment">>},
-                     title => <<"Add TODO comment">>}],
-  ?assertEqual(Result,Expected),
+                               [#{from  => 78,
+                                  lines => <<"    _A = X,\n">>,
+                                  to    => 79,
+                                  uri   => Uri}],
+                           command   => <<"replace-lines">>,
+                           title     => <<"Add '_' to 'A'">>},
+                kind    => <<"quickfix">>,
+                title   => <<"Add '_' to 'A'">>}],
+  ?assertEqual(Expected, Result),
   ok.
 
 
 %%==============================================================================
 %% Internal functions
 %%==============================================================================
-

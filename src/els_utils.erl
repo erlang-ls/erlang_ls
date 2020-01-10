@@ -8,7 +8,6 @@
         , project_relative/1
         , resolve_paths/3
         , halt/1
-        , make_command/3
         ]).
 
 -include("erlang_ls.hrl").
@@ -95,13 +94,6 @@ project_relative(Uri) ->
   RootUriSize = byte_size(RootUri),
   <<RootUri:RootUriSize/binary, RelativePath/binary>> = Uri,
   binary_to_list(string:trim(RelativePath, leading, [$/, $\\ ])).
-
--spec make_command(binary(), binary(), [any()]) -> command().
-make_command(Title, Command, Args) ->
-    #{ title => Title
-     , command => Command
-     , arguments => Args
-     }.
 
 %%==============================================================================
 %% Internal functions

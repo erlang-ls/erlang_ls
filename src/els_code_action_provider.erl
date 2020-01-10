@@ -4,7 +4,6 @@
 
 -export([ handle_request/2
         , is_enabled/0
-        , options/0
         ]).
 
 -include("erlang_ls.hrl").
@@ -16,25 +15,12 @@
 -spec is_enabled() -> boolean().
 is_enabled() -> true.
 
-%% /**
-%%  * The server provides code actions. The `CodeActionOptions` return type is
-%%  * only valid if the client signals code action literal support via the
-%%  * property `textDocument.codeAction.codeActionLiteralSupport`.
-%%  */
-%% codeActionProvider?: boolean | CodeActionOptions;
-
--spec options() -> boolean() | map().
-options() ->
-  Capabilities = els_config:get(capabilities),
-  lager:info("code_actions: [Capabilities=~p]", [Capabilities]),
-  true.
-
 -spec handle_request(any(), els_provider:state()) ->
   {any(), els_provider:state()}.
 handle_request({document_codeaction, Params}, State) ->
   #{ <<"textDocument">> := #{ <<"uri">> := Uri}
-   , <<"range">>   := RangeLSP
-   , <<"context">> := Context } = Params,
+   , <<"range">>        := RangeLSP
+   , <<"context">>      := Context } = Params,
   Result = code_actions(Uri, RangeLSP, Context),
   {Result, State}.
 
@@ -43,78 +29,79 @@ handle_request({document_codeaction, Params}, State) ->
 %%==============================================================================
 
 
-%% result: (Command | CodeAction)[] | null where CodeAction is defined
-%% as follows:
+%% @doc Result: `(Command | CodeAction)[] | null'
 -spec code_actions(uri(), range(), code_action_context()) -> [map()].
-code_actions(Uri, Range, Context) ->
-  lager:info("code_actions: [Context=~p]", [Context]),
-  #{ <<"start">> := #{ <<"character">> := _StartCol
-                     , <<"line">>      := StartLine }
-   , <<"end">> := _End
-   } = Range,
+code_actions(Uri, _Range, Context) ->
   #{ <<"diagnostics">> := Diagnostics } = Context,
-  Actions0 = [ make_code_action(Uri, C) || C <- Diagnostics],
-
-  Actions = case application:get_env(erlang_ls, test_code_action) of
-    {ok, true} -> [ add_lines_action( Uri
-                                    , <<"Add TODO comment">>
-                                    , <<"%% TODO: something\n">>
-                                    , StartLine)]
-                   ++ Actions0;
-    _ -> Actions0
-  end,
-  lager:info("code_actions: [Actions=~p]", [Actions]),
+  Actions0 = [ make_code_action(Uri, D) || D <- Diagnostics],
+  Actions = lists:flatten(Actions0),
   Actions.
 
-
--spec add_lines_action(uri(), binary(), binary(), number()) -> map().
-add_lines_action(Uri, Title, Lines, Before) ->
+%% @doc Note: if the start and end line of the range are the same, the line
+%% is simply added.
+-spec replace_lines_action(uri(), binary(), binary(), binary(), range())
+                          -> map().
+replace_lines_action(Uri, Title, Kind, Lines, Range) ->
+    #{ <<"start">> := #{ <<"character">> := _StartCol
+                       , <<"line">>      := StartLine }
+     , <<"end">>   := #{ <<"character">> := _EndCol
+                       , <<"line">>      := EndLine }
+     } = Range,
    #{ title => Title
+    , kind => Kind
     , command =>
-          els_utils:make_command( Title
-                                , <<"add-lines">>
-                                , [#{ uri => Uri
-                                    , lines => Lines
-                                    , before => Before }])
+          els_protocol:command( Title
+                              , <<"replace-lines">>
+                              , [#{ uri   => Uri
+                                  , lines => Lines
+                                  , from  => StartLine
+                                  , to    => EndLine }])
     }.
 
--spec make_code_action(uri(), diagnostic()) -> [code_action()].
+-spec make_code_action(uri(), diagnostic()) -> [map()].
 make_code_action(Uri, #{ <<"message">> := Message
-                       , <<"range">> := Range } = _Diagnostic) ->
-    lager:info("make_code_action: [Message=~p]", [Message]),
-    %% processing messages of the type "type type_name() undefined".
-    %% Good resource:
-%% https://arifishaq.wordpress.com/2013/11/13/playing-with-regular-expressions/
-    %% TODO: this is a hot path, precompile the re's.
-    case re:run(Message, "type (.*) undefined"
+                       , <<"range">>   := Range } = _Diagnostic) ->
+    CA1 = unused_variable_action(Uri, Range, Message),
+    CA1.
+
+%%------------------------------------------------------------------------------
+
+-spec unused_variable_action(uri(), range(), binary()) -> [map()].
+unused_variable_action(Uri, Range, Message) ->
+    %% Processing messages like "variable 'Foo' is unused"
+    case re:run(Message, "variable '(.*)' is unused"
                , [{capture, all_but_first, binary}]) of
-        {match, [UndefinedType]} ->
-            undefined_type_action(Uri, Range, UndefinedType);
+        {match, [UnusedVariable]} ->
+            make_unused_variable_action(Uri, Range, UnusedVariable);
         _ -> []
     end.
 
+-spec make_unused_variable_action(uri(), range(), binary()) -> [map()].
+make_unused_variable_action(Uri, Range, UnusedVariable) ->
+    #{ <<"start">> := #{ <<"character">> := _StartCol
+                       , <<"line">>      := StartLine }
+     , <<"end">>   := _End
+     } = Range,
+    %% processing messages like "variable 'Foo' is unused"
+    {ok, #{text := Bin}} = els_utils:lookup_document(Uri),
+    Line = binary_to_list(els_text:line(Bin, StartLine)),
 
--spec undefined_type_action(uri(), range(), binary()) -> [code_action()].
-undefined_type_action(Uri, _Range, UndefinedType) ->
-    lager:info("undefined_type_action: [UndefinedType=~p]", [UndefinedType]),
-    MFA = parse_mfa(UndefinedType),
-    lager:info("undefined_type_action: [MFA=~p]", [MFA]),
+    {ok, Tokens, _} = erl_scan:string(Line, 1, [return, text]),
+    UnusedString = binary_to_list(UnusedVariable),
+    Replace =
+        fun(Tok) ->
+            case Tok of
+                {var, [{text, UnusedString}, _], _} -> "_" ++ UnusedString;
+                {var, [{text, VarName}, _], _} -> VarName;
+                {_,   [{text, Text   }, _], _} -> Text;
+                {_,   [{text, Text   }, _]}    -> Text
+            end
+    end,
+    UpdatedLine = lists:flatten(lists:map(Replace, Tokens)) ++ "\n",
+    [ replace_lines_action( Uri
+                      , <<"Add '_' to '", UnusedVariable/binary, "'">>
+                      , ?CODE_ACTION_KIND_QUICKFIX
+                      , list_to_binary(UpdatedLine)
+                      , Range)].
 
-    Poi = els_poi:new(#{from => {0, 0}, to => {0, 0}}, type_application, MFA),
-    Res = els_code_navigation:goto_definition(Uri, Poi),
-    lager:info("undefined_type_action: [Res=~p]", [Res]),
-    [].
-
--spec parse_mfa(binary()) -> any().
-parse_mfa(NameToParse) ->
-    {ok, Tokens, _} = erl_scan:string(binary_to_list(NameToParse) ++ "."),
-    {ok, [{call, _, Name, Args}]} = erl_parse:parse_exprs(Tokens),
-    lager:info("parse_mfa: [{Name,Args}=~p]", [{Name, Args}]),
-    MFA = case Name of
-            {atom, 1, Name0} -> { Name0
-                                , length(Args)};
-            {remote, 1, M, N} -> { erl_syntax:atom_value(M)
-                                 , erl_syntax:atom_value(N)
-                                 , length(Args)}
-          end,
-    MFA.
+%%------------------------------------------------------------------------------

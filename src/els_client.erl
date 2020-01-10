@@ -356,8 +356,8 @@ request_params({initialize, {RootUri, InitOptions}}) ->
    };
 request_params({ document_codeaction, {Uri, Range, Diagnostics}}) ->
   #{ textDocument => #{ uri => Uri }
-   , range      => Range
-   , context    => #{ diagnostics => Diagnostics }
+   , range        => Range
+   , context      => #{ diagnostics => Diagnostics }
    };
 request_params({ document_formatting
                , {Uri, TabSize, InsertSpaces}}) ->

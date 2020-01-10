@@ -150,10 +150,13 @@
 %% Workspace Edit
 %%------------------------------------------------------------------------------
 
--type document_change() :: [text_document_edit()].
+-type document_change() :: text_document_edit().
 
--type workspace_edit() :: #{ changes := map() }
-                        | #{ documentChanges := document_change()} .
+-type workspace_edit() :: #{ changes         => #{ uri() := [text_edit()]
+                                                 }
+                           , documentChanges => [document_change()]
+                           }.
+
 
 %%------------------------------------------------------------------------------
 %% Text Document Identifier
