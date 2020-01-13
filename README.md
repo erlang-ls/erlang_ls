@@ -49,53 +49,59 @@ The official `lsp-mode` package already includes a client for the
 Erlang Language Server, so simply add the following to your `.emacs`
 file (assuming the `erlang_ls` executable is available in your `PATH`:
 
-    ;; Install the yasnippet dependency
-    (package-install 'yasnippet)
+```elisp
+;; Install the yasnippet dependency
+(package-install 'yasnippet)
 
-    ;; ----- lsp-mode -----
-    ;; Install the official lsp-mode package (minimum required version 6.2)
-    (package-install 'lsp-mode)
-    ;; Set path to erlang_ls escript (unless it's in your PATH)
-    (setq lsp-erlang-server-path "/path/to/erlang_ls")
-    ;; Enable LSP automatically for Erlang files
-    (add-hook 'erlang-mode-hook #'lsp)
+;; ----- lsp-mode -----
+;; Install the official lsp-mode package (minimum required version 6.2)
+(package-install 'lsp-mode)
+;; Set path to erlang_ls escript (unless it's in your PATH)
+(setq lsp-erlang-server-path "/path/to/erlang_ls")
+;; Enable LSP automatically for Erlang files
+(add-hook 'erlang-mode-hook #'lsp)
 
-    ;; ----- lsp-ui -----
-    ;; It is usually a good idea to install lsp-ui as well
-    (package-install 'lsp-ui)
-    ;; The lsp-ui sideline can become a serious distraction, so you
-    ;; may want to disable it
-    (setq lsp-ui-sideline-enable nil)
-    ;; Ensure docs are visible
-    (setq lsp-ui-doc-enable t)
+;; ----- lsp-ui -----
+;; It is usually a good idea to install lsp-ui as well
+(package-install 'lsp-ui)
+;; The lsp-ui sideline can become a serious distraction, so you
+;; may want to disable it
+(setq lsp-ui-sideline-enable nil)
+;; Ensure docs are visible
+(setq lsp-ui-doc-enable t)
 
-    ;; ----- company-lsp -----
-    ;; Enables better integration with company (auto-completion)
-    (package-install 'company-lsp)
-    (push 'company-lsp company-backends)
+;; ----- company-lsp -----
+;; Enables better integration with company (auto-completion)
+(package-install 'company-lsp)
+(push 'company-lsp company-backends)
 
-    ;; ----- helm-lsp -----
-    ;; Provides commands to list workspace symbols:
-    ;; - helm-lsp-workspace-symbol
-    ;; - helm-lsp-global-workspace-symbol
-    (package-install 'helm-lsp)
+;; ----- helm-lsp -----
+;; Provides commands to list workspace symbols:
+;; - helm-lsp-workspace-symbol
+;; - helm-lsp-global-workspace-symbol
+(package-install 'helm-lsp)
 
-    ;; ----- lsp-origami -----
-    ;; Be able to fold ranges via origami.el
-    (package-install 'lsp-origami)
-    (add-hook 'origami-mode-hook #'lsp-origami-mode)
-    (add-hook 'erlang-mode-hook #'origami-mode)
+;; ----- lsp-origami -----
+;; Be able to fold ranges via origami.el
+(package-install 'lsp-origami)
+(add-hook 'origami-mode-hook #'lsp-origami-mode)
+(add-hook 'erlang-mode-hook #'origami-mode)
+```
 
 Ensure you have Erlang (i.e. `erl`, `escript` and friends) as part
 of your Emacs path. If you don't, you can try the following:
 
-    ;; Ensure your Emacs environment looks like your user's shell one
-    (package-require 'exec-path-from-shell)
-    (exec-path-from-shell-initialize)
+```elisp
+;; Ensure your Emacs environment looks like your user's shell one
+(package-require 'exec-path-from-shell)
+(exec-path-from-shell-initialize)
+```
 
 To enable logging on the client-side, just:
 
-    (setq lsp-log-io t)
+```elisp
+(setq lsp-log-io t)
+```
 
 Whenever opening a project for the first time, you will be prompted by
 `emacs-lsp` to select the correct project root. In that occasion, you
