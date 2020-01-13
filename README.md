@@ -264,14 +264,14 @@ configuration file.
 
 Generally speaking, <app config path> should be:
 
-| Operating System | Database Dir                                        |
+| Operating System | Configuration Directory                             |
 |------------------|-----------------------------------------------------|
 | Linux            | /home/USER/.config/erlang\_ls                       |
 | OS X             | /Users/USER/Library/Application\ Support/erlang\_ls |
 | Windows          | c:/Users/USER/AppData/Local/erlang\_ls              |
 
 You can also run the following command on an Erlang shell to identify
-the Database Directory on your system:
+the Configuration Directory on your system:
 
     > filename:basedir(user_config, "erlang_ls").
 
