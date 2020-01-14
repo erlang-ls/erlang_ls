@@ -203,7 +203,7 @@ exit(_Params, State) ->
                _        -> 1
              end,
   els_utils:halt(ExitCode),
-  {noresponse, State}.
+  {noresponse, #{}}.
 
 %%==============================================================================
 %% textDocument/didopen
