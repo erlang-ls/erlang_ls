@@ -85,7 +85,7 @@ resolve_paths(PathSpecs, RootPath, Recursive) ->
 -spec halt(integer()) -> no_return().
 halt(ExitCode) ->
   els_db:stop(),
-  erlang:halt(ExitCode).
+  ok = init:stop(ExitCode).
 
 %% @doc Returns a project-relative file path for a given URI
 -spec project_relative(uri()) -> file:filename().

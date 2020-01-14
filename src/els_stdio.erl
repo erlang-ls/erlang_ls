@@ -44,6 +44,11 @@ loop(Lines, IoDevice, Cb, JsonOpts) ->
       Request       = jsx:decode(Payload, JsonOpts),
       Cb([Request]),
       ?MODULE:loop([], IoDevice, Cb, JsonOpts);
+    eof ->
+      Cb([#{
+          <<"method">> => <<"exit">>,
+          <<"params">> => []
+        }]);
     Line ->
       ?MODULE:loop([Line | Lines], IoDevice, Cb, JsonOpts)
   end.

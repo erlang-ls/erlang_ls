@@ -299,7 +299,7 @@ setup() ->
   meck:expect(els_dialyzer_diagnostics, diagnostics, 1, []),
   meck:expect(els_elvis_diagnostics, diagnostics, 1, []),
   Self    = erlang:self(),
-  HaltFun = fun(_X) -> Self ! halt_called, {noresponse, #{}} end,
+  HaltFun = fun(_X) -> Self ! halt_called, ok end,
   meck:expect(els_utils, halt, HaltFun),
   application:ensure_all_started(erlang_ls),
   application:set_env(erlang_ls, index_otp, false),

@@ -197,11 +197,13 @@ shutdown(_Params, State) ->
 
 -spec exit(params(), state()) -> no_return().
 exit(_Params, State) ->
+  lager:info("Language server stopping..."),
   ExitCode = case maps:get(status, State, undefined) of
                shutdown -> 0;
                _        -> 1
              end,
-  els_utils:halt(ExitCode).
+  els_utils:halt(ExitCode),
+  {noresponse, #{}}.
 
 %%==============================================================================
 %% textDocument/didopen
