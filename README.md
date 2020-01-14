@@ -258,9 +258,31 @@ Code completion is available for the following elements:
 
 ## Customization
 
-It is possible to customize the behaviour of the `erlang_ls` server by
-adding a `erlang_ls.config` file to the root of your projects.
+It is possible to customize the behaviour of the `erlang_ls` server via a
+configuration file.
 
+### Configuration file location
+
+`erlang_ls` will use the first file found in the following locations:
+* path passed by the client during initialisation
+* <project root>/erlang_ls.config
+* <app config path>/erlang_ls/erlang_ls.config
+
+Generally speaking, <app config path> should be:
+
+| Operating System | Configuration Directory                             |
+|------------------|-----------------------------------------------------|
+| Linux            | /home/USER/.config/erlang\_ls                       |
+| OS X             | /Users/USER/Library/Application\ Support/erlang\_ls |
+| Windows          | c:/Users/USER/AppData/Local/erlang\_ls              |
+
+You can also run the following command on an Erlang shell to identify
+the Configuration Directory on your system:
+
+    > filename:basedir(user_config, "erlang_ls").
+
+
+### Configuration file contents
 A sample `erlang_ls.config` file would look like the following:
 
     otp_path: "/path/to/otp/lib/erlang"
