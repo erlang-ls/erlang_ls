@@ -258,31 +258,27 @@ Code completion is available for the following elements:
 
 ## Customization
 
-It is possible to customize the behaviour of the `erlang_ls` server via a
-configuration file.
+It is possible to customize the behaviour of the `erlang_ls` server
+via a configuration file, named `erlang_ls.config`. The
+`erlang_ls.config` file should be placed in the root directory of a
+given project to store the configuration for that project.
 
-### Configuration file location
+It is also possible to store a system-wide default configuration in an
+`erlang_ls.config` file located in the _User Config_ directory. The
+exact location of the _User Config_ directory depends on the operating
+system used and it can be identified by executing the following
+command on an Erlang shell:
 
-`erlang_ls` will use the first file found in the following locations:
-* path passed by the client during initialisation
-* <project root>/erlang_ls.config
-* <app config path>/erlang_ls/erlang_ls.config
+    > filename:basedir(user_config, "erlang_ls").
 
-Generally speaking, <app config path> should be:
+Normally, the location of the _User Config_ directory is:
 
-| Operating System | Configuration Directory                             |
+| Operating System | User Config Directory                               |
 |------------------|-----------------------------------------------------|
 | Linux            | /home/USER/.config/erlang\_ls                       |
 | OS X             | /Users/USER/Library/Application\ Support/erlang\_ls |
 | Windows          | c:/Users/USER/AppData/Local/erlang\_ls              |
 
-You can also run the following command on an Erlang shell to identify
-the Configuration Directory on your system:
-
-    > filename:basedir(user_config, "erlang_ls").
-
-
-### Configuration file contents
 A sample `erlang_ls.config` file would look like the following:
 
     otp_path: "/path/to/otp/lib/erlang"
@@ -292,7 +288,7 @@ A sample `erlang_ls.config` file would look like the following:
       - "include"
       - "_build/default/lib"
 
-Currently, the following customizations are possible:
+The following customizations are possible:
 
 | Parameter          | Description                                                                                          |
 |--------------------|------------------------------------------------------------------------------------------------------|
