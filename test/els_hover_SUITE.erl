@@ -14,6 +14,7 @@
 
 %% Test cases
 -export([ hover_docs/1
+        , hover_docs_local/1
         , hover_no_docs/1
         ]).
 
@@ -74,6 +75,23 @@ hover_docs(Config) ->
                               "# code_navigation:function_j/0"
                               "\n\n"
                               "Such a wonderful function."
+                              "\n\n">>
+                 }
+              , Contents),
+  ok.
+
+hover_docs_local(Config) ->
+  Uri = ?config(code_navigation_extra_uri, Config),
+  #{result := Result} = els_client:hover(Uri, 6, 5),
+  ?assert(maps:is_key(contents, Result)),
+  Contents = maps:get(contents, Result),
+  ?assertEqual( #{ kind  => <<"markdown">>
+                 , value => <<"-spec do_4(nat(), opaque_local()) -> {atom(),"
+                              "\n\t\t\t\t"
+                              "      code_navigation_types:opaque_type_a()}."
+                              "\n\n"
+                              "# code_navigation_extra:do_4/2"
+                              "\n\ndo_4 is a local-only function"
                               "\n\n">>
                  }
               , Contents),

@@ -328,7 +328,7 @@ type_application_user(Config) ->
 opaque_application_remote(Config) ->
   ExtraUri = ?config(code_navigation_extra_uri, Config),
   TypesUri = ?config(code_navigation_types_uri, Config),
-  Def = els_client:definition(ExtraUri, 15, 61),
+  Def = els_client:definition(ExtraUri, 16, 61),
   #{result := #{range := Range, uri := DefUri}} = Def,
   ?assertEqual(TypesUri, DefUri),
   ?assertEqual( els_protocol:range(#{from => {7, 2}, to => {7, 2}})
@@ -338,9 +338,9 @@ opaque_application_remote(Config) ->
 -spec opaque_application_user(config()) -> ok.
 opaque_application_user(Config) ->
   ExtraUri = ?config(code_navigation_extra_uri, Config),
-  Def      = els_client:definition(ExtraUri, 15, 24),
+  Def      = els_client:definition(ExtraUri, 16, 24),
   #{result := #{range := Range, uri := DefUri}} = Def,
   ?assertEqual(ExtraUri, DefUri),
-  ?assertEqual( els_protocol:range(#{from => {19, 2}, to => {19, 2}})
+  ?assertEqual( els_protocol:range(#{from => {20, 2}, to => {20, 2}})
               , Range),
   ok.
