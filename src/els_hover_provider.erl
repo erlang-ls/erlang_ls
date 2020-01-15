@@ -39,12 +39,22 @@ documentation(Uri, Line, Character) ->
   {ok, Document} = els_utils:lookup_document(Uri),
   case els_dt_document:get_element_at_pos(Document, Line + 1, Character + 1)
   of
-    [POI|_] -> documentation(POI);
+    [POI|_] -> documentation(els_uri:module(Uri), POI);
     []      -> <<>>
   end.
 
--spec documentation(poi()) -> binary().
-documentation(#{kind := application, id := {M, F, A}}) ->
+%% @doc docs for documentation
+-spec documentation(atom(), poi()) -> binary().
+documentation(_M, #{kind := application, id := {M, F, A}}) ->
+  get_docs(M, F, A);
+documentation(M, #{kind := application, id := {F, A}}) ->
+  get_docs(M, F, A);
+documentation(_M, _POI) ->
+  <<>>.
+
+%% @doc get the docs
+-spec get_docs(atom(), atom(), byte()) -> binary().
+get_docs(M, F, A) ->
   case {specs(M, F, A), edoc(M, F, A)} of
     {<<>>, <<>>} ->
       <<>>;
@@ -52,9 +62,7 @@ documentation(#{kind := application, id := {M, F, A}}) ->
       #{ kind => content_kind()
        , value => <<Specs/binary, "\n\n", Edoc/binary>>
        }
-  end;
-documentation(_POI) ->
-  <<>>.
+  end.
 
 %%==============================================================================
 %% Internal functions

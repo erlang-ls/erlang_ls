@@ -3,7 +3,7 @@
 -export([ do/1, do_2/0 ]).
 
 do(_Config) ->
-  ok.
+  do_4(1,foo).
 
 do_2() ->
   code_navigation:function_h().
@@ -12,6 +12,7 @@ do_2() ->
 do_3(_, _) ->
   code_navigation:function_j().
 
+%% @doc do_4 is a local-only function
 -spec do_4(nat(), opaque_local()) -> {atom(), code_navigation_types:opaque_type_a()}.
 do_4(_, _) ->
   code_navigation:function_j().
