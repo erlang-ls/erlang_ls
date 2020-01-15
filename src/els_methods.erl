@@ -27,6 +27,7 @@
         , textdocument_rangeformatting/2
         , textdocument_ontypeformatting/2
         , textdocument_foldingrange/2
+        , workspace_didchangeconfiguration/2
         , workspace_didchangewatchedfiles/2
         , workspace_symbol/2
         ]).
@@ -364,6 +365,16 @@ textdocument_implementation(Params, State) ->
   Provider = els_implementation_provider,
   Response = els_provider:handle_request(Provider, {implementation, Params}),
   {response, Response, State}.
+
+%%==============================================================================
+%% workspace/didChangeConfiguration
+%%==============================================================================
+
+-spec workspace_didchangeconfiguration(params(), state()) -> result().
+workspace_didchangeconfiguration(_Params, State) ->
+  %% Some clients send this notification on startup, even though we
+  %% have no server-side config.  So swallow it without complaining.
+  {noresponse, State}.
 
 %%==============================================================================
 %% workspace/didChangeWatchedFiles
