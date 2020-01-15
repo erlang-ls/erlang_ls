@@ -116,10 +116,6 @@ initialize_post(_S, _Args, Res) ->
                    , workspaceSymbolProvider => true
                    , documentFormattingProvider => true
                    , documentRangeFormattingProvider => false
-                   , documentOnTypeFormattingProvider => false
-                   , didChangeWatchedFiles =>
-                       #{ dynamicRegistration => false
-                        }
                    }
               },
   ?assertEqual(Expected, maps:get(result, Res)),

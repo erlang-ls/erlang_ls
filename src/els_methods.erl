@@ -151,16 +151,12 @@ initialize(Params, State) ->
               els_formatting_provider:is_enabled_document()
           , documentRangeFormattingProvider =>
               els_formatting_provider:is_enabled_range()
-          , documentOnTypeFormattingProvider =>
-              els_formatting_provider:is_enabled_on_type()
+          %%, documentOnTypeFormattingProvider =>
+          %%    els_formatting_provider:is_enabled_on_type()
           , foldingRangeProvider =>
               els_folding_range_provider:is_enabled()
           , implementationProvider =>
               els_implementation_provider:is_enabled()
-          %% AZ: didchangewatchedfiles is not listed in
-          %%     ServerCapabilities in the LSP spec.
-          , didChangeWatchedFiles =>
-              #{ dynamicRegistration => false }
           }
      },
   {response, Result, State#{status => initialized}}.
