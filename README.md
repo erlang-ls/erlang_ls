@@ -281,12 +281,16 @@ Normally, the location of the _User Config_ directory is:
 
 A sample `erlang_ls.config` file would look like the following:
 
-    otp_path: "/path/to/otp/lib/erlang"
-    deps_dirs:
-      - "lib/*"
-    include_dirs:
-      - "include"
-      - "_build/default/lib"
+```yaml
+otp_path: "/path/to/otp/lib/erlang"
+deps_dirs:
+  - "lib/*"
+include_dirs:
+  - "include"
+  - "_build/default/lib"
+```
+
+The file format is `yaml`.
 
 The following customizations are possible:
 
