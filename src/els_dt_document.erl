@@ -150,13 +150,13 @@ new(Uri, Text, Id, Kind) ->
    , pois => POIs
    }.
 
-%% @edoc Returns the list of POIs for the current document
+%% @doc Returns the list of POIs for the current document
 -spec pois(item()) -> [poi()].
 pois(#{ pois := POIs }) ->
   POIs.
 
-%% @edoc Returns the list of POIs of the given types for the current
-%%       document
+%% @doc Returns the list of POIs of the given types for the current
+%%      document
 -spec pois(item(), [poi_kind()]) -> [poi()].
 pois(Item, Kinds) ->
   [POI || #{kind := K} = POI <- pois(Item), lists:member(K, Kinds)].

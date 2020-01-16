@@ -21,12 +21,12 @@
 %% API
 %%==============================================================================
 
-%% @edoc Constructor for a Point of Interest.
+%% @doc Constructor for a Point of Interest.
 -spec new(poi_range(), poi_kind(), any()) -> poi().
 new(Range, Kind, Id) ->
   new(Range, Kind, Id, undefined).
 
-%% @edoc Constructor for a Point of Interest.
+%% @doc Constructor for a Point of Interest.
 -spec new(poi_range(), poi_kind(), any(), any()) -> poi().
 new(Range, Kind, Id, Data) ->
   #{ kind  => Kind

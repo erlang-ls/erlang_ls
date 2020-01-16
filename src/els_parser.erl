@@ -104,7 +104,7 @@ find_attribute_tokens([ {'-', Anno}, {atom, _, export} | [_|_] = Rest]) ->
 find_attribute_tokens(_) ->
   [].
 
-%% @edoc Find points of interest in a spec attribute.
+%% @doc Find points of interest in a spec attribute.
 -spec find_spec_points_of_interest(tree()) -> [poi()].
 find_spec_points_of_interest(Tree) ->
   Fun = fun do_find_spec_points_of_interest/2,
@@ -136,7 +136,7 @@ points_of_interest(Tree, EndLocation) ->
   FoldFun = fun(T, Acc) -> [do_points_of_interest(T, EndLocation), Acc] end,
   erl_syntax_lib:fold(FoldFun, [], Tree).
 
-%% @edoc Return the list of points of interest for a given `Tree`.
+%% @doc Return the list of points of interest for a given `Tree'.
 -spec do_points_of_interest(tree(), erl_anno:location()) -> [poi()].
 do_points_of_interest(Tree, EndLocation) ->
   try
