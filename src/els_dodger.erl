@@ -250,7 +250,7 @@ parse(Dev) ->
 
 %% @spec parse(IODevice, StartLoc) -> {ok, Forms} | {error, errorinfo()}
 %%       IODevice = pid()
-%%       StartLoc = erl_anno:location
+%%       StartLoc = erl_anno:location()
 %%       Forms = [erl_syntax:syntaxTree()]
 %%
 %% @equiv parse(IODevice, StartLoc, [])

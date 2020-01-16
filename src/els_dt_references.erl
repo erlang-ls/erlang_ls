@@ -91,13 +91,13 @@ insert(Map) when is_map(Map) ->
   Record = from_item(Map),
   els_db:write(Record).
 
-%% @edoc Find all
+%% @doc Find all
 -spec find_all() -> {ok, [item()]} | {error, any()}.
 find_all() ->
   Pattern = #els_dt_references{_ = '_'},
   find_by(Pattern).
 
-%% @edoc Find by id
+%% @doc Find by id
 -spec find_by_id(any()) -> {ok, [item()]} | {error, any()}.
 find_by_id(Id) ->
   Pattern = #els_dt_references{id = Id, _ = '_'},

@@ -182,7 +182,7 @@ terminate(_, _State) ->
 %% Internal functions
 %%==============================================================================
 
-%% @edoc Try indexing a file.
+%% @doc Try indexing a file.
 -spec try_index_file(binary(), sync | async) -> ok | {error, any()}.
 try_index_file(FullName, SyncAsync) ->
   try
