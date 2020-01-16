@@ -39,13 +39,9 @@ is_enabled_on_type() -> false.
 -spec handle_request(any(), els_provider:state()) ->
   {any(), els_provider:state()}.
 handle_request({document_formatting, Params}, State) ->
-  lager:info("els_formatting_provide:document_formatting: [Params=~p]"
-            , [Params]),
   #{ <<"options">>      := Options
    , <<"textDocument">> := #{<<"uri">> := Uri}
    } = Params,
-  lager:info("els_formatting_provide:document_formatting: [Options=~p]"
-            , [Options]),
   {ok, Document} = els_utils:lookup_document(Uri),
   case format_document(Uri, Document, Options) of
     {ok, TextEdit} -> {TextEdit, State}
@@ -84,7 +80,6 @@ handle_request({document_ontypeformatting, Params}, State) ->
                      -> {ok, [text_edit()]}.
 format_document(Uri, _Document, #{ <<"insertSpaces">> := InsertSpaces
                                  , <<"tabSize">> := TabSize } = Options) ->
-    lager:info("format_document: ~p", [{Uri, Options}]),
     Path = els_uri:path(Uri),
     Fun = fun(Dir) ->
             RelPath = els_utils:project_relative(Uri),
@@ -100,19 +95,16 @@ format_document(Uri, _Document, #{ <<"insertSpaces">> := InsertSpaces
             els_text_edit:diff_files(Path, OutFile)
           end,
     TextEdits = tempdir:mktmp(Fun),
-    lager:info("format_document: [TextEdits=~p]", [TextEdits]),
     {ok, TextEdits}.
 
 
 -spec rangeformat_document(uri(), map(), range(), formatting_options())
                           -> {ok, [text_edit()]}.
-rangeformat_document(Uri, _Document, Range, Options) ->
-    lager:info("rangeformat_document: ~p", [{Uri, Range, Options}]),
+rangeformat_document(_Uri, _Document, _Range, _Options) ->
     {ok, []}.
 
 -spec ontypeformat_document(binary(), map()
                            , number(), number(), string(), formatting_options())
                            -> {ok, [text_edit()]}.
-ontypeformat_document(Uri, _Document, Line, Col, Char, Options) ->
-    lager:info("ontypeformat_document: ~p", [{Uri, Line, Col, Char, Options}]),
+ontypeformat_document(_Uri, _Document, _Line, _Col, _Char, _Options) ->
     {ok, []}.
