@@ -73,10 +73,15 @@ compile(Uri) ->
   Includes = [ {i, IncludePath}
                || IncludePath <- els_config:get(include_paths)
              ],
-  Opts = lists:append([macro_options(), Includes, ?COMPILER_OPTS]),
-  case compile:file(Path, Opts) of
+  %% Extra paths to load beam files from, for e.g. behaviours
+ code:add_pathsa(els_config:get(pa_dirs)),
+  Opts0 = lists:append([macro_options(), Includes]),
+  Opts1 = lists:append([Opts0, ?COMPILER_OPTS]),
+  case compile:file(Path, Opts1) of
     {ok, _, WS} ->
+      load_if_behaviour(Path, Opts0),
       diagnostics(Path, WS, ?DIAGNOSTIC_WARNING);
+
     {error, ES, WS} ->
       diagnostics(Path, WS, ?DIAGNOSTIC_WARNING) ++
         diagnostics(Path, ES, ?DIAGNOSTIC_ERROR)
@@ -85,13 +90,48 @@ compile(Uri) ->
 -spec parse(uri()) -> [diagnostic()].
 parse(Uri) ->
   FileName = binary_to_list(els_uri:path(Uri)),
+  Forms = do_parse(FileName),
+  [diagnostic(range(Line), Module, Desc, ?DIAGNOSTIC_ERROR)
+         || {error, {Line, Module, Desc}} <- Forms].
+
+-spec do_parse(file:filename()) -> [any()].
+do_parse(FileName) ->
   {ok, Epp} = epp:open([ {name, FileName}
                        , {includes, els_config:get(include_paths)}
                        ]),
-  Res = [diagnostic(range(Line), Module, Desc, ?DIAGNOSTIC_ERROR)
-         || {error, {Line, Module, Desc}} <- epp:parse_file(Epp)],
+  Res = [Form || Form <- epp:parse_file(Epp)],
   epp:close(Epp),
   Res.
+
+%% @doc If a file defines a behaviour (by using the `callback' atrribute),
+%% compile it to binary and load the module into the running language server, so
+%% any other buffers relying on this will make use of the updated definition.
+-spec load_if_behaviour(file:filename(), [compile:option()]) -> ok.
+load_if_behaviour(Path, Opts) ->
+  case defines_behaviour(Path) of
+    true ->
+      lager:debug("load_if_behaviour: true"), %% AZ
+      case compile:file(Path, Opts ++ [binary]) of
+        {ok, Module, B} ->
+          code:load_binary(Module, Path, B);
+        Oops ->
+          lager:debug("load_if_behaviour:got [Oops=~p]", [Oops]), %% AZ
+          ok
+      end;
+    false ->
+      lager:debug("load_if_behaviour: false"), %% AZ
+      ok
+  end.
+
+%% @doc Check if the file defines a behaviour
+-spec defines_behaviour(file:filename()) -> boolean().
+defines_behaviour(FileName) ->
+  Forms = do_parse(FileName),
+  case [ attribute || {attribute, _, callback, _} <- Forms] of
+    [] -> false;
+    _  -> true
+  end.
+
 
 %% @doc Convert compiler messages into diagnostics
 %%

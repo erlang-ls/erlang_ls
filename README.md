@@ -400,6 +400,8 @@ deps_dirs:
 include_dirs:
   - "include"
   - "_build/default/lib"
+pa_dirs:
+  - "_build/default/lib/mylib/ebin"
 macros:
   - name: DEFINED_WITH_VALUE
     value: 42
@@ -417,6 +419,7 @@ The following customizations are possible:
 | deps\_dirs         | List of directories containing dependencies. It supports wildcards.                                                                       |
 | apps\_dirs         | List of directories containing project applications. It supports wildcards.                                                               |
 | include\_dirs      | List of directories provided to the compiler as include dirs. It supports wildcards.                                                      |
+| pa\_dirs           | List of directories containing beam files for e.g. behaviours.                                                                            |
 | macros             | List of cusom macros to be passed to the compiler, expressed as a name/value pair. If the value is omitted or is invalid, 'true' is used. |
 | otp\_apps\_exclude | List of OTP applications that will not be indexed (default: megaco, diameter, snmp, wx)                                                   |
 | code\_reload       | Whether or not an rpc call should be made to a remote node to compile and reload a module                                                 |

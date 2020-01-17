@@ -8,6 +8,7 @@
         , groups/1
         , init_per_suite/1
         , init_per_testcase/2
+        , init_per_testcase_wrapper/3
         , start/1
         , wait_for/2
         ]).
@@ -19,7 +20,8 @@
 %%==============================================================================
 %% Defines
 %%==============================================================================
--define(TEST_APP, <<"code_navigation">>).
+-define(TEST_APP,           <<"code_navigation">>).
+-define(TEST_BEHAVIOUR_APP, <<"behaviour">>).
 -define(HOSTNAME, {127,0,0,1}).
 -define(PORT    , 10000).
 
@@ -44,6 +46,9 @@ init_per_suite(Config) ->
   RootPath               = filename:join([ list_to_binary(PrivDir)
                                          , ?TEST_APP]),
   RootUri                = els_uri:uri(RootPath),
+  RootBehaviourPath      = filename:join([ list_to_binary(PrivDir)
+                                         , ?TEST_BEHAVIOUR_APP]),
+  RootBehaviourUri       = els_uri:uri(RootBehaviourPath),
   Path                   = filename:join([ RootPath
                                          , <<"src">>
                                          , <<"code_navigation.erl">>]),
@@ -74,6 +79,9 @@ init_per_suite(Config) ->
   DiagnosticsIncludePath = filename:join([ RootPath
                                          , <<"include">>
                                          , <<"diagnostics.hrl">>]),
+  DiagnosticsBehaviourPath = filename:join([ RootBehaviourPath
+                                         , <<"src">>
+                                         , <<"mylib_imp.erl">>]),
   FormatInputPath        = filename:join([ RootPath
                                          , <<"src">>
                                          , <<"format_input.erl">>]),
@@ -81,17 +89,18 @@ init_per_suite(Config) ->
                                          , <<"src">>
                                          , <<"my_gen_server.erl">>]),
 
-  Uri                    = els_uri:uri(Path),
-  ExtraUri               = els_uri:uri(ExtraPath),
-  TypesUri               = els_uri:uri(TypesPath),
-  BehaviourUri           = els_uri:uri(BehaviourPath),
-  IncludeUri             = els_uri:uri(IncludePath),
-  DiagnosticsUri         = els_uri:uri(DiagnosticsPath),
-  DiagnosticsMacrosUri   = els_uri:uri(DiagnosticsMacrosPath),
-  ElvisDiagnosticsUri    = els_uri:uri(ElvisDiagnosticsPath),
-  DiagnosticsIncludeUri  = els_uri:uri(DiagnosticsIncludePath),
-  FormatInputUri         = els_uri:uri(FormatInputPath),
-  GenServerUri           = els_uri:uri(GenServerPath),
+  Uri                     = els_uri:uri(Path),
+  ExtraUri                = els_uri:uri(ExtraPath),
+  TypesUri                = els_uri:uri(TypesPath),
+  BehaviourUri            = els_uri:uri(BehaviourPath),
+  IncludeUri              = els_uri:uri(IncludePath),
+  DiagnosticsUri          = els_uri:uri(DiagnosticsPath),
+  DiagnosticsMacrosUri    = els_uri:uri(DiagnosticsMacrosPath),
+  ElvisDiagnosticsUri     = els_uri:uri(ElvisDiagnosticsPath),
+  DiagnosticsIncludeUri   = els_uri:uri(DiagnosticsIncludePath),
+  DiagnosticsBehaviourUri = els_uri:uri(DiagnosticsBehaviourPath),
+  FormatInputUri          = els_uri:uri(FormatInputPath),
+  GenServerUri            = els_uri:uri(GenServerPath),
 
   {ok, Text} = file:read_file(Path),
 
@@ -109,6 +118,7 @@ init_per_suite(Config) ->
   , {code_navigation_text, Text}
   , {code_navigation_extra_uri, ExtraUri}
   , {code_navigation_types_uri, TypesUri}
+  , {root_behaviour_uri, RootBehaviourUri}
   , {behaviour_uri, BehaviourUri}
   , {include_uri, IncludeUri}
   , {diagnostics_uri, DiagnosticsUri}
@@ -116,6 +126,7 @@ init_per_suite(Config) ->
   , {diagnostics_diff_path, DiagnosticsDiffPath}
   , {elvis_diagnostics_uri, ElvisDiagnosticsUri}
   , {diagnostics_include_uri, DiagnosticsIncludeUri}
+  , {diagnostics_behaviour_uri, DiagnosticsBehaviourUri}
   , {format_input_uri, FormatInputUri}
   , {gen_server_uri, GenServerUri}
   | Config
@@ -126,21 +137,29 @@ end_per_suite(_Config) ->
   ok.
 
 -spec init_per_testcase(atom(), config()) -> config().
-init_per_testcase(_TestCase, Config) ->
+init_per_testcase(TestCase, Config) ->
+  Fun = fun () ->
+                %% Ensure modules used in test suites are indexed
+                els_indexer:find_and_index_file("behaviour_a", sync),
+                els_indexer:find_and_index_file("code_navigation", sync),
+                els_indexer:find_and_index_file("code_navigation_extra", sync),
+                els_indexer:find_and_index_file("code_navigation_types", sync),
+                els_indexer:find_and_index_file("code_navigation.hrl", sync),
+                els_indexer:find_and_index_file("diagnostics.hrl", sync),
+                els_indexer:find_and_index_file("my_gen_server", sync),
+                ok
+        end,
+  init_per_testcase_wrapper(TestCase, Config, Fun).
+
+-spec init_per_testcase_wrapper(atom(), config(), fun()) -> config().
+init_per_testcase_wrapper(_TestCase, Config, Fun) ->
   Transport = get_group(Config),
   Started   = start(Transport),
   RootUri   = ?config(root_uri, Config),
 
   els_client:initialize(RootUri, []),
 
-  %% Ensure modules used in test suites are indexed
-  els_indexer:find_and_index_file("behaviour_a", sync),
-  els_indexer:find_and_index_file("code_navigation", sync),
-  els_indexer:find_and_index_file("code_navigation_extra", sync),
-  els_indexer:find_and_index_file("code_navigation_types", sync),
-  els_indexer:find_and_index_file("code_navigation.hrl", sync),
-  els_indexer:find_and_index_file("diagnostics.hrl", sync),
-  els_indexer:find_and_index_file("my_gen_server", sync),
+  Fun(),
 
   [{started, Started} | Config].
 

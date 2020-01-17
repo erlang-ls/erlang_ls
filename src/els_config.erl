@@ -36,6 +36,7 @@
                | apps_paths
                | capabilities
                | deps_dirs
+               | pa_dirs
                | deps_paths
                | include_dirs
                | include_paths
@@ -52,6 +53,7 @@
                   , apps_paths       => [path()]
                   , deps_dirs        => [path()]
                   , deps_paths       => [path()]
+                  , pa_dirs          => [path()]
                   , include_dirs     => [path()]
                   , include_paths    => [path()]
                   , otp_path         => path()
@@ -73,6 +75,7 @@ initialize(RootUri, Capabilities, InitOptions) ->
   Config = consult_config(config_paths(RootPath, InitOptions)),
   OtpPath         = maps:get("otp_path", Config, code:root_dir()),
   DepsDirs        = maps:get("deps_dirs", Config, []),
+  PaDirs          = maps:get("pa_dirs", Config, []),
   AppsDirs        = maps:get("apps_dirs", Config, ["."]),
   IncludeDirs     = maps:get("include_dirs", Config, ["include"]),
   Macros          = maps:get("macros", Config, []),
@@ -91,6 +94,7 @@ initialize(RootUri, Capabilities, InitOptions) ->
   %% Read from the erlang_ls.config file
   ok = set(otp_path       , OtpPath),
   ok = set(deps_dirs      , DepsDirs),
+  ok = set(pa_dirs        , PaDirs),
   ok = set(apps_dirs      , AppsDirs),
   ok = set(include_dirs   , IncludeDirs),
   ok = set(macros         , Macros),
@@ -108,6 +112,7 @@ initialize(RootUri, Capabilities, InitOptions) ->
                          , otp_paths(OtpPath, true)
                          ])
           ),
+
   %% Init Options
   ok = set(capabilities  , Capabilities),
   ok.

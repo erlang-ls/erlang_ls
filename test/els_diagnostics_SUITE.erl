@@ -14,6 +14,7 @@
 -export([ compiler/1
         , compiler_with_custom_macros/1
         , code_reload/1
+        , compiler_with_behaviour/1
         , elvis/1
         ]).
 
@@ -59,7 +60,23 @@ init_per_testcase(code_reload = TestCase, Config) ->
   els_test_utils:init_per_testcase(TestCase, Config);
 init_per_testcase(TestCase, Config) ->
   mock_notifications(),
-  els_test_utils:init_per_testcase(TestCase, Config).
+  Fun = fun () ->
+                %% Ensure modules used in test suites are indexed
+                els_indexer:find_and_index_file("mylib_imp", sync),
+                ok
+        end,
+  EmptyFun = fun () -> ok end,
+
+  {Config1, Fun1} =
+        case TestCase of
+            compiler_with_behaviour ->
+                RootUri = ?config(root_behaviour_uri, Config),
+                Config0 = lists:keyreplace(root_uri,1,Config, {root_uri, RootUri}),
+                {Config0, Fun};
+            _ ->
+                {Config, EmptyFun}
+        end,
+  els_test_utils:init_per_testcase_wrapper(TestCase, Config1, Fun1).
 
 -spec end_per_testcase(atom(), config()) -> ok.
 end_per_testcase(code_reload = TestCase, Config) ->
@@ -127,6 +144,39 @@ compiler_with_custom_macros(Config) ->
   ?assertEqual(ExpectedErrorRanges, ErrorRanges),
   ok.
 
+-spec compiler_with_behaviour(config()) -> ok.
+compiler_with_behaviour(Config) ->
+  {ok, Cwd} = file:get_cwd(),
+  RootPath = els_uri:path(?config(root_behaviour_uri, Config)),
+  try
+      file:set_cwd(RootPath),
+      Uri = ?config(diagnostics_behaviour_uri, Config),
+      ok = els_client:did_save(Uri),
+      {Method, Params} = wait_for_notification(),
+      ?assertEqual( <<"textDocument/publishDiagnostics">>
+                  , Method),
+      ?assert(maps:is_key(uri, Params)),
+      #{uri := Uri} = Params,
+      ?assert(maps:is_key(diagnostics, Params)),
+      #{diagnostics := Diagnostics} = Params,
+      ?assertEqual(1, length(Diagnostics)),
+      Warnings = [D || #{severity := ?DIAGNOSTIC_WARNING} = D <- Diagnostics],
+      Errors   = [D || #{severity := ?DIAGNOSTIC_ERROR}   = D <- Diagnostics],
+      ?assertEqual(1, length(Warnings)),
+      ?assertEqual(0, length(Errors)),
+      WarningRanges = [ Range || #{range := Range} <- Warnings],
+      ExpectedWarningRanges = [ #{'end' => #{character => 0,line => 7},
+                                  start => #{character => 0,line => 6}}
+                              ],
+      ?assertEqual(ExpectedWarningRanges, WarningRanges)
+  catch Err ->
+      lager:info("els_diagnostics:compiler_with_behaviour. Caught [Err=~p]"
+                , [Err])
+  after
+      file:set_cwd(Cwd)
+  end,
+  ok.
+
 -spec elvis(config()) -> ok.
 elvis(Config) ->
   {ok, Cwd} = file:get_cwd(),
@@ -157,7 +207,9 @@ elvis(Config) ->
                       start => #{character => 0,line => 6}}
                   , WarningRange2
                   )
-  catch _Err ->
+  catch Err ->
+      lager:info("els_diagnostics_SUITE:elvis. Caught [Err=~p]", [Err])
+  after
       file:set_cwd(Cwd)
   end,
   ok.
