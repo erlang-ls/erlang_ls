@@ -14,6 +14,7 @@
 -export([ compiler/1
         , compiler_with_custom_macros/1
         , code_reload/1
+        , compiler_parse/1
         , elvis/1
         ]).
 
@@ -125,6 +126,13 @@ compiler_with_custom_macros(Config) ->
                            , start => #{character => 0,line => 8}}
                         ],
   ?assertEqual(ExpectedErrorRanges, ErrorRanges),
+  ok.
+
+-spec compiler_parse(config()) -> ok.
+compiler_parse(_Config) ->
+  Uri = els_uri:uri(<<"nonexistent_file.hrl">>),
+  Res = els_compiler_diagnostics:diagnostics(Uri),
+  ?assertEqual([], Res),
   ok.
 
 -spec elvis(config()) -> ok.

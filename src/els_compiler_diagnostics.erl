@@ -85,13 +85,23 @@ compile(Uri) ->
 -spec parse(uri()) -> [diagnostic()].
 parse(Uri) ->
   FileName = binary_to_list(els_uri:path(Uri)),
-  {ok, Epp} = epp:open([ {name, FileName}
-                       , {includes, els_config:get(include_paths)}
-                       ]),
-  Res = [diagnostic(range(Line), Module, Desc, ?DIAGNOSTIC_ERROR)
-         || {error, {Line, Module, Desc}} <- epp:parse_file(Epp)],
-  epp:close(Epp),
-  Res.
+  case epp:open([ {name, FileName}
+                , {includes, els_config:get(include_paths)}
+                ]) of
+      {ok, Epp} ->
+          Res = [diagnostic(range(Line), Module, Desc, ?DIAGNOSTIC_ERROR)
+                 || {error, {Line, Module, Desc}} <- epp:parse_file(Epp)],
+          epp:close(Epp),
+          Res;
+      _ ->
+          Msg = io_lib:format("Compile: could not parse ~p", [FileName]),
+          lager:info(Msg),
+          els_server:send_notification(<<"window/showMessage">>,
+                               #{ type => ?MESSAGE_TYPE_ERROR,
+                                  message => list_to_binary(Msg)
+                                }),
+          []
+  end.
 
 %% @doc Convert compiler messages into diagnostics
 %%
