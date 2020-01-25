@@ -31,14 +31,14 @@ function with a single keystroke.
 
 ### Signature Suggestions
 
-Never remember the order of the `lists:keytake/3` function? You are
+Never remember the order of the `lists:keytake/3` arguments? You are
 not alone. We got you covered.
 
 ![Signature Suggestions](https://github.com/erlang-ls/docs/raw/master/gif/04-signature-suggestions.gif)
 
 ### Compiler Diagnostics
 
-Display warnings and errors from the compiler inline.
+Display warnings and errors from the compiler. Inline.
 
 ![Compiler Diagnostics](https://github.com/erlang-ls/docs/raw/master/png/05-compiler-diagnostics.png)
 
