@@ -5,21 +5,95 @@
 [![Build Status](https://travis-ci.org/erlang-ls/erlang_ls.svg?branch=master)](https://travis-ci.org/erlang-ls/erlang_ls)
 [![Coverage Status](https://coveralls.io/repos/github/erlang-ls/erlang_ls/badge.svg?branch=master)](https://coveralls.io/github/erlang-ls/erlang_ls?branch=master)
 
-An Erlang server implementing Microsoft's Language Server Protocol 3.0.
+An Erlang server implementing Microsoft's Language Server Protocol 3.15.
 
-## Getting in Touch
+## Features
 
-If you have any questions about the project, feel free to open a new
-issue. You can also join the `#language-server` channel in the
-_Erlanger_ Slack if you would like to get involved or if you prefer a
-more informal mean of communication.
+### Code Completion
 
-All contributions are welcome, be them in the form of a bug report, a
-question, feedback, or code.
+Get context-aware code completions for function names, macros,
+records, variable names and more.
 
-A [wiki](https://github.com/erlang-ls/erlang_ls/wiki) is also
-available and I occasionally blog about the project on
-[Medium](https://medium.com/about-erlang).
+![Code Completion](https://github.com/erlang-ls/docs/raw/master/png/01-code-completion.png)
+
+### Go To Definition
+
+Navigate to the definition of a function, macro, record or type.
+
+![Go To Definition](https://github.com/erlang-ls/docs/raw/master/gif/02-go-to-definition.gif)
+
+### Go To Implementation for OTP Behaviours
+
+Hovering a `gen_server:start_link` call? Jump to the respective `init`
+function with a single keystroke.
+
+![Go To Implementation](https://github.com/erlang-ls/docs/raw/master/gif/03-go-to-implementation.gif)
+
+### Signature Suggestions
+
+Never remember the order of the `lists:keytake/3` function? You are
+not alone. We got you covered.
+
+![Signature Suggestions](https://github.com/erlang-ls/docs/raw/master/gif/04-signature-suggestions.gif)
+
+### Compiler Diagnostics
+
+Display warnings and errors from the compiler inline.
+
+![Compiler Diagnostics](https://github.com/erlang-ls/docs/raw/master/png/05-compiler-diagnostics.png)
+
+### Dialyzer Diagnostics
+
+It has never been so easy to make Dialyzer happy.
+
+![Dialyzer Diagnostics](https://github.com/erlang-ls/docs/raw/master/png/06-dialyzer-diagnostics.png)
+
+### Elvis Diagnostics
+
+Display [Elvis](https://github.com/inaka/elvis) style suggestions
+inline. No more nit-picking comments from colleagues!
+
+![Elvis Diagnostics](https://github.com/erlang-ls/docs/raw/master/png/07-elvis-diagnostics.png)
+
+### Edoc
+
+Hover a local or remote function to see its `edoc`. You will miss this
+feature so much when edocs are not available that you will start
+writing them!
+
+![Edoc](https://github.com/erlang-ls/docs/raw/master/gif/08-edoc.gif)
+
+### Navigation for Included Files
+
+Navigate to included files with a single click.
+
+![Included Files](https://github.com/erlang-ls/docs/raw/master/gif/09-included-files.gif)
+
+### Find/Peek References
+
+Who is calling this function? Figure it out without leaving the
+current context.
+
+![Peek References](https://github.com/erlang-ls/docs/raw/master/png/11-peek-references.png)
+
+### Outline
+
+Get a nice outline of your module on the side and jump between
+functions.
+
+![Outline](https://github.com/erlang-ls/docs/raw/master/png/12-outline.png)
+
+### Workspace Symbols
+
+Jump to the module you're looking for, in no time.
+
+![Workspace Symbols](https://github.com/erlang-ls/docs/raw/master/png/13-workspace-symbols.png)
+
+### Folding
+
+Focus on what's important, fold the rest.
+
+![Folding](https://github.com/erlang-ls/docs/raw/master/png/14-folding.png)
 
 ## Minimum Requirements
 
@@ -415,6 +489,20 @@ being used to provide a `--log-dir` option.
 
 When the `escript` is built in the `default` mode (i.e. `rebar3 escript`),
 no log files are generated, unless the `--log-dir` option is provided.
+
+## Getting in Touch
+
+If you have any questions about the project, feel free to open a new
+issue. You can also join the `#language-server` channel in the
+_Erlanger_ Slack if you would like to get involved or if you prefer a
+more informal mean of communication.
+
+All contributions are welcome, be them in the form of a bug report, a
+question, feedback, or code.
+
+A [wiki](https://github.com/erlang-ls/erlang_ls/wiki) is also
+available and I occasionally blog about the project on
+[Medium](https://medium.com/about-erlang).
 
 ## References
 
