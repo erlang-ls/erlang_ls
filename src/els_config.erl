@@ -44,20 +44,25 @@
                | otp_apps_exclude
                | plt_path
                | root_uri
-               | search_paths.
+               | search_paths
+               | code_reload_enabled
+               | code_reload_node.
+
 -type path()  :: file:filename().
--type state() :: #{ apps_dirs         => [path()]
-                  , apps_paths        => [path()]
-                  , deps_dirs         => [path()]
-                  , deps_paths        => [path()]
-                  , include_dirs      => [path()]
-                  , include_paths     => [path()]
-                  , otp_path          => path()
-                  , otp_paths         => [path()]
-                  , otp_apps_exclude  => [string()]
-                  , plt_path          => path()
-                  , root_uri          => uri()
-                  , search_paths      => [path()]
+-type state() :: #{ apps_dirs           => [path()]
+                  , apps_paths          => [path()]
+                  , deps_dirs           => [path()]
+                  , deps_paths          => [path()]
+                  , include_dirs        => [path()]
+                  , include_paths       => [path()]
+                  , otp_path            => path()
+                  , otp_paths           => [path()]
+                  , otp_apps_exclude    => [string()]
+                  , plt_path            => path()
+                  , root_uri            => uri()
+                  , search_paths        => [path()]
+                  , code_reload_enabled => boolean()
+                  , code_reload_node    => atom()
                   }.
 
 %%==============================================================================
@@ -80,20 +85,24 @@ initialize(RootUri, Capabilities, InitOptions) ->
   ExcludePathsSpecs = [[OtpPath, "lib", P ++ "*"] || P <- OtpAppsExclude],
   ExcludePaths = els_utils:resolve_paths(ExcludePathsSpecs, RootPath, true),
   lager:info("Excluded OTP Applications: ~p", [OtpAppsExclude]),
+  CodeReloadRenabled = maps:get("hot_code_reload_enabled", Config, false),
+  CodeReloadNode = maps:get("hot_code_reload_node", Config, ""),
 
   %% Passed by the LSP client
-  ok = set(root_uri      , RootUri),
+  ok = set(root_uri            , RootUri),
   %% Read from the erlang_ls.config file
-  ok = set(otp_path      , OtpPath),
-  ok = set(deps_dirs     , DepsDirs),
-  ok = set(apps_dirs     , AppsDirs),
-  ok = set(include_dirs  , IncludeDirs),
-  ok = set(plt_path      , DialyzerPltPath),
+  ok = set(otp_path            , OtpPath),
+  ok = set(deps_dirs           , DepsDirs),
+  ok = set(apps_dirs           , AppsDirs),
+  ok = set(include_dirs        , IncludeDirs),
+  ok = set(plt_path            , DialyzerPltPath),
+  ok = set(code_reload_enabled , CodeReloadRenabled),
+  ok = set(code_reload_node    , list_to_atom(CodeReloadNode)),
   %% Calculated from the above
-  ok = set(apps_paths    , project_paths(RootPath, AppsDirs, false)),
-  ok = set(deps_paths    , project_paths(RootPath, DepsDirs, false)),
-  ok = set(include_paths , include_paths(RootPath, IncludeDirs, false)),
-  ok = set(otp_paths     , otp_paths(OtpPath, false) -- ExcludePaths),
+  ok = set(apps_paths          , project_paths(RootPath, AppsDirs, false)),
+  ok = set(deps_paths          , project_paths(RootPath, DepsDirs, false)),
+  ok = set(include_paths       , include_paths(RootPath, IncludeDirs, false)),
+  ok = set(otp_paths           , otp_paths(OtpPath, false) -- ExcludePaths),
   %% All (including subdirs) paths used to search files with file:path_open/3
   ok = set( search_paths
           , lists:append([ project_paths(RootPath, AppsDirs, true)

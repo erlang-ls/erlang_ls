@@ -8,6 +8,9 @@
         ]).
 
 -export([ generate_diagnostics/1 ]).
+-ifdef(TEST).
+-export([ maybe_compile_and_load/2 ]).
+-endif.
 
 -spec did_open(map()) -> ok.
 did_open(Params) ->
@@ -42,4 +45,38 @@ generate_diagnostics(Uri) ->
   Params1  = #{ uri => Uri
               , diagnostics => CDiagnostics ++ DDiagnostics ++ EDiagnostics
               },
+  maybe_compile_and_load(Uri, CDiagnostics),
   els_server:send_notification(Method, Params1).
+
+-spec maybe_compile_and_load(uri(), [diagnostic()]) -> ok.
+maybe_compile_and_load(Uri, CDiagnostics) ->
+  case {els_config:get(code_reload_enabled), CDiagnostics} of
+    {true, []} ->
+      Module = els_uri:module(Uri),
+      Node = els_config:get(code_reload_node),
+      handle_rpc_result(rpc:call(Node, c, c, [Module]), Module);
+    _ ->
+      ok
+  end.
+
+-spec handle_rpc_result(term() | {badrpc, term()}, atom()) -> ok.
+handle_rpc_result({ok, Module}, _) ->
+  Msg = io_lib:format("Hot code swap success for: ~s", [Module]),
+  els_server:send_notification(<<"window/showMessage">>,
+                               #{ type => ?MESSAGE_TYPE_INFO,
+                                  message => list_to_binary(Msg)
+                                });
+handle_rpc_result({badrpc, nodedown} = Err, Module) ->
+  Msg = io_lib:format("Hot code swap failed for: ~s with: ~w", [Module, Err]),
+  els_server:send_notification(<<"window/showMessage">>,
+                               #{ type => ?MESSAGE_TYPE_INFO,
+                                  message => list_to_binary(Msg)
+                                });
+handle_rpc_result(Err, Module) ->
+  lager:info("[HOT CODE RELOAD] Compiling using c:c/1 crashed with: ~p",
+             [Err]),
+  Msg = io_lib:format("Hot code swap crashed for: ~s with: ~w", [Module, Err]),
+  els_server:send_notification(<<"window/showMessage">>,
+                               #{ type => ?MESSAGE_TYPE_INFO,
+                                  message => list_to_binary(Msg)
+                                }).

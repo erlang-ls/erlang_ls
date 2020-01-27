@@ -12,6 +12,7 @@
 
 %% Test cases
 -export([ compiler/1
+        , code_reload/1
         , elvis/1
         ]).
 
@@ -51,11 +52,19 @@ end_per_suite(Config) ->
   els_test_utils:end_per_suite(Config).
 
 -spec init_per_testcase(atom(), config()) -> config().
+init_per_testcase(code_reload = TestCase, Config) ->
+  mock_rpc(),
+  mock_code_reload_enabled(),
+  els_test_utils:init_per_testcase(TestCase, Config);
 init_per_testcase(TestCase, Config) ->
   mock_notifications(),
   els_test_utils:init_per_testcase(TestCase, Config).
 
 -spec end_per_testcase(atom(), config()) -> ok.
+end_per_testcase(code_reload = TestCase, Config) ->
+  unmock_rpc(),
+  unmock_code_reload_enabled(),
+  els_test_utils:end_per_testcase(TestCase, Config);
 end_per_testcase(TestCase, Config) ->
   els_test_utils:end_per_testcase(TestCase, Config),
   unmock_notifications(),
@@ -131,6 +140,14 @@ elvis(Config) ->
   end,
   ok.
 
+-spec code_reload(config()) -> ok.
+code_reload(Config) ->
+  Uri = ?config(diagnostics_uri, Config),
+  Module = els_uri:module(Uri),
+  ok = els_text_synchronization:maybe_compile_and_load(Uri, []),
+  ?assert(meck:called(rpc, call, ['fakenode', c, c, [Module]])),
+  ok.
+
 %%==============================================================================
 %% Internal Functions
 %%==============================================================================
@@ -153,3 +170,33 @@ wait_for_notification() ->
     {notification_sent, Method, Params} ->
       {Method, Params}
   end.
+
+mock_rpc() ->
+  meck:new(rpc, [passthrough, no_link, unstick]),
+  meck:expect( rpc
+             , call
+             , fun('fakenode', c, c, [Module]) ->
+                   {ok, Module};
+                  (Node, Mod, Fun, Args) ->
+                   meck:passthrough([Node, Mod, Fun, Args])
+               end
+             ).
+
+unmock_rpc() ->
+  meck:unload(rpc).
+
+mock_code_reload_enabled() ->
+  meck:new(els_config, [passthrough, no_link]),
+  meck:expect( els_config
+             , get
+             , fun(code_reload_enabled) ->
+                   true;
+                  (code_reload_node) ->
+                   'fakenode';
+                  (Key) ->
+                   meck:passthrough([Key])
+               end
+             ).
+
+unmock_code_reload_enabled() ->
+  meck:unload(els_config).
