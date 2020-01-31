@@ -189,10 +189,8 @@ mock_code_reload_enabled() ->
   meck:new(els_config, [passthrough, no_link]),
   meck:expect( els_config
              , get
-             , fun(code_reload_enabled) ->
-                   true;
-                  (code_reload_node) ->
-                   'fakenode';
+             , fun(code_reload) ->
+                   #{"node" => "fakenode"};
                   (Key) ->
                    meck:passthrough([Key])
                end
