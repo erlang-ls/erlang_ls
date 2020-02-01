@@ -62,6 +62,9 @@ init_per_suite(Config) ->
   DiagnosticsPath        = filename:join([ RootPath
                                          , <<"src">>
                                          , <<"diagnostics.erl">>]),
+  DiagnosticsMacrosPath  = filename:join([ RootPath
+                                         , <<"src">>
+                                         , <<"diagnostics_macros.erl">>]),
   DiagnosticsDiffPath    = filename:join([ RootPath
                                          , <<"src">>
                                          , <<"diagnostics.new.erl">>]),
@@ -84,6 +87,7 @@ init_per_suite(Config) ->
   BehaviourUri           = els_uri:uri(BehaviourPath),
   IncludeUri             = els_uri:uri(IncludePath),
   DiagnosticsUri         = els_uri:uri(DiagnosticsPath),
+  DiagnosticsMacrosUri   = els_uri:uri(DiagnosticsMacrosPath),
   ElvisDiagnosticsUri    = els_uri:uri(ElvisDiagnosticsPath),
   DiagnosticsIncludeUri  = els_uri:uri(DiagnosticsIncludePath),
   FormatInputUri         = els_uri:uri(FormatInputPath),
@@ -108,6 +112,7 @@ init_per_suite(Config) ->
   , {behaviour_uri, BehaviourUri}
   , {include_uri, IncludeUri}
   , {diagnostics_uri, DiagnosticsUri}
+  , {diagnostics_macros_uri, DiagnosticsMacrosUri}
   , {diagnostics_diff_path, DiagnosticsDiffPath}
   , {elvis_diagnostics_uri, ElvisDiagnosticsUri}
   , {diagnostics_include_uri, DiagnosticsIncludeUri}
