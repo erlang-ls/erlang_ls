@@ -419,7 +419,7 @@ include_dirs:
   - "_build/default/lib"
 macros:
   - name: DEFINED_WITH_VALUE
-  - value: 42
+    value: 42
   - name: DEFINED_WITHOUT_VALUE
 ```
 
