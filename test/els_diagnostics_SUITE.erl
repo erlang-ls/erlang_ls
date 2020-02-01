@@ -12,6 +12,7 @@
 
 %% Test cases
 -export([ compiler/1
+        , compiler_with_custom_macros/1
         , code_reload/1
         , elvis/1
         ]).
@@ -101,6 +102,27 @@ compiler(Config) ->
                             start => #{character => 0,line => 3}},
                           #{'end' => #{character => 0,line => 6},
                             start => #{character => 0,line => 5}}
+                        ],
+  ?assertEqual(ExpectedErrorRanges, ErrorRanges),
+  ok.
+
+-spec compiler_with_custom_macros(config()) -> ok.
+compiler_with_custom_macros(Config) ->
+  Uri = ?config(diagnostics_macros_uri, Config),
+  ok = els_client:did_save(Uri),
+  {Method, Params} = wait_for_notification(),
+  ?assertEqual( <<"textDocument/publishDiagnostics">>
+              , Method),
+  ?assert(maps:is_key(uri, Params)),
+  #{uri := Uri} = Params,
+  ?assert(maps:is_key(diagnostics, Params)),
+  #{diagnostics := Diagnostics} = Params,
+  ?assertEqual(1, length(Diagnostics)),
+  Errors   = [D || #{severity := ?DIAGNOSTIC_ERROR}   = D <- Diagnostics],
+  ?assertEqual(1, length(Errors)),
+  ErrorRanges = [ Range || #{range := Range} <- Errors],
+  ExpectedErrorRanges = [ #{ 'end' => #{character => 0,line => 9}
+                           , start => #{character => 0,line => 8}}
                         ],
   ?assertEqual(ExpectedErrorRanges, ErrorRanges),
   ok.

@@ -33,6 +33,8 @@
 %%==============================================================================
 -type compiler_info() :: {erl_anno:line() | 'none', module(), any()}.
 -type compiler_msg()  :: {file:filename(), [compiler_info()]}.
+-type macro_config()  :: #{string() => string()}.
+-type macro_option()  :: {'d', atom()} | {'d', atom(), any()}.
 
 %%==============================================================================
 %% Callback Functions
@@ -71,7 +73,8 @@ compile(Uri) ->
   Includes = [ {i, IncludePath}
                || IncludePath <- els_config:get(include_paths)
              ],
-  case compile:file(Path, Includes ++ ?COMPILER_OPTS) of
+  Opts = lists:append([macro_options(), Includes, ?COMPILER_OPTS]),
+  case compile:file(Path, Opts) of
     {ok, _, WS} ->
       diagnostics(Path, WS, ?DIAGNOSTIC_WARNING);
     {error, ES, WS} ->
@@ -181,3 +184,31 @@ include_lib_id(Path) ->
   End        = Length - 1,
   Beginning  = max(1, Length - 2),
   filename:join(lists:sublist(Components, Beginning, End)).
+
+-spec macro_options() -> [macro_option()].
+macro_options() ->
+  Macros = els_config:get(macros),
+  [macro_option(M) || M <- Macros].
+
+-spec macro_option(macro_config()) -> macro_option().
+macro_option(#{"name" := Name, "value" := Value}) ->
+  {'d', list_to_atom(Name), string_to_term(Value)};
+macro_option(#{"name" := Name}) ->
+  {'d', list_to_atom(Name), true}.
+
+-spec string_to_term(list()) -> any().
+string_to_term(Value) ->
+  try
+    {ok, Tokens, _End} = erl_scan:string(Value ++ "."),
+    {ok, Term} = erl_parse:parse_term(Tokens),
+    Term
+  catch
+    _Class:Exception ->
+      Fmt =
+        "Error parsing custom defined macro, "
+        "falling back to 'true'"
+        "[value=~p] [exception=~p]",
+      Args = [Value, Exception],
+      lager:error(Fmt, Args),
+      true
+  end.
