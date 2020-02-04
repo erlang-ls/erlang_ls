@@ -119,63 +119,14 @@ These are the command-line arguments that can be provided to the
 
 ### Emacs Setup
 
-The official `lsp-mode` package already includes a client for the
-Erlang Language Server, so simply add the following to your `.emacs`
-file (assuming the `erlang_ls` executable is available in your `PATH`:
+The official `lsp-mode` package includes a client for the Erlang
+Language Server.
 
-```elisp
-;; Install the yasnippet dependency
-(package-install 'yasnippet)
-
-;; ----- lsp-mode -----
-;; Install the official lsp-mode package (minimum required version 6.2)
-(package-install 'lsp-mode)
-;; Set path to erlang_ls escript (unless it's in your PATH)
-(setq lsp-erlang-server-path "/path/to/erlang_ls")
-;; Enable LSP automatically for Erlang files
-(add-hook 'erlang-mode-hook #'lsp)
-
-;; ----- lsp-ui -----
-;; It is usually a good idea to install lsp-ui as well
-(package-install 'lsp-ui)
-;; The lsp-ui sideline can become a serious distraction, so you
-;; may want to disable it
-(setq lsp-ui-sideline-enable nil)
-;; Ensure docs are visible
-(setq lsp-ui-doc-enable t)
-
-;; ----- company-lsp -----
-;; Enables better integration with company (auto-completion)
-(package-install 'company-lsp)
-(push 'company-lsp company-backends)
-
-;; ----- helm-lsp -----
-;; Provides commands to list workspace symbols:
-;; - helm-lsp-workspace-symbol
-;; - helm-lsp-global-workspace-symbol
-(package-install 'helm-lsp)
-
-;; ----- lsp-origami -----
-;; Be able to fold ranges via origami.el
-(package-install 'lsp-origami)
-(add-hook 'origami-mode-hook #'lsp-origami-mode)
-(add-hook 'erlang-mode-hook #'origami-mode)
-```
-
-Ensure you have Erlang (i.e. `erl`, `escript` and friends) as part
-of your Emacs path. If you don't, you can try the following:
-
-```elisp
-;; Ensure your Emacs environment looks like your user's shell one
-(package-require 'exec-path-from-shell)
-(exec-path-from-shell-initialize)
-```
-
-To enable logging on the client-side, just:
-
-```elisp
-(setq lsp-log-io t)
-```
+[Here](https://github.com/erlang-ls/erlang_ls/blob/master/misc/dotemacs)
+you can find a sample Emacs configuration file which installs and
+configures all packages required to get all of the Erlang LS features
+working. Use this configuration file as a starting point for your
+Erlang LS Emacs configuration.
 
 Whenever opening a project for the first time, you will be prompted by
 `emacs-lsp` to select the correct project root. In that occasion, you
@@ -193,6 +144,38 @@ higher to run, so ensure that OTP 21+ is available in your `PATH`.
 This can be achieved, for example, by using the
 [exec-path-from-shell](https://github.com/purcell/exec-path-from-shell)
 Emacs package.
+
+#### Troubleshooting the Emacs Setup
+
+If things do not work as expected, we advise you to start Emacs with
+only the configuration from the provided sample file, using the
+following command:
+
+    emacs -q -l /path/to/erlang-ls/dotemacs
+
+This will remove from the equation potential incompatibilities with
+other packages or configurations that you may have on your workstation
+and that could conflict with Erlang LS.
+
+To be sure that you don't have outdated or incompatible packages
+installed, you may also want to rename your `~/.emacs.d` directory
+while you are troubleshooting your Erlang LS Emacs setup.
+
+Also, ensure that Erlang (i.e. `erl`, `escript` and friends) and the
+`erlang_ls` executable are all available in your `PATH`. If they are
+not, you can try the following:
+
+```elisp
+;; Ensure your Emacs environment looks like your user's shell one
+(package-require 'exec-path-from-shell)
+(exec-path-from-shell-initialize)
+```
+
+Finally, to enable logging on the client-side, just:
+
+```elisp
+(setq lsp-log-io t)
+```
 
 ### VSCode Setup
 
