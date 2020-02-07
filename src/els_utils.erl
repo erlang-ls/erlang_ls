@@ -140,19 +140,20 @@ is_symlink(Path) ->
     {error, _} -> false
   end.
 
-%% Resolve paths recursively
+%% @doc Resolve paths recursively
 
 -spec resolve_path([string()], path(), boolean()) -> [string()].
 resolve_path(PathSpec, RootPath, Recursive) ->
   Path  = filename:join(PathSpec),
   Paths = filelib:wildcard(Path),
+
   case Recursive of
     true  ->
-      lists:append([ [P | subdirs(P)]
+      lists:append([ [make_normalized_path(P) | subdirs(P)]
                      || P <- Paths, not contains_symlink(P, RootPath)
                    ]);
     false ->
-      [P || P <- Paths, not contains_symlink(P, RootPath)]
+      [make_normalized_path(P) || P <- Paths, not contains_symlink(P, RootPath)]
   end.
 
 %% Returns all subdirectories for the provided path
@@ -194,3 +195,46 @@ contains_symlink(Path, RootPath) ->
       Parent = filename:join(ParentParts),
       is_symlink(Parent) orelse contains_symlink(Parent, RootPath)
   end.
+
+%%==============================================================================
+%% This section excerpted from the rebar3 sources, rebar_dir.els
+%% Pending resolution of https://github.com/erlang/rebar3/issues/2223
+%%==============================================================================
+
+%% @doc make a path absolute
+-spec make_absolute_path(file:filename()) -> file:filename().
+make_absolute_path(Path) ->
+    case filename:pathtype(Path) of
+        absolute ->
+            Path;
+        relative ->
+            {ok, Dir} = file:get_cwd(),
+            filename:join([Dir, Path]);
+        volumerelative ->
+            Volume = hd(filename:split(Path)),
+            {ok, Dir} = file:get_cwd(Volume),
+            filename:join([Dir, Path])
+    end.
+
+%% @doc normalizing a path removes all of the `..' and the
+%% `.' segments it may contain.
+-spec make_normalized_path(file:filename()) -> file:filename().
+make_normalized_path(Path) ->
+    AbsPath = make_absolute_path(Path),
+    Components = filename:split(AbsPath),
+    make_normalized_path(Components, []).
+
+%% @private drops path fragments for normalization
+-spec make_normalized_path([string()], [string()]) -> file:filename().
+make_normalized_path([], NormalizedPath) ->
+    filename:join(lists:reverse(NormalizedPath));
+make_normalized_path([H|T], NormalizedPath) ->
+    case H of
+        "." when NormalizedPath == [], T == []
+                 -> make_normalized_path(T, ["."]);
+        "."  -> make_normalized_path(T, NormalizedPath);
+        ".." when NormalizedPath == [] -> make_normalized_path(T, [".."]);
+        ".." when hd(NormalizedPath) =/= ".."
+                  -> make_normalized_path(T, tl(NormalizedPath));
+        _    -> make_normalized_path(T, [H|NormalizedPath])
+    end.
