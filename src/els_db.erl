@@ -20,6 +20,8 @@
                 , els_dt_signatures
                 ]).
 -define(TIMEOUT, infinity).
+-define(DB_SCHEMA_VSN, <<"1">>).
+-define(DB_SCHEMA_VSN_FILE, "DB_SCHEMA_VSN").
 
 %%==============================================================================
 %% Exported functions
@@ -32,24 +34,27 @@ install(NodeName, BaseDir) ->
   net_kernel:start([NodeName, shortnames]),
   lager:info("Distributed mode enabled [node=~p]", [NodeName]),
   DbDir = filename:join([BaseDir, atom_to_list(NodeName)]),
-  lager:info("Creating DB [dir=~s]", [DbDir]),
+  lager:info("Configuring DB [dir=~s]", [DbDir]),
   ok = filelib:ensure_dir(filename:join([DbDir, "dummy"])),
   ok = application:set_env(mnesia, dir, DbDir),
   %% Avoid mnesia overload while indexing
   ok = application:set_env(mnesia, dump_log_write_threshold, 50000),
-  ensure_db().
+  ensure_db(DbDir).
 
 -spec stop() -> ok | {error, any()}.
 stop() ->
   application:stop(mnesia).
 
--spec ensure_db() -> ok.
-ensure_db() ->
+-spec ensure_db(string()) -> ok.
+ensure_db(DbDir) ->
+  maybe_delete_db_schema(DbDir),
+  ok = write_db_schema_vsn_file(filename:dirname(DbDir)),
   case mnesia:create_schema([node()]) of
     {error, {_, {already_exists, _}}} ->
-      lager:info("DB already exist, skipping"),
+      lager:info("DB Schema already exists, skipping"),
       ok;
     ok ->
+      lager:info("DB Schema created"),
       ok
   end,
   lager:info("Preparing tables"),
@@ -134,3 +139,65 @@ epmd_path() ->
         Epmd ->
             Epmd
     end.
+
+-spec maybe_delete_db_schema(string()) -> ok.
+maybe_delete_db_schema(DbDir) ->
+  case read_db_schema_vsn_file(filename:dirname(DbDir)) of
+    ?DB_SCHEMA_VSN ->
+      Fmt = "DB Schema up to date [dir=~s] [vsn=~s]",
+      Args = [DbDir, ?DB_SCHEMA_VSN],
+      lager:info(Fmt, Args);
+    Vsn ->
+      Fmt = "Deleting DB Schema [dir=~s] [current_vsn=~s] [required_vsn=~s]",
+      Args = [DbDir, Vsn, ?DB_SCHEMA_VSN],
+      lager:info(Fmt, Args),
+      ok = del_dir(DbDir)
+  end.
+
+-spec write_db_schema_vsn_file(string()) -> ok.
+write_db_schema_vsn_file(BaseDir) ->
+  ok = file:write_file(db_schema_vsn_file(BaseDir), ?DB_SCHEMA_VSN).
+
+-spec read_db_schema_vsn_file(string()) -> binary().
+read_db_schema_vsn_file(BaseDir) ->
+  case file:read_file(db_schema_vsn_file(BaseDir)) of
+    {ok, Vsn} ->
+      Vsn;
+    {error, Error} ->
+      Fmt = "Error while accessing DB Schema Vsn file [error=~p]",
+      Args = [Error],
+      lager:warning(Fmt, Args),
+      <<>>
+  end.
+
+-spec db_schema_vsn_file(string()) -> string().
+db_schema_vsn_file(BaseDir) ->
+  filename:join([BaseDir, ?DB_SCHEMA_VSN_FILE]).
+
+%% OTP does not include a library function to delete a non-empty dir.
+%% This code is adapted from:
+%% https://stackoverflow.com/questions/30606773
+-spec del_dir(string()) -> ok.
+del_dir(Dir) ->
+  lists:foreach(fun(D) ->
+                    ok = file:del_dir(D)
+                end, del_all_files([Dir], [])).
+
+-spec del_all_files([string()], [string()]) -> [string()].
+del_all_files([], EmptyDirs) ->
+  EmptyDirs;
+del_all_files([Dir | T], EmptyDirs) ->
+  {ok, FilesInDir} = file:list_dir(Dir),
+  {Files, Dirs} = lists:foldl(fun(F, {Fs, Ds}) ->
+                                  Path = filename:join([Dir, F]),
+                                  case filelib:is_dir(Path) of
+                                    true ->
+                                      {Fs, [Path | Ds]};
+                                    false ->
+                                      {[Path | Fs], Ds}
+                                  end
+                              end, {[], []}, FilesInDir),
+  lists:foreach(fun(F) ->
+                    ok = file:delete(F)
+                end, Files),
+  del_all_files(T ++ Dirs, [Dir | EmptyDirs]).
