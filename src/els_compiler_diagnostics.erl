@@ -21,20 +21,13 @@
 -include("erlang_ls.hrl").
 
 %%==============================================================================
-%% Defines
-%%==============================================================================
--define(COMPILER_OPTS, [ return_warnings
-                       , return_errors
-                       , basic_validation
-                       ]).
-
-%%==============================================================================
 %% Type Definitions
 %%==============================================================================
--type compiler_info() :: {erl_anno:line() | 'none', module(), any()}.
--type compiler_msg()  :: {file:filename(), [compiler_info()]}.
--type macro_config()  :: #{string() => string()}.
--type macro_option()  :: {'d', atom()} | {'d', atom(), any()}.
+-type compiler_info()  :: {erl_anno:line() | 'none', module(), any()}.
+-type compiler_msg()   :: {file:filename(), [compiler_info()]}.
+-type macro_config()   :: #{string() => string()}.
+-type macro_option()   :: {'d', atom()} | {'d', atom(), any()}.
+-type include_option() :: {'i', string()}.
 
 %%==============================================================================
 %% Callback Functions
@@ -69,12 +62,9 @@ source() ->
 %%==============================================================================
 -spec compile(uri()) -> [diagnostic()].
 compile(Uri) ->
+  Behaviours = behaviours(Uri),
   Path = binary_to_list(els_uri:path(Uri)),
-  Includes = [ {i, IncludePath}
-               || IncludePath <- els_config:get(include_paths)
-             ],
-  Opts = lists:append([macro_options(), Includes, ?COMPILER_OPTS]),
-  case compile:file(Path, Opts) of
+  case compile_file(Path, Behaviours) of
     {ok, _, WS} ->
       diagnostics(Path, WS, ?DIAGNOSTIC_WARNING);
     {error, ES, WS} ->
@@ -196,6 +186,11 @@ macro_option(#{"name" := Name, "value" := Value}) ->
 macro_option(#{"name" := Name}) ->
   {'d', list_to_atom(Name), true}.
 
+-spec include_options() -> [include_option()].
+include_options() ->
+  Paths = els_config:get(include_paths),
+  [ {i, Path} || Path <- Paths ].
+
 -spec string_to_term(list()) -> any().
 string_to_term(Value) ->
   try
@@ -212,3 +207,47 @@ string_to_term(Value) ->
       lager:error(Fmt, Args),
       true
   end.
+
+-spec behaviours(uri()) -> [atom()].
+behaviours(Uri) ->
+  {ok, [Document]} = els_dt_document:lookup(Uri),
+  POIs = els_dt_document:pois(Document, [behaviour]),
+  [Id || #{id := Id} <- POIs].
+
+-spec compile_file(string(), [atom()]) ->
+        {ok | error, [compiler_msg()], [compiler_msg()]}.
+compile_file(Path, Behaviours) ->
+  %% Load behaviours required for the compilation
+  Olds = [load_behaviour(Behaviour) || Behaviour <- Behaviours],
+  Opts = lists:append([ macro_options()
+                      , include_options()
+                      , [ return_warnings
+                        , return_errors
+                        , basic_validation
+                        ]
+                      ]),
+  Res = compile:file(Path, Opts),
+  %% Restore things after compilation
+  [code:load_binary(Behaviour, Filename, Binary)
+   || {Behaviour, Binary, Filename} <- Olds],
+  Res.
+
+%% @doc Load a behaviour, return the old version of the code (if any),
+%% so it can be restored.
+-spec load_behaviour(atom()) -> {atom(), binary(), file:filename()} | error.
+load_behaviour(Behaviour) ->
+  Old = code:get_object_code(Behaviour),
+  case els_utils:find_module(Behaviour) of
+    {ok, Uri} ->
+      Path = binary_to_list(els_uri:path(Uri)),
+      Opts = lists:append([macro_options(), include_options(), [binary]]),
+      case compile:file(Path, Opts) of
+        {ok, Behaviour, Binary} ->
+          code:load_binary(Behaviour, atom_to_list(Behaviour), Binary);
+        Error ->
+          lager:warning("Error compiling behaviour [error=~w]", [Error])
+      end;
+    {error, Error} ->
+      lager:warning("Error finding behaviour [error=~w]", [Error])
+  end,
+  Old.

@@ -62,6 +62,13 @@ init_per_suite(Config) ->
   DiagnosticsPath        = filename:join([ RootPath
                                          , <<"src">>
                                          , <<"diagnostics.erl">>]),
+  DiagnosticsBehPath     = filename:join([ RootPath
+                                         , <<"src">>
+                                         , <<"diagnostics_behaviour.erl">>]),
+  DiagnosticsBehImplPath = filename:join([ RootPath
+                                         , <<"src">>
+                                         , <<"diagnostics_behaviour_impl.erl">>
+                                         ]),
   DiagnosticsMacrosPath  = filename:join([ RootPath
                                          , <<"src">>
                                          , <<"diagnostics_macros.erl">>]),
@@ -87,6 +94,8 @@ init_per_suite(Config) ->
   BehaviourUri           = els_uri:uri(BehaviourPath),
   IncludeUri             = els_uri:uri(IncludePath),
   DiagnosticsUri         = els_uri:uri(DiagnosticsPath),
+  DiagnosticsBehUri      = els_uri:uri(DiagnosticsBehPath),
+  DiagnosticsBehImplUri  = els_uri:uri(DiagnosticsBehImplPath),
   DiagnosticsMacrosUri   = els_uri:uri(DiagnosticsMacrosPath),
   ElvisDiagnosticsUri    = els_uri:uri(ElvisDiagnosticsPath),
   DiagnosticsIncludeUri  = els_uri:uri(DiagnosticsIncludePath),
@@ -112,6 +121,8 @@ init_per_suite(Config) ->
   , {behaviour_uri, BehaviourUri}
   , {include_uri, IncludeUri}
   , {diagnostics_uri, DiagnosticsUri}
+  , {diagnostics_beh_uri, DiagnosticsBehUri}
+  , {diagnostics_beh_impl_uri, DiagnosticsBehImplUri}
   , {diagnostics_macros_uri, DiagnosticsMacrosUri}
   , {diagnostics_diff_path, DiagnosticsDiffPath}
   , {elvis_diagnostics_uri, ElvisDiagnosticsUri}
@@ -141,6 +152,8 @@ init_per_testcase(_TestCase, Config) ->
   els_indexer:find_and_index_file("code_navigation.hrl", sync),
   els_indexer:find_and_index_file("diagnostics.hrl", sync),
   els_indexer:find_and_index_file("my_gen_server", sync),
+  els_indexer:find_and_index_file("diagnostics_behaviour", sync),
+  els_indexer:find_and_index_file("diagnostics_behaviour_impl", sync),
 
   [{started, Started} | Config].
 
