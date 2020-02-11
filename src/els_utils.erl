@@ -197,7 +197,7 @@ contains_symlink(Path, RootPath) ->
   end.
 
 %%==============================================================================
-%% This section excerpted from the rebar3 sources, rebar_dir.els
+%% This section excerpted from the rebar3 sources, rebar_dir.erl
 %% Pending resolution of https://github.com/erlang/rebar3/issues/2223
 %%==============================================================================
 
