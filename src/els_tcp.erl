@@ -80,6 +80,10 @@ loop(#state{buffer = Buffer} = State) ->
       inet:setopts(Socket, [{active, once}]),
       loop(State#state{buffer = NewBuffer});
     {tcp_closed, _Socket} ->
+      ok = els_server:process_requests([#{
+                                          <<"method">> => <<"exit">>,
+                                          <<"params">> => []
+                                         }]),
       ok;
     Message ->
       lager:warning("Unsupported message: ~p", [Message]),
