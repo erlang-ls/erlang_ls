@@ -173,7 +173,9 @@ initialized(_Params, State) ->
   {ok, Version} = application:get_key(App, vsn),
   lager:info("initialized: [App=~p] [Version=~p]", [App, Version]),
   BinVersion = list_to_binary(Version),
-  Message = <<"Erlang LS version: ", BinVersion/binary>>,
+  Root = filename:basename(els_uri:path(els_config:get(root_uri))),
+  Message = <<"Erlang LS (in ", Root/binary, "), version: "
+             , BinVersion/binary>>,
   Method  = <<"window/showMessage">>,
   Params  = #{ type    => ?MESSAGE_TYPE_INFO
              , message => Message
