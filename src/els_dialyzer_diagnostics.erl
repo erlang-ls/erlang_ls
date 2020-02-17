@@ -31,6 +31,7 @@ diagnostics(Uri) ->
     DialyzerPltPath ->
       WS = try dialyzer:run([ {files, [binary_to_list(Path)]}
                             , {from, src_code}
+                            , {include_dirs, els_config:get(include_paths)}
                             , {plts, [DialyzerPltPath]}
                             ])
            catch Type:Error ->
