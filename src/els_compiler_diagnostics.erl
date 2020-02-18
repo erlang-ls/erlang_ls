@@ -62,9 +62,9 @@ source() ->
 %%==============================================================================
 -spec compile(uri()) -> [diagnostic()].
 compile(Uri) ->
-  Behaviours = behaviours(Uri),
+  Dependencies = dependencies(Uri),
   Path = binary_to_list(els_uri:path(Uri)),
-  case compile_file(Path, Behaviours) of
+  case compile_file(Path, Dependencies) of
     {ok, _, WS} ->
       diagnostics(Path, WS, ?DIAGNOSTIC_WARNING);
     {error, ES, WS} ->
@@ -208,17 +208,17 @@ string_to_term(Value) ->
       true
   end.
 
--spec behaviours(uri()) -> [atom()].
-behaviours(Uri) ->
+-spec dependencies(uri()) -> [atom()].
+dependencies(Uri) ->
   {ok, [Document]} = els_dt_document:lookup(Uri),
-  POIs = els_dt_document:pois(Document, [behaviour]),
+  POIs = els_dt_document:pois(Document, [behaviour, parse_transform]),
   [Id || #{id := Id} <- POIs].
 
 -spec compile_file(string(), [atom()]) ->
         {ok | error, [compiler_msg()], [compiler_msg()]}.
-compile_file(Path, Behaviours) ->
-  %% Load behaviours required for the compilation
-  Olds = [load_behaviour(Behaviour) || Behaviour <- Behaviours],
+compile_file(Path, Dependencies) ->
+  %% Load dependencies required for the compilation
+  Olds = [load_dependency(Dependency) || Dependency <- Dependencies],
   Opts = lists:append([ macro_options()
                       , include_options()
                       , [ return_warnings
@@ -228,26 +228,26 @@ compile_file(Path, Behaviours) ->
                       ]),
   Res = compile:file(Path, Opts),
   %% Restore things after compilation
-  [code:load_binary(Behaviour, Filename, Binary)
-   || {Behaviour, Binary, Filename} <- Olds],
+  [code:load_binary(Dependency, Filename, Binary)
+   || {Dependency, Binary, Filename} <- Olds],
   Res.
 
-%% @doc Load a behaviour, return the old version of the code (if any),
+%% @doc Load a dependency, return the old version of the code (if any),
 %% so it can be restored.
--spec load_behaviour(atom()) -> {atom(), binary(), file:filename()} | error.
-load_behaviour(Behaviour) ->
-  Old = code:get_object_code(Behaviour),
-  case els_utils:find_module(Behaviour) of
+-spec load_dependency(atom()) -> {atom(), binary(), file:filename()} | error.
+load_dependency(Module) ->
+  Old = code:get_object_code(Module),
+  case els_utils:find_module(Module) of
     {ok, Uri} ->
       Path = binary_to_list(els_uri:path(Uri)),
       Opts = lists:append([macro_options(), include_options(), [binary]]),
       case compile:file(Path, Opts) of
-        {ok, Behaviour, Binary} ->
-          code:load_binary(Behaviour, atom_to_list(Behaviour), Binary);
+        {ok, Module, Binary} ->
+          code:load_binary(Module, atom_to_list(Module), Binary);
         Error ->
-          lager:warning("Error compiling behaviour [error=~w]", [Error])
+          lager:warning("Error compiling dependency [error=~w]", [Error])
       end;
     {error, Error} ->
-      lager:warning("Error finding behaviour [error=~w]", [Error])
+      lager:warning("Error finding dependency [error=~w]", [Error])
   end,
   Old.
