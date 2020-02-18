@@ -221,7 +221,7 @@ dependencies([Uri|Uris], Acc) ->
   IncludedUris = included_uris(Document),
   dependencies(Uris ++ IncludedUris, Acc ++ [Id || #{id := Id} <- Deps]).
 
--spec included_uris(els_dt_document:document()) -> [uri()].
+-spec included_uris(els_dt_document:item()) -> [uri()].
 included_uris(Document) ->
   POIs = els_dt_document:pois(Document, [include, include_lib]),
   included_uris([Id || #{id := Id} <- POIs], []).
