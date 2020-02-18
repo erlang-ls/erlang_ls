@@ -21,6 +21,7 @@
 %%==============================================================================
 -spec start(normal, any()) -> {ok, pid()}.
 start(_StartType, _StartArgs) ->
+  ok = application:set_env(elvis, no_output, true),
   {ok, Transport} = application:get_env(erlang_ls, transport),
   {ok, _}   = els_server:start_link(Transport),
   els_sup:start_link().
