@@ -78,6 +78,10 @@ range({Line, Column}, module, _) ->
   From = {Line, Column},
   To = From,
   #{ from => From, to => To };
+range({Line, _Column}, parse_transform, _Define) ->
+  From = {Line, 1},
+  To = From,
+  #{ from => From, to => To };
 range(Pos, record_access, {Record, Field}) ->
   #{ from => minus(Pos, "#")
    , to => plus(Pos, atom_to_list(Record) ++ "." ++ atom_to_list(Field)) };

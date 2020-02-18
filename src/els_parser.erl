@@ -216,6 +216,8 @@ attribute(Tree) ->
       [poi(Pos, behaviour, Behaviour)];
     {behaviour, {behaviour, Behaviour}} ->
       [poi(Pos, behaviour, Behaviour)];
+    {compile, {compile, {parse_transform, ParseTransform}}} ->
+      [poi(Pos, parse_transform, ParseTransform)];
     {module, {Module, _Args}} ->
       [poi(Pos, module, Module)];
     {module, Module} ->
