@@ -149,8 +149,12 @@ handle_cast(_Msg, State) -> {noreply, State}.
 %%==============================================================================
 
 -spec config_paths(path(), map()) -> [path()].
-config_paths(RootPath, #{<<"erlang">> := #{<<"config_path">> := ConfigPath}}) ->
-  [filename:join([RootPath, ConfigPath]) | default_config_paths(RootPath)];
+config_paths( RootPath
+            , #{<<"erlang">> := #{<<"config_path">> := ConfigPath0}}) ->
+  ConfigPath = binary_to_list(ConfigPath0),
+  lists:append([ possible_config_paths(ConfigPath)
+               , possible_config_paths(filename:join([RootPath, ConfigPath]))
+               , default_config_paths(RootPath)]);
 config_paths(RootPath, _Config) ->
   default_config_paths(RootPath).
 
@@ -160,6 +164,11 @@ default_config_paths(RootPath) ->
   [ filename:join([RootPath, ?DEFAULT_CONFIG_FILE])
   , filename:join([GlobalConfigDir, ?DEFAULT_CONFIG_FILE])
   ].
+
+%% @doc Bare `Path' as well as with default config file name suffix.
+-spec possible_config_paths(path()) -> [path()].
+possible_config_paths(Path) ->
+  [ Path, filename:join([Path, ?DEFAULT_CONFIG_FILE]) ].
 
 -spec consult_config([path()]) -> map().
 consult_config([]) -> #{};
