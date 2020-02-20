@@ -123,7 +123,6 @@ handle_request(Request, #state{internal_state = InternalState} = State0) ->
            true  -> request;
            false -> notification
          end,
-  %% TODO: InternalState needed?
   case els_methods:dispatch(Method, Params, Type, InternalState) of
     {response, Result, NewInternalState} ->
       RequestId = maps:get(<<"id">>, Request),
