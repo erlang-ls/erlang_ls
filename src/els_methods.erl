@@ -11,7 +11,8 @@
         , exit/2
         ]).
 
--export([ cancel_request/2
+-export([ '$_cancelrequest'/2
+        , '$_settracenotification'/2
         , textdocument_completion/2
         , textdocument_didopen/2
         , textdocument_didchange/2
@@ -91,8 +92,8 @@ not_implemented_method(Method, State) ->
   {notification, Method1, Params, State}.
 
 -spec method_to_function_name(method_name()) -> atom().
-method_to_function_name(<<"$/cancelRequest">>) ->
-  cancel_request;
+method_to_function_name(<<"$/", Method/binary>>) ->
+  method_to_function_name(<<"$_", Method/binary>>);
 method_to_function_name(Method) ->
   Replaced = string:replace(Method, <<"/">>, <<"_">>),
   Lower    = string:lowercase(Replaced),
@@ -103,8 +104,16 @@ method_to_function_name(Method) ->
 %% $/cancelRequest
 %%==============================================================================
 
--spec cancel_request(params(), state()) -> result().
-cancel_request(_Params, State) ->
+-spec '$_cancelrequest'(params(), state()) -> result().
+'$_cancelrequest'(_Params, State) ->
+  {noresponse, State}.
+
+%%==============================================================================
+%% $/setTraceNotification
+%%==============================================================================
+
+-spec '$_settracenotification'(params(), state()) -> result().
+'$_settracenotification'(_Params, State) ->
   {noresponse, State}.
 
 %%==============================================================================

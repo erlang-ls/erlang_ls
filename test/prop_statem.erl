@@ -41,10 +41,11 @@ initial_state() ->
 %%==============================================================================
 %% Weights
 %%==============================================================================
-weight(_S, cancel_request) -> 1;
-weight(_S, shutdown)       -> 1;
-weight(_S, exit)           -> 1;
-weight(_S, _Cmd)           -> 5.
+weight(_S, '$_cancelrequest')        -> 1;
+weight(_S, '$_settracenotification') -> 1;
+weight(_S, shutdown)                 -> 1;
+weight(_S, exit)                     -> 1;
+weight(_S, _Cmd)                     -> 5.
 
 %%==============================================================================
 %% Commands
@@ -124,22 +125,44 @@ initialize_post(_S, _Args, Res) ->
 %%------------------------------------------------------------------------------
 %% $/cancelRequest
 %%------------------------------------------------------------------------------
-cancel_request(RequestId) ->
-  els_client:cancel_request(RequestId).
+'$_cancelrequest'(RequestId) ->
+  els_client:'$_cancelrequest'(RequestId).
 
-cancel_request_args(_S) ->
+'$_cancelrequest_args'(_S) ->
   [pos_integer()].
 
-cancel_request_pre(#{connected := Connected} = _S) ->
+'$_cancelrequest_pre'(#{connected := Connected} = _S) ->
   Connected.
 
-cancel_request_pre(_S, [_Id]) ->
+'$_cancelrequest_pre'(_S, [_Id]) ->
   true.
 
-cancel_request_next(S, _R, [_Id]) ->
+'$_cancelrequest_next'(S, _R, [_Id]) ->
   S.
 
-cancel_request_post(_S, _Args, Res) ->
+'$_cancelrequest_post'(_S, _Args, Res) ->
+  ?assertEqual(ok, Res),
+  true.
+
+%%------------------------------------------------------------------------------
+%% $/setTraceNotification
+%%------------------------------------------------------------------------------
+'$_settracenotification'() ->
+  els_client:'$_settracenotification'().
+
+'$_settracenotification_args'(_S) ->
+  [].
+
+'$_settracenotification_pre'(#{connected := Connected} = _S) ->
+  Connected.
+
+'$_settracenotification_pre'(_S, []) ->
+  true.
+
+'$_settracenotification_next'(S, _R, []) ->
+  S.
+
+'$_settracenotification_post'(_S, _Args, Res) ->
   ?assertEqual(ok, Res),
   true.
 
