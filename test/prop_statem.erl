@@ -43,6 +43,7 @@ initial_state() ->
 %%==============================================================================
 weight(_S, '$_cancelrequest')        -> 1;
 weight(_S, '$_settracenotification') -> 1;
+weight(_S, '$_unexpectedrequest')    -> 1;
 weight(_S, shutdown)                 -> 1;
 weight(_S, exit)                     -> 1;
 weight(_S, _Cmd)                     -> 5.
@@ -164,6 +165,28 @@ initialize_post(_S, _Args, Res) ->
 
 '$_settracenotification_post'(_S, _Args, Res) ->
   ?assertEqual(ok, Res),
+  true.
+
+%%------------------------------------------------------------------------------
+%% $/unexpectedRequest
+%%------------------------------------------------------------------------------
+'$_unexpectedrequest'() ->
+  els_client:'$_unexpectedrequest'().
+
+'$_unexpectedrequest_args'(_S) ->
+  [].
+
+'$_unexpectedrequest_pre'(#{connected := Connected} = _S) ->
+  Connected.
+
+'$_unexpectedrequest_pre'(_S, []) ->
+  true.
+
+'$_unexpectedrequest_next'(S, _R, []) ->
+  S.
+
+'$_unexpectedrequest_post'(_S, _Args, Res) ->
+  assert_method_not_found(Res),
   true.
 
 %%------------------------------------------------------------------------------
@@ -357,6 +380,10 @@ assert_invalid_request(Res) ->
 
 assert_server_not_initialized(Res) ->
   ?assertMatch( #{error := #{code := ?ERR_SERVER_NOT_INITIALIZED, message := _}}
+              , Res).
+
+assert_method_not_found(Res) ->
+  ?assertMatch( #{error := #{code := ?ERR_METHOD_NOT_FOUND, message := _}}
               , Res).
 
 meck_matcher_integer(N) ->

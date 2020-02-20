@@ -2,7 +2,7 @@
 
 -include("erlang_ls.hrl").
 
--export([ dispatch/3
+-export([ dispatch/4
         ]).
 
 -export([ initialize/2
@@ -11,9 +11,7 @@
         , exit/2
         ]).
 
--export([ '$_cancelrequest'/2
-        , '$_settracenotification'/2
-        , textdocument_completion/2
+-export([ textdocument_completion/2
         , textdocument_didopen/2
         , textdocument_didchange/2
         , textdocument_didsave/2
@@ -33,19 +31,33 @@
         , workspace_symbol/2
         ]).
 
--type method_name() :: binary().
--type state()       :: map().
--type params()      :: map().
--type result()      :: {response, params() | null, state()}
-                     | {error, params(), state()}
-                     | {noresponse, state()}
-                     | {notification, binary(), params(), state()}.
+-type method_name()  :: binary().
+-type state()        :: map().
+-type params()       :: map().
+-type result()       :: {response, params() | null, state()}
+                      | {error, params(), state()}
+                      | {noresponse, state()}
+                      | {notification, binary(), params(), state()}.
+-type request_type() :: notification | request.
 
 %%==============================================================================
 %% @doc Dispatch the handling of the method to els_method
 %%==============================================================================
--spec dispatch(method_name(), params(), state()) -> result().
-dispatch(Method, Params, State) ->
+-spec dispatch(method_name(), params(), request_type(), state()) -> result().
+dispatch(<<"$/", Method/binary>>, Params, notification, State) ->
+  Msg = "Ignoring $/ notification [method=~p] [params=~p]",
+  Fmt = [Method, Params],
+  lager:debug(Msg, Fmt),
+  {noresponse, State};
+dispatch(<<"$/", Method/binary>>, Params, request, State) ->
+  Msg = "Ignoring $/ request [method=~p] [params=~p]",
+  Fmt = [Method, Params],
+  lager:debug(Msg, Fmt),
+  Error = #{ code    => ?ERR_METHOD_NOT_FOUND
+           , message => <<"Method not found: ", Method/binary>>
+           },
+  {error, Error, State};
+dispatch(Method, Params, _Type, State) ->
   Function = method_to_function_name(Method),
   lager:debug("Dispatching request [method=~p] [params=~p]", [Method, Params]),
   try do_dispatch(Function, Params, State)
@@ -99,22 +111,6 @@ method_to_function_name(Method) ->
   Lower    = string:lowercase(Replaced),
   Binary   = erlang:iolist_to_binary(Lower),
   binary_to_atom(Binary, utf8).
-
-%%==============================================================================
-%% $/cancelRequest
-%%==============================================================================
-
--spec '$_cancelrequest'(params(), state()) -> result().
-'$_cancelrequest'(_Params, State) ->
-  {noresponse, State}.
-
-%%==============================================================================
-%% $/setTraceNotification
-%%==============================================================================
-
--spec '$_settracenotification'(params(), state()) -> result().
-'$_settracenotification'(_Params, State) ->
-  {noresponse, State}.
 
 %%==============================================================================
 %% Initialize

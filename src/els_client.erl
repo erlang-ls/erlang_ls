@@ -23,6 +23,7 @@
 %% API
 -export([ '$_cancelrequest'/1
         , '$_settracenotification'/0
+        , '$_unexpectedrequest'/0
         , completion/5
         , definition/3
         , did_open/4
@@ -85,6 +86,10 @@
 -spec '$_settracenotification'() -> ok.
 '$_settracenotification'() ->
   gen_server:call(?SERVER, {'$_settracenotification'}).
+
+-spec '$_unexpectedrequest'() -> ok.
+'$_unexpectedrequest'() ->
+  gen_server:call(?SERVER, {'$_unexpectedrequest'}).
 
 %% TODO: More accurate and consistent parameters list
 -spec completion( uri()
@@ -238,6 +243,16 @@ handle_call({'$_settracenotification'}, _From, State) ->
   Content = els_protocol:notification(Method, Params),
   Cb:send(Server, Content),
   {reply, ok, State};
+handle_call({'$_unexpectedrequest'}, From, State) ->
+  #state{transport_cb = Cb, transport_server = Server} = State,
+  RequestId = State#state.request_id,
+  Method = <<"$/unexpectedRequest">>,
+  Params = #{},
+  Content = els_protocol:request(RequestId, Method, Params),
+  Cb:send(Server, Content),
+  {noreply, State#state{ request_id = RequestId + 1
+                       , pending    = [{RequestId, From} | State#state.pending]
+                       }};
 handle_call(Input = {Action, _}, From, State) ->
   #state{ transport_cb     = Cb
         , transport_server = Server
