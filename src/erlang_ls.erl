@@ -3,7 +3,7 @@
 -export([ main/1 ]).
 
 -define(APP, erlang_ls).
--define(DEFAULT_LOGGING_LEVEL, debug).
+-define(DEFAULT_LOGGING_LEVEL, info).
 
 -spec main([any()]) -> ok.
 main(Args) ->
