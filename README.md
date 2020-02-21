@@ -325,8 +325,11 @@ Plug 'neoclide/coc.nvim', {'branch': 'release'}
 Plug 'hyhugh/coc-erlang_ls', {'do': 'yarn install --frozen-lockfile'}
 ```
 
-Then restart vim and run `:PlugInstall`. If the erlang_ls server is running,
-then when vim starts you should see the message that Coc has connected to it:
+You should ensure your `yarn` has frozen-lockfile support (current version
+distributed by `brew` does not). Then restart vim and run `:PlugInstall`. If
+the erlang_ls server is running, and you have [configured the CoC
+plugin](https://github.com/hyhugh/coc-erlang_ls#config), then when vim starts
+you should see the message that Coc has connected to it:
 
 ```vim
 [coc.nvim] coc-erlang_ls is ready
@@ -504,4 +507,5 @@ https://microsoft.github.io/language-server-protocol/
 
 ## License
 
-The `erlang_ls` project is licensed under the Apache License 2.0. Please refer to the `LICENSE` file for details.
+The `erlang_ls` project is licensed under the Apache License 2.0. Please refer
+to the `LICENSE` file for details.
