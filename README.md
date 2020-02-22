@@ -151,7 +151,7 @@ If things do not work as expected, we advise you to start Emacs with
 only the configuration from the provided sample file, using the
 following command:
 
-    emacs -q -l /path/to/erlang-ls/dotemacs
+    emacs -q -l [PATH-TO-ERLANG-LS]/misc/dotemacs
 
 This will remove from the equation potential incompatibilities with
 other packages or configurations that you may have on your workstation
