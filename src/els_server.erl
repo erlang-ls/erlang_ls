@@ -119,7 +119,11 @@ handle_cast(_, State) ->
 handle_request(Request, #state{internal_state = InternalState} = State0) ->
   Method = maps:get(<<"method">>, Request),
   Params = maps:get(<<"params">>, Request),
-  case els_methods:dispatch(Method, Params, InternalState) of
+  Type = case maps:is_key(<<"id">>, Request) of
+           true  -> request;
+           false -> notification
+         end,
+  case els_methods:dispatch(Method, Params, Type, InternalState) of
     {response, Result, NewInternalState} ->
       RequestId = maps:get(<<"id">>, Request),
       Response = els_protocol:response(RequestId, Result),
