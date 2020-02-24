@@ -17,6 +17,7 @@
         , compiler_with_parse_transform/1
         , compiler_with_parse_transform_included/1
         , code_reload/1
+        , code_reload_sticky_mod/1
         , elvis/1
         ]).
 
@@ -56,7 +57,8 @@ end_per_suite(Config) ->
   els_test_utils:end_per_suite(Config).
 
 -spec init_per_testcase(atom(), config()) -> config().
-init_per_testcase(code_reload = TestCase, Config) ->
+init_per_testcase(TestCase, Config) when TestCase =:= code_reload orelse
+                                         TestCase =:= code_reload_sticky_mod ->
   mock_rpc(),
   mock_code_reload_enabled(),
   els_test_utils:init_per_testcase(TestCase, Config);
@@ -65,7 +67,8 @@ init_per_testcase(TestCase, Config) ->
   els_test_utils:init_per_testcase(TestCase, Config).
 
 -spec end_per_testcase(atom(), config()) -> ok.
-end_per_testcase(code_reload = TestCase, Config) ->
+end_per_testcase(TestCase, Config) when TestCase =:= code_reload orelse
+                                        TestCase =:= code_reload_sticky_mod ->
   unmock_rpc(),
   unmock_code_reload_enabled(),
   els_test_utils:end_per_testcase(TestCase, Config);
@@ -236,6 +239,23 @@ code_reload(Config) ->
   Module = els_uri:module(Uri),
   ok = els_text_synchronization:maybe_compile_and_load(Uri, []),
   ?assert(meck:called(rpc, call, ['fakenode', c, c, [Module]])),
+  ok.
+
+-spec code_reload_sticky_mod(config()) -> ok.
+code_reload_sticky_mod(Config) ->
+  Uri = ?config(diagnostics_uri, Config),
+  Module = els_uri:module(Uri),
+  meck:expect( rpc
+             , call
+             , fun('fakenode', code, is_sticky, [_]) ->
+                   true;
+                  (Node, Mod, Fun, Args) ->
+                   meck:passthrough([Node, Mod, Fun, Args])
+               end
+             ),
+  ok = els_text_synchronization:maybe_compile_and_load(Uri, []),
+  ?assert(meck:called(rpc, call, ['fakenode', code, is_sticky, [Module]])),
+  ?assertNot(meck:called(rpc, call, ['fakenode', c, c, [Module]])),
   ok.
 
 %%==============================================================================
