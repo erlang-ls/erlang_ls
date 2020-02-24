@@ -8,6 +8,7 @@
         ]).
 
 -export([ generate_diagnostics/1
+        , diagnostics/3
         , maybe_compile_and_load/2
         ]).
 
@@ -37,15 +38,26 @@ did_close(_Params) -> ok.
 
 -spec generate_diagnostics(uri()) -> ok.
 generate_diagnostics(Uri) ->
-  CDiagnostics = els_compiler_diagnostics:diagnostics(Uri),
-  DDiagnostics = els_dialyzer_diagnostics:diagnostics(Uri),
-  EDiagnostics = els_elvis_diagnostics:diagnostics(Uri),
+  Sync        = [els_compiler_diagnostics],
+  Diagnostics = diagnostics(Uri, Sync, []),
+  maybe_compile_and_load(Uri, Diagnostics),
+
+  Async = [ els_dialyzer_diagnostics
+          , els_elvis_diagnostics
+          ],
+  erlang:spawn(?MODULE, diagnostics, [Uri, Async, Diagnostics]),
+  ok.
+
+-spec diagnostics(uri(), [module()], [diagnostic()]) -> [diagnostic()].
+diagnostics(Uri, Modules, Previous) ->
+  Diagnostics = [apply(M, diagnostics, [Uri]) || M <- Modules],
+  AllDiagnostics = lists:append([Previous | Diagnostics]),
   Method = <<"textDocument/publishDiagnostics">>,
-  Params1  = #{ uri => Uri
-              , diagnostics => CDiagnostics ++ DDiagnostics ++ EDiagnostics
-              },
-  maybe_compile_and_load(Uri, CDiagnostics),
-  els_server:send_notification(Method, Params1).
+  Params  = #{ uri         => Uri
+             , diagnostics => AllDiagnostics
+             },
+  els_server:send_notification(Method, Params),
+  AllDiagnostics.
 
 -spec maybe_compile_and_load(uri(), [diagnostic()]) -> ok.
 maybe_compile_and_load(Uri, [] = _CDiagnostics) ->
