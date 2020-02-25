@@ -8,6 +8,7 @@
         , project_relative/1
         , resolve_paths/3
         , halt/1
+        , log_level_to_filename/1
         ]).
 
 -include("erlang_ls.hrl").
@@ -238,3 +239,21 @@ make_normalized_path([H|T], NormalizedPath) ->
                   -> make_normalized_path(T, tl(NormalizedPath));
         _    -> make_normalized_path(T, [H|NormalizedPath])
     end.
+
+-spec log_level_to_filename(string()) -> string().
+log_level_to_filename(LogLevel) ->
+    log_level_to_filename(LogLevel, []).
+
+-spec log_level_to_filename(string(), list(string())) -> string().
+log_level_to_filename([$< | Rest], ResultingFilename) ->
+    log_level_to_filename(Rest, ["lt" | ResultingFilename]);
+log_level_to_filename([$> | Rest], ResultingFilename) ->
+    log_level_to_filename(Rest, ["gt" | ResultingFilename]);
+log_level_to_filename([$= | Rest], ResultingFilename) ->
+    log_level_to_filename(Rest, ["eq" | ResultingFilename]);
+log_level_to_filename([$! | Rest], ResultingFilename) ->
+    log_level_to_filename(Rest, ["not" | ResultingFilename]);
+log_level_to_filename(Rest, ResultingFilename) ->
+    FinalRevFilename = [Rest | ResultingFilename],
+    FinalFilename = lists:reverse(FinalRevFilename),
+    lists:join("-", FinalFilename).

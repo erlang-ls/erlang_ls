@@ -3,6 +3,7 @@
 -export([ main/1 ]).
 
 -define(APP, erlang_ls).
+-define(DEFAULT_LOGGING_LEVEL, "info").
 
 -spec main([any()]) -> ok.
 main(Args) ->
@@ -37,6 +38,9 @@ parse_args(["--log-dir", Dir | Rest]) ->
   application:set_env(?APP, logging_enabled, true),
   application:set_env(?APP, log_dir, Dir),
   parse_args(Rest);
+parse_args(["--log-level", Level | Rest]) ->
+  application:set_env(?APP, log_level, Level),
+  parse_args(Rest);
 %% For backward compatibility with clients
 parse_args([Port | Rest]) ->
   application:set_env(?APP, port, list_to_integer(Port)),
@@ -64,11 +68,14 @@ lager_config() ->
 
 -spec lager_handlers(string()) -> [any()].
 lager_handlers(LogRoot) ->
-  LogFile = filename:join([LogRoot, "debug.log"]),
+  LoggingLevel = application:get_env(?APP, log_level, ?DEFAULT_LOGGING_LEVEL),
+  FilenamesToJoin = [ LogRoot
+                    , els_utils:log_level_to_filename(LoggingLevel) ++ ".log"],
+  LogFile = filename:join(FilenamesToJoin),
   ok      = filelib:ensure_dir(LogFile),
   [ { lager_file_backend
     , [ {file, LogFile}
-      , {level, debug}
+      , {level, LoggingLevel}
       ]
     }
   ].
