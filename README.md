@@ -479,10 +479,17 @@ the Database Directory on your system:
 
 When the escript is built using the `debug` profile as above, logging
 will be enabled and the logs will be written to your platform's log
-directory (i.e. return value from `filename:basedir(user_log, "erlang_ls")`).
-It's possible to change this directory either by modifying the default
-value in the `erlang_ls.app.src` file or by having the LSP client
-being used to provide a `--log-dir` option.
+directory (i.e. the return value from `filename:basedir(user_log,
+"erlang_ls")`), in a file named `server.log`.
+
+It's possible to customize the logging directory by using the
+`--log-dir` option when starting the server.
+
+It's also possible to specify the verbosity of the logs by using the
+`--log-level` option. In addition to the `notice`, `debug`, `info`,
+`warning` and `error` levels, [syslog style loglevel comparison
+flags](https://github.com/erlang-lager/lager#syslog-style-loglevel-comparison-flags)
+can also be used.
 
 When the `escript` is built in the `default` mode (i.e. `rebar3 escript`),
 no log files are generated, unless the `--log-dir` option is provided.
