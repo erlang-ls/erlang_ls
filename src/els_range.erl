@@ -89,9 +89,9 @@ range({Line, Column}, record_expr, Record) ->
   From = {Line, Column - 1},
   To = plus({Line, Column}, atom_to_list(Record)),
   #{ from => From, to => To };
-range({Line, _Column}, record, _Record) ->
-  From = {Line, 1},
-  To = From,
+range({Line, Column}, record, Record) ->
+  From = plus({Line, Column}, "record("),
+  To = plus(From, atom_to_list(Record)),
   #{ from => From, to => To };
 range({Line, Column}, spec, _) ->
   #{ from => {Line, Column}

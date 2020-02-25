@@ -90,6 +90,8 @@ do_index(#{uri := Uri, id := Id, kind := Kind} = Document) ->
   %% References
   POIs  = els_dt_document:pois(Document, [ application
                                          , implicit_fun
+                                         , record_expr
+                                         , record_access
                                          ]),
   ok = els_dt_references:delete_by_uri(Uri),
   [register_reference(Uri, POI) || POI <- POIs],
@@ -206,6 +208,20 @@ index_document(Document, sync) ->
   ok = index(Document).
 
 -spec register_reference(uri(), poi()) -> ok.
+register_reference( Uri
+                  , #{kind := record_expr, id := Name, range := Range}
+                  ) ->
+  els_dt_references:insert(#{ id    => {record, Name}
+                            , uri   => Uri
+                            , range => Range
+                            });
+register_reference( Uri
+                  , #{kind := record_access, id := {Name, _}, range := Range}
+                  ) ->
+  els_dt_references:insert(#{ id    => {record, Name}
+                            , uri   => Uri
+                            , range => Range
+                            });
 register_reference(Uri, #{id := {F, A}} = POI) ->
   M = els_uri:module(Uri),
   register_reference(Uri, POI#{ id => {M, F, A}});

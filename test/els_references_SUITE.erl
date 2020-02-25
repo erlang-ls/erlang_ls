@@ -17,6 +17,7 @@
         , fun_local/1
         , fun_remote/1
         , export_entry/1
+        , record/1
         , purge_references/1
         ]).
 
@@ -38,7 +39,7 @@
 suite() ->
   [{timetrap, {seconds, 30}}].
 
--spec all() -> [atom()].
+-spec all() -> [{group, atom()}].
 all() ->
   [{group, tcp}, {group, stdio}].
 
@@ -147,6 +148,37 @@ export_entry(Config) ->
                          }
                       ],
   assert_locations(Locations, ExpectedLocations),
+  ok.
+
+-spec record(config()) -> ok.
+record(Config) ->
+  Uri = ?config(code_navigation_uri, Config),
+  ExpectedLocations = [ #{ uri => Uri
+                         , range => #{from => {23, 2}, to => {23, 11}}
+                         }
+                      , #{ uri => Uri
+                         , range => #{from => {33, 6}, to => {33, 15}}
+                         }
+                      , #{ uri => Uri
+                         , range => #{from => {34, 7}, to => {34, 25}}
+                         }
+                      ],
+
+  ct:comment("Find references record_a from a usage"),
+  #{result := Locations} = els_client:references(Uri, 23, 4),
+  ct:comment("Find references record_a from a field usage"),
+  #{result := Locations} = els_client:references(Uri, 34, 22),
+  ct:comment("Find references record_a from beginning of definition"),
+  #{result := Locations} = els_client:references(Uri, 16, 9),
+  ct:comment("Find references record_a from end of definition"),
+  #{result := Locations} = els_client:references(Uri, 16, 16),
+
+  assert_locations(Locations, ExpectedLocations),
+
+  ct:comment("Check limits of record_a"),
+  #{result := null} = els_client:references(Uri, 16, 8),
+  #{result := null} = els_client:references(Uri, 16, 18),
+
   ok.
 
 %% Issue #245
