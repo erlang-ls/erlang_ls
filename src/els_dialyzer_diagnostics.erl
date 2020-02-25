@@ -29,7 +29,8 @@ diagnostics(Uri) ->
   case els_config:get(plt_path) of
     undefined -> [];
     DialyzerPltPath ->
-      WS = try dialyzer:run([ {files, [binary_to_list(Path)]}
+      Dependencies = deps_paths(els_diagnostics_utils:dependencies(Uri)),
+      WS = try dialyzer:run([ {files, [binary_to_list(Path) | Dependencies]}
                             , {from, src_code}
                             , {include_dirs, els_config:get(include_paths)}
                             , {plts, [DialyzerPltPath]}
@@ -61,3 +62,10 @@ diagnostic({_, {_, Line}, _} = Warning) ->
    , severity => ?DIAGNOSTIC_WARNING
    , source   => source()
    }.
+
+-spec deps_paths([diagnostic()]) -> [els_uri:path()].
+deps_paths(Dependencies) ->
+  lists:map(fun(Dependency) ->
+                {ok, Uri} = els_utils:find_module(Dependency),
+                els_uri:path(Uri)
+            end, Dependencies).
