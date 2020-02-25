@@ -50,9 +50,13 @@ generate_diagnostics(Uri) ->
 -spec maybe_compile_and_load(uri(), [diagnostic()]) -> ok.
 maybe_compile_and_load(Uri, [] = _CDiagnostics) ->
   case els_config:get(code_reload) of
-    #{"node" := Node} ->
+    #{"node" := NodeStr} ->
+      Node = list_to_atom(NodeStr),
       Module = els_uri:module(Uri),
-      handle_rpc_result(rpc:call(list_to_atom(Node), c, c, [Module]), Module);
+      case rpc:call(Node, code, is_sticky, [Module]) of
+        true -> ok;
+        _ -> handle_rpc_result(rpc:call(Node, c, c, [Module]), Module)
+      end;
     disabled ->
       ok
   end;
