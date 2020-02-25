@@ -62,7 +62,7 @@ source() ->
 %%==============================================================================
 -spec compile(uri()) -> [diagnostic()].
 compile(Uri) ->
-  Dependencies = dependencies(Uri),
+  Dependencies = els_diagnostics_utils:dependencies(Uri),
   Path = binary_to_list(els_uri:path(Uri)),
   case compile_file(Path, Dependencies) of
     {ok, _, WS} ->
@@ -206,33 +206,6 @@ string_to_term(Value) ->
       Args = [Value, Exception],
       lager:error(Fmt, Args),
       true
-  end.
-
--spec dependencies(uri()) -> [atom()].
-dependencies(Uri) ->
-  dependencies([Uri], []).
-
--spec dependencies([uri()], [atom()]) -> [atom()].
-dependencies([], Acc) ->
-  Acc;
-dependencies([Uri|Uris], Acc) ->
-  {ok, [Document]} = els_dt_document:lookup(Uri),
-  Deps = els_dt_document:pois(Document, [behaviour, parse_transform]),
-  IncludedUris = included_uris(Document),
-  dependencies(Uris ++ IncludedUris, Acc ++ [Id || #{id := Id} <- Deps]).
-
--spec included_uris(els_dt_document:item()) -> [uri()].
-included_uris(Document) ->
-  POIs = els_dt_document:pois(Document, [include, include_lib]),
-  included_uris([Id || #{id := Id} <- POIs], []).
-
--spec included_uris([atom()], [uri()]) -> [uri()].
-included_uris([], Acc) ->
-  lists:usort(Acc);
-included_uris([Id|Ids], Acc) ->
-  case els_utils:find_header(els_utils:filename_to_atom(Id)) of
-    {ok, Uri}       -> included_uris(Ids, [Uri | Acc]);
-    {error, _Error} -> included_uris(Ids, Acc)
   end.
 
 -spec compile_file(string(), [atom()]) ->
