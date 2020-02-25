@@ -192,6 +192,18 @@ Look for the `erlang-ls` extension and install it. That's it.
 Remember that the Erlang Language Server requires Erlang/OTP 21 or
 higher to run, so ensure that OTP 21+ is available in your `PATH`.
 
+#### Theia IDE
+
+It is possible to use Erlang LS in Theia IDE by including Erlang/OTP
+in your running instance and installing the
+[VSCode extension](https://marketplace.visualstudio.com/items?itemName=erlang-ls.erlang-ls).
+
+If you want to give it a try by using GitPod click
+[here](https://gitpod.io/#https://github.com/erlang-ls/erlang_ls).
+To use this same setup with your Erlang project (hosted in GitHub or
+Gitlab) you can find the GitPod configuration in
+[`.gitpod.yml`](https://github.com/erlang-ls/erlang_ls/blob/master/.gitpod.yml).
+
 ### Sublime Text 3 Setup
 
 Using the _Command Palette_, select `Package Control: Install Package`
@@ -337,7 +349,6 @@ you should see the message that Coc has connected to it:
 
 For suggestions on configuring Coc see its [example configuration
 documentation](https://github.com/neoclide/coc.nvim#example-vim-configuration).
-
 
 ## Features
 

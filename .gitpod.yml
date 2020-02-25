@@ -1,0 +1,5 @@
+image: erlang:22.2.7
+
+vscode:
+  extensions:
+    - erlang-ls.erlang-ls@0.0.8
