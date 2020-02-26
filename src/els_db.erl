@@ -20,7 +20,7 @@
                 , els_dt_signatures
                 ]).
 -define(TIMEOUT, infinity).
--define(DB_SCHEMA_VSN, <<"2">>).
+-define(DB_SCHEMA_VSN, <<"3">>).
 -define(DB_SCHEMA_VSN_FILE, "DB_SCHEMA_VSN").
 
 %%==============================================================================
