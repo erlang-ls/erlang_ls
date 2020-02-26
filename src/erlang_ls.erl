@@ -68,10 +68,8 @@ lager_config() ->
 
 -spec lager_handlers(string()) -> [any()].
 lager_handlers(LogRoot) ->
+  LogFile      = filename:join([LogRoot, "server.log"]),
   LoggingLevel = application:get_env(?APP, log_level, ?DEFAULT_LOGGING_LEVEL),
-  FilenamesToJoin = [ LogRoot
-                    , els_utils:log_level_to_filename(LoggingLevel) ++ ".log"],
-  LogFile = filename:join(FilenamesToJoin),
   ok      = filelib:ensure_dir(LogFile),
   [ { lager_file_backend
     , [ {file, LogFile}
