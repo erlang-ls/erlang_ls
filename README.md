@@ -465,7 +465,7 @@ And you can connect to it via:
 The [redbug](https://github.com/massemanet/redbug) application is
 included in _debug mode_, so feel free to use it.
 
-## The `erlang_ls` Database
+### The `erlang_ls` Database
 
 The `erlang_ls` language server uses
 [Mnesia](https://erlang.org/doc/man/mnesia.html) to persist
