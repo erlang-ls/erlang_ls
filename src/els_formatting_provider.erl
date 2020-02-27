@@ -91,7 +91,7 @@ format_document(Uri, _Document, #{ <<"insertSpaces">> := InsertSpaces
                        undefined -> Opts0;
                        Val -> maps:put(sub_indent, Val, Opts0)
                    end,
-            rebar3_formatter:format(RelPath, Opts),
+            rebar3_formatter:format(RelPath, default_formatter, Opts),
             els_text_edit:diff_files(Path, OutFile)
           end,
     TextEdits = tempdir:mktmp(Fun),
