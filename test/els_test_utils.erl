@@ -40,39 +40,45 @@ all(Module, Functions) ->
 
 -spec init_per_suite(config()) -> config().
 init_per_suite(Config) ->
-  PrivDir                = code:priv_dir(erlang_ls),
-  RootPath               = filename:join([ list_to_binary(PrivDir)
+  PrivDir                 = code:priv_dir(erlang_ls),
+  RootPath                = filename:join([ list_to_binary(PrivDir)
                                          , ?TEST_APP]),
-  RootUri                = els_uri:uri(RootPath),
-  Path                   = filename:join([ RootPath
+  RootUri                 = els_uri:uri(RootPath),
+  Path                    = filename:join([ RootPath
                                          , <<"src">>
                                          , <<"code_navigation.erl">>]),
-  ExtraPath              = filename:join([ RootPath
+  ExtraPath               = filename:join([ RootPath
                                          , <<"src">>
                                          , <<"code_navigation_extra.erl">>]),
-  TypesPath              = filename:join([ RootPath
+  TypesPath               = filename:join([ RootPath
                                          , <<"src">>
                                          , <<"code_navigation_types.erl">>]),
-  BehaviourPath          = filename:join([ RootPath
+  BehaviourPath           = filename:join([ RootPath
                                          , <<"src">>
                                          , <<"behaviour_a.erl">>]),
-  IncludePath            = filename:join([ RootPath
+  IncludePath             = filename:join([ RootPath
                                          , <<"include">>
                                          , <<"code_navigation.hrl">>]),
-  DiagnosticsPath        = filename:join([ RootPath
+  DiagnosticsPath         = filename:join([ RootPath
                                          , <<"src">>
                                          , <<"diagnostics.erl">>]),
-  DiagnosticsBehPath     = filename:join([ RootPath
+  DiagnosticsBehPath      = filename:join([ RootPath
                                          , <<"src">>
                                          , <<"diagnostics_behaviour.erl">>]),
-  DiagnosticsBehImplPath = filename:join([ RootPath
+  DiagnosticsBehImplPath  = filename:join([ RootPath
                                          , <<"src">>
                                          , <<"diagnostics_behaviour_impl.erl">>
                                          ]),
-  DiagnosticsMacrosPath  = filename:join([ RootPath
+  DiagnosticsDialyzerPath = filename:join([ RootPath
+                                         , <<"src">>
+                                         , <<"diagnostics_dialyzer.erl">>]),
+  DiagnosticsNoErrorsPath = filename:join([ RootPath
+                                         , <<"src">>
+                                         , <<"diagnostics_no_errors.erl">>]),
+  DiagnosticsMacrosPath   = filename:join([ RootPath
                                          , <<"src">>
                                          , <<"diagnostics_macros.erl">>]),
-  ParseTransformPath     =
+  ParseTransformPath      =
     filename:join([ RootPath
                   , <<"src">>
                   , <<"diagnostics_parse_transform.erl">>]),
@@ -106,6 +112,8 @@ init_per_suite(Config) ->
   BehaviourUri           = els_uri:uri(BehaviourPath),
   IncludeUri             = els_uri:uri(IncludePath),
   DiagnosticsUri         = els_uri:uri(DiagnosticsPath),
+  DiagnosticsNoErrorsUri = els_uri:uri(DiagnosticsNoErrorsPath),
+  DiagnosticsDialyzerUri = els_uri:uri(DiagnosticsDialyzerPath),
   DiagnosticsBehUri      = els_uri:uri(DiagnosticsBehPath),
   DiagnosticsBehImplUri  = els_uri:uri(DiagnosticsBehImplPath),
   DiagnosticsMacrosUri   = els_uri:uri(DiagnosticsMacrosPath),
@@ -135,14 +143,16 @@ init_per_suite(Config) ->
   , {code_navigation_types_uri, TypesUri}
   , {behaviour_uri, BehaviourUri}
   , {include_uri, IncludeUri}
-  , {diagnostics_uri, DiagnosticsUri}
-  , {diagnostics_beh_uri, DiagnosticsBehUri}
   , {diagnostics_beh_impl_uri, DiagnosticsBehImplUri}
+  , {diagnostics_beh_uri, DiagnosticsBehUri}
+  , {diagnostics_dialyzer_uri, DiagnosticsDialyzerUri}
+  , {diagnostics_diff_path, DiagnosticsDiffPath}
   , {diagnostics_macros_uri, DiagnosticsMacrosUri}
+  , {diagnostics_no_errors_uri, DiagnosticsNoErrorsUri}
+  , {diagnostics_parse_transform_included_uri, ParseTransformInclUri}
   , {diagnostics_parse_transform_uri, ParseTransformUri}
   , {diagnostics_parse_transform_usage_uri, ParseTransformUsageUri}
-  , {diagnostics_parse_transform_included_uri, ParseTransformInclUri}
-  , {diagnostics_diff_path, DiagnosticsDiffPath}
+  , {diagnostics_uri, DiagnosticsUri}
   , {elvis_diagnostics_uri, ElvisDiagnosticsUri}
   , {diagnostics_include_uri, DiagnosticsIncludeUri}
   , {format_input_uri, FormatInputUri}

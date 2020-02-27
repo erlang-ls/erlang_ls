@@ -15,6 +15,20 @@
         , source/0
         ]).
 
+%% For testing
+-export([ run_dialyzer/1
+        ]).
+
+%%==============================================================================
+%% Types
+%%==============================================================================
+-type dialyzer_arg() ::  {files, [file:filename()]}
+                       | {from, src_code}
+                       | {include_dirs, [string()]}
+                       | {plts, [file:filename()]}.
+
+-type dialyzer_warning() :: term().
+
 %%==============================================================================
 %% Includes
 %%==============================================================================
@@ -31,11 +45,16 @@ diagnostics(Uri) ->
     DialyzerPltPath ->
       Deps  = [dep_path(X) || X <- els_diagnostics_utils:dependencies(Uri)],
       Files = [unicode:characters_to_list(Path) | Deps],
-      WS = try dialyzer:run([ {files, Files}
-                            , {from, src_code}
-                            , {include_dirs, els_config:get(include_paths)}
-                            , {plts, [DialyzerPltPath]}
-                            ])
+      WS = try
+             Args = [ {files, Files}
+                    , {from, src_code}
+                    , {include_dirs, els_config:get(include_paths)}
+                    , {plts, [DialyzerPltPath]}
+                    ],
+             %% Need the ?MODULE prefix here for mecking purposes in
+             %% els_diagnostics_SUITE. Removing the ?MODULE prefix will cause
+             %% els_diagnostics_SUITE:dialyzer/1 test to timeout
+             ?MODULE:run_dialyzer(Args)
            catch Type:Error ->
                lager:error( "Error while running dialyzer [type=~p] [error=~p]"
                           , [Type, Error]
@@ -52,6 +71,10 @@ source() ->
 %%==============================================================================
 %% Internal Functions
 %%==============================================================================
+-spec run_dialyzer([dialyzer_arg()]) -> [dialyzer_warning()].
+run_dialyzer(Args) ->
+  dialyzer:run(Args).
+
 -spec diagnostic({any(), {any(), integer()}, any()}) -> diagnostic().
 diagnostic({_, {_, Line}, _} = Warning) ->
   Range   = els_protocol:range(#{ from => {Line, 0}

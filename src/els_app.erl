@@ -22,7 +22,8 @@
 -spec start(normal, any()) -> {ok, pid()}.
 start(_StartType, _StartArgs) ->
   ok = application:set_env(elvis, no_output, true),
-  els_sup:start_link().
+  els_sup:start_link(),
+  els_diagnostics_sup:start_link().
 
 -spec stop(any()) -> ok.
 stop(_State) ->

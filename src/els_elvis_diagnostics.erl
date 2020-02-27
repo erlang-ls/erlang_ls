@@ -49,7 +49,6 @@ format_diagnostics(#{file := Path, rules := Rules}) ->
   R = format_rules(Path, Rules),
   lists:flatten(R).
 
-
 %%% This section is based directly on elvis_result:print_rules
 -spec format_rules(any(), [any()]) -> [[map()]].
 format_rules(_File, []) ->

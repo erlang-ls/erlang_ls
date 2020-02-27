@@ -5,6 +5,7 @@ _*
 *.o
 *.beam
 *.plt
+!priv/code_navigation/dialyzer.plt
 *.swp
 *.swo
 .erlang.cookie
