@@ -121,24 +121,24 @@ transaction(F) ->
 
 -spec start_epmd() -> ok.
 start_epmd() ->
-    [] = os:cmd(epmd_path() ++ " -daemon"),
-    ok.
+  [] = os:cmd(epmd_path() ++ " -daemon"),
+  ok.
 
 -spec epmd_path() -> string().
 epmd_path() ->
-    ErtsBinDir = filename:dirname(escript:script_name()),
-    Name = "epmd",
-    case os:find_executable(Name, ErtsBinDir) of
+  ErtsBinDir = filename:dirname(escript:script_name()),
+  Name = "epmd",
+  case os:find_executable(Name, ErtsBinDir) of
+    false ->
+      case os:find_executable(Name) of
         false ->
-            case os:find_executable(Name) of
-                false ->
-                    error("Could not find epmd.");
-                GlobalEpmd ->
-                    GlobalEpmd
-            end;
-        Epmd ->
-            Epmd
-    end.
+          error("Could not find epmd.");
+        GlobalEpmd ->
+          GlobalEpmd
+      end;
+    Epmd ->
+      Epmd
+  end.
 
 -spec maybe_delete_db_schema(string()) -> ok.
 maybe_delete_db_schema(DbDir) ->
