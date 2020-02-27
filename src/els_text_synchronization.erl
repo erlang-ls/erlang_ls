@@ -17,8 +17,7 @@ did_open(Params) ->
   TextDocument = maps:get(<<"textDocument">>, Params),
   Uri          = maps:get(<<"uri">>         , TextDocument),
   Text         = maps:get(<<"text">>        , TextDocument),
-  Document     = els_dt_document:new(Uri, Text),
-  ok           = els_indexer:index(Document),
+  ok           = els_indexer:index(Uri, Text),
   spawn (?MODULE, generate_diagnostics, [Uri]),
   ok.
 
