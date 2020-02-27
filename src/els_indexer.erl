@@ -7,7 +7,7 @@
 -export([ find_and_index_file/1
         , find_and_index_file/2
         , index_file/2
-        , index/1
+        , index/2
         , index_dir/1
         , start_link/0
         , index_apps/0
@@ -64,13 +64,14 @@ index_file(Path, SyncAsync) ->
   try_index_file(Path, SyncAsync),
   {ok, els_uri:uri(Path)}.
 
--spec index(els_dt_document:item()) -> ok.
-index(#{uri := Uri, text := Text} = Document) ->
+-spec index(uri(), binary()) -> ok.
+index(Uri, Text) ->
   MD5 = erlang:md5(Text),
   case els_dt_document:lookup(Uri) of
     {ok, [#{md5 := MD5}]} ->
       ok;
     _ ->
+      Document = els_dt_document:new(Uri, Text),
       F = fun() -> do_index(Document) end,
       els_db:transaction(F)
   end.
@@ -191,8 +192,7 @@ try_index_file(FullName, SyncAsync) ->
     Uri = els_uri:uri(FullName),
     lager:debug("Indexing file. [filename=~s]", [FullName]),
     {ok, Text} = file:read_file(FullName),
-    Document   = els_dt_document:new(Uri, Text),
-    ok         = index_document(Document, SyncAsync)
+    ok         = index_document(Uri, Text, SyncAsync)
   catch Type:Reason:St ->
       lager:error("Error indexing file "
                   "[filename=~s] "
@@ -200,12 +200,12 @@ try_index_file(FullName, SyncAsync) ->
       {error, {Type, Reason}}
   end.
 
--spec index_document(els_dt_document:item(), async | sync) -> ok.
-index_document(Document, async) ->
-  ok = wpool:cast(indexers, {?MODULE, index, [Document]});
-index_document(Document, sync) ->
+-spec index_document(uri(), binary(), async | sync) -> ok.
+index_document(Uri, Text, async) ->
+  ok = wpool:cast(indexers, {?MODULE, index, [Uri, Text]});
+index_document(Uri, Text, sync) ->
   %% Don't use the pool for synchronous indexing
-  ok = index(Document).
+  ok = index(Uri, Text).
 
 -spec register_reference(uri(), poi()) -> ok.
 register_reference( Uri
