@@ -206,6 +206,15 @@ elvis(Config) ->
       file:set_cwd(RootPath),
       Uri = ?config(elvis_diagnostics_uri, Config),
       ok = els_client:did_save(Uri),
+      %% Only the compiler diagnostics are in this notification
+      {CMethod, CParams} = wait_for_notification(),
+      ?assertEqual( <<"textDocument/publishDiagnostics">>
+                  , CMethod),
+      ?assert(maps:is_key(diagnostics, CParams)),
+      #{diagnostics := CDiagnostics} = CParams,
+      ?assertEqual(0, length(CDiagnostics)),
+
+      %% Dialyzer and Elvis diagnostics are in this notification
       {Method, Params} = wait_for_notification(),
       ?assertEqual( <<"textDocument/publishDiagnostics">>
                   , Method),
