@@ -29,7 +29,7 @@ handle_request({definition, Params}, State) ->
     [POI | _] ->
       case els_code_navigation:goto_definition(Uri, POI) of
         {ok, DefUri, #{range := Range}} ->
-          { #{ uri => DefUri, range => els_protocol:range(Range) }
+          { [#{ uri => DefUri, range => els_protocol:range(Range) }]
           , State
           };
         _ ->
