@@ -39,7 +39,11 @@ init([]) ->
               , intensity => 5
               , period    => 60
               },
-  ChildSpecs = [ #{ id       => els_config
+  {ok, Transport} = application:get_env(erlang_ls, transport),
+  ChildSpecs = [ #{ id       => els_server
+                  , start    => {els_server, start_link, [Transport]}
+                  }
+               , #{ id       => els_config
                   , start    => {els_config, start_link, []}
                   , shutdown => brutal_kill
                   }
