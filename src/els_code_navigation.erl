@@ -44,7 +44,7 @@ goto_definition(_Uri, #{ kind := behaviour, id := Behaviour }) ->
 goto_definition(Uri, #{ kind := macro, id := Define }) ->
   find(Uri, define, Define);
 goto_definition(Uri, #{ kind := record_access
-                      , id := {Record, _}}) ->
+                      , id := Record}) ->
   find(Uri, record, Record);
 goto_definition(Uri, #{ kind := record_expr, id := Record }) ->
   find(Uri, record, Record);
