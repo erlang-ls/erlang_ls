@@ -58,9 +58,9 @@ range({Line, Column}, function, {F, _A}, _Data) ->
   From = {Line, Column},
   To = {Line, Column + length(atom_to_list(F))},
   #{ from => From, to => To };
-range({Line, _Column}, define, _Define, _Data) ->
-  From = {Line, 1},
-  To = From,
+range({Line, Column}, define, Define, _Data) ->
+  From = plus({Line, Column}, "define("),
+  To = plus(From, atom_to_list(Define)),
   #{ from => From, to => To };
 range({Line, Column}, include, Include, _Data) ->
   From = {Line, Column - 1},
