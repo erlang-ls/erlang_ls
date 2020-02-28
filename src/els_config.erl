@@ -80,6 +80,7 @@ do_initialize(RootUri, Capabilities, Config) ->
   OtpPath         = maps:get("otp_path", Config, code:root_dir()),
   DepsDirs        = maps:get("deps_dirs", Config, []),
   AppsDirs        = maps:get("apps_dirs", Config, ["."]),
+  SrcDirs         = maps:get("src_dirs", Config, []),
   IncludeDirs     = maps:get("include_dirs", Config, ["include"]),
   Macros          = maps:get("macros", Config, []),
   DialyzerPltPath = maps:get("plt_path", Config, undefined),
@@ -98,6 +99,7 @@ do_initialize(RootUri, Capabilities, Config) ->
   ok = set(otp_path       , OtpPath),
   ok = set(deps_dirs      , DepsDirs),
   ok = set(apps_dirs      , AppsDirs),
+  ok = set(src_dirs       , SrcDirs),
   ok = set(include_dirs   , IncludeDirs),
   ok = set(macros         , Macros),
   ok = set(plt_path       , DialyzerPltPath),
@@ -107,9 +109,12 @@ do_initialize(RootUri, Capabilities, Config) ->
   ok = set(deps_paths     , project_paths(RootPath, DepsDirs, false)),
   ok = set(include_paths  , include_paths(RootPath, IncludeDirs, false)),
   ok = set(otp_paths      , otp_paths(OtpPath, false) -- ExcludePaths),
+  RootSrcDirs = [ [RootPath, Dir] || Dir <- SrcDirs],
+  SrcPaths = els_utils:resolve_paths( RootSrcDirs, RootPath, true),
   %% All (including subdirs) paths used to search files with file:path_open/3
   ok = set( search_paths
           , lists:append([ project_paths(RootPath, AppsDirs, true)
+                         , SrcPaths
                          , project_paths(RootPath, DepsDirs, true)
                          , include_paths(RootPath, IncludeDirs, false)
                          , otp_paths(OtpPath, true)
