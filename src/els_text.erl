@@ -29,8 +29,10 @@ line(Text, LineNum, ColumnNum) ->
 %% @doc Return tokens from text.
 -spec tokens(text()) -> [any()].
 tokens(Text) ->
-  {ok, Tokens, _} = erl_scan:string(binary_to_list(Text)),
-  Tokens.
+  case erl_scan:string(binary_to_list(Text)) of
+    {ok, Tokens, _} -> Tokens;
+    {error, _, _} -> []
+  end.
 
 %% @doc Extract the last token from the given text.
 -spec last_token(text()) -> token() | {error, empty}.
