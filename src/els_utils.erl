@@ -90,10 +90,15 @@ halt(ExitCode) ->
 %% @doc Returns a project-relative file path for a given URI
 -spec project_relative(uri()) -> file:filename().
 project_relative(Uri) ->
-  RootUri     = els_config:get(root_uri),
-  RootUriSize = byte_size(RootUri),
-  <<RootUri:RootUriSize/binary, RelativePath/binary>> = Uri,
-  binary_to_list(string:trim(RelativePath, leading, [$/, $\\ ])).
+  RootUri = els_config:get(root_uri),
+  Size    = byte_size(RootUri),
+  case Uri of
+    <<RootUri:Size/binary, Relative/binary>> ->
+      Trimmed = string:trim(Relative, leading, [$/, $\\ ]),
+      unicode:characters_to_list(Trimmed);
+    _ ->
+      {error, not_relative}
+  end.
 
 %%==============================================================================
 %% Internal functions
