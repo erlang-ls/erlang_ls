@@ -209,7 +209,7 @@ macro(Config) ->
   Def = els_client:definition(Uri, 26, 5),
   #{result := #{range := Range, uri := DefUri}} = Def,
   ?assertEqual(Uri, DefUri),
-  ?assertEqual( els_protocol:range(#{from => {18, 1}, to => {18, 1}})
+  ?assertEqual( els_protocol:range(#{from => {18, 9}, to => {18, 16}})
               , Range),
   ok.
 
@@ -219,7 +219,7 @@ macro_lowercase(Config) ->
   Def = els_client:definition(Uri, 48, 3),
   #{result := #{range := Range, uri := DefUri}} = Def,
   ?assertEqual(Uri, DefUri),
-  ?assertEqual( els_protocol:range(#{from => {45, 1}, to => {45, 1}})
+  ?assertEqual( els_protocol:range(#{from => {45, 9}, to => {45, 16}})
               , Range),
   ok.
 
@@ -229,7 +229,7 @@ macro_included(Config) ->
   Def = els_client:definition(Uri, 53, 19),
   #{result := #{range := Range, uri := DefUri}} = Def,
   ?assertEqual(?config(include_uri, Config), DefUri),
-  ?assertEqual( els_protocol:range(#{from => {3, 1}, to => {3, 1}})
+  ?assertEqual( els_protocol:range(#{from => {3, 9}, to => {3, 25}})
               , Range),
   ok.
 
@@ -239,7 +239,7 @@ macro_with_args(Config) ->
   Def = els_client:definition(Uri, 40, 9),
   #{result := #{range := Range, uri := DefUri}} = Def,
   ?assertEqual(Uri, DefUri),
-  ?assertEqual( els_protocol:range(#{from => {19, 1}, to => {19, 1}})
+  ?assertEqual( els_protocol:range(#{from => {19, 9}, to => {19, 24}})
               , Range),
   ok.
 

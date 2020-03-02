@@ -17,6 +17,7 @@
         , fun_local/1
         , fun_remote/1
         , export_entry/1
+        , macro/1
         , record/1
         , purge_references/1
         ]).
@@ -148,6 +149,28 @@ export_entry(Config) ->
                          }
                       ],
   assert_locations(Locations, ExpectedLocations),
+  ok.
+
+-spec macro(config()) -> ok.
+macro(Config) ->
+  Uri = ?config(code_navigation_uri, Config),
+
+  ExpectedLocations = [ #{ uri => Uri
+                         , range => #{from => {26, 3}, to => {26, 10}}
+                         }
+                      , #{ uri => Uri
+                         , range => #{from => {75, 23}, to => {75, 30}}
+                         }
+                      ],
+
+  ct:comment("References for MACRO_A from usage"),
+  #{result := Locations1} = els_client:references(Uri, 26, 6),
+  assert_locations(Locations1, ExpectedLocations),
+
+  ct:comment("References for MACRO_A from define"),
+  #{result := Locations2} = els_client:references(Uri, 18, 12),
+  assert_locations(Locations2, ExpectedLocations),
+
   ok.
 
 -spec record(config()) -> ok.
