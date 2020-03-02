@@ -18,6 +18,7 @@
         , fun_remote/1
         , export_entry/1
         , macro/1
+        , module/1
         , record/1
         , purge_references/1
         ]).
@@ -172,6 +173,22 @@ macro(Config) ->
   assert_locations(Locations2, ExpectedLocations),
 
   ok.
+
+-spec module(config()) -> ok.
+module(Config) ->
+  Uri = ?config(code_navigation_extra_uri, Config),
+  #{result := Locations} = els_client:references(Uri, 1, 12),
+  LocUri = ?config(code_navigation_uri, Config),
+  ExpectedLocations = [ #{ uri => LocUri
+                         , range => #{from => {32, 3}, to => {32, 27}}
+                         }
+                      , #{ uri => LocUri
+                         , range => #{from => {52, 8}, to => {52, 38}}
+                         }
+                      ],
+  assert_locations(Locations, ExpectedLocations),
+  ok.
+
 
 -spec record(config()) -> ok.
 record(Config) ->
