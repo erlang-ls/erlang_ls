@@ -97,7 +97,6 @@ format_document(Uri, _Document, #{ <<"insertSpaces">> := InsertSpaces
     TextEdits = tempdir:mktmp(Fun),
     {ok, TextEdits}.
 
-
 -spec rangeformat_document(uri(), map(), range(), formatting_options())
                           -> {ok, [text_edit()]}.
 rangeformat_document(_Uri, _Document, _Range, _Options) ->
