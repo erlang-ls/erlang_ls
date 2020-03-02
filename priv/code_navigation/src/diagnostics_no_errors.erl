@@ -2,6 +2,6 @@
 
 -export([main/1]).
 
--spec   main(any()) -> any().
+-spec main(any()) -> any().
 main(X) ->
  X.
