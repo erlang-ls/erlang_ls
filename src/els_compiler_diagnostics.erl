@@ -121,7 +121,7 @@ diagnostic(_Path, MessagePath, Range, Document, Module, Desc0, Severity) ->
   InclusionRange = inclusion_range(MessagePath, Document),
   %% The compiler message is related to an included file. Replace the
   %% original location with the location of the file inclusion.
-  Desc = io_lib:format("Issue in included file (~p): ~s", [Line, Desc0]),
+  Desc = io_lib:format("Issue in included file (~p): ~p", [Line, Desc0]),
   diagnostic(InclusionRange, Module, Desc, Severity).
 
 -spec diagnostic(poi_range(), module(), string(), integer()) ->
