@@ -309,7 +309,7 @@ mock_code_reload_enabled() ->
   meck:expect( els_config
              , get
              , fun(code_reload) ->
-                   #{"node" => "fakenode"};
+                   [#{"node" => "fakenode"}];
                   (Key) ->
                    meck:passthrough([Key])
                end

@@ -61,7 +61,7 @@ diagnostics(Uri, Modules, Previous) ->
 -spec maybe_compile_and_load(uri(), [diagnostic()]) -> ok.
 maybe_compile_and_load(Uri, [] = _CDiagnostics) ->
   case els_config:get(code_reload) of
-    #{"node" := NodeStr} ->
+    [#{"node" := NodeStr}] ->
       Node = list_to_atom(NodeStr),
       Module = els_uri:module(Uri),
       case rpc:call(Node, code, is_sticky, [Module]) of
