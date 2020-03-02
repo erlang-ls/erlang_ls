@@ -418,6 +418,8 @@ macros:
   - name: DEFINED_WITH_VALUE
     value: 42
   - name: DEFINED_WITHOUT_VALUE
+code_reload:
+  node: node@example
 ```
 
 The file format is `yaml`.
