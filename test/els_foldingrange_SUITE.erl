@@ -117,7 +117,7 @@ folding_range(Config) ->
                 , startLine      => 67
                 }
              , #{ endCharacter    => -1
-                , endLine        => 75
+                , endLine        => 76
                 , startCharacter => 1
                 , startLine      => 74
                 }
