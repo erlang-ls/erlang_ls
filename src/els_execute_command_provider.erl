@@ -18,7 +18,7 @@ is_enabled() -> true.
 
 -spec options() -> map().
 options() ->
-  #{ commands => ["replace-lines"] }.
+  #{ commands => [<<"replace-lines">>] }.
 
 -spec handle_request(any(), els_provider:state()) ->
   {any(), els_provider:state()}.
