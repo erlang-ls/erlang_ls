@@ -51,9 +51,9 @@ parse_form(IoDevice, StartLocation, Parser, _Options) ->
   case io:scan_erl_form(IoDevice, "", StartLocation) of
     {ok, Tokens, EndLocation} ->
       try {ok, Parser(Tokens, undefined)} of
-        {ok, F} ->
-          POIs = [ find_attribute_pois(F, Tokens)
-                 , points_of_interest(F, EndLocation)
+        {ok, Tree} ->
+          POIs = [ find_attribute_pois(Tree, Tokens)
+                 , points_of_interest(Tree, EndLocation)
                  ],
           {ok, POIs, EndLocation}
       catch
@@ -65,12 +65,12 @@ parse_form(IoDevice, StartLocation, Parser, _Options) ->
     {eof, _EndLocation} = Eof -> Eof
   end.
 
--spec find_attribute_pois(erl_parse:abstract_form(), [erl_scan:token()]) ->
+-spec find_attribute_pois(erl_syntax:syntaxTree(), [erl_scan:token()]) ->
    [poi()].
-find_attribute_pois(Form, Tokens) ->
-  case erl_syntax:type(Form) of
+find_attribute_pois(Tree, Tokens) ->
+  case erl_syntax:type(Tree) of
     attribute ->
-      try erl_syntax_lib:analyze_attribute(Form) of
+      try erl_syntax_lib:analyze_attribute(Tree) of
         {export, Exports} ->
           %% The first atom is the attribute name, so we skip it.
           [_|Atoms] = [T || {atom, _, _} = T <- Tokens],
