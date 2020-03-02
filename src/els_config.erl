@@ -105,6 +105,7 @@ initialize(RootUri, Capabilities, InitOptions) ->
   ok = set( search_paths
           , lists:append([ project_paths(RootPath, AppsDirs, true)
                          , project_paths(RootPath, DepsDirs, true)
+                         , include_paths(RootPath, IncludeDirs, false)
                          , otp_paths(OtpPath, true)
                          ])
           ),
