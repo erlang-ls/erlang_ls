@@ -42,53 +42,52 @@ code_actions(Uri, _Range, Context) ->
 -spec replace_lines_action(uri(), binary(), binary(), binary(), range())
                           -> map().
 replace_lines_action(Uri, Title, Kind, Lines, Range) ->
-    #{ <<"start">> := #{ <<"character">> := _StartCol
-                       , <<"line">>      := StartLine }
-     , <<"end">>   := #{ <<"character">> := _EndCol
-                       , <<"line">>      := EndLine }
-     } = Range,
-   #{ title => Title
-    , kind => Kind
-    , command =>
+  #{ <<"start">> := #{ <<"character">> := _StartCol
+                     , <<"line">>      := StartLine }
+   , <<"end">>   := #{ <<"character">> := _EndCol
+                     , <<"line">>      := EndLine }
+   } = Range,
+  #{ title => Title
+   , kind => Kind
+   , command =>
           els_protocol:command( Title
                               , <<"replace-lines">>
                               , [#{ uri   => Uri
                                   , lines => Lines
                                   , from  => StartLine
                                   , to    => EndLine }])
-    }.
+   }.
 
 -spec make_code_action(uri(), diagnostic()) -> [map()].
 make_code_action(Uri, #{ <<"message">> := Message
                        , <<"range">>   := Range } = _Diagnostic) ->
-    CA1 = unused_variable_action(Uri, Range, Message),
-    CA1.
+  unused_variable_action(Uri, Range, Message).
 
 %%------------------------------------------------------------------------------
 
 -spec unused_variable_action(uri(), range(), binary()) -> [map()].
 unused_variable_action(Uri, Range, Message) ->
-    %% Processing messages like "variable 'Foo' is unused"
-    case re:run(Message, "variable '(.*)' is unused"
-               , [{capture, all_but_first, binary}]) of
-        {match, [UnusedVariable]} ->
-            make_unused_variable_action(Uri, Range, UnusedVariable);
-        _ -> []
-    end.
+  %% Processing messages like "variable 'Foo' is unused"
+  case re:run(Message, "variable '(.*)' is unused"
+             , [{capture, all_but_first, binary}]) of
+      {match, [UnusedVariable]} ->
+          make_unused_variable_action(Uri, Range, UnusedVariable);
+      _ -> []
+  end.
 
 -spec make_unused_variable_action(uri(), range(), binary()) -> [map()].
 make_unused_variable_action(Uri, Range, UnusedVariable) ->
-    #{ <<"start">> := #{ <<"character">> := _StartCol
-                       , <<"line">>      := StartLine }
-     , <<"end">>   := _End
-     } = Range,
-    %% processing messages like "variable 'Foo' is unused"
-    {ok, #{text := Bin}} = els_utils:lookup_document(Uri),
-    Line = binary_to_list(els_text:line(Bin, StartLine)),
+  #{ <<"start">> := #{ <<"character">> := _StartCol
+                     , <<"line">>      := StartLine }
+   , <<"end">>   := _End
+   } = Range,
+  %% processing messages like "variable 'Foo' is unused"
+  {ok, #{text := Bin}} = els_utils:lookup_document(Uri),
+  Line = binary_to_list(els_text:line(Bin, StartLine)),
 
-    {ok, Tokens, _} = erl_scan:string(Line, 1, [return, text]),
-    UnusedString = binary_to_list(UnusedVariable),
-    Replace =
+  {ok, Tokens, _} = erl_scan:string(Line, 1, [return, text]),
+  UnusedString = binary_to_list(UnusedVariable),
+  Replace =
         fun(Tok) ->
             case Tok of
                 {var, [{text, UnusedString}, _], _} -> "_" ++ UnusedString;
@@ -96,8 +95,8 @@ make_unused_variable_action(Uri, Range, UnusedVariable) ->
                 {_,   [{text, Text   }, _], _} -> Text;
                 {_,   [{text, Text   }, _]}    -> Text
             end
-    end,
-    UpdatedLine = lists:flatten(lists:map(Replace, Tokens)) ++ "\n",
+  end,
+  UpdatedLine = lists:flatten(lists:map(Replace, Tokens)) ++ "\n",
     [ replace_lines_action( Uri
                       , <<"Add '_' to '", UnusedVariable/binary, "'">>
                       , ?CODE_ACTION_KIND_QUICKFIX

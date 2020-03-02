@@ -64,18 +64,18 @@ add_underscore_to_unused_var(Config) ->
   Uri = ?config(code_navigation_uri, Config),
   Diag = #{<<"message">>  => <<"variable 'A' is unused">>
           ,<<"range">>    =>
-                     #{<<"end">>   => #{<<"character">> => 0,<<"line">> => 79}
-                      ,<<"start">> => #{<<"character">> => 0,<<"line">> => 78}}
+                     #{<<"end">>   => #{<<"character">> => 0,<<"line">> => 80}
+                      ,<<"start">> => #{<<"character">> => 0,<<"line">> => 79}}
           ,<<"severity">> => 2
           ,<<"source">>   => <<"Compiler">>},
   Res = els_client:document_codeaction
-          (Uri, els_protocol:range(#{from => {79, 1}, to => {80, 1}}), [Diag]),
+          (Uri, els_protocol:range(#{from => {80, 1}, to => {81, 1}}), [Diag]),
   #{ result := Result } = Res,
   Expected = [#{command =>
                          #{arguments =>
-                               [#{from  => 78,
+                               [#{from  => 79,
                                   lines => <<"    _A = X,\n">>,
-                                  to    => 79,
+                                  to    => 80,
                                   uri   => Uri}],
                            command   => <<"replace-lines">>,
                            title     => <<"Add '_' to 'A'">>},

@@ -117,14 +117,14 @@ folding_range(Config) ->
                 , startLine      => 67
                 }
              , #{ endCharacter    => -1
-                , endLine        => 75
+                , endLine        => 76
                 , startCharacter => 1
                 , startLine      => 74
                 }
              , #{ endCharacter    => -1
-                , endLine        => 80
+                , endLine        => 81
                 , startCharacter => 1
-                , startLine      => 78
+                , startLine      => 79
                 }
              ],
   ?assertEqual(Expected, Result),

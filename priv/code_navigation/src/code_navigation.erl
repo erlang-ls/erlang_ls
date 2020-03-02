@@ -72,7 +72,8 @@ function_j() ->
 
 %% [#333] Record field accessors assumed to be atoms
 function_k() ->
-  X#included_record_a.?MACRO_A.
+  X#included_record_a.?MACRO_A,
+  <<"foo:">>.
 
 %% [#314] Add '_' to unused variable
 function_l(X, Y) ->
