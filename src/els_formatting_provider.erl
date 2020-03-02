@@ -15,9 +15,13 @@
 -include("erlang_ls.hrl").
 
 %%==============================================================================
+%% Defines
+%%==============================================================================
+-define(DEFAULT_SUB_INDENT, 2).
+
+%%==============================================================================
 %% els_provider functions
 %%==============================================================================
-
 
 %% Keep the behaviour happy
 -spec is_enabled() -> boolean().
@@ -81,21 +85,23 @@ handle_request({document_ontypeformatting, Params}, State) ->
 format_document(Uri, _Document, #{ <<"insertSpaces">> := InsertSpaces
                                  , <<"tabSize">> := TabSize } = Options) ->
     Path = els_uri:path(Uri),
-    Fun = fun(Dir) ->
-            RelPath = els_utils:project_relative(Uri),
-            OutFile = filename:join(Dir, RelPath),
-            Opts0 = #{ output_dir => Dir
-                     , remove_tabs => InsertSpaces
-                     , break_indent => TabSize },
-            Opts = case maps:get(<<"subIndent">>, Options, undefined) of
-                       undefined -> Opts0;
-                       Val -> maps:put(sub_indent, Val, Opts0)
-                   end,
-            rebar3_formatter:format(RelPath, default_formatter, Opts),
-            els_text_edit:diff_files(Path, OutFile)
-          end,
-    TextEdits = tempdir:mktmp(Fun),
-    {ok, TextEdits}.
+    SubIndent = maps:get(<<"subIndent">>, Options, ?DEFAULT_SUB_INDENT),
+    Opts0 = #{ remove_tabs => InsertSpaces
+             , break_indent => TabSize
+             , sub_indent => SubIndent
+             },
+    case els_utils:project_relative(Uri) of
+      {error, not_relative} -> {ok, []};
+      RelPath ->
+        Fun = fun(Dir) ->
+          Opts = Opts0#{output_dir => Dir},
+          rebar3_formatter:format(RelPath, default_formatter, Opts),
+          OutFile = filename:join(Dir, RelPath),
+          els_text_edit:diff_files(Path, OutFile)
+        end,
+        TextEdits = tempdir:mktmp(Fun),
+        {ok, TextEdits}
+    end.
 
 -spec rangeformat_document(uri(), map(), range(), formatting_options())
                           -> {ok, [text_edit()]}.

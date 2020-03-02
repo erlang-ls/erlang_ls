@@ -88,11 +88,7 @@ halt(ExitCode) ->
   ok = init:stop(ExitCode).
 
 %% @doc Returns a project-relative file path for a given URI
--spec project_relative(uri()) ->
-    file:filename()
-  | {error, any(), any()}
-  | {incomplete, any(), any()}
-  | {error, not_relative}.
+-spec project_relative(uri()) -> file:filename() | {error, not_relative}.
 project_relative(Uri) ->
   RootUri = els_config:get(root_uri),
   Size    = byte_size(RootUri),

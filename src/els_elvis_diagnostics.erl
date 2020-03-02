@@ -25,17 +25,19 @@
 %%==============================================================================
 -spec diagnostics(uri()) -> [diagnostic()].
 diagnostics(Uri) ->
-  RelFile = els_utils:project_relative(Uri),
-
-  %% Note: elvis_core:rock_this requires a file path relative to the
-  %%       project root, formatted as a string.
-  try elvis_core:rock_this(RelFile) of
-      ok -> [] ;
-      {fail, Problems} -> lists:flatmap(fun format_diagnostics/1, Problems)
-  catch Err ->
-      lager:warning("Elvis error.[Err=~p] ", [Err]),
-      []
-  end.
+  case els_utils:project_relative(Uri) of
+    {error, not_relative} -> [];
+    RelFile ->
+      %% Note: elvis_core:rock_this requires a file path relative to the
+      %%       project root, formatted as a string.
+      try elvis_core:rock_this(RelFile) of
+          ok -> [] ;
+          {fail, Problems} -> lists:flatmap(fun format_diagnostics/1, Problems)
+      catch Err ->
+          lager:warning("Elvis error.[Err=~p] ", [Err]),
+          []
+      end
+    end.
 
 -spec source() -> binary().
 source() ->
