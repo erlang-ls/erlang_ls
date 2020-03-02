@@ -20,6 +20,7 @@
         , functions_arity/1
         , functions_export_list/1
         , handle_empty_lines/1
+        , handle_colon_inside_string/1
         , macros/1
         , only_exported_functions_after_colon/1
         , records/1
@@ -245,6 +246,17 @@ handle_empty_lines(Config) ->
   #{ result := Completion2
    } = els_client:completion(Uri, 32, 2, TriggerKind, <<":">>),
   ?assertEqual(null, Completion2),
+
+  ok.
+
+-spec handle_colon_inside_string(config()) -> ok.
+handle_colon_inside_string(Config) ->
+  Uri = ?config(code_navigation_uri, Config),
+  TriggerKind = ?COMPLETION_TRIGGER_KIND_CHARACTER,
+
+  #{ result := Completion
+   } = els_client:completion(Uri, 76, 10, TriggerKind, <<":">>),
+  ?assertEqual(null, Completion),
 
   ok.
 

@@ -309,7 +309,7 @@ record_access(Tree) ->
                 atom -> erl_syntax:atom_value(FieldNode);
                 _    -> 'UNKNOWN_FIELD'
               end,
-      [poi(erl_syntax:get_pos(Tree), record_access, {Record, Field})];
+      [poi(erl_syntax:get_pos(Tree), record_access, Record, Field)];
     _ ->
       []
   end.
@@ -368,5 +368,5 @@ poi(Pos, Kind, Id) ->
 
 -spec poi(pos(), poi_kind(), any(), any()) -> poi().
 poi(Pos, Kind, Id, Data) ->
-  Range = els_range:range(Pos, Kind, Id),
+  Range = els_range:range(Pos, Kind, Id, Data),
   els_poi:new(Range, Kind, Id, Data).

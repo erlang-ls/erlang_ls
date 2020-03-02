@@ -20,7 +20,7 @@ is_enabled() ->
   true.
 
 -spec handle_request(any(), els_provider:state()) ->
-  {any(), els_provider:state()}.
+  {[location()] | null, els_provider:state()}.
 handle_request({references, Params}, State) ->
   #{ <<"position">>     := #{ <<"line">>      := Line
                             , <<"character">> := Character
@@ -39,7 +39,7 @@ handle_request({references, Params}, State) ->
 %% Internal functions
 %%==============================================================================
 
--spec find_references(binary(), poi()) -> any().
+-spec find_references(uri(), poi()) -> [location()] | null.
 find_references(Uri, #{ kind := Kind
                       , id   := Id
                       }) when Kind =:= application;
@@ -50,31 +50,29 @@ find_references(Uri, #{ kind := Kind
           {F, A}    -> {els_uri:module(Uri), F, A};
           {M, F, A} -> {M, F, A}
         end,
-  case els_dt_references:find_by_id(Key) of
-    {ok, []} ->
-      null;
-    {ok, Refs} ->
-      [location(U, R) || #{uri := U, range := R} <- Refs]
-  end;
+  find_references_for_id(Key);
 find_references(_Uri, #{kind := Kind, id := Name})
-  when Kind =:= record_expr; Kind =:= record ->
-  case els_dt_references:find_by_id({record, Name}) of
-    {ok, []} ->
-      null;
-    {ok, Refs} ->
-      [location(U, R) || #{uri := U, range := R} <- Refs]
-  end;
-find_references(_Uri, #{kind := record_access, id := {Name, _}}) ->
-  case els_dt_references:find_by_id({record, Name}) of
-    {ok, []} ->
-      null;
-    {ok, Refs} ->
-      [location(U, R) || #{uri := U, range := R} <- Refs]
-  end;
+  when Kind =:= record_expr;
+       Kind =:= record;
+       Kind =:= record_access ->
+  find_references_for_id({record, Name});
+find_references(_Uri, #{kind := Kind, id := Name})
+  when Kind =:= macro;
+       Kind =:= define ->
+  find_references_for_id({macro, Name});
 find_references(_Uri, _POI) ->
   null.
 
--spec location(uri(), poi_range()) -> map().
+-spec find_references_for_id(any()) -> [location()] | null.
+find_references_for_id(Id) ->
+  case els_dt_references:find_by_id(Id) of
+    {ok, []} ->
+      null;
+    {ok, Refs} ->
+      [location(U, R) || #{uri := U, range := R} <- Refs]
+  end.
+
+-spec location(uri(), poi_range()) -> location().
 location(Uri, Range) ->
   #{ uri   => Uri
    , range => els_protocol:range(Range)
