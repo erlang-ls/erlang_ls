@@ -39,6 +39,10 @@ parse_args(["--log-dir", Dir | Rest]) ->
   application:set_env(?APP, log_dir, Dir),
   parse_args(Rest);
 parse_args(["--log-level", Level | Rest]) ->
+  case Level of
+    "none" -> ok;
+    _      -> application:set_env(?APP, logging_enabled, true)
+  end,
   application:set_env(?APP, log_level, Level),
   parse_args(Rest);
 %% For backward compatibility with clients
@@ -53,7 +57,7 @@ parse_args([Port | Rest]) ->
 
 -spec lager_config() -> ok.
 lager_config() ->
-  {ok, LoggingEnabled} = application:get_env(?APP, logging_enabled),
+  LoggingEnabled = application:get_env(?APP, logging_enabled, false),
   case LoggingEnabled of
     true ->
       LogRoot   = log_root(),
@@ -70,7 +74,7 @@ lager_config() ->
 lager_handlers(LogRoot) ->
   LogFile      = filename:join([LogRoot, "server.log"]),
   LoggingLevel = application:get_env(?APP, log_level, ?DEFAULT_LOGGING_LEVEL),
-  ok      = filelib:ensure_dir(LogFile),
+  ok           = filelib:ensure_dir(LogFile),
   [ { lager_file_backend
     , [ {file, LogFile}
       , {level, LoggingLevel}
