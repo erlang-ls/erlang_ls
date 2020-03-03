@@ -418,6 +418,8 @@ macros:
   - name: DEFINED_WITH_VALUE
     value: 42
   - name: DEFINED_WITHOUT_VALUE
+code_reload:
+  node: node@example
 ```
 
 The file format is `yaml`.
@@ -435,7 +437,7 @@ The following customizations are possible:
 | otp\_apps\_exclude | List of OTP applications that will not be indexed (default: megaco, diameter, snmp, wx)                                                   |
 | code\_reload       | Whether or not an rpc call should be made to a remote node to compile and reload a module                                                 |
 
-The `code_reload` takes a list of the following options:
+The `code_reload` takes the following options:
 | Parameter | Description                                                          |
 |-----------|----------------------------------------------------------------------|
 | node      | The node to be called for code reloading. Example erlang_ls@hostname |
