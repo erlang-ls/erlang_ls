@@ -27,6 +27,8 @@
         , textdocument_ontypeformatting/2
         , textdocument_foldingrange/2
         , workspace_didchangeconfiguration/2
+        , textdocument_codeaction/2
+        , workspace_executecommand/2
         , workspace_didchangewatchedfiles/2
         , workspace_symbol/2
         ]).
@@ -153,6 +155,8 @@ initialize(Params, State) ->
               els_document_symbol_provider:is_enabled()
           , workspaceSymbolProvider =>
               els_workspace_symbol_provider:is_enabled()
+          , codeActionProvider =>
+              els_code_action_provider:is_enabled()
           , documentFormattingProvider =>
               els_formatting_provider:is_enabled_document()
           , documentRangeFormattingProvider =>
@@ -163,6 +167,8 @@ initialize(Params, State) ->
               els_folding_range_provider:is_enabled()
           , implementationProvider =>
               els_implementation_provider:is_enabled()
+          , executeCommandProvider =>
+              els_execute_command_provider:options()
           }
      },
   {response, Result, State#{status => initialized}}.
@@ -377,6 +383,28 @@ workspace_didchangeconfiguration(_Params, State) ->
   %% Some clients send this notification on startup, even though we
   %% have no server-side config.  So swallow it without complaining.
   {noresponse, State}.
+
+%%==============================================================================
+%% textDocument/codeAction
+%%==============================================================================
+
+-spec textdocument_codeaction(params(), state()) -> result().
+textdocument_codeaction(Params, State) ->
+  Provider = els_code_action_provider,
+  Response = els_provider:handle_request(Provider,
+                                         {document_codeaction, Params}),
+  {response, Response, State}.
+
+%%==============================================================================
+%% workspace/executeCommand
+%%==============================================================================
+
+-spec workspace_executecommand(params(), state()) -> result().
+workspace_executecommand(Params, State) ->
+  Provider = els_execute_command_provider,
+  Response = els_provider:handle_request(Provider,
+                                         {workspace_executecommand, Params}),
+  {response, Response, State}.
 
 %%==============================================================================
 %% workspace/didChangeWatchedFiles
