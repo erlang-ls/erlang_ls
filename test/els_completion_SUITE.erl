@@ -46,7 +46,7 @@
 suite() ->
   [{timetrap, {seconds, 30}}].
 
--spec all() -> [atom()].
+-spec all() -> [{group, atom()}].
 all() ->
   [{group, tcp}, {group, stdio}].
 
@@ -130,17 +130,7 @@ empty_completions(Config) ->
 exported_functions(Config) ->
   TriggerKind = ?COMPLETION_TRIGGER_KIND_CHARACTER,
   Uri = ?config(code_navigation_uri, Config),
-  ExpectedCompletion = [ #{ label            => <<"do/1">>
-                          , kind             => ?COMPLETION_ITEM_KIND_FUNCTION
-                          , insertText       => <<"do(${1:_Config})">>
-                          , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
-                          }
-                       , #{ label            => <<"do_2/0">>
-                          , kind             => ?COMPLETION_ITEM_KIND_FUNCTION
-                          , insertText       => <<"do_2()">>
-                          , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
-                          }
-                       ],
+  ExpectedCompletion = expected_exported_functions(),
 
   #{result := Completion1} =
     els_client:completion(Uri, 32, 25, TriggerKind, <<":">>),
@@ -293,17 +283,7 @@ macros(Config) ->
 only_exported_functions_after_colon(Config) ->
   TriggerKind = ?COMPLETION_TRIGGER_KIND_INVOKED,
   Uri = ?config(code_navigation_uri, Config),
-  ExpectedCompletion = [ #{ label            => <<"do/1">>
-                          , kind             => ?COMPLETION_ITEM_KIND_FUNCTION
-                          , insertText       => <<"do(${1:_Config})">>
-                          , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
-                          }
-                       , #{ label            => <<"do_2/0">>
-                          , kind             => ?COMPLETION_ITEM_KIND_FUNCTION
-                          , insertText       => <<"do_2()">>
-                          , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
-                          }
-                       ],
+  ExpectedCompletion = expected_exported_functions(),
 
   #{result := Completion} =
     els_client:completion(Uri, 32, 26, TriggerKind, <<"d">>),
@@ -384,3 +364,16 @@ variables(Config) ->
   ?assertEqual(lists:sort(Expected), lists:sort(Completion)),
 
   ok.
+
+expected_exported_functions() ->
+  [ #{ label            => <<"do/1">>
+     , kind             => ?COMPLETION_ITEM_KIND_FUNCTION
+     , insertText       => <<"do(${1:_Config})">>
+     , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+     }
+  , #{ label            => <<"do_2/0">>
+     , kind             => ?COMPLETION_ITEM_KIND_FUNCTION
+     , insertText       => <<"do_2()">>
+     , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+     }
+  ].

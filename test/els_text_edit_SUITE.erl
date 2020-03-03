@@ -71,12 +71,12 @@ text_edit_diff(Config) ->
   ?assertEqual( #{newText =>
                    <<"%% Changed diagnostics.erl, to test diff generation\n">>,
                   range =>
-                      #{'end' => #{character => 0,line => 1},
-                        start => #{character => 0,line => 1}}}
+                      #{'end' => #{character => 0, line => 1},
+                        start => #{character => 0, line => 1}}}
               , Edit1),
   ?assertEqual( #{newText => <<"main(X) -> X + 1.\n">>,
                   range =>
-                      #{'end' => #{character => 0,line => 8},
-                        start => #{character => 0,line => 6}}}
+                      #{'end' => #{character => 0, line => 8},
+                        start => #{character => 0, line => 6}}}
               , Edit2),
   ok.

@@ -67,8 +67,8 @@ gen_server_call(Config) ->
   Uri = ?config(gen_server_uri, Config),
   #{result := Result} = els_client:implementation(Uri, 30, 10),
   Expected = #{ range =>
-                  #{ 'end' => #{character => 4,line => 46}
-                   , start => #{character => 0,line => 46}
+                  #{ 'end' => #{character => 4, line => 46}
+                   , start => #{character => 0, line => 46}
                    }
               , uri => Uri
               },
