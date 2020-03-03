@@ -101,12 +101,12 @@ lager_config(_Config) ->
 
   application:set_env(erlang_ls, logging_enabled, false),
   erlang_ls:lager_config(),
-  ?assertEqual(0, length(application:get_env(lager, handlers, undefined))),
+  ?assertEqual(0, length(application:get_env(lager, handlers, [failure]))),
   ?assertEqual(false, application:get_env(lager, crash_log, undefined)),
 
   application:set_env(erlang_ls, logging_enabled, true),
   erlang_ls:lager_config(),
-  ?assertEqual(1, length(application:get_env(lager, handlers, undefined))),
+  ?assertEqual(1, length(application:get_env(lager, handlers, []))),
   ?assertEqual("crash.log", application:get_env(lager, crash_log, undefined)),
 
   meck:unload(filelib),
