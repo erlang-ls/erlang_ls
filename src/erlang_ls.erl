@@ -2,6 +2,11 @@
 
 -export([ main/1 ]).
 
+-export([ parse_args/1
+        , lager_config/0
+        , lager_handlers/1
+        , log_root/0]).
+
 -define(APP, erlang_ls).
 -define(DEFAULT_LOGGING_LEVEL, "info").
 
