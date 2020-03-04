@@ -97,17 +97,17 @@ compiler(Config) ->
   ?assertEqual(1, length(Warnings)),
   ?assertEqual(3, length(Errors)),
   WarningRanges = [ Range || #{range := Range} <- Warnings],
-  ExpectedWarningRanges = [ #{'end' => #{character => 0,line => 7},
-                              start => #{character => 0,line => 6}}
+  ExpectedWarningRanges = [ #{'end' => #{character => 0, line => 7},
+                              start => #{character => 0, line => 6}}
                           ],
   ?assertEqual(ExpectedWarningRanges, WarningRanges),
   ErrorRanges = [ Range || #{range := Range} <- Errors],
-  ExpectedErrorRanges = [ #{'end' => #{character => 35,line => 3},
-                            start => #{character => 0,line => 3}},
-                          #{'end' => #{character => 35,line => 3},
-                            start => #{character => 0,line => 3}},
-                          #{'end' => #{character => 0,line => 6},
-                            start => #{character => 0,line => 5}}
+  ExpectedErrorRanges = [ #{'end' => #{character => 35, line => 3},
+                            start => #{character => 0, line => 3}},
+                          #{'end' => #{character => 35, line => 3},
+                            start => #{character => 0, line => 3}},
+                          #{'end' => #{character => 0, line => 6},
+                            start => #{character => 0, line => 5}}
                         ],
   ?assertEqual(ExpectedErrorRanges, ErrorRanges),
   ok.
@@ -127,10 +127,10 @@ compiler_with_behaviour(Config) ->
   Warnings = [D || #{severity := ?DIAGNOSTIC_WARNING} = D <- Diagnostics],
   ?assertEqual(2, length(Warnings)),
   ErrorRanges = [ Range || #{range := Range} <- Warnings],
-  ExpectedErrorRanges = [ #{ 'end' => #{character => 0,line => 3}
-                           , start => #{character => 0,line => 2}}
-                        , #{ 'end' => #{character => 0,line => 3}
-                           , start => #{character => 0,line => 2}}
+  ExpectedErrorRanges = [ #{ 'end' => #{character => 0, line => 3}
+                           , start => #{character => 0, line => 2}}
+                        , #{ 'end' => #{character => 0, line => 3}
+                           , start => #{character => 0, line => 2}}
                         ],
   ?assertEqual(ExpectedErrorRanges, ErrorRanges),
   ok.
@@ -150,8 +150,8 @@ compiler_with_custom_macros(Config) ->
   Errors   = [D || #{severity := ?DIAGNOSTIC_ERROR}   = D <- Diagnostics],
   ?assertEqual(1, length(Errors)),
   ErrorRanges = [ Range || #{range := Range} <- Errors],
-  ExpectedErrorRanges = [ #{ 'end' => #{character => 0,line => 9}
-                           , start => #{character => 0,line => 8}}
+  ExpectedErrorRanges = [ #{ 'end' => #{character => 0, line => 9}
+                           , start => #{character => 0, line => 8}}
                         ],
   ?assertEqual(ExpectedErrorRanges, ErrorRanges),
   ok.
@@ -171,8 +171,8 @@ compiler_with_parse_transform(Config) ->
   Warnings = [D || #{severity := ?DIAGNOSTIC_WARNING} = D <- Diagnostics],
   ?assertEqual(1, length(Warnings)),
   WarningRanges = [ Range || #{range := Range} <- Warnings],
-  ExpectedWarningsRanges = [ #{ 'end' => #{character => 0,line => 7}
-                              , start => #{character => 0,line => 6}}
+  ExpectedWarningsRanges = [ #{ 'end' => #{character => 0, line => 7}
+                              , start => #{character => 0, line => 6}}
                            ],
   ?assertEqual(ExpectedWarningsRanges, WarningRanges),
   ok.
@@ -192,8 +192,8 @@ compiler_with_parse_transform_included(Config) ->
   Warnings = [D || #{severity := ?DIAGNOSTIC_WARNING} = D <- Diagnostics],
   ?assertEqual(1, length(Warnings)),
   WarningRanges = [ Range || #{range := Range} <- Warnings],
-  ExpectedWarningsRanges = [ #{ 'end' => #{character => 0,line => 7}
-                              , start => #{character => 0,line => 6}}
+  ExpectedWarningsRanges = [ #{ 'end' => #{character => 0, line => 7}
+                              , start => #{character => 0, line => 6}}
                            ],
   ?assertEqual(ExpectedWarningsRanges, WarningRanges),
   ok.
@@ -229,12 +229,12 @@ elvis(Config) ->
       ?assertEqual(0, length(Errors)),
       [ #{range := WarningRange1}
       , #{range := WarningRange2} ] = Warnings,
-      ?assertEqual( #{'end' => #{character => 0,line => 6},
-                      start => #{character => 0,line => 5}}
+      ?assertEqual( #{'end' => #{character => 0, line => 6},
+                      start => #{character => 0, line => 5}}
                   , WarningRange1
                   ),
-      ?assertEqual( #{'end' => #{character => 0,line => 7},
-                      start => #{character => 0,line => 6}}
+      ?assertEqual( #{'end' => #{character => 0, line => 7},
+                      start => #{character => 0, line => 6}}
                   , WarningRange2
                   )
   catch _Err ->

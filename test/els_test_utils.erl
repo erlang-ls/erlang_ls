@@ -20,7 +20,7 @@
 %% Defines
 %%==============================================================================
 -define(TEST_APP, <<"code_navigation">>).
--define(HOSTNAME, {127,0,0,1}).
+-define(HOSTNAME, {127, 0, 0, 1}).
 -define(PORT    , 10000).
 
 -spec groups(module()) -> [{atom(), [], [atom()]}].

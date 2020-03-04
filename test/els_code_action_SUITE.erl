@@ -32,7 +32,7 @@
 suite() ->
   [{timetrap, {seconds, 30}}].
 
--spec all() -> [atom()].
+-spec all() -> [{group, atom()}].
 all() ->
   [{group, tcp}, {group, stdio}].
 
@@ -62,25 +62,29 @@ end_per_testcase(TestCase, Config) ->
 -spec add_underscore_to_unused_var(config()) -> ok.
 add_underscore_to_unused_var(Config) ->
   Uri = ?config(code_navigation_uri, Config),
-  Diag = #{<<"message">>  => <<"variable 'A' is unused">>
-          ,<<"range">>    =>
-                     #{<<"end">>   => #{<<"character">> => 0,<<"line">> => 80}
-                      ,<<"start">> => #{<<"character">> => 0,<<"line">> => 79}}
-          ,<<"severity">> => 2
-          ,<<"source">>   => <<"Compiler">>},
-  Res = els_client:document_codeaction
-          (Uri, els_protocol:range(#{from => {80, 1}, to => {81, 1}}), [Diag]),
-  #{ result := Result } = Res,
-  Expected = [#{command =>
-                         #{arguments =>
-                               [#{from  => 79,
-                                  lines => <<"    _A = X,\n">>,
-                                  to    => 80,
-                                  uri   => Uri}],
-                           command   => <<"replace-lines">>,
-                           title     => <<"Add '_' to 'A'">>},
-                kind    => <<"quickfix">>,
-                title   => <<"Add '_' to 'A'">>}],
+  Diag = #{ message  => <<"variable 'A' is unused">>
+          , range    => #{ 'end' => #{character => 0, line => 80}
+                         , start => #{character => 0, line => 79}
+                         }
+          , severity => 2
+          , source   => <<"Compiler">>
+          },
+  Range = els_protocol:range(#{from => {80, 1}, to => {81, 1}}),
+  #{result := Result} = els_client:document_codeaction(Uri, Range, [Diag]),
+  Expected =
+    [ #{ command => #{ arguments => [ #{ from  => 79
+                                       , lines => <<"    _A = X,\n">>
+                                       , to    => 80
+                                       , uri   => Uri
+                                       }
+                                    ]
+                     , command   => <<"replace-lines">>
+                     , title     => <<"Add '_' to 'A'">>
+                     }
+       , kind    => <<"quickfix">>
+       , title   => <<"Add '_' to 'A'">>
+       }
+    ],
   ?assertEqual(Expected, Result),
   ok.
 
