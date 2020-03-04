@@ -72,7 +72,9 @@ index(Uri, Text) ->
       ok;
     _ ->
       Document = els_dt_document:new(Uri, Text),
-      F = fun() -> do_index(Document) end,
+      F = fun() ->
+              do_index(Document)
+          end,
       els_db:transaction(F)
   end.
 
@@ -113,7 +115,7 @@ index_deps() ->
 -spec index_otp() -> any().
 index_otp() ->
   case application:get_env(erlang_ls, index_otp) of
-    {ok, true}  -> gen_server:cast(?SERVER, {index_otp});
+    {ok, true}  -> gen_server:call(?SERVER, {index_otp}, infinity);
     {ok, false} -> lager:info("Not indexing OTP")
   end.
 
@@ -121,7 +123,7 @@ index_otp() ->
 index_dir(Dir) ->
   lager:info("Indexing directory. [dir=~s]", [Dir]),
   F = fun(FileName, {Succeeded, Failed}) ->
-          case try_index_file(list_to_binary(FileName), async) of
+          case try_index_file(list_to_binary(FileName), sync) of
             ok              -> {Succeeded + 1, Failed};
             {error, _Error} -> {Succeeded, Failed + 1}
           end
@@ -154,13 +156,13 @@ start_link() ->
 
 -spec init({}) -> {ok, state()}.
 init({}) ->
-  %% TODO: Optionally configure number of workers from args
-  Workers = application:get_env(els_app, indexers, 10),
-  {ok, _Pool} = wpool:start_sup_pool(indexers, [ {workers, Workers} ]),
   {ok, #{}}.
 
 -spec handle_call(any(), any(), state()) ->
-  {noreply, state()}.
+  {noreply, state()} | {reply, ok, state()}.
+handle_call({index_otp}, _From, State) ->
+  [index_dir(Dir) || Dir <- els_config:get(otp_paths)],
+  {reply, ok, State};
 handle_call(_Request, _From, State) ->
   {noreply, State}.
 
@@ -171,15 +173,11 @@ handle_cast({index_apps}, State) ->
 handle_cast({index_deps}, State) ->
   [index_dir(Dir) || Dir <- els_config:get(deps_paths)],
   {noreply, State};
-handle_cast({index_otp}, State) ->
-  [index_dir(Dir) || Dir <- els_config:get(otp_paths)],
-  {noreply, State};
 handle_cast(_Msg, State) ->
   {noreply, State}.
 
 -spec terminate(any(), state()) -> ok.
 terminate(_, _State) ->
-  wpool:stop_sup_pool(indexers),
   ok.
 
 %%==============================================================================
@@ -188,25 +186,18 @@ terminate(_, _State) ->
 
 %% @doc Try indexing a file.
 -spec try_index_file(binary(), sync | async) -> ok | {error, any()}.
-try_index_file(FullName, SyncAsync) ->
+try_index_file(FullName, _SyncAsync) ->
   try
     Uri = els_uri:uri(FullName),
     lager:debug("Indexing file. [filename=~s]", [FullName]),
     {ok, Text} = file:read_file(FullName),
-    ok         = index_document(Uri, Text, SyncAsync)
+    ok         = index(Uri, Text)
   catch Type:Reason:St ->
       lager:error("Error indexing file "
                   "[filename=~s] "
                   "~p:~p:~p", [FullName, Type, Reason, St]),
       {error, {Type, Reason}}
   end.
-
--spec index_document(uri(), binary(), async | sync) -> ok.
-index_document(Uri, Text, async) ->
-  ok = wpool:cast(indexers, {?MODULE, index, [Uri, Text]});
-index_document(Uri, Text, sync) ->
-  %% Don't use the pool for synchronous indexing
-  ok = index(Uri, Text).
 
 -spec register_reference(uri(), poi()) -> ok.
 register_reference(Uri, #{kind := Kind, id := RecordName, range := Range})
