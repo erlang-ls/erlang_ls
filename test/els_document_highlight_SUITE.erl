@@ -68,10 +68,8 @@ end_per_testcase(TestCase, Config) ->
 application_local(Config) ->
   Uri = ?config(code_navigation_uri, Config),
   #{result := Locations} = els_client:document_highlight(Uri, 22, 5),
-  ExpectedLocations = [ #{ range => #{from => {22, 3}, to => {22, 13}}
-                         }
-                      , #{ range => #{from => {51, 7}, to => {51, 23}}
-                         }
+  ExpectedLocations = [ #{range => #{from => {22, 3}, to => {22, 13}}}
+                      , #{range => #{from => {51, 7}, to => {51, 23}}}
                       ],
   assert_locations(ExpectedLocations, Locations),
   ok.
@@ -80,10 +78,8 @@ application_local(Config) ->
 application_remote(Config) ->
   Uri = ?config(code_navigation_uri, Config),
   #{result := Locations} = els_client:document_highlight(Uri, 32, 13),
-  ExpectedLocations = [ #{ range => #{from => {32, 3}, to => {32, 27}}
-                         }
-                      , #{ range => #{from => {52, 8}, to => {52, 38}}
-                         }
+  ExpectedLocations = [ #{range => #{from => {32, 3}, to => {32, 27}}}
+                      , #{range => #{from => {52, 8}, to => {52, 38}}}
                       ],
   assert_locations(ExpectedLocations, Locations),
   ok.
@@ -93,10 +89,8 @@ function_definition(Config) ->
   Uri = ?config(code_navigation_uri, Config),
   #{result := Locations} = els_client:document_highlight(Uri, 25, 1),
     %% TODO:AZ: I would expect 25,1 to 25,10 to also show up
-  ExpectedLocations = [ #{ range => #{from => {22, 3}, to => {22, 13}}
-                         }
-                      , #{ range => #{from => {51, 7}, to => {51, 23}}
-                         }
+  ExpectedLocations = [ #{range => #{from => {22, 3}, to => {22, 13}}}
+                      , #{range => #{from => {51, 7}, to => {51, 23}}}
                       ],
   assert_locations(ExpectedLocations, Locations),
   ok.
@@ -105,10 +99,8 @@ function_definition(Config) ->
 fun_local(Config) ->
   Uri = ?config(code_navigation_uri, Config),
   #{result := Locations} = els_client:document_highlight(Uri, 51, 16),
-  ExpectedLocations = [ #{ range => #{from => {22, 3}, to => {22, 13}}
-                         }
-                      , #{ range => #{from => {51, 7}, to => {51, 23}}
-                         }
+  ExpectedLocations = [ #{range => #{from => {22, 3}, to => {22, 13}}}
+                      , #{range => #{from => {51, 7}, to => {51, 23}}}
                       ],
   assert_locations(ExpectedLocations, Locations),
   ok.
@@ -117,10 +109,8 @@ fun_local(Config) ->
 fun_remote(Config) ->
   Uri = ?config(code_navigation_uri, Config),
   #{result := Locations} = els_client:document_highlight(Uri, 52, 14),
-  ExpectedLocations = [ #{ range => #{from => {32, 3}, to => {32, 27}}
-                         }
-                      , #{ range => #{from => {52, 8}, to => {52, 38}}
-                         }
+  ExpectedLocations = [ #{range => #{from => {32, 3}, to => {32, 27}}}
+                      , #{range => #{from => {52, 8}, to => {52, 38}}}
                       ],
   assert_locations(ExpectedLocations, Locations),
   ok.
@@ -128,16 +118,13 @@ fun_remote(Config) ->
 -spec export_entry(config()) -> ok.
 export_entry(Config) ->
   Uri = ?config(code_navigation_uri, Config),
-  #{result := Locations} = els_client:document_highlight(Uri, 5, 39),
+  #{result := Locations} = els_client:document_highlight(Uri, 5, 25),
   %% TODO:AZ: I would expect to also see 5,39 to 5,48
-  ExpectedLocations = [ #{ range => #{from => {22, 3}, to => {22, 13}}
-                         }
-                      , #{ range => #{from => {51, 7}, to => {51, 23}}
-                         }
+  ExpectedLocations = [ #{range => #{from => {22, 3}, to => {22, 13}}}
+                      , #{range => #{from => {51, 7}, to => {51, 23}}}
                       ],
   assert_locations(ExpectedLocations, Locations),
   ok.
-
 
 %%==============================================================================
 %% Internal functions

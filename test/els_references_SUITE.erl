@@ -141,7 +141,7 @@ fun_remote(Config) ->
 -spec export_entry(config()) -> ok.
 export_entry(Config) ->
   Uri = ?config(code_navigation_uri, Config),
-  #{result := Locations} = els_client:references(Uri, 5, 39),
+  #{result := Locations} = els_client:references(Uri, 5, 25),
   ExpectedLocations = [ #{ uri => Uri
                          , range => #{from => {22, 3}, to => {22, 13}}
                          }
