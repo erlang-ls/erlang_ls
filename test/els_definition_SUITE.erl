@@ -112,7 +112,7 @@ behaviour(Config) ->
   Def = els_client:definition(Uri, 3, 16),
   #{result := #{range := Range, uri := DefUri}} = Def,
   ?assertEqual(?config(behaviour_uri, Config), DefUri),
-  ?assertEqual( els_protocol:range(#{from => {1, 2}, to => {1, 2}})
+  ?assertEqual( els_protocol:range(#{from => {1, 9}, to => {1, 20}})
               , Range),
   ok.
 
