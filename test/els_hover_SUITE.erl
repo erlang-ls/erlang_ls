@@ -63,38 +63,51 @@ end_per_testcase(TestCase, Config) ->
 %%==============================================================================
 %% Testcases
 %%==============================================================================
+
+-define(FUNCTION_J_DOC, <<"-spec function_j() -> pos_integer()."
+                          "\n\n"
+                          "# code_navigation:function_j/0"
+                          "\n\n"
+                          "Such a wonderful function."
+                          "\n\n">>).
+
 -spec hover_docs(config()) -> ok.
 hover_docs(Config) ->
   Uri = ?config(code_navigation_extra_uri, Config),
   #{result := Result} = els_client:hover(Uri, 13, 26),
   ?assert(maps:is_key(contents, Result)),
   Contents = maps:get(contents, Result),
-  ?assertEqual( #{ kind  => <<"markdown">>
-                 , value => <<"-spec function_j() -> pos_integer()."
-                              "\n\n"
-                              "# code_navigation:function_j/0"
-                              "\n\n"
-                              "Such a wonderful function."
-                              "\n\n">>
-                 }
-              , Contents),
+  Expected = #{ kind  => <<"markdown">>
+              , value => ?FUNCTION_J_DOC
+              },
+
+  ?assertEqual(Expected, Contents),
   ok.
 
 hover_docs_local(Config) ->
-  Uri = ?config(code_navigation_extra_uri, Config),
-  #{result := Result} = els_client:hover(Uri, 6, 5),
-  ?assert(maps:is_key(contents, Result)),
-  Contents = maps:get(contents, Result),
-  ?assertEqual( #{ kind  => <<"markdown">>
-                 , value => <<"-spec do_4(nat(), opaque_local()) -> {atom(),"
-                              "\n\t\t\t\t"
-                              "      code_navigation_types:opaque_type_a()}."
-                              "\n\n"
-                              "# code_navigation_extra:do_4/2"
-                              "\n\ndo_4 is a local-only function"
-                              "\n\n">>
-                 }
-              , Contents),
+  ct:comment("Hover the local function call"),
+  ExtraUri = ?config(code_navigation_extra_uri, Config),
+  Response1 = els_client:hover(ExtraUri, 6, 5),
+  ?assertMatch(#{result := #{contents := _}}, Response1),
+  #{result := #{contents := Contents1}} = Response1,
+  Expected1 = #{ kind  => <<"markdown">>
+               , value => <<"-spec do_4(nat(), opaque_local()) -> {atom(),"
+                           "\n\t\t\t\t"
+                           "      code_navigation_types:opaque_type_a()}."
+                           "\n\n"
+                           "# code_navigation_extra:do_4/2"
+                           "\n\ndo_4 is a local-only function"
+                           "\n\n">>
+               },
+  ?assertEqual(Expected1, Contents1),
+
+  ct:comment("Hover the export entry for function_j/0"),
+  Uri = ?config(code_navigation_uri, Config),
+  Response2 = els_client:hover(Uri, 5, 55),
+  ?assertMatch(#{result := #{contents := _}}, Response2),
+  #{result := #{contents := Contents2}} = Response2,
+  Expected2 =#{kind  => <<"markdown">>, value => ?FUNCTION_J_DOC},
+  ?assertEqual(Expected2, Contents2),
   ok.
 
 -spec hover_no_docs(config()) -> ok.

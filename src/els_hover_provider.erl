@@ -49,6 +49,8 @@ documentation(_M, #{kind := application, id := {M, F, A}}) ->
   get_docs(M, F, A);
 documentation(M, #{kind := application, id := {F, A}}) ->
   get_docs(M, F, A);
+documentation(M, #{kind := export_entry, id := {F, A}}) ->
+  get_docs(M, F, A);
 documentation(_M, _POI) ->
   <<>>.
 
