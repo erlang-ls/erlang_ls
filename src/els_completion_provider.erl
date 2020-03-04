@@ -11,6 +11,12 @@
 %% Exported to ease testing.
 -export([ keywords/0 ]).
 
+-type options() :: #{ trigger  := binary()
+                    , document := els_dt_document:item()
+                    , line     := line()
+                    , column   := column()
+                    }.
+
 %%==============================================================================
 %% els_provider functions
 %%==============================================================================
@@ -44,6 +50,7 @@ handle_request({completion, Params}, State) ->
       Opts   = #{ trigger  => TriggerCharacter
                 , document => Document
                 , line     => Line + 1
+                , column   => Character
                 },
       {find_completion(Prefix, TriggerKind, Opts), State};
     error ->
@@ -54,14 +61,21 @@ handle_request({completion, Params}, State) ->
 %% Internal functions
 %%==============================================================================
 
--spec find_completion(binary(), integer(), map()) -> any().
+-spec find_completion(binary(), integer(), options()) -> any().
 find_completion( Prefix
                , ?COMPLETION_TRIGGER_KIND_CHARACTER
-               , #{trigger := <<":">>}
+               , #{ trigger  := <<":">>
+                  , document := Document
+                  , line     := Line
+                  , column   := Column
+                  }
                ) ->
   case els_text:last_token(Prefix) of
-    {atom, _, Module} -> exported_functions(Module, false);
-    _ -> null
+    {atom, _, Module} ->
+      {ExportFormat, TypeOrFun} = function_context(Document, Line, Column),
+      exported_functions(Module, TypeOrFun, ExportFormat);
+    _ ->
+      null
   end;
 find_completion( _Prefix
                , ?COMPLETION_TRIGGER_KIND_CHARACTER
@@ -87,15 +101,17 @@ find_completion( Prefix
                , ?COMPLETION_TRIGGER_KIND_INVOKED
                , #{ document := Document
                   , line     := Line
+                  , column   := Column
                   }
                ) ->
   case lists:reverse(els_text:tokens(Prefix)) of
     %% Check for "[...] fun atom:atom"
     [{atom, _, _}, {':', _}, {atom, _, Module}, {'fun', _} | _] ->
-      exported_functions(Module, true);
+      exported_functions(Module, function, _ExportFormat = true);
     %% Check for "[...] atom:atom"
     [{atom, _, _}, {':', _}, {atom, _, Module} | _] ->
-      exported_functions(Module, false);
+      {ExportFormat, TypeOrFun} = function_context(Document, Line, Column),
+      exported_functions(Module, TypeOrFun, ExportFormat);
     %% Check for "[...] ?anything"
     [_, {'?', _} | _] ->
       definitions(Document, define);
@@ -110,12 +126,14 @@ find_completion( Prefix
       variables(Document);
     %% Check for "[...] fun atom"
     [{atom, _, _}, {'fun', _} | _] ->
-      functions(Document, false, true);
+      functions(Document, function, _ExportFormat = true);
     %% Check for "[...] atom"
     [{atom, _, Name} | _] ->
       NameBinary = atom_to_binary(Name, utf8),
-      IsExport   = is_exports_entry(Document, Line),
-      keywords() ++ modules(NameBinary) ++ functions(Document, false, IsExport);
+      {ExportFormat, TypeOrFun} = function_context(Document, Line, Column),
+      keywords()
+      ++ modules(NameBinary)
+      ++ functions(Document, TypeOrFun, ExportFormat);
     _ ->
       []
   end;
@@ -140,44 +158,82 @@ item_kind_module(Module) ->
    }.
 
 %%==============================================================================
-%% Functions
+%% Functions/Types
 %%==============================================================================
 
--spec functions(els_dt_document:item(), boolean(), boolean()) -> [map()].
-functions(Document, _OnlyExported = false, Arity) ->
-  POIs = els_dt_document:pois(Document, [function]),
-  List = [completion_item_function(POI, Arity) || POI <- POIs],
-  lists:usort(List);
-functions(Document, _OnlyExported = true, Arity) ->
-  Exports   = els_dt_document:pois(Document, [export_entry]),
-  Functions = els_dt_document:pois(Document, [function]),
-  ExportsFA = [FA || #{id := FA} <- Exports],
-  List      = [ completion_item_function(POI, Arity)
-                || #{id := FA} = POI <- Functions, lists:member(FA, ExportsFA)
-              ],
-  lists:usort(List).
+-type function_type() :: function | type.
 
--spec completion_item_function(poi(), boolean()) -> map().
-completion_item_function(#{id := {F, A}, data := ArgsNames}, false) ->
+-spec functions(els_dt_document:item(), function_type(), boolean()) -> [map()].
+functions(Document, Type, ExportFormat) ->
+  functions(Document, Type, ExportFormat, _ExportedOnly = false).
+
+-spec functions( els_dt_document:item()
+               , function_type()
+               , boolean()
+               , boolean()
+               ) -> [map()].
+functions(Document, Type, ExportFormat, ExportedOnly) ->
+  {ExportKind, ItemKind, Kind} =
+    case Type of
+        type ->
+          { export_type_entry
+          , type_definition
+          , ?COMPLETION_ITEM_KIND_TYPE_PARAM
+          };
+        function ->
+          { export_entry
+          , function
+          , ?COMPLETION_ITEM_KIND_FUNCTION
+          }
+      end,
+  Exports  = els_dt_document:pois(Document, [ExportKind]),
+  POIs     = els_dt_document:pois(Document, [ItemKind]),
+  FAs      = [FA || #{id := FA} <- Exports],
+  Items    = resolve_functions(POIs, FAs, ExportedOnly, ExportFormat, Kind),
+  lists:usort(Items).
+
+-spec function_context(els_dt_document:item(), line(), column()) ->
+  {boolean(), function_type()}.
+function_context(Document, Line, Column) ->
+  ExportFormat = is_in(Document, Line, Column, [export, export_type]),
+  TypeOrFun    = case is_in(Document, Line, Column, [spec, export_type]) of
+                   true -> type;
+                   false -> function
+                 end,
+  {ExportFormat, TypeOrFun}.
+
+-spec resolve_functions( [poi()], [{atom(), arity()}], boolean()
+                       , boolean(), completion_item_kind()) ->
+  [map()].
+resolve_functions(Functions, ExportsFA, ExportedOnly, ArityOnly, ItemKind) ->
+  [ completion_item_with_args(POI, ItemKind, ArityOnly)
+    || #{id := FA} = POI <- Functions,
+        not ExportedOnly orelse lists:member(FA, ExportsFA)
+  ].
+
+-spec completion_item_with_args(poi(), completion_item_kind(), boolean()) ->
+  map().
+completion_item_with_args(#{id := {F, A}, data := ArgsNames}, Kind, false) ->
   #{ label            => list_to_binary(io_lib:format("~p/~p", [F, A]))
-   , kind             => ?COMPLETION_ITEM_KIND_FUNCTION
+   , kind             => Kind
    , insertText       => snippet_function_call(F, ArgsNames)
    , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
    };
-completion_item_function(#{id := {F, A}}, true) ->
+completion_item_with_args(#{id := {F, A}}, Kind, true) ->
   #{ label            => list_to_binary(io_lib:format("~p/~p", [F, A]))
-   , kind             => ?COMPLETION_ITEM_KIND_FUNCTION
+   , kind             => Kind
    , insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
    }.
 
--spec exported_functions(module(), boolean()) -> [map()] | null.
-exported_functions(Module, Arity) ->
+-spec exported_functions(module(), function_type(), boolean()) ->
+  [map()].
+exported_functions(Module, TypeOrFunction, ExportFormat) ->
   case els_utils:find_module(Module) of
     {ok, Uri} ->
       {ok, Document} = els_utils:lookup_document(Uri),
-      functions(Document, true, Arity);
+      functions(Document, TypeOrFunction, ExportFormat, true);
     {error, _Error} ->
-      null
+      []
   end.
 
 -spec snippet_function_call(atom(), [{integer(), string()}]) -> binary().
@@ -188,16 +244,12 @@ snippet_function_call(Function, Args0) ->
   Snippet = [atom_to_list(Function), "(", string:join(Args, ", "), ")"],
   iolist_to_binary(Snippet).
 
--spec is_exports_entry(els_dt_document:item(), non_neg_integer()) -> boolean().
-is_exports_entry(Document, Line) ->
-  case els_dt_document:pois(Document, [exports]) of
-    [] -> false;
-    Exports ->
-      IsInside = fun(#{range := #{from := {From, _}, to := {To, _}}}) ->
-                     (From =< Line) andalso (Line =< To)
-                 end,
-      lists:any(IsInside, Exports)
-  end.
+-spec is_in(els_dt_document:item(), line(), column(), [poi_kind()]) ->
+  boolean().
+is_in(Document, Line, Column, POIKinds) ->
+  POIs = els_dt_document:get_element_at_pos(Document, Line, Column),
+  IsKind = fun(#{kind := Kind}) -> lists:member(Kind, POIKinds) end,
+  lists:any(IsKind, POIs).
 
 %%==============================================================================
 %% Variables

@@ -76,8 +76,10 @@
 %%------------------------------------------------------------------------------
 %% Position
 %%------------------------------------------------------------------------------
--type position() :: #{ line      := number()
-                     , character := number()
+-type line()     :: number().
+-type column()   :: number().
+-type position() :: #{ line      := line()
+                     , character := column()
                      }.
 
 %% This is used for defining folding ranges. It is not possible to just use
@@ -618,7 +620,10 @@
                    | behaviour
                    | define
                    | export
-                   | exports_entry
+                   | export_entry
+                   | export_type
+                   | export_type_entry
+                   | folding_range
                    | function
                    | implicit_fun
                    | import_entry
