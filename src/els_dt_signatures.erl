@@ -53,7 +53,7 @@ opts() ->
   , {disc_copies       , [node()]}
   , {index             , []}
   , {type              , set}
-  , {storage_properties, [{ets, [compressed]}]}
+  , {storage_properties, [{ets, []}]}
   ].
 
 %%==============================================================================
