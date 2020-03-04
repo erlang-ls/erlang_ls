@@ -212,7 +212,7 @@ string_to_term(Value) ->
         {ok | error, [compiler_msg()], [compiler_msg()]}.
 compile_file(Path, Dependencies) ->
   %% Load dependencies required for the compilation
-  Olds = [load_dependency(Dependency) || Dependency <- Dependencies],
+  Olds = parallel_map(fun load_dependency/1, Dependencies),
   Opts = lists:append([ macro_options()
                       , include_options()
                       , [ return_warnings
@@ -222,8 +222,10 @@ compile_file(Path, Dependencies) ->
                       ]),
   Res = compile:file(Path, Opts),
   %% Restore things after compilation
-  [code:load_binary(Dependency, Filename, Binary)
-   || {Dependency, Binary, Filename} <- Olds],
+  parallel_map(fun({Dependency, Binary, Filename}) ->
+           code:load_binary(Dependency, Filename, Binary);
+                  (error) -> ok
+       end, Olds),
   Res.
 
 %% @doc Load a dependency, return the old version of the code (if any),
@@ -245,3 +247,18 @@ load_dependency(Module) ->
       lager:warning("Error finding dependency [error=~w]", [Error])
   end,
   Old.
+
+-spec parallel_map(fun((term()) -> term()), list()) -> term().
+parallel_map(Fun, L) when is_function(Fun, 1) ->
+  Self = self(),
+  Pids = lists:map(fun(I) ->
+                       spawn_link(fun() -> Self ! {self(), Fun(I)} end)
+                   end, L),
+  gather_results(Pids).
+
+-spec gather_results([pid()]) -> term().
+gather_results([]) -> [];
+gather_results([H|T]) ->
+  receive
+    {H, Return} -> [ Return | gather_results(T) ]
+  end.
