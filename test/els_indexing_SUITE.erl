@@ -64,16 +64,6 @@ index_otp(Config) ->
 
 -spec reindex_otp(config()) -> ok.
 reindex_otp(Config) ->
-  %% redbug:start(
-  %%   [ "mnesia_log:open_log({els_dt_references,dcd2ets}, _, _, _, _, _)->retur
-  %%   , "mnesia_log:close_log"
-  %%   ]
-  %%              , [ {msgs, 9999999}
-  %%                , {time, 9999999}
-  %%                , {print_file, "/tmp/redbug"}
-  %%                , {arity, false}
-  %%                , {print_return, false}
-  %%                ]),
   index_otp(db, ?config(priv_dir, Config)),
   ok.
 
