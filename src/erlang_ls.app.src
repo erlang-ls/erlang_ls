@@ -12,7 +12,6 @@
       , lager
       , yamerl
       , docsh
-      , worker_pool
       , elvis
       , ephemeral
       , rebar3_format
