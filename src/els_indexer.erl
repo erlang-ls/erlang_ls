@@ -151,6 +151,11 @@ handle_call(_Request, _From, State) ->
 -spec handle_cast(any(), state()) -> {noreply, state()}.
 handle_cast({start, Dirs, Mode}, State) ->
   [index_dir(Dir, Mode) || Dir <- Dirs],
+  %% Indexing a directory can lead to a huge number of DB transactions
+  %% happening in a very short time window. After indexing, let's
+  %% manually trigger a DB dump. This ensures that the DB can be
+  %% loaded much faster on a restart.
+  els_db:dump_tables(),
   {noreply, State};
 handle_cast(_Msg, State) ->
   {noreply, State}.
