@@ -81,7 +81,8 @@ dump_tables() ->
   %% First dump the content of the .LOG file to the respective .DCL
   %% files, then merge the .DCL files into the .DCD files.
   mnesia:dump_log(),
-  mnesia_controller:snapshot_dcd(tables()).
+  mnesia_controller:snapshot_dcd(tables()),
+  ok.
 
 -spec lookup(atom(), any()) -> {ok, [tuple()]}.
 lookup(Table, Key) ->

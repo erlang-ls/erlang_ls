@@ -111,8 +111,7 @@ index_dirs(Dirs, Mode) ->
   %% happening in a very short time window. After indexing, let's
   %% manually trigger a DB dump. This ensures that the DB can be
   %% loaded much faster on a restart.
-  dumped = els_db:dump_tables(),
-  ok.
+  els_db:dump_tables().
 
 -spec start_link() -> {ok, pid()}.
 start_link() ->
