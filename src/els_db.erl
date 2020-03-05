@@ -36,6 +36,7 @@ install(NodeName, BaseDir) ->
   ok = application:set_env(mnesia, dir, DbDir),
   %% Avoid mnesia overload while indexing
   ok = application:set_env(mnesia, dump_log_write_threshold, 50000),
+  ok = application:set_env(mnesia, no_table_loaders, 4),
   ensure_db(DbDir).
 
 -spec stop() -> ok | {error, any()}.
