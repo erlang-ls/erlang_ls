@@ -76,6 +76,7 @@ delete_object(Item) ->
 
 -spec dump_tables() -> ok.
 dump_tables() ->
+  mnesia:dump_log(),
   mnesia_controller:snapshot_dcd(tables()).
 
 -spec lookup(atom(), any()) -> {ok, [tuple()]}.
