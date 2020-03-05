@@ -7,7 +7,7 @@
 -export([ find_and_index_file/1
         , index_file/1
         , index/3
-        , index_dir/2
+        , index_dirs/2
         , start_link/0
         , start/2
         ]).
@@ -104,32 +104,15 @@ do_index(#{uri := Uri, id := Id, kind := Kind} = Document, Mode) ->
 start(Dirs, Mode) ->
   gen_server:cast(?SERVER, {start, Dirs, Mode}).
 
--spec index_dir(string(), mode()) -> {non_neg_integer(), non_neg_integer()}.
-index_dir(Dir, Mode) ->
-  lager:info("Indexing directory. [dir=~s] [mode=~s]", [Dir, Mode]),
-  F = fun(FileName, {Succeeded, Failed}) ->
-          case try_index_file(list_to_binary(FileName), Mode) of
-            ok              -> {Succeeded + 1, Failed};
-            {error, _Error} -> {Succeeded, Failed + 1}
-          end
-      end,
-  Filter = fun(Path) ->
-               Ext = filename:extension(Path),
-               lists:member(Ext, [".erl", ".hrl"])
-           end,
-
-  {Time, {Succeeded, Failed}} = timer:tc( els_utils
-                                        , fold_files
-                                        , [ F
-                                          , Filter
-                                          , Dir
-                                          , {0, 0}
-                                          ]
-                                        ),
-  lager:info("Finished indexing directory. [dir=~s] [mode=~s] [time=~p] "
-             "[succeeded=~p] "
-             "[failed=~p]", [Dir, Mode, Time/1000/1000, Succeeded, Failed]),
-  {Succeeded, Failed}.
+-spec index_dirs([string()], mode()) -> ok.
+index_dirs(Dirs, Mode) ->
+  [index_dir(Dir, Mode) || Dir <- Dirs],
+  %% Indexing a directory can lead to a huge number of DB transactions
+  %% happening in a very short time window. After indexing, let's
+  %% manually trigger a DB dump. This ensures that the DB can be
+  %% loaded much faster on a restart.
+  dumped = els_db:dump_tables(),
+  ok.
 
 -spec start_link() -> {ok, pid()}.
 start_link() ->
@@ -150,12 +133,7 @@ handle_call(_Request, _From, State) ->
 
 -spec handle_cast(any(), state()) -> {noreply, state()}.
 handle_cast({start, Dirs, Mode}, State) ->
-  [index_dir(Dir, Mode) || Dir <- Dirs],
-  %% Indexing a directory can lead to a huge number of DB transactions
-  %% happening in a very short time window. After indexing, let's
-  %% manually trigger a DB dump. This ensures that the DB can be
-  %% loaded much faster on a restart.
-  els_db:dump_tables(),
+  index_dirs(Dirs, Mode),
   {noreply, State};
 handle_cast(_Msg, State) ->
   {noreply, State}.
@@ -204,3 +182,30 @@ register_reference(Uri, #{id := {M, F, A}, range := Range}) ->
                             , uri   => Uri
                             , range => Range
                             }).
+
+-spec index_dir(string(), mode()) -> {non_neg_integer(), non_neg_integer()}.
+index_dir(Dir, Mode) ->
+  lager:info("Indexing directory. [dir=~s] [mode=~s]", [Dir, Mode]),
+  F = fun(FileName, {Succeeded, Failed}) ->
+          case try_index_file(list_to_binary(FileName), Mode) of
+            ok              -> {Succeeded + 1, Failed};
+            {error, _Error} -> {Succeeded, Failed + 1}
+          end
+      end,
+  Filter = fun(Path) ->
+               Ext = filename:extension(Path),
+               lists:member(Ext, [".erl", ".hrl"])
+           end,
+
+  {Time, {Succeeded, Failed}} = timer:tc( els_utils
+                                        , fold_files
+                                        , [ F
+                                          , Filter
+                                          , Dir
+                                          , {0, 0}
+                                          ]
+                                        ),
+  lager:info("Finished indexing directory. [dir=~s] [mode=~s] [time=~p] "
+             "[succeeded=~p] "
+             "[failed=~p]", [Dir, Mode, Time/1000/1000, Succeeded, Failed]),
+  {Succeeded, Failed}.

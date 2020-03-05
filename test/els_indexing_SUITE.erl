@@ -69,5 +69,5 @@ reindex_otp(Config) ->
 -spec index_otp(atom(), string()) -> ok.
 index_otp(DBName, DBDir) ->
   ok = els_db:install(DBName, DBDir),
-  [els_indexer:index_dir(Dir, 'shallow') || Dir <- els_config:get(otp_paths)],
+  els_indexer:index_dirs(els_config:get(otp_paths), 'shallow'),
   ok = els_db:stop().
