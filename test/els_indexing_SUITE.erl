@@ -41,17 +41,23 @@ end_per_suite(Config) ->
 
 -spec init_per_testcase(atom(), config()) -> config().
 init_per_testcase(_TestCase, Config) ->
-  application:ensure_all_started(erlang_ls),
-  RootUri = els_uri:uri(list_to_binary(code:root_dir())),
-  els_config:initialize(RootUri, [], []),
-  Config.
+  {ok, Started} = application:ensure_all_started(erlang_ls),
+  RootDir = code:root_dir(),
+  RootUri = els_uri:uri(list_to_binary(RootDir)),
+  %% Do not index the entire list of OTP apps in the pipelines.
+  %% This portion of code is stolen from els_config, which needs some
+  %% serious refactoring.
+  %% ExcludePathsSpecs = [[RootDir, "lib", P ++ "*"] || P <- otp_apps_exclude()]
+  %% RootPath = binary_to_list(els_uri:path(RootUri)),
+  %% ExcludePaths = els_utils:resolve_paths(ExcludePathsSpecs, RootPath, true),
+  %% erlang:display(ExcludePaths),
+  Cfg = #{"otp_apps_exclude" => otp_apps_exclude()},
+  els_config:do_initialize(RootUri, [], Cfg),
+  [{started, Started}|Config].
 
 -spec end_per_testcase(atom(), config()) -> ok.
-end_per_testcase(_TestCase, _Config) ->
-  %% TODO: The transport should be included in the OTP supervision
-  %% tree, so it can be restarted.
-  ok = ranch:stop_listener(erlang_ls),
-  application:stop(erlang_ls),
+end_per_testcase(_TestCase, Config) ->
+  [application:stop(App) || App <- ?config(started, Config)],
   ok.
 
 %%==============================================================================
@@ -71,3 +77,38 @@ index_otp(DBName, DBDir) ->
   ok = els_db:install(DBName, DBDir),
   els_indexer:index_dirs(els_config:get(otp_paths), 'shallow'),
   ok = els_db:stop().
+
+-spec otp_apps_exclude() -> [string()].
+otp_apps_exclude() ->
+  [ "asn1"
+  , "common_test"
+  , "compiler"
+  , "crypto"
+  , "debugger"
+  , "dialyzer"
+  , "diameter"
+  , "edoc"
+  , "eldap"
+  , "erl_docgen"
+  , "erl_interface"
+  , "et"
+  , "eunit"
+  , "ftp"
+  , "inets"
+  , "jinterface"
+  , "megaco"
+  , "mnesia"
+  , "observer"
+  , "os_mon"
+  , "otp_mibs"
+  , "parsetools"
+  , "reltool"
+  , "sasl"
+  , "snmp"
+  , "ssh"
+  , "ssl"
+  , "syntax_tools"
+  , "tftp"
+  , "xmerl"
+  , "wx"
+  ].
