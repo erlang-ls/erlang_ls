@@ -347,8 +347,6 @@ setup() ->
   HaltFun = fun(_X) -> Self ! halt_called, ok end,
   meck:expect(els_utils, halt, HaltFun),
   application:ensure_all_started(erlang_ls),
-  application:set_env(erlang_ls, index_otp, false),
-  application:set_env(erlang_ls, index_deps, false),
   file:write_file("/tmp/erlang_ls.config", <<"">>),
   lager:set_loglevel(lager_console_backend, warning),
   ok.

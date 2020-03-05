@@ -42,7 +42,6 @@ end_per_suite(Config) ->
 -spec init_per_testcase(atom(), config()) -> config().
 init_per_testcase(_TestCase, Config) ->
   application:ensure_all_started(erlang_ls),
-  application:set_env(erlang_ls, index_otp, true),
   RootUri = els_uri:uri(list_to_binary(code:root_dir())),
   els_config:initialize(RootUri, [], []),
   Config.
@@ -70,17 +69,5 @@ reindex_otp(Config) ->
 -spec index_otp(atom(), string()) -> ok.
 index_otp(DBName, DBDir) ->
   ok = els_db:install(DBName, DBDir),
-  ok = els_indexer:index_otp(),
-  Entries = mnesia:table_info(els_dt_references, size),
-  Size = mnesia:table_info(els_dt_references, memory) * 8 / 1024 / 1024,
-  ct:comment("Entries: ~p. Size (MB): ~p", [Entries, Size]),
-  %% mnesia_controller:snapshot_dcd(tables()), %% Seems to save 3-4 seconds
+  [els_indexer:index_dir(Dir, 'shallow') || Dir <- els_config:get(otp_paths)],
   ok = els_db:stop().
-
-%% %% TODO: Move to els_db
-%% tables() ->
-%%   [ els_dt_document
-%%   , els_dt_document_index
-%%   , els_dt_references
-%%   , els_dt_signatures
-%%   ].

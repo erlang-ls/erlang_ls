@@ -50,11 +50,9 @@ init_per_suite(Config) ->
   AppPath  = src_path(RootPath, "rebar3_release_app.erl"),
   SupPath  = src_path(RootPath, "rebar3_release_sup.erl"),
   application:load(erlang_ls),
-  application:set_env(erlang_ls, index_otp, false),
-  application:set_env(erlang_ls, index_deps, false),
   [ {root_uri, els_uri:uri(RootPath)}
-  , {app_uri, els_uri:uri(AppPath)}
-  , {sup_uri, els_uri:uri(SupPath)}
+  , {app_uri,  els_uri:uri(AppPath)}
+  , {sup_uri,  els_uri:uri(SupPath)}
     | Config
   ].
 
@@ -71,8 +69,8 @@ init_per_testcase(_TestCase, Config) ->
   els_client:initialize(RootUri, []),
   {ok, AppText} = file:read_file(els_uri:path(AppUri)),
   els_client:did_open(AppUri, erlang, 1, AppText),
-  els_indexer:find_and_index_file("rebar3_release_app.erl", sync),
-  els_indexer:find_and_index_file("rebar3_release_sup.erl", sync),
+  els_indexer:find_and_index_file("rebar3_release_app.erl"),
+  els_indexer:find_and_index_file("rebar3_release_sup.erl"),
   [{started, Started}|Config].
 
 -spec end_per_testcase(atom(), config()) -> ok.

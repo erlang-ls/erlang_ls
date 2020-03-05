@@ -5,14 +5,11 @@
 %% TODO: Solve API mix (gen_server and not)
 %% API
 -export([ find_and_index_file/1
-        , find_and_index_file/2
-        , index_file/2
-        , index/2
-        , index_dir/1
+        , index_file/1
+        , index/3
+        , index_dir/2
         , start_link/0
-        , index_apps/0
-        , index_deps/0
-        , index_otp/0
+        , start/2
         ]).
 
 %% gen_server callbacks
@@ -32,6 +29,7 @@
 %% Types
 %%==============================================================================
 -type state() :: #{}.
+-type mode()  :: 'deep' | 'shallow'.
 
 %%==============================================================================
 %% Macros
@@ -41,31 +39,27 @@
 %%==============================================================================
 %% Exported functions
 %%==============================================================================
+
 -spec find_and_index_file(string()) ->
    {ok, uri()} | {error, any()}.
 find_and_index_file(FileName) ->
-  find_and_index_file(FileName, async).
-
--spec find_and_index_file(string(), async | sync) ->
-   {ok, uri()} | {error, any()}.
-find_and_index_file(FileName, SyncAsync) ->
   SearchPaths = els_config:get(search_paths),
   case file:path_open(SearchPaths, list_to_binary(FileName), [read]) of
     {ok, IoDevice, FullName} ->
       %% TODO: Avoid opening file twice
       file:close(IoDevice),
-      index_file(FullName, SyncAsync);
+      index_file(FullName);
     {error, Error} ->
       {error, Error}
   end.
 
--spec index_file(binary(), sync | async) -> {ok, uri()}.
-index_file(Path, SyncAsync) ->
-  try_index_file(Path, SyncAsync),
+-spec index_file(binary()) -> {ok, uri()}.
+index_file(Path) ->
+  try_index_file(Path, 'deep'),
   {ok, els_uri:uri(Path)}.
 
--spec index(uri(), binary()) -> ok.
-index(Uri, Text) ->
+-spec index(uri(), binary(), mode()) -> ok.
+index(Uri, Text, Mode) ->
   MD5 = erlang:md5(Text),
   case els_dt_document:lookup(Uri) of
     {ok, [#{md5 := MD5}]} ->
@@ -73,13 +67,13 @@ index(Uri, Text) ->
     _ ->
       Document = els_dt_document:new(Uri, Text),
       F = fun() ->
-              do_index(Document)
+              do_index(Document, Mode)
           end,
       els_db:transaction(F)
   end.
 
--spec do_index(els_dt_document:item()) -> ok.
-do_index(#{uri := Uri, id := Id, kind := Kind} = Document) ->
+-spec do_index(els_dt_document:item(), mode()) -> ok.
+do_index(#{uri := Uri, id := Id, kind := Kind} = Document, Mode) ->
   ok = els_dt_document:insert(Document),
   %% Mapping from document id to uri
   ModuleItem = els_dt_document_index:new(Id, Uri, Kind),
@@ -90,40 +84,31 @@ do_index(#{uri := Uri, id := Id, kind := Kind} = Document) ->
                              , tree => Tree
                              }) ||
     #{id := {F, A}, data := Tree} <- Specs],
-  %% References
-  POIs  = els_dt_document:pois(Document, [ application
-                                         , implicit_fun
-                                         , macro
-                                         , record_access
-                                         , record_expr
-                                         ]),
-  ok = els_dt_references:delete_by_uri(Uri),
-  [register_reference(Uri, POI) || POI <- POIs],
-  ok.
-
--spec index_apps() -> any().
-index_apps() ->
-  gen_server:cast(?SERVER, {index_apps}).
-
--spec index_deps() -> any().
-index_deps() ->
-  case application:get_env(erlang_ls, index_deps) of
-    {ok, true}  -> gen_server:cast(?SERVER, {index_deps});
-    {ok, false} -> lager:info("Not indexing dependencies")
+  case Mode of
+    'deep' ->
+      %% References
+      POIs  = els_dt_document:pois(Document, [ application
+                                             , implicit_fun
+                                             , macro
+                                             , record_access
+                                             , record_expr
+                                             ]),
+      ok = els_dt_references:delete_by_uri(Uri),
+      [register_reference(Uri, POI) || POI <- POIs],
+      ok;
+    'shallow' ->
+      ok
   end.
 
--spec index_otp() -> any().
-index_otp() ->
-  case application:get_env(erlang_ls, index_otp) of
-    {ok, true}  -> gen_server:call(?SERVER, {index_otp}, infinity);
-    {ok, false} -> lager:info("Not indexing OTP")
-  end.
+-spec start([string()], mode()) -> ok.
+start(Dirs, Mode) ->
+  gen_server:cast(?SERVER, {start, Dirs, Mode}).
 
--spec index_dir(string()) -> {non_neg_integer(), non_neg_integer()}.
-index_dir(Dir) ->
-  lager:info("Indexing directory. [dir=~s]", [Dir]),
+-spec index_dir(string(), mode()) -> {non_neg_integer(), non_neg_integer()}.
+index_dir(Dir, Mode) ->
+  lager:info("Indexing directory. [dir=~s] [mode=~s]", [Dir, Mode]),
   F = fun(FileName, {Succeeded, Failed}) ->
-          case try_index_file(list_to_binary(FileName), sync) of
+          case try_index_file(list_to_binary(FileName), Mode) of
             ok              -> {Succeeded + 1, Failed};
             {error, _Error} -> {Succeeded, Failed + 1}
           end
@@ -141,9 +126,9 @@ index_dir(Dir) ->
                                           , {0, 0}
                                           ]
                                         ),
-  lager:info("Finished indexing directory. [dir=~s] [time=~p] "
+  lager:info("Finished indexing directory. [dir=~s] [mode=~s] [time=~p] "
              "[succeeded=~p] "
-             "[failed=~p]", [Dir, Time/1000/1000, Succeeded, Failed]),
+             "[failed=~p]", [Dir, Mode, Time/1000/1000, Succeeded, Failed]),
   {Succeeded, Failed}.
 
 -spec start_link() -> {ok, pid()}.
@@ -160,18 +145,12 @@ init({}) ->
 
 -spec handle_call(any(), any(), state()) ->
   {noreply, state()} | {reply, ok, state()}.
-handle_call({index_otp}, _From, State) ->
-  [index_dir(Dir) || Dir <- els_config:get(otp_paths)],
-  {reply, ok, State};
 handle_call(_Request, _From, State) ->
   {noreply, State}.
 
 -spec handle_cast(any(), state()) -> {noreply, state()}.
-handle_cast({index_apps}, State) ->
-  [index_dir(Dir) || Dir <- els_config:get(apps_paths)],
-  {noreply, State};
-handle_cast({index_deps}, State) ->
-  [index_dir(Dir) || Dir <- els_config:get(deps_paths)],
+handle_cast({start, Dirs, Mode}, State) ->
+  [index_dir(Dir, Mode) || Dir <- Dirs],
   {noreply, State};
 handle_cast(_Msg, State) ->
   {noreply, State}.
@@ -185,13 +164,13 @@ terminate(_, _State) ->
 %%==============================================================================
 
 %% @doc Try indexing a file.
--spec try_index_file(binary(), sync | async) -> ok | {error, any()}.
-try_index_file(FullName, _SyncAsync) ->
+-spec try_index_file(binary(), mode()) -> ok | {error, any()}.
+try_index_file(FullName, Mode) ->
   try
     Uri = els_uri:uri(FullName),
     lager:debug("Indexing file. [filename=~s]", [FullName]),
     {ok, Text} = file:read_file(FullName),
-    ok         = index(Uri, Text)
+    ok         = index(Uri, Text, Mode)
   catch Type:Reason:St ->
       lager:error("Error indexing file "
                   "[filename=~s] "

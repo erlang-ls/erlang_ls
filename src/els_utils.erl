@@ -31,7 +31,7 @@ find_header(Id) ->
       {ok, Uri};
     [] ->
       FileName = atom_to_list(Id) ++ ".hrl",
-      els_indexer:find_and_index_file(FileName, sync)
+      els_indexer:find_and_index_file(FileName)
   end.
 
 %% @doc Look for a module in the DB
@@ -43,7 +43,7 @@ find_module(Id) ->
       {ok, Uri};
     [] ->
       FileName = atom_to_list(Id) ++ ".erl",
-      els_indexer:find_and_index_file(FileName, sync)
+      els_indexer:find_and_index_file(FileName)
   end.
 
 %% @doc Look for a document in the DB.
@@ -58,7 +58,7 @@ lookup_document(Uri) ->
       {ok, Document};
     {ok, []} ->
       Path = els_uri:path(Uri),
-      {ok, Uri} = els_indexer:index_file(Path, sync),
+      {ok, Uri} = els_indexer:index_file(Path),
       {ok, [Document]} = els_dt_document:lookup(Uri),
       {ok, Document}
   end.
