@@ -41,7 +41,7 @@ init([]) ->
               },
   {ok, Transport} = application:get_env(erlang_ls, transport),
   %% Restrict access to stdio when using that transport
-  (Transport =/= els_stdio) andalso restrict_stdio_access(),
+  restrict_stdio_access(Transport),
   ChildSpecs = [ #{ id       => els_server
                   , start    => {els_server, start_link, [Transport]}
                   }
@@ -71,8 +71,8 @@ init([]) ->
 %% standard output from corrupting the messages sent through JSONRPC.
 %% This problem is happening for example when calling `edoc:get_doc/2',
 %% which can print warnings to standard output.
--spec restrict_stdio_access() -> ok.
-restrict_stdio_access() ->
+-spec restrict_stdio_access(els_stdio | els_tcp) -> ok.
+restrict_stdio_access(els_stdio) ->
   lager:info("Use group leader as io_device"),
   case application:get_env(erlang_ls, io_device, standard_io) of
     standard_io ->
@@ -84,6 +84,8 @@ restrict_stdio_access() ->
   Pid = erlang:spawn(fun noop_group_leader/0),
   erlang:group_leader(Pid, self()),
 
+  ok;
+restrict_stdio_access(_) ->
   ok.
 
 %% @doc Simulate a group leader but do nothing
