@@ -178,9 +178,8 @@ initialize(Params, State) ->
 -spec initialized(params(), state()) -> result().
 initialized(_Params, State) ->
   %% Report to the user the server version
-  {ok,     App} = application:get_application(),
-  {ok, Version} = application:get_key(App, vsn),
-  lager:info("initialized: [App=~p] [Version=~p]", [App, Version]),
+  {ok, Version} = application:get_key(?APP, vsn),
+  lager:info("initialized: [App=~p] [Version=~p]", [?APP, Version]),
   BinVersion = list_to_binary(Version),
   Root = filename:basename(els_uri:path(els_config:get(root_uri))),
   Message = <<"Erlang LS (in ", Root/binary, "), version: "
