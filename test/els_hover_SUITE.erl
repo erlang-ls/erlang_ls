@@ -64,12 +64,15 @@ end_per_testcase(TestCase, Config) ->
 %% Testcases
 %%==============================================================================
 
--define(FUNCTION_J_DOC, <<"-spec function_j() -> pos_integer()."
-                          "\n\n"
-                          "# code_navigation:function_j/0"
-                          "\n\n"
-                          "Such a wonderful function."
-                          "\n\n">>).
+-define( FUNCTION_J_DOC
+       , <<"```erlang\n"
+           "-spec function_j() -> pos_integer().\n"
+           "```\n\n"
+           "### code_navigation:function_j/0"
+           "\n\n"
+           "Such a wonderful function."
+           "\n\n">>
+       ).
 
 -spec hover_docs(config()) -> ok.
 hover_docs(Config) ->
@@ -91,13 +94,14 @@ hover_docs_local(Config) ->
   ?assertMatch(#{result := #{contents := _}}, Response1),
   #{result := #{contents := Contents1}} = Response1,
   Expected1 = #{ kind  => <<"markdown">>
-               , value => <<"-spec do_4(nat(), opaque_local()) -> {atom(),"
-                           "\n\t\t\t\t"
-                           "      code_navigation_types:opaque_type_a()}."
-                           "\n\n"
-                           "# code_navigation_extra:do_4/2"
-                           "\n\ndo_4 is a local-only function"
-                           "\n\n">>
+               , value => <<"```erlang\n"
+                            "-spec do_4(nat(), opaque_local()) -> {atom(),"
+                            "\n\t\t\t\t"
+                            "      code_navigation_types:opaque_type_a()}.\n"
+                            "```\n\n"
+                            "### code_navigation_extra:do_4/2"
+                            "\n\ndo_4 is a local-only function"
+                            "\n\n">>
                },
   ?assertEqual(Expected1, Contents1),
 
