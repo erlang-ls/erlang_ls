@@ -65,9 +65,9 @@ add_server_prefix(Command) ->
   <<Prefix/binary, ":", Command/binary>>.
 
 %% @doc Generate a prefix unique to this running erlang_ls server.  This is
-%% needed because vscode has a global namespace for all registered commands, and
-%% we need to be able to run multiple erlang_ls instances at the same time
-%% against a single vscdoe client.
+%% needed because some clients have a global namespace for all registered
+%% commands, and we need to be able to run multiple erlang_ls instances at the
+%% same time against a single client.
 -spec server_prefix() -> binary().
 server_prefix() ->
    list_to_binary(os:getpid()).
