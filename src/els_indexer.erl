@@ -184,7 +184,7 @@ register_reference(Uri, #{id := {M, F, A}, range := Range}) ->
 
 -spec index_dir(string(), mode()) -> {non_neg_integer(), non_neg_integer()}.
 index_dir(Dir, Mode) ->
-  lager:info("Indexing directory. [dir=~s] [mode=~s]", [Dir, Mode]),
+  lager:debug("Indexing directory. [dir=~s] [mode=~s]", [Dir, Mode]),
   F = fun(FileName, {Succeeded, Failed}) ->
           case try_index_file(list_to_binary(FileName), Mode) of
             ok              -> {Succeeded + 1, Failed};
@@ -204,7 +204,7 @@ index_dir(Dir, Mode) ->
                                           , {0, 0}
                                           ]
                                         ),
-  lager:info("Finished indexing directory. [dir=~s] [mode=~s] [time=~p] "
+  lager:debug("Finished indexing directory. [dir=~s] [mode=~s] [time=~p] "
              "[succeeded=~p] "
              "[failed=~p]", [Dir, Mode, Time/1000/1000, Succeeded, Failed]),
   {Succeeded, Failed}.
