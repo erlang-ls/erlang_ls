@@ -1,7 +1,8 @@
 -module(els_config).
 
 %% API
--export([ initialize/3
+-export([ do_initialize/3
+        , initialize/3
         , get/1
         , set/2
         , start_link/0
@@ -71,6 +72,11 @@
 initialize(RootUri, Capabilities, InitOptions) ->
   RootPath = binary_to_list(els_uri:path(RootUri)),
   Config = consult_config(config_paths(RootPath, InitOptions)),
+  do_initialize(RootUri, Capabilities, Config).
+
+-spec do_initialize(uri(), map(), map()) -> ok.
+do_initialize(RootUri, Capabilities, Config) ->
+  RootPath        = binary_to_list(els_uri:path(RootUri)),
   OtpPath         = maps:get("otp_path", Config, code:root_dir()),
   DepsDirs        = maps:get("deps_dirs", Config, []),
   AppsDirs        = maps:get("apps_dirs", Config, ["."]),

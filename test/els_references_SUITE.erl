@@ -231,7 +231,7 @@ purge_references(_Config) ->
   Doc0  = els_dt_document:new(Uri, Text0),
   Doc1  = els_dt_document:new(Uri, Text1),
 
-  ok = els_indexer:index(Uri, Text0),
+  ok = els_indexer:index(Uri, Text0, 'deep'),
   ?assertEqual({ok, [Doc0]}, els_dt_document:lookup(Uri)),
   ?assertEqual({ok, [#{ id    => {foo, foo, 1}
                       , range => #{from => {3, 10}, to => {3, 13}}
@@ -240,7 +240,7 @@ purge_references(_Config) ->
               , els_dt_references:find_all()
               ),
 
-  ok = els_indexer:index(Uri, Text1),
+  ok = els_indexer:index(Uri, Text1, 'deep'),
   ?assertEqual({ok, [Doc1]}, els_dt_document:lookup(Uri)),
   ?assertEqual({ok, [#{ id    => {foo, foo, 1}
                       , range => #{from => {4, 10}, to => {4, 13}}

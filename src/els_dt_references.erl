@@ -58,10 +58,8 @@ opts() ->
   , {disc_copies       , [node()]}
   , {index             , [#els_dt_references.uri]}
   , {type              , bag}
-  , {storage_properties, [{ets, [ compressed
-                                , {write_concurrency, true}
-                                , {read_concurrency, true}
-                                ]}]}
+  , {storage_properties, [{ets, [ {read_concurrency, true}
+                                , {write_concurrency, true} ]}]}
   ].
 
 %%==============================================================================

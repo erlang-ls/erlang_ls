@@ -120,8 +120,6 @@ init_per_suite(Config) ->
   {ok, Text} = file:read_file(Path),
 
   application:load(erlang_ls),
-  application:set_env(erlang_ls, index_otp, false),
-  application:set_env(erlang_ls, index_deps, false),
 
   Priv = ?config(priv_dir, Config),
   application:set_env(erlang_ls, db_dir, Priv),
@@ -163,15 +161,15 @@ init_per_testcase(_TestCase, Config) ->
   els_client:initialize(RootUri, []),
 
   %% Ensure modules used in test suites are indexed
-  els_indexer:find_and_index_file("behaviour_a", sync),
-  els_indexer:find_and_index_file("code_navigation", sync),
-  els_indexer:find_and_index_file("code_navigation_extra", sync),
-  els_indexer:find_and_index_file("code_navigation_types", sync),
-  els_indexer:find_and_index_file("code_navigation.hrl", sync),
-  els_indexer:find_and_index_file("diagnostics.hrl", sync),
-  els_indexer:find_and_index_file("my_gen_server", sync),
-  els_indexer:find_and_index_file("diagnostics_behaviour", sync),
-  els_indexer:find_and_index_file("diagnostics_behaviour_impl", sync),
+  els_indexer:find_and_index_file("behaviour_a"),
+  els_indexer:find_and_index_file("code_navigation"),
+  els_indexer:find_and_index_file("code_navigation_extra"),
+  els_indexer:find_and_index_file("code_navigation_types"),
+  els_indexer:find_and_index_file("code_navigation.hrl"),
+  els_indexer:find_and_index_file("diagnostics.hrl"),
+  els_indexer:find_and_index_file("my_gen_server"),
+  els_indexer:find_and_index_file("diagnostics_behaviour"),
+  els_indexer:find_and_index_file("diagnostics_behaviour_impl"),
 
   [{started, Started} | Config].
 

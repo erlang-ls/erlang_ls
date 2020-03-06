@@ -131,9 +131,7 @@ initialize(Params, State) ->
   els_db:install( node_name(RootUri, list_to_binary(els_config:get(otp_path)))
                 , DbDir
                 ),
-  els_indexer:index_apps(),
-  els_indexer:index_deps(),
-  els_indexer:index_otp(),
+  trigger_indexing(),
   ok = els_provider:initialize(),
   Result =
     #{ capabilities =>
@@ -236,7 +234,7 @@ textdocument_didchange(Params, State) ->
   case ContentChanges of
     []                      -> ok;
     [#{<<"text">> := Text}] ->
-      els_indexer:index(Uri, Text)
+      els_indexer:index(Uri, Text, 'deep')
   end,
   {noresponse, State}.
 
@@ -437,3 +435,9 @@ node_name(RootUri, OtpPath) ->
 -spec default_db_dir() -> string().
 default_db_dir() ->
   filename:basedir(user_cache, "erlang_ls").
+
+-spec trigger_indexing() -> ok.
+trigger_indexing() ->
+  els_indexer:start(els_config:get(apps_paths), 'deep'),
+  els_indexer:start(els_config:get(deps_paths), 'deep'),
+  els_indexer:start(els_config:get(otp_paths), 'shallow').

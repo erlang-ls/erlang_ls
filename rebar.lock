@@ -14,7 +14,6 @@
  {<<"rebar3_format">>,{pkg,<<"rebar3_format">>,<<"0.2.1">>},0},
  {<<"redbug">>,{pkg,<<"redbug">>,<<"1.2.1">>},0},
  {<<"tdiff">>,{pkg,<<"tdiff">>,<<"0.1.2">>},0},
- {<<"worker_pool">>,{pkg,<<"worker_pool">>,<<"4.0.1">>},0},
  {<<"yamerl">>,{pkg,<<"yamerl">>,<<"0.7.0">>},0},
  {<<"zipper">>,{pkg,<<"zipper">>,<<"1.0.1">>},1}]}.
 [
@@ -34,7 +33,6 @@
  {<<"rebar3_format">>, <<"5B4745DC885E12E38C5061D58E87C8C3984B4524A5299846A2B6A57ABE748BD3">>},
  {<<"redbug">>, <<"9153EE50E42C39CE3F6EFA65EE746F4A52896DA66862CFB59E7C0F838B7B8414">>},
  {<<"tdiff">>, <<"4E1B30321F1B3D600DF65CD60858EDE1235FE4E5EE042110AB5AD90CD6464AC5">>},
- {<<"worker_pool">>, <<"8CDEBCE7E09ECB4F1EB4BBF78AA99248064AC357077668C011AC600599973723">>},
  {<<"yamerl">>, <<"E51DBA652DCE74C20A88294130B48051EBBBB0BE7D76F22DE064F0F3CCF0AAF5">>},
  {<<"zipper">>, <<"3CCB4F14B97C06B2749B93D8B6C204A1ECB6FAFC6050CACC3B93B9870C05952A">>}]}
 ].
