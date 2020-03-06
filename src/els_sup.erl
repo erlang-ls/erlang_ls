@@ -57,6 +57,10 @@ init([]) ->
                   , start => {els_providers_sup, start_link, []}
                   , type  => supervisor
                   }
+               , #{ id    => els_background_job_sup
+                  , start => {els_background_job_sup, start_link, []}
+                  , type  => supervisor
+                  }
                ],
   {ok, {SupFlags, ChildSpecs}}.
 
