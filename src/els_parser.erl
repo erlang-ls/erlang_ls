@@ -249,16 +249,16 @@ attribute(Tree) ->
   end.
 
 -spec function(tree(), erl_anno:location()) -> [poi()].
-function(Tree, {EndLine, _EndColumn} = _EndLocation) ->
-  {F, A}                   = erl_syntax_lib:analyze_function(Tree),
-  Args                     = function_args(Tree, A),
-  {StartLine, StartColumn} = StartLocation = erl_syntax:get_pos(Tree),
+function(Tree, {EndLine, _} = _EndLocation) ->
+  {F, A}         = erl_syntax_lib:analyze_function(Tree),
+  Args           = function_args(Tree, A),
+  {StartLine, _} = StartLocation = erl_syntax:get_pos(Tree),
   %% It only makes sense to fold a function if the function contains
   %% at least one line apart from its signature.
   FoldingRanges = case EndLine - StartLine > 1 of
                     true ->
-                      Range = #{ from => {StartLine, StartColumn}
-                               , to   => {EndLine - 1, -1}
+                      Range = #{ from => {StartLine, ?END_OF_LINE}
+                               , to   => {EndLine - 1, ?END_OF_LINE}
                                },
                       [ els_poi:new(Range, folding_range, StartLocation) ];
                     false ->
