@@ -55,8 +55,44 @@ documentation(_M, _POI) ->
   <<>>.
 
 %% @doc get the docs
+%%
+%% Uses code:get_doc/1 if available and docs are available
+%% otherwise uses the source files to gather the documentation
+%% code:get_doc/1 is available from OTP-23
+%%
+%% Implemented with apply and hard coded record-tuple so the code can
+%% be compiled on older OTP's.
+%%
+%% Currently uses shell_docs:render/4 (OTP-23) which render plain text.
+%%
+%% Future work: shell_docs:render/4 should probably be copied and
+%% modified to render markdown, or make an PR to OTP with an option
+%% in erlang's shell_docs to render markdown instead of ANSI-codes.
 -spec get_docs(atom(), atom(), byte()) -> binary().
 get_docs(M, F, A) ->
+  try apply(code, get_doc, [M]) of
+    {ok, {docs_v1, _, _, <<"application/erlang+html">>, MDoc, _, _} = DocChunk}
+      when MDoc =/= none ->
+        case apply(shell_docs, render, [M, F, A, DocChunk]) of
+          {error, _R0} ->
+            docs_from_src(M, F, A);
+          FuncDoc ->
+            #{ kind => content_kind()
+             , value => unicode:characters_to_binary(FuncDoc)
+             }
+        end;
+    _R1 ->
+      docs_from_src(M, F, A)
+  catch error:undef ->
+      docs_from_src(M, F, A)
+  end.
+
+%%==============================================================================
+%% Internal functions
+%%==============================================================================
+
+-spec docs_from_src(atom(), atom(), byte()) -> binary().
+docs_from_src(M, F, A) ->
   case {specs(M, F, A), edoc(M, F, A)} of
     {<<>>, <<>>} ->
       <<>>;
@@ -68,9 +104,6 @@ get_docs(M, F, A) ->
        }
   end.
 
-%%==============================================================================
-%% Internal functions
-%%==============================================================================
 -spec specs(atom(), atom(), non_neg_integer()) -> binary().
 specs(M, F, A) ->
   case els_dt_signatures:lookup({M, F, A}) of
@@ -113,7 +146,7 @@ format(_Signature, none) ->
 format(Signature, Desc) when is_map(Desc) ->
   Lang         = <<"en">>,
   Doc          = maps:get(Lang, Desc, <<>>),
-  FormattedDoc = list_to_binary(docsh_edoc:format_edoc(Doc, #{})),
+  FormattedDoc = unicode:characters_to_binary(docsh_edoc:format_edoc(Doc, #{})),
   <<"### ", Signature/binary, "\n", FormattedDoc/binary>>.
 
 -spec content_kind() -> markup_kind().
