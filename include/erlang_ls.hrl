@@ -80,6 +80,14 @@
                      , character := number()
                      }.
 
+%% This is used for defining folding ranges. It is not possible to just use
+%% positions as this one `{Line + 1, 0}' in a folding range, because of
+%% differences on how clients behave in that case (see [#535]).
+%% According to the protocol "If the character value is greater than the line
+%% length it defaults back to the line length.". So we define a big enough
+%% value that represents the end of the line.
+-define(END_OF_LINE, 9999999).
+
 %%------------------------------------------------------------------------------
 %% Range
 %%------------------------------------------------------------------------------
@@ -93,6 +101,16 @@
 -type location() :: #{ uri   := uri()
                      , range := range()
                      }.
+
+%%------------------------------------------------------------------------------
+%% Folding Range
+%%------------------------------------------------------------------------------
+
+-type folding_range() :: #{ startLine      := pos_integer()
+                          , startCharacter := pos_integer()
+                          , endLine        := pos_integer()
+                          , endCharacter   := pos_integer()
+                          }.
 
 %%------------------------------------------------------------------------------
 %% Diagnostic
