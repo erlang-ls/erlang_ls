@@ -7,6 +7,7 @@
         , lookup_document/1
         , project_relative/1
         , resolve_paths/3
+        , subdirs/1
         , halt/1
         ]).
 

@@ -205,17 +205,30 @@ include_paths(RootPath, IncludeDirs, Recursive) ->
   lists:append(Paths).
 
 -spec project_paths(path(), [string()], boolean()) -> [string()].
-project_paths(RootPath, Dirs, Recursive) ->
-  Paths = [ els_utils:resolve_paths( [ [RootPath, Dir, "src"]
-                                     , [RootPath, Dir, "test"]
-                                     , [RootPath, Dir, "include"]
-                                     ]
-                                   , RootPath
-                                   , Recursive
-                                   )
-            || Dir <- Dirs
-          ],
-  lists:append(Paths).
+project_paths(RootPath, [Dir|Dirs], Recursive) ->
+  Paths = project_paths_(RootPath, [Dir|Dirs], Recursive),
+    lists:append(Paths);
+project_paths(_, _, _) ->
+    [].
+
+-spec project_paths_(path(), [string()], boolean()) -> [string()].
+project_paths_(RootPath, [Dir|Dirs], Recursive) ->
+  Paths = els_utils:resolve_paths( [ [RootPath, Dir, "src"]
+                                   , [RootPath, Dir, "test"]
+                                   , [RootPath, Dir, "include"]
+                                   ]
+                                 , RootPath
+                                 , Recursive
+                                 ),
+  case Paths of
+    [] when Recursive ->
+        SubDirs = els_utils:subdirs(Dir),
+        project_paths_(RootPath, SubDirs ++ Dirs, Recursive);
+    Paths ->
+        [Paths|project_paths_(RootPath, Dirs, Recursive)]
+  end;
+project_paths_(_, [], _) ->
+  [].
 
 -spec otp_paths(path(), boolean()) -> [string()].
 otp_paths(OtpPath, Recursive) ->
