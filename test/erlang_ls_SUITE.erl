@@ -105,6 +105,10 @@ lager_config(_Config) ->
   ?assertEqual(false, application:get_env(lager, crash_log, undefined)),
 
   application:set_env(erlang_ls, logging_enabled, true),
+  application:set_env(erlang_ls, log_level, "info"),
+  application:set_env(erlang_ls,
+                      log_dir,
+                      filename:basedir(user_log, "erlang_ls")),
   erlang_ls:lager_config(),
   ?assertEqual(1, length(application:get_env(lager, handlers, []))),
   ?assertEqual("crash.log", application:get_env(lager, crash_log, undefined)),
@@ -117,6 +121,7 @@ log_handlers(_Config) ->
   meck:new(filelib, [unstick]),
   meck:expect(filelib, ensure_dir, fun(_) -> ok end),
 
+  application:set_env(erlang_ls, log_level, "info"),
   Handlers = erlang_ls:lager_handlers("/some/directory"),
   ExpectedHandlers = [ { lager_file_backend
                        , [ {file, "/some/directory/server.log"}
