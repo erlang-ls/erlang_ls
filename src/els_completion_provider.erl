@@ -130,10 +130,10 @@ find_completion( Prefix
     %% Check for "[...] atom"
     [{atom, _, Name} | _] ->
       NameBinary = atom_to_binary(Name, utf8),
-      {ExportFormat, TypeOrFun} = function_context(Document, Line, Column),
+      {ExportFormat, POIKind} = function_context(Document, Line, Column),
       keywords()
       ++ modules(NameBinary)
-      ++ functions(Document, TypeOrFun, ExportFormat);
+      ++ functions(Document, POIKind, ExportFormat);
     _ ->
       []
   end;
@@ -158,49 +158,34 @@ item_kind_module(Module) ->
    }.
 
 %%==============================================================================
-%% Functions/Types
+%% Functions and Types
 %%==============================================================================
 
--type function_type() :: function | type.
+-spec functions(els_dt_document:item(), poi_kind(), boolean()) -> [map()].
+functions(Document, POIKind, ExportFormat) ->
+  functions(Document, POIKind, ExportFormat, _ExportedOnly = false).
 
--spec functions(els_dt_document:item(), function_type(), boolean()) -> [map()].
-functions(Document, Type, ExportFormat) ->
-  functions(Document, Type, ExportFormat, _ExportedOnly = false).
+-spec functions(els_dt_document:item(), poi_kind(), boolean(), boolean()) ->
+  [map()].
+functions(Document, POIKind, ExportFormat, ExportedOnly) ->
+  ExportKind = export_entry_kind(POIKind),
+  ItemKind   = completion_item_kind(POIKind),
 
--spec functions( els_dt_document:item()
-               , function_type()
-               , boolean()
-               , boolean()
-               ) -> [map()].
-functions(Document, Type, ExportFormat, ExportedOnly) ->
-  {ExportKind, ItemKind, Kind} =
-    case Type of
-        type ->
-          { export_type_entry
-          , type_definition
-          , ?COMPLETION_ITEM_KIND_TYPE_PARAM
-          };
-        function ->
-          { export_entry
-          , function
-          , ?COMPLETION_ITEM_KIND_FUNCTION
-          }
-      end,
-  Exports  = els_dt_document:pois(Document, [ExportKind]),
-  POIs     = els_dt_document:pois(Document, [ItemKind]),
-  FAs      = [FA || #{id := FA} <- Exports],
-  Items    = resolve_functions(POIs, FAs, ExportedOnly, ExportFormat, Kind),
+  Exports = local_and_included_pois(Document, ExportKind),
+  POIs    = local_and_included_pois(Document, POIKind),
+  FAs     = [FA || #{id := FA} <- Exports],
+  Items   = resolve_functions(POIs, FAs, ExportedOnly, ExportFormat, ItemKind),
   lists:usort(Items).
 
 -spec function_context(els_dt_document:item(), line(), column()) ->
-  {boolean(), function_type()}.
+  {boolean(), poi_kind()}.
 function_context(Document, Line, Column) ->
   ExportFormat = is_in(Document, Line, Column, [export, export_type]),
-  TypeOrFun    = case is_in(Document, Line, Column, [spec, export_type]) of
-                   true -> type;
+  POIKind      = case is_in(Document, Line, Column, [spec, export_type]) of
+                   true -> type_definition;
                    false -> function
                  end,
-  {ExportFormat, TypeOrFun}.
+  {ExportFormat, POIKind}.
 
 -spec resolve_functions( [poi()], [{atom(), arity()}], boolean()
                        , boolean(), completion_item_kind()) ->
@@ -225,13 +210,12 @@ completion_item_with_args(#{id := {F, A}}, Kind, true) ->
    , insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
    }.
 
--spec exported_functions(module(), function_type(), boolean()) ->
-  [map()].
-exported_functions(Module, TypeOrFunction, ExportFormat) ->
+-spec exported_functions(module(), poi_kind(), boolean()) -> [map()].
+exported_functions(Module, POIKind, ExportFormat) ->
   case els_utils:find_module(Module) of
     {ok, Uri} ->
       {ok, Document} = els_utils:lookup_document(Uri),
-      functions(Document, TypeOrFunction, ExportFormat, true);
+      functions(Document, POIKind, ExportFormat, true);
     {error, _Error} ->
       []
   end.
@@ -284,49 +268,22 @@ record_fields(Document, RecordName) ->
 
 -spec find_record_definition(els_dt_document:item(), atom()) -> [poi()].
 find_record_definition(Document, RecordName) ->
-  POIs = lists:flatten([ local_definitions(Document, record)
-                       , included_definitions(Document, record)
-                       ]),
+  POIs = local_and_included_pois(Document, record),
   [X || X = #{id := Name} <- POIs, Name =:= RecordName].
 
 %%==============================================================================
 %% Macros and Records
 %%==============================================================================
 
--type def_type() :: define | record.
-
--spec definitions(els_dt_document:item(), def_type()) -> [map()].
+-spec definitions(els_dt_document:item(), poi_kind()) -> [map()].
 definitions(Document, Type) ->
-  POIs = lists:flatten([ local_definitions(Document, Type)
-                       , included_definitions(Document, Type)
-                       ]),
+  POIs = local_and_included_pois(Document, Type),
   Defs = [ #{ label => atom_to_binary(Name, utf8)
             , kind  => completion_item_kind(Type)
             }
            || #{id := Name} <- POIs
          ],
   lists:usort(Defs).
-
--spec local_definitions(els_dt_document:item(), def_type()) -> [map()].
-local_definitions(Document, Type) ->
-  els_dt_document:pois(Document, [Type]).
-
--spec included_definitions(els_dt_document:item(), def_type()) -> [[map()]].
-included_definitions(Document, Type) ->
-  POIs  = els_dt_document:pois(Document, [include, include_lib]),
-  [include_file_definitions(Name, Type) || #{id := Name} <- POIs].
-
--spec include_file_definitions(string(), def_type()) -> [map()].
-include_file_definitions(Name, Type) ->
-  Filename = filename:basename(Name, filename:extension(Name)),
-  H = list_to_atom(Filename),
-  case els_utils:find_header(H) of
-    {ok, Uri} ->
-      {ok, IncludeDocument} = els_utils:lookup_document(Uri),
-      local_definitions(IncludeDocument, Type);
-    {error, _} ->
-      []
-  end.
 
 %%==============================================================================
 %% Keywords
@@ -365,11 +322,47 @@ to_binary(X) when is_binary(X) ->
   X.
 
 %%==============================================================================
-%% Maps definition types to completion item kinds
+%% Helper functions
 %%==============================================================================
 
--spec completion_item_kind(def_type()) -> completion_item_kind().
+%% @doc Maps a POI kind to its completion item kind
+-spec completion_item_kind(poi_kind()) -> completion_item_kind().
 completion_item_kind(define) ->
   ?COMPLETION_ITEM_KIND_CONSTANT;
 completion_item_kind(record) ->
-  ?COMPLETION_ITEM_KIND_STRUCT.
+  ?COMPLETION_ITEM_KIND_STRUCT;
+completion_item_kind(type_definition) ->
+  ?COMPLETION_ITEM_KIND_TYPE_PARAM;
+completion_item_kind(function) ->
+  ?COMPLETION_ITEM_KIND_FUNCTION.
+
+%% @doc Maps a POI kind to its export entry POI kind
+-spec export_entry_kind(poi_kind()) -> poi_kind().
+export_entry_kind(type_definition) -> export_type_entry;
+export_entry_kind(function) -> export_entry.
+
+%% @doc Returns POIs of the provided `Kind' in the document and included files
+-spec local_and_included_pois(els_dt_document:item(), poi_kind()) -> [poi()].
+local_and_included_pois(Document, Kind) ->
+  lists:flatten([ els_dt_document:pois(Document, [Kind])
+                , included_pois(Document, Kind)
+                ]).
+
+%% @doc Returns POIs of the provided `Kind' in included files from `Document'
+-spec included_pois(els_dt_document:item(), poi_kind()) -> [[map()]].
+included_pois(Document, Type) ->
+  POIs  = els_dt_document:pois(Document, [include, include_lib]),
+  [include_file_pois(Name, Type) || #{id := Name} <- POIs].
+
+%% @doc Returns POIs of the provided `Kind' in the included file
+-spec include_file_pois(string(), poi_kind()) -> [map()].
+include_file_pois(Name, Kind) ->
+  Filename = filename:basename(Name, filename:extension(Name)),
+  H = list_to_atom(Filename),
+  case els_utils:find_header(H) of
+    {ok, Uri} ->
+      {ok, IncludeDocument} = els_utils:lookup_document(Uri),
+      els_dt_document:pois(IncludeDocument, [Kind]);
+    {error, _} ->
+      []
+  end.
