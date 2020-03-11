@@ -72,8 +72,8 @@ find_completion( Prefix
                ) ->
   case els_text:last_token(Prefix) of
     {atom, _, Module} ->
-      {ExportFormat, TypeOrFun} = function_context(Document, Line, Column),
-      exported_functions(Module, TypeOrFun, ExportFormat);
+      {ExportFormat, TypeOrFun} = completion_context(Document, Line, Column),
+      exported_definitions(Module, TypeOrFun, ExportFormat);
     _ ->
       null
   end;
@@ -107,11 +107,11 @@ find_completion( Prefix
   case lists:reverse(els_text:tokens(Prefix)) of
     %% Check for "[...] fun atom:atom"
     [{atom, _, _}, {':', _}, {atom, _, Module}, {'fun', _} | _] ->
-      exported_functions(Module, function, _ExportFormat = true);
+      exported_definitions(Module, function, _ExportFormat = true);
     %% Check for "[...] atom:atom"
     [{atom, _, _}, {':', _}, {atom, _, Module} | _] ->
-      {ExportFormat, TypeOrFun} = function_context(Document, Line, Column),
-      exported_functions(Module, TypeOrFun, ExportFormat);
+      {ExportFormat, TypeOrFun} = completion_context(Document, Line, Column),
+      exported_definitions(Module, TypeOrFun, ExportFormat);
     %% Check for "[...] ?anything"
     [_, {'?', _} | _] ->
       definitions(Document, define);
@@ -126,14 +126,14 @@ find_completion( Prefix
       variables(Document);
     %% Check for "[...] fun atom"
     [{atom, _, _}, {'fun', _} | _] ->
-      functions(Document, function, _ExportFormat = true);
+      definitions(Document, function, _ExportFormat = true);
     %% Check for "[...] atom"
     [{atom, _, Name} | _] ->
       NameBinary = atom_to_binary(Name, utf8),
-      {ExportFormat, POIKind} = function_context(Document, Line, Column),
+      {ExportFormat, POIKind} = completion_context(Document, Line, Column),
       keywords()
       ++ modules(NameBinary)
-      ++ functions(Document, POIKind, ExportFormat);
+      ++ definitions(Document, POIKind, ExportFormat);
     _ ->
       []
   end;
@@ -158,28 +158,36 @@ item_kind_module(Module) ->
    }.
 
 %%==============================================================================
-%% Functions and Types
+%% Functions, Types, Macros and Records
 %%==============================================================================
 
--spec functions(els_dt_document:item(), poi_kind(), boolean()) -> [map()].
-functions(Document, POIKind, ExportFormat) ->
-  functions(Document, POIKind, ExportFormat, _ExportedOnly = false).
+-spec definitions(els_dt_document:item(), poi_kind()) -> [map()].
+definitions(Document, POIKind) ->
+  definitions(Document, POIKind, _ExportFormat = false, _ExportedOnly = false).
 
--spec functions(els_dt_document:item(), poi_kind(), boolean(), boolean()) ->
+-spec definitions(els_dt_document:item(), poi_kind(), boolean()) -> [map()].
+definitions(Document, POIKind, ExportFormat) ->
+  definitions(Document, POIKind, ExportFormat, _ExportedOnly = false).
+
+-spec definitions(els_dt_document:item(), poi_kind(), boolean(), boolean()) ->
   [map()].
-functions(Document, POIKind, ExportFormat, ExportedOnly) ->
-  ExportKind = export_entry_kind(POIKind),
-  ItemKind   = completion_item_kind(POIKind),
+definitions(Document, POIKind, ExportFormat, ExportedOnly) ->
+  POIs     = local_and_included_pois(Document, POIKind),
 
-  Exports = local_and_included_pois(Document, ExportKind),
-  POIs    = local_and_included_pois(Document, POIKind),
-  FAs     = [FA || #{id := FA} <- Exports],
-  Items   = resolve_functions(POIs, FAs, ExportedOnly, ExportFormat, ItemKind),
+  %% Find exported entries when there is an export_entry kind available
+  FAs      = case export_entry_kind(POIKind) of
+               {error, no_export_entry_kind} -> [];
+               ExportKind ->
+                 Exports = local_and_included_pois(Document, ExportKind),
+                 [FA || #{id := FA} <- Exports]
+             end,
+
+  Items = resolve_definitions(POIs, FAs, ExportedOnly, ExportFormat),
   lists:usort(Items).
 
--spec function_context(els_dt_document:item(), line(), column()) ->
+-spec completion_context(els_dt_document:item(), line(), column()) ->
   {boolean(), poi_kind()}.
-function_context(Document, Line, Column) ->
+completion_context(Document, Line, Column) ->
   ExportFormat = is_in(Document, Line, Column, [export, export_type]),
   POIKind      = case is_in(Document, Line, Column, [spec, export_type]) of
                    true -> type_definition;
@@ -187,53 +195,23 @@ function_context(Document, Line, Column) ->
                  end,
   {ExportFormat, POIKind}.
 
--spec resolve_functions( [poi()], [{atom(), arity()}], boolean()
-                       , boolean(), completion_item_kind()) ->
+-spec resolve_definitions([poi()], [{atom(), arity()}], boolean(), boolean()) ->
   [map()].
-resolve_functions(Functions, ExportsFA, ExportedOnly, ArityOnly, ItemKind) ->
-  [ completion_item_with_args(POI, ItemKind, ArityOnly)
+resolve_definitions(Functions, ExportsFA, ExportedOnly, ArityOnly) ->
+  [ completion_item(POI, ArityOnly)
     || #{id := FA} = POI <- Functions,
         not ExportedOnly orelse lists:member(FA, ExportsFA)
   ].
 
--spec completion_item_with_args(poi(), completion_item_kind(), boolean()) ->
-  map().
-completion_item_with_args(#{id := {F, A}, data := ArgsNames}, Kind, false) ->
-  #{ label            => list_to_binary(io_lib:format("~p/~p", [F, A]))
-   , kind             => Kind
-   , insertText       => snippet_function_call(F, ArgsNames)
-   , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
-   };
-completion_item_with_args(#{id := {F, A}}, Kind, true) ->
-  #{ label            => list_to_binary(io_lib:format("~p/~p", [F, A]))
-   , kind             => Kind
-   , insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
-   }.
-
--spec exported_functions(module(), poi_kind(), boolean()) -> [map()].
-exported_functions(Module, POIKind, ExportFormat) ->
+-spec exported_definitions(module(), poi_kind(), boolean()) -> [map()].
+exported_definitions(Module, POIKind, ExportFormat) ->
   case els_utils:find_module(Module) of
     {ok, Uri} ->
       {ok, Document} = els_utils:lookup_document(Uri),
-      functions(Document, POIKind, ExportFormat, true);
+      definitions(Document, POIKind, ExportFormat, true);
     {error, _Error} ->
       []
   end.
-
--spec snippet_function_call(atom(), [{integer(), string()}]) -> binary().
-snippet_function_call(Function, Args0) ->
-  Args    = [ ["${", integer_to_list(N), ":", A, "}"]
-              || {N, A} <- Args0
-            ],
-  Snippet = [atom_to_list(Function), "(", string:join(Args, ", "), ")"],
-  iolist_to_binary(Snippet).
-
--spec is_in(els_dt_document:item(), line(), column(), [poi_kind()]) ->
-  boolean().
-is_in(Document, Line, Column, POIKinds) ->
-  POIs = els_dt_document:get_element_at_pos(Document, Line, Column),
-  IsKind = fun(#{kind := Kind}) -> lists:member(Kind, POIKinds) end,
-  lists:any(IsKind, POIs).
 
 %%==============================================================================
 %% Variables
@@ -270,20 +248,6 @@ record_fields(Document, RecordName) ->
 find_record_definition(Document, RecordName) ->
   POIs = local_and_included_pois(Document, record),
   [X || X = #{id := Name} <- POIs, Name =:= RecordName].
-
-%%==============================================================================
-%% Macros and Records
-%%==============================================================================
-
--spec definitions(els_dt_document:item(), poi_kind()) -> [map()].
-definitions(Document, Type) ->
-  POIs = local_and_included_pois(Document, Type),
-  Defs = [ #{ label => atom_to_binary(Name, utf8)
-            , kind  => completion_item_kind(Type)
-            }
-           || #{id := Name} <- POIs
-         ],
-  lists:usort(Defs).
 
 %%==============================================================================
 %% Keywords
@@ -325,6 +289,44 @@ to_binary(X) when is_binary(X) ->
 %% Helper functions
 %%==============================================================================
 
+-spec completion_item(poi(), boolean()) -> map().
+completion_item(#{kind := Kind, id := {F, A}, data := ArgsNames}, false)
+  when Kind =:= function;
+       Kind =:= type_definition ->
+  #{ label            => list_to_binary(io_lib:format("~p/~p", [F, A]))
+   , kind             => completion_item_kind(Kind)
+   , insertText       => snippet_function_call(F, ArgsNames)
+   , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+   };
+completion_item(#{kind := Kind, id := {F, A}}, true)
+  when Kind =:= function;
+       Kind =:= type_definition ->
+  #{ label            => list_to_binary(io_lib:format("~p/~p", [F, A]))
+   , kind             => completion_item_kind(Kind)
+   , insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+   };
+completion_item(#{kind := Kind, id := Name}, _)
+  when Kind =:= record;
+       Kind =:= define ->
+  #{ label            => atom_to_binary(Name, utf8)
+   , kind             => completion_item_kind(Kind)
+   }.
+
+-spec snippet_function_call(atom(), [{integer(), string()}]) -> binary().
+snippet_function_call(Function, Args0) ->
+  Args    = [ ["${", integer_to_list(N), ":", A, "}"]
+              || {N, A} <- Args0
+            ],
+  Snippet = [atom_to_list(Function), "(", string:join(Args, ", "), ")"],
+  iolist_to_binary(Snippet).
+
+-spec is_in(els_dt_document:item(), line(), column(), [poi_kind()]) ->
+  boolean().
+is_in(Document, Line, Column, POIKinds) ->
+  POIs = els_dt_document:get_element_at_pos(Document, Line, Column),
+  IsKind = fun(#{kind := Kind}) -> lists:member(Kind, POIKinds) end,
+  lists:any(IsKind, POIs).
+
 %% @doc Maps a POI kind to its completion item kind
 -spec completion_item_kind(poi_kind()) -> completion_item_kind().
 completion_item_kind(define) ->
@@ -337,9 +339,11 @@ completion_item_kind(function) ->
   ?COMPLETION_ITEM_KIND_FUNCTION.
 
 %% @doc Maps a POI kind to its export entry POI kind
--spec export_entry_kind(poi_kind()) -> poi_kind().
+-spec export_entry_kind(poi_kind()) ->
+  poi_kind() | {error, no_export_entry_kind}.
 export_entry_kind(type_definition) -> export_type_entry;
-export_entry_kind(function) -> export_entry.
+export_entry_kind(function) -> export_entry;
+export_entry_kind(_) -> {error, no_export_entry_kind}.
 
 %% @doc Returns POIs of the provided `Kind' in the document and included files
 -spec local_and_included_pois(els_dt_document:item(), poi_kind()) -> [poi()].
