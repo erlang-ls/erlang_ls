@@ -12,7 +12,7 @@
 
 -include("erlang_ls.hrl").
 
--type path() :: file:filename().
+-type path() :: file:filename_all().
 
 %%==============================================================================
 %% File and module functions
@@ -67,7 +67,7 @@ lookup_document(Uri) ->
 %%
 %% Applies function F to each file and the accumulator,
 %% skipping all symlinks.
--spec fold_files(function(), function(), string(), any()) -> any().
+-spec fold_files(function(), function(), path(), any()) -> any().
 fold_files(F, Filter, Dir, Acc) ->
   do_fold_dir(F, Filter, Dir, Acc).
 
@@ -76,24 +76,29 @@ fold_files(F, Filter, Dir, Acc) ->
 %% Gets a list of path specs and returns the expanded list of paths.
 %% Path specs can contains glob expressions. Resolved paths that contain
 %% symlinks will be ignored.
--spec resolve_paths([[string()]], path(), boolean()) -> [[string()]].
+-spec resolve_paths([[path()]], path(), boolean()) -> [[path()]].
 resolve_paths(PathSpecs, RootPath, Recursive) ->
   lists:append([ resolve_path(PathSpec, RootPath, Recursive)
                  || PathSpec <- PathSpecs
                ]).
 
--spec halt(integer()) -> no_return().
+-spec halt(non_neg_integer()) -> ok.
 halt(ExitCode) ->
   els_db:stop(),
   ok = init:stop(ExitCode).
 
 %% @doc Returns a project-relative file path for a given URI
--spec project_relative(uri()) -> file:filename().
+-spec project_relative(uri()) -> file:filename() | {error, not_relative}.
 project_relative(Uri) ->
-  RootUri     = els_config:get(root_uri),
-  RootUriSize = byte_size(RootUri),
-  <<RootUri:RootUriSize/binary, RelativePath/binary>> = Uri,
-  binary_to_list(string:trim(RelativePath, leading, [$/, $\\ ])).
+  RootUri = els_config:get(root_uri),
+  Size    = byte_size(RootUri),
+  case Uri of
+    <<RootUri:Size/binary, Relative/binary>> ->
+      Trimmed = string:trim(Relative, leading, [$/, $\\ ]),
+      unicode:characters_to_list(Trimmed);
+    _ ->
+      {error, not_relative}
+  end.
 
 %%==============================================================================
 %% Internal functions
@@ -101,8 +106,7 @@ project_relative(Uri) ->
 
 %% Folding over files
 
--spec do_fold_files(function(), function(), string(), [string()], any()) ->
-  any().
+-spec do_fold_files(function(), function(), path(), [path()], any()) -> any().
 do_fold_files(_F, _Filter,  _Dir, [], Acc0) ->
   Acc0;
 do_fold_files(F, Filter, Dir, [File | Rest], Acc0) ->
@@ -114,7 +118,7 @@ do_fold_files(F, Filter, Dir, [File | Rest], Acc0) ->
          end,
   do_fold_files(F, Filter, Dir, Rest, Acc).
 
--spec do_fold_file(function(), function(), string(), any()) ->
+-spec do_fold_file(function(), function(), path(), any()) ->
   any().
 do_fold_file(F, Filter, Path, Acc) ->
   case Filter(Path) of
@@ -122,7 +126,7 @@ do_fold_file(F, Filter, Path, Acc) ->
     false -> Acc
   end.
 
--spec do_fold_dir(function(), function(), string(), any()) ->
+-spec do_fold_dir(function(), function(), path(), any()) ->
   any().
 do_fold_dir(F, Filter, Dir, Acc) ->
   case not is_symlink(Dir) andalso filelib:is_dir(Dir) of
@@ -133,7 +137,7 @@ do_fold_dir(F, Filter, Dir, Acc) ->
       Acc
   end.
 
--spec is_symlink(string()) -> boolean().
+-spec is_symlink(path()) -> boolean().
 is_symlink(Path) ->
   case file:read_link(Path) of
     {ok, _} -> true;
@@ -142,7 +146,7 @@ is_symlink(Path) ->
 
 %% @doc Resolve paths recursively
 
--spec resolve_path([string()], path(), boolean()) -> [string()].
+-spec resolve_path([path()], path(), boolean()) -> [path()].
 resolve_path(PathSpec, RootPath, Recursive) ->
   Path  = filename:join(PathSpec),
   Paths = filelib:wildcard(Path),
@@ -157,18 +161,18 @@ resolve_path(PathSpec, RootPath, Recursive) ->
   end.
 
 %% Returns all subdirectories for the provided path
--spec subdirs(string()) -> [string()].
+-spec subdirs(path()) -> [path()].
 subdirs(Path) ->
   subdirs(Path, []).
 
--spec subdirs(string(), [string()]) -> [string()].
+-spec subdirs(path(), [path()]) -> [path()].
 subdirs(Path, Subdirs) ->
   case file:list_dir(Path) of
     {ok, Files} -> subdirs_(Path, Files, Subdirs);
     {error, _}  -> Subdirs
   end.
 
--spec subdirs_(string(), [string()], [string()]) -> [string()].
+-spec subdirs_(path(), [path()], [path()]) -> [path()].
 subdirs_(Path, Files, Subdirs) ->
   Fold = fun(F, Acc) ->
              FullPath = filename:join([Path, F]),
@@ -202,39 +206,39 @@ contains_symlink(Path, RootPath) ->
 %%==============================================================================
 
 %% @doc make a path absolute
--spec make_absolute_path(file:filename()) -> file:filename().
+-spec make_absolute_path(path()) -> path().
 make_absolute_path(Path) ->
-    case filename:pathtype(Path) of
-        absolute ->
-            Path;
-        relative ->
-            {ok, Dir} = file:get_cwd(),
-            filename:join([Dir, Path]);
-        volumerelative ->
-            Volume = hd(filename:split(Path)),
-            {ok, Dir} = file:get_cwd(Volume),
-            filename:join([Dir, Path])
-    end.
+  case filename:pathtype(Path) of
+    absolute ->
+      Path;
+    relative ->
+      {ok, Dir} = file:get_cwd(),
+      filename:join([Dir, Path]);
+    volumerelative ->
+      Volume = hd(filename:split(Path)),
+      {ok, Dir} = file:get_cwd(Volume),
+      filename:join([Dir, Path])
+  end.
 
 %% @doc normalizing a path removes all of the `..' and the
 %% `.' segments it may contain.
--spec make_normalized_path(file:filename()) -> file:filename().
+-spec make_normalized_path(path()) -> path().
 make_normalized_path(Path) ->
-    AbsPath = make_absolute_path(Path),
-    Components = filename:split(AbsPath),
-    make_normalized_path(Components, []).
+  AbsPath = make_absolute_path(Path),
+  Components = filename:split(AbsPath),
+  make_normalized_path(Components, []).
 
 %% @private drops path fragments for normalization
--spec make_normalized_path([string()], [string()]) -> file:filename().
+-spec make_normalized_path([file:name_all()], [file:name_all()]) -> path().
 make_normalized_path([], NormalizedPath) ->
-    filename:join(lists:reverse(NormalizedPath));
-make_normalized_path([H|T], NormalizedPath) ->
-    case H of
-        "." when NormalizedPath == [], T == []
-                 -> make_normalized_path(T, ["."]);
-        "."  -> make_normalized_path(T, NormalizedPath);
-        ".." when NormalizedPath == [] -> make_normalized_path(T, [".."]);
-        ".." when hd(NormalizedPath) =/= ".."
-                  -> make_normalized_path(T, tl(NormalizedPath));
-        _    -> make_normalized_path(T, [H|NormalizedPath])
-    end.
+  filename:join(lists:reverse(NormalizedPath));
+make_normalized_path(["." | []], []) ->
+  ".";
+make_normalized_path(["." | T], NormalizedPath) ->
+  make_normalized_path(T, NormalizedPath);
+make_normalized_path([".." | T], []) ->
+  make_normalized_path(T, [".."]);
+make_normalized_path([".." | T], [Head | Tail]) when Head =/= ".." ->
+  make_normalized_path(T, Tail);
+make_normalized_path([H | T], NormalizedPath) ->
+  make_normalized_path(T, [H | NormalizedPath]).
