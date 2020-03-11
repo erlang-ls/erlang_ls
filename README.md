@@ -119,7 +119,8 @@ Usage: Erlang LS [-v] [-t [<transport>]] [-p [<port>]] [-d [<log_dir>]]
   -t, --transport  Specifies the transport the server will use for the
                    connection with the client. [default: tcp]
   -p, --port       Used when the transport is tcp. [default: 10000]
-  -d, --log-dir    Directory where logs will be written. [default: <user_log>/erlang_ls/log]
+  -d, --log-dir    Directory where logs will be written.
+                   [default: filename:basedir(user_log, "erlang_ls")]
   -l, --log-level  The log level that should be used. [default: info]
 ```
 
