@@ -73,7 +73,7 @@ initialize_default(Config) ->
   els_client:initialize(RootUri, []),
   Result = els_config:get(macros),
   Expected = [#{"name" => "DEFINED_WITHOUT_VALUE"},
-              #{"name" => "DEFINED_WITH_VALUE","value" => 1}],
+              #{"name" => "DEFINED_WITH_VALUE", "value" => 1}],
   ?assertEqual(Expected, Result),
   ok.
 

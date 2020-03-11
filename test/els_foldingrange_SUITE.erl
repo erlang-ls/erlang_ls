@@ -66,60 +66,65 @@ end_per_testcase(TestCase, Config) ->
 folding_range(Config) ->
   #{result := Result} =
     els_client:folding_range(?config(code_navigation_uri, Config)),
-  Expected = [ #{ endCharacter   => -1
-                , endLine        => 23
-                , startCharacter => 1
-                , startLine      => 21
+  Expected = [ #{ endCharacter   => ?END_OF_LINE
+                , endLine        => 22
+                , startCharacter => ?END_OF_LINE
+                , startLine      => 20
                 }
-             , #{ endCharacter   => -1
-                , endLine        => 26
-                , startCharacter => 1
-                , startLine      => 25
+             , #{ endCharacter   => ?END_OF_LINE
+                , endLine        => 25
+                , startCharacter => ?END_OF_LINE
+                , startLine      => 24
                 }
-             , #{ endCharacter   => -1
-                , endLine        => 29
-                , startCharacter => 1
-                , startLine      => 28
+             , #{ endCharacter   => ?END_OF_LINE
+                , endLine        => 28
+                , startCharacter => ?END_OF_LINE
+                , startLine      => 27
                 }
-             , #{ endCharacter    => -1
-                , endLine        => 35
-                , startCharacter => 1
-                , startLine      => 31
+             , #{ endCharacter   => ?END_OF_LINE
+                , endLine        => 34
+                , startCharacter => ?END_OF_LINE
+                , startLine      => 30
                 }
-             , #{ endCharacter    => -1
-                , endLine        => 40
-                , startCharacter => 1
-                , startLine      => 39
+             , #{ endCharacter   => ?END_OF_LINE
+                , endLine        => 39
+                , startCharacter => ?END_OF_LINE
+                , startLine      => 38
                 }
-             , #{ endCharacter    => -1
-                , endLine        => 43
-                , startCharacter => 1
-                , startLine      => 42
+             , #{ endCharacter   => ?END_OF_LINE
+                , endLine        => 42
+                , startCharacter => ?END_OF_LINE
+                , startLine      => 41
                 }
-             , #{ endCharacter    => -1
-                , endLine        => 48
-                , startCharacter => 1
-                , startLine      => 47
+             , #{ endCharacter   => ?END_OF_LINE
+                , endLine        => 47
+                , startCharacter => ?END_OF_LINE
+                , startLine      => 46
                 }
-             , #{ endCharacter    => -1
-                , endLine        => 53
-                , startCharacter => 1
-                , startLine      => 50
+             , #{ endCharacter   => ?END_OF_LINE
+                , endLine        => 52
+                , startCharacter => ?END_OF_LINE
+                , startLine      => 49
                 }
-             , #{ endCharacter    => -1
-                , endLine        => 57
-                , startCharacter => 1
-                , startLine      => 56
+             , #{ endCharacter   => ?END_OF_LINE
+                , endLine        => 56
+                , startCharacter => ?END_OF_LINE
+                , startLine      => 55
                 }
-             , #{ endCharacter    => -1
-                , endLine        => 68
-                , startCharacter => 1
-                , startLine      => 67
+             , #{ endCharacter   => ?END_OF_LINE
+                , endLine        => 67
+                , startCharacter => ?END_OF_LINE
+                , startLine      => 66
                 }
-             , #{ endCharacter    => -1
-                , endLine        => 76
-                , startCharacter => 1
-                , startLine      => 74
+             , #{ endCharacter   => ?END_OF_LINE
+                , endLine        => 75
+                , startCharacter => ?END_OF_LINE
+                , startLine      => 73
+                }
+             , #{ endCharacter   => ?END_OF_LINE
+                , endLine        => 80
+                , startCharacter => ?END_OF_LINE
+                , startLine      => 78
                 }
              ],
   ?assertEqual(Expected, Result),

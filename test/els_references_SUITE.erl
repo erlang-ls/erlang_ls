@@ -18,6 +18,7 @@
         , fun_remote/1
         , export_entry/1
         , macro/1
+        , module/1
         , record/1
         , purge_references/1
         ]).
@@ -140,7 +141,7 @@ fun_remote(Config) ->
 -spec export_entry(config()) -> ok.
 export_entry(Config) ->
   Uri = ?config(code_navigation_uri, Config),
-  #{result := Locations} = els_client:references(Uri, 5, 39),
+  #{result := Locations} = els_client:references(Uri, 5, 25),
   ExpectedLocations = [ #{ uri => Uri
                          , range => #{from => {22, 3}, to => {22, 13}}
                          }
@@ -172,6 +173,22 @@ macro(Config) ->
   assert_locations(Locations2, ExpectedLocations),
 
   ok.
+
+-spec module(config()) -> ok.
+module(Config) ->
+  Uri = ?config(code_navigation_extra_uri, Config),
+  #{result := Locations} = els_client:references(Uri, 1, 12),
+  LocUri = ?config(code_navigation_uri, Config),
+  ExpectedLocations = [ #{ uri => LocUri
+                         , range => #{from => {32, 3}, to => {32, 27}}
+                         }
+                      , #{ uri => LocUri
+                         , range => #{from => {52, 8}, to => {52, 38}}
+                         }
+                      ],
+  assert_locations(Locations, ExpectedLocations),
+  ok.
+
 
 -spec record(config()) -> ok.
 record(Config) ->
@@ -214,7 +231,7 @@ purge_references(_Config) ->
   Doc0  = els_dt_document:new(Uri, Text0),
   Doc1  = els_dt_document:new(Uri, Text1),
 
-  ok = els_indexer:index(Uri, Text0),
+  ok = els_indexer:index(Uri, Text0, 'deep'),
   ?assertEqual({ok, [Doc0]}, els_dt_document:lookup(Uri)),
   ?assertEqual({ok, [#{ id    => {foo, foo, 1}
                       , range => #{from => {3, 10}, to => {3, 13}}
@@ -223,7 +240,7 @@ purge_references(_Config) ->
               , els_dt_references:find_all()
               ),
 
-  ok = els_indexer:index(Uri, Text1),
+  ok = els_indexer:index(Uri, Text1, 'deep'),
   ?assertEqual({ok, [Doc1]}, els_dt_document:lookup(Uri)),
   ?assertEqual({ok, [#{ id    => {foo, foo, 1}
                       , range => #{from => {4, 10}, to => {4, 13}}

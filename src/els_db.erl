@@ -5,22 +5,19 @@
         , clear_tables/0
         , delete/2
         , delete_object/1
+        , dump_tables/0
         , install/2
         , lookup/2
         , match/1
         , stop/0
+        , tables/0
         , transaction/1
         , write/1
         ]).
 
 -define(SERVER, ?MODULE).
--define(TABLES, [ els_dt_document
-                , els_dt_document_index
-                , els_dt_references
-                , els_dt_signatures
-                ]).
 -define(TIMEOUT, infinity).
--define(DB_SCHEMA_VSN, <<"3">>).
+-define(DB_SCHEMA_VSN, <<"5">>).
 -define(DB_SCHEMA_VSN_FILE, "DB_SCHEMA_VSN").
 
 %%==============================================================================
@@ -39,6 +36,8 @@ install(NodeName, BaseDir) ->
   ok = application:set_env(mnesia, dir, DbDir),
   %% Avoid mnesia overload while indexing
   ok = application:set_env(mnesia, dump_log_write_threshold, 50000),
+  %% We have 4 tables. Let's load them in parallel
+  ok = application:set_env(mnesia, no_table_loaders, 4),
   ensure_db(DbDir).
 
 -spec stop() -> ok | {error, any()}.
@@ -66,7 +65,7 @@ ensure_db(DbDir) ->
 
 -spec ensure_tables() -> ok.
 ensure_tables() ->
-  [els_db_table:ensure(T) || T <- ?TABLES],
+  [els_db_table:ensure(T) || T <- tables()],
   ok.
 
 -spec delete(atom(), any()) -> ok.
@@ -76,6 +75,14 @@ delete(Table, Key) ->
 -spec delete_object(any()) -> ok.
 delete_object(Item) ->
   mnesia:dirty_delete_object(Item).
+
+-spec dump_tables() -> ok.
+dump_tables() ->
+  %% First dump the content of the .LOG file to the respective .DCL
+  %% files, then merge the .DCL files into the .DCD files.
+  mnesia:dump_log(),
+  mnesia_controller:snapshot_dcd(tables()),
+  ok.
 
 -spec lookup(atom(), any()) -> {ok, [tuple()]}.
 lookup(Table, Key) ->
@@ -91,7 +98,7 @@ write(Record) when is_tuple(Record) ->
 
 -spec clear_tables() -> ok.
 clear_tables() ->
-  [ok = clear_table(T) || T <- ?TABLES],
+  [ok = clear_table(T) || T <- tables()],
   ok.
 
 -spec wait_for_tables() -> ok.
@@ -100,12 +107,20 @@ wait_for_tables() ->
 
 -spec wait_for_tables(timeout()) -> ok.
 wait_for_tables(Timeout) ->
-  ok = mnesia:wait_for_tables(?TABLES, Timeout).
+  ok = mnesia:wait_for_tables(tables(), Timeout).
 
 -spec clear_table(atom()) -> ok.
 clear_table(Table) ->
   mnesia:clear_table(Table),
   ok.
+
+-spec tables() -> [atom()].
+tables() ->
+  [ els_dt_document
+  , els_dt_document_index
+  , els_dt_references
+  , els_dt_signatures
+  ].
 
 -spec transaction(function()) -> ok | {ok, any()} | {error, any()}.
 transaction(F) ->

@@ -5,6 +5,8 @@
 %% => indicates an optional key
 %%==============================================================================
 
+-define(APP, erlang_ls).
+
 %%------------------------------------------------------------------------------
 %% JSON-RPC Version
 %%------------------------------------------------------------------------------
@@ -78,6 +80,14 @@
                      , character := number()
                      }.
 
+%% This is used for defining folding ranges. It is not possible to just use
+%% positions as this one `{Line + 1, 0}' in a folding range, because of
+%% differences on how clients behave in that case (see [#535]).
+%% According to the protocol "If the character value is greater than the line
+%% length it defaults back to the line length.". So we define a big enough
+%% value that represents the end of the line.
+-define(END_OF_LINE, 9999999).
+
 %%------------------------------------------------------------------------------
 %% Range
 %%------------------------------------------------------------------------------
@@ -91,6 +101,16 @@
 -type location() :: #{ uri   := uri()
                      , range := range()
                      }.
+
+%%------------------------------------------------------------------------------
+%% Folding Range
+%%------------------------------------------------------------------------------
+
+-type folding_range() :: #{ startLine      := pos_integer()
+                          , startCharacter := pos_integer()
+                          , endLine        := pos_integer()
+                          , endCharacter   := pos_integer()
+                          }.
 
 %%------------------------------------------------------------------------------
 %% Diagnostic
@@ -149,10 +169,14 @@
 %%------------------------------------------------------------------------------
 %% Workspace Edit
 %%------------------------------------------------------------------------------
--type workspace_edit() :: #{ changes         => #{ binary() := [text_edit()]
+
+-type document_change() :: text_document_edit().
+
+-type workspace_edit() :: #{ changes         => #{ uri() := [text_edit()]
                                                  }
-                           , documentChanges => [text_document_edit()]
+                           , documentChanges => [document_change()]
                            }.
+
 
 %%------------------------------------------------------------------------------
 %% Text Document Identifier
@@ -294,9 +318,6 @@
                               | ?COMPLETION_ITEM_KIND_EVENT
                               | ?COMPLETION_ITEM_KIND_OPERATOR
                               | ?COMPLETION_ITEM_KIND_TYPE_PARAM.
-
--define(CODE_ACTION_KIND_QUICKFIX, 1).
--type code_action_kind() :: ?CODE_ACTION_KIND_QUICKFIX.
 
 -type initialize_params() :: #{ processId             := number() | null
                               , rootPath              => binary() | null
@@ -564,6 +585,29 @@
        #{ first_trigger_character := string()
         , more_trigger_character  => string()
         }.
+
+%%------------------------------------------------------------------------------
+%% Code Actions
+%%------------------------------------------------------------------------------
+
+-define(CODE_ACTION_KIND_QUICKFIX, <<"quickfix">>).
+-type code_action_kind() :: binary().
+
+-type code_action_context() :: #{ diagnostics := [diagnostic()]
+                                , only        => [code_action_kind()]
+                                }.
+
+-type code_action_params() :: #{ textDocument := text_document_id()
+                               , range        := range()
+                               , context      := code_action_context()
+                               }.
+
+-type code_action() :: #{ title       := string()
+                        , kind        => code_action_kind()
+                        , diagnostics => [diagnostic()]
+                        , edit        => workspace_edit()
+                        , command     => command()
+                        }.
 
 %%------------------------------------------------------------------------------
 %% Internals

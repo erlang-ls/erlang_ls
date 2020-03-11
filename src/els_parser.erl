@@ -51,9 +51,9 @@ parse_form(IoDevice, StartLocation, Parser, _Options) ->
   case io:scan_erl_form(IoDevice, "", StartLocation) of
     {ok, Tokens, EndLocation} ->
       try {ok, Parser(Tokens, undefined)} of
-        {ok, F} ->
-          POIs = [ find_attribute_pois(F, Tokens)
-                 , points_of_interest(F, EndLocation)
+        {ok, Tree} ->
+          POIs = [ find_attribute_pois(Tree, Tokens)
+                 , points_of_interest(Tree, EndLocation)
                  ],
           {ok, POIs, EndLocation}
       catch
@@ -65,12 +65,12 @@ parse_form(IoDevice, StartLocation, Parser, _Options) ->
     {eof, _EndLocation} = Eof -> Eof
   end.
 
--spec find_attribute_pois(erl_parse:abstract_form(), [erl_scan:token()]) ->
+-spec find_attribute_pois(erl_syntax:syntaxTree(), [erl_scan:token()]) ->
    [poi()].
-find_attribute_pois(Form, Tokens) ->
-  case erl_syntax:type(Form) of
+find_attribute_pois(Tree, Tokens) ->
+  case erl_syntax:type(Tree) of
     attribute ->
-      try erl_syntax_lib:analyze_attribute(Form) of
+      try erl_syntax_lib:analyze_attribute(Tree) of
         {export, Exports} ->
           %% The first atom is the attribute name, so we skip it.
           [_|Atoms] = [T || {atom, _, _} = T <- Tokens],
@@ -249,16 +249,16 @@ attribute(Tree) ->
   end.
 
 -spec function(tree(), erl_anno:location()) -> [poi()].
-function(Tree, {EndLine, _EndColumn} = _EndLocation) ->
-  {F, A}                   = erl_syntax_lib:analyze_function(Tree),
-  Args                     = function_args(Tree, A),
-  {StartLine, StartColumn} = StartLocation = erl_syntax:get_pos(Tree),
+function(Tree, {EndLine, _} = _EndLocation) ->
+  {F, A}         = erl_syntax_lib:analyze_function(Tree),
+  Args           = function_args(Tree, A),
+  {StartLine, _} = StartLocation = erl_syntax:get_pos(Tree),
   %% It only makes sense to fold a function if the function contains
   %% at least one line apart from its signature.
   FoldingRanges = case EndLine - StartLine > 1 of
                     true ->
-                      Range = #{ from => {StartLine, StartColumn}
-                               , to   => {EndLine - 1, -1}
+                      Range = #{ from => {StartLine, ?END_OF_LINE}
+                               , to   => {EndLine - 1, ?END_OF_LINE}
                                },
                       [ els_poi:new(Range, folding_range, StartLocation) ];
                     false ->

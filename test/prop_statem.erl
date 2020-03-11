@@ -25,7 +25,7 @@
 %%==============================================================================
 %% Defines
 %%==============================================================================
--define(HOSTNAME, {127,0,0,1}).
+-define(HOSTNAME, {127, 0, 0, 1}).
 -define(PORT    , 10000).
 
 %%==============================================================================
@@ -68,7 +68,7 @@ connect_next(S, _R, _Args) ->
   S#{connected => true}.
 
 connect_post(_S, _Args, Res) ->
-  ?assertMatch({ok, _Pid}, Res),
+  ?assertMatch({ok, _}, Res),
   true.
 
 %%------------------------------------------------------------------------------
@@ -94,6 +94,8 @@ initialize_post(#{shutdown := true}, _Args, Res) ->
   assert_invalid_request(Res),
   true;
 initialize_post(_S, _Args, Res) ->
+  PrefixedCommand
+    = els_execute_command_provider:add_server_prefix(<<"replace-lines">>),
   Expected = #{ capabilities =>
                   #{ hoverProvider => true
                    , completionProvider =>
@@ -115,6 +117,9 @@ initialize_post(_S, _Args, Res) ->
                    , documentHighlightProvider => true
                    , documentSymbolProvider  => true
                    , foldingRangeProvider => true
+                   , executeCommandProvider =>
+                       #{ commands => [PrefixedCommand] }
+                   , codeActionProvider => true
                    , workspaceSymbolProvider => true
                    , documentFormattingProvider => true
                    , documentRangeFormattingProvider => false
@@ -344,8 +349,6 @@ setup() ->
   HaltFun = fun(_X) -> Self ! halt_called, ok end,
   meck:expect(els_utils, halt, HaltFun),
   application:ensure_all_started(erlang_ls),
-  application:set_env(erlang_ls, index_otp, false),
-  application:set_env(erlang_ls, index_deps, false),
   file:write_file("/tmp/erlang_ls.config", <<"">>),
   lager:set_loglevel(lager_console_backend, warning),
   ok.

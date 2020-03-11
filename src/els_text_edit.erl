@@ -1,6 +1,8 @@
 -module(els_text_edit).
 
 -export([ diff_files/2
+        , edit_insert_text/3
+        , edit_replace_text/4
         ]).
 
 -include("erlang_ls.hrl").
@@ -69,3 +71,20 @@ make_text_edits([{del, Data}|T], Line, Acc) ->
     make_text_edits(T, Line + Len, [Edit|Acc]);
 
 make_text_edits([], _Line, Acc) -> lists:reverse(Acc).
+
+-spec edit_insert_text(uri(), binary(), number()) -> map().
+edit_insert_text(Uri, Data, Line) ->
+    Pos  = #{ line    => Line, character => 0 },
+    Edit = #{ range   => #{ start => Pos, 'end' => Pos }
+            , newText => unicode:characters_to_binary(Data)
+            },
+    #{ changes => #{ Uri => [Edit] }}.
+
+-spec edit_replace_text(uri(), binary(), number(), number()) -> map().
+edit_replace_text(Uri, Data, LineFrom, LineTo) ->
+    Pos1 = #{ line    => LineFrom, character => 0 },
+    Pos2 = #{ line    => LineTo,   character => 0 },
+    Edit = #{ range   => #{ start => Pos1, 'end' => Pos2 }
+            , newText => unicode:characters_to_binary(Data)
+            },
+    #{ changes => #{ Uri => [Edit] }}.

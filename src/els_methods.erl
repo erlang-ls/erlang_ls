@@ -27,6 +27,8 @@
         , textdocument_ontypeformatting/2
         , textdocument_foldingrange/2
         , workspace_didchangeconfiguration/2
+        , textdocument_codeaction/2
+        , workspace_executecommand/2
         , workspace_didchangewatchedfiles/2
         , workspace_symbol/2
         ]).
@@ -129,9 +131,7 @@ initialize(Params, State) ->
   els_db:install( node_name(RootUri, list_to_binary(els_config:get(otp_path)))
                 , DbDir
                 ),
-  els_indexer:index_apps(),
-  els_indexer:index_deps(),
-  els_indexer:index_otp(),
+  trigger_indexing(),
   ok = els_provider:initialize(),
   Result =
     #{ capabilities =>
@@ -153,6 +153,8 @@ initialize(Params, State) ->
               els_document_symbol_provider:is_enabled()
           , workspaceSymbolProvider =>
               els_workspace_symbol_provider:is_enabled()
+          , codeActionProvider =>
+              els_code_action_provider:is_enabled()
           , documentFormattingProvider =>
               els_formatting_provider:is_enabled_document()
           , documentRangeFormattingProvider =>
@@ -163,6 +165,8 @@ initialize(Params, State) ->
               els_folding_range_provider:is_enabled()
           , implementationProvider =>
               els_implementation_provider:is_enabled()
+          , executeCommandProvider =>
+              els_execute_command_provider:options()
           }
      },
   {response, Result, State#{status => initialized}}.
@@ -174,9 +178,8 @@ initialize(Params, State) ->
 -spec initialized(params(), state()) -> result().
 initialized(_Params, State) ->
   %% Report to the user the server version
-  {ok,     App} = application:get_application(),
-  {ok, Version} = application:get_key(App, vsn),
-  lager:info("initialized: [App=~p] [Version=~p]", [App, Version]),
+  {ok, Version} = application:get_key(?APP, vsn),
+  lager:info("initialized: [App=~p] [Version=~p]", [?APP, Version]),
   BinVersion = list_to_binary(Version),
   Root = filename:basename(els_uri:path(els_config:get(root_uri))),
   Message = <<"Erlang LS (in ", Root/binary, "), version: "
@@ -230,7 +233,7 @@ textdocument_didchange(Params, State) ->
   case ContentChanges of
     []                      -> ok;
     [#{<<"text">> := Text}] ->
-      els_indexer:index(Uri, Text)
+      els_indexer:index(Uri, Text, 'deep')
   end,
   {noresponse, State}.
 
@@ -379,6 +382,28 @@ workspace_didchangeconfiguration(_Params, State) ->
   {noresponse, State}.
 
 %%==============================================================================
+%% textDocument/codeAction
+%%==============================================================================
+
+-spec textdocument_codeaction(params(), state()) -> result().
+textdocument_codeaction(Params, State) ->
+  Provider = els_code_action_provider,
+  Response = els_provider:handle_request(Provider,
+                                         {document_codeaction, Params}),
+  {response, Response, State}.
+
+%%==============================================================================
+%% workspace/executeCommand
+%%==============================================================================
+
+-spec workspace_executecommand(params(), state()) -> result().
+workspace_executecommand(Params, State) ->
+  Provider = els_execute_command_provider,
+  Response = els_provider:handle_request(Provider,
+                                         {workspace_executecommand, Params}),
+  {response, Response, State}.
+
+%%==============================================================================
 %% workspace/didChangeWatchedFiles
 %%==============================================================================
 
@@ -409,3 +434,9 @@ node_name(RootUri, OtpPath) ->
 -spec default_db_dir() -> string().
 default_db_dir() ->
   filename:basedir(user_cache, "erlang_ls").
+
+-spec trigger_indexing() -> ok.
+trigger_indexing() ->
+  els_indexer:start(els_config:get(apps_paths), 'deep'),
+  els_indexer:start(els_config:get(deps_paths), 'deep'),
+  els_indexer:start(els_config:get(otp_paths), 'shallow').

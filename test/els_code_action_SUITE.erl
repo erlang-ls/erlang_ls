@@ -1,4 +1,4 @@
--module(els_document_symbol_SUITE).
+-module(els_code_action_SUITE).
 
 %% CT Callbacks
 -export([ suite/0
@@ -11,11 +11,8 @@
         ]).
 
 %% Test cases
--export([ functions/1
+-export([ add_underscore_to_unused_var/1
         ]).
-
-
--include("erlang_ls.hrl").
 
 %%==============================================================================
 %% Includes
@@ -35,7 +32,7 @@
 suite() ->
   [{timetrap, {seconds, 30}}].
 
--spec all() -> [atom()].
+-spec all() -> [{group, atom()}].
 all() ->
   [{group, tcp}, {group, stdio}].
 
@@ -62,42 +59,38 @@ end_per_testcase(TestCase, Config) ->
 %%==============================================================================
 %% Testcases
 %%==============================================================================
--spec functions(config()) -> ok.
-functions(Config) ->
+-spec add_underscore_to_unused_var(config()) -> ok.
+add_underscore_to_unused_var(Config) ->
   Uri = ?config(code_navigation_uri, Config),
-  #{result := Symbols} = els_client:document_symbol(Uri),
-  Expected = [ #{ kind => ?SYMBOLKIND_FUNCTION,
-                  location =>
-                    #{ range =>
-                         #{ 'end' => #{character => ToC, line => ToL},
-                            start => #{character => FromC, line => FromL}
-                          },
-                       uri => Uri
-                     },
-                  name => Name
-                } || {Name, {FromL, FromC}, {ToL, ToC}}
-                       <- lists:append([functions()])],
-  ?assertEqual(length(Expected), length(Symbols)),
-  Pairs = lists:zip(lists:sort(Expected), lists:sort(Symbols)),
-  [?assertEqual(E, S) || {E, S} <- Pairs],
+  Diag = #{ message  => <<"variable 'A' is unused">>
+          , range    => #{ 'end' => #{character => 0, line => 80}
+                         , start => #{character => 0, line => 79}
+                         }
+          , severity => 2
+          , source   => <<"Compiler">>
+          },
+  Range = els_protocol:range(#{from => {80, 1}, to => {81, 1}}),
+  PrefixedCommand
+    = els_execute_command_provider:add_server_prefix(<<"replace-lines">>),
+  #{result := Result} = els_client:document_codeaction(Uri, Range, [Diag]),
+  Expected =
+    [ #{ command => #{ arguments => [ #{ from  => 79
+                                       , lines => <<"    _A = X,\n">>
+                                       , to    => 80
+                                       , uri   => Uri
+                                       }
+                                    ]
+                     , command   => PrefixedCommand
+                     , title     => <<"Add '_' to 'A'">>
+                     }
+       , kind    => <<"quickfix">>
+       , title   => <<"Add '_' to 'A'">>
+       }
+    ],
+  ?assertEqual(Expected, Result),
   ok.
 
+
 %%==============================================================================
-%% Internal Functions
+%% Internal functions
 %%==============================================================================
-functions() ->
-  [ {<<"function_a/0">>, {20, 0}, {20, 10}}
-  , {<<"function_b/0">>, {24, 0}, {24, 10}}
-  , {<<"callback_a/0">>, {27, 0}, {27, 10}}
-  , {<<"function_c/0">>, {30, 0}, {30, 10}}
-  , {<<"function_d/0">>, {38, 0}, {38, 10}}
-  , {<<"function_e/0">>, {41, 0}, {41, 10}}
-  , {<<"function_f/0">>, {46, 0}, {46, 10}}
-  , {<<"function_g/1">>, {49, 0}, {49, 10}}
-  , {<<"function_h/0">>, {55, 0}, {55, 10}}
-  , {<<"function_i/0">>, {59, 0}, {59, 10}}
-  , {<<"function_i/0">>, {61, 0}, {61, 10}}
-  , {<<"function_j/0">>, {66, 0}, {66, 10}}
-  , {<<"function_k/0">>, {73, 0}, {73, 10}}
-  , {<<"function_l/2">>, {78, 0}, {78, 10}}
-  ].

@@ -58,7 +58,7 @@ opts() ->
   , {disc_copies       , [node()]}
   , {index             , [#els_dt_document_index.kind]}
   , {type              , bag}
-  , {storage_properties, [{ets, [compressed]}]}
+  , {storage_properties, [{ets, []}]}
   ].
 
 %%==============================================================================

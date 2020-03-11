@@ -49,6 +49,8 @@ documentation(_M, #{kind := application, id := {M, F, A}}) ->
   get_docs(M, F, A);
 documentation(M, #{kind := application, id := {F, A}}) ->
   get_docs(M, F, A);
+documentation(M, #{kind := export_entry, id := {F, A}}) ->
+  get_docs(M, F, A);
 documentation(_M, _POI) ->
   <<>>.
 
@@ -59,8 +61,10 @@ get_docs(M, F, A) ->
     {<<>>, <<>>} ->
       <<>>;
     {Specs, Edoc} ->
-      #{ kind => content_kind()
-       , value => <<Specs/binary, "\n\n", Edoc/binary>>
+      ContentKind = content_kind(),
+      FormattedSpecs = format_code(ContentKind, Specs),
+      #{ kind  => ContentKind
+       , value => << FormattedSpecs/binary, "\n", Edoc/binary>>
        }
   end.
 
@@ -70,9 +74,18 @@ get_docs(M, F, A) ->
 -spec specs(atom(), atom(), non_neg_integer()) -> binary().
 specs(M, F, A) ->
   case els_dt_signatures:lookup({M, F, A}) of
-    {ok, [#{tree := Tree}]} -> list_to_binary(erl_prettypr:format(Tree));
-    {ok, []}                -> <<>>
+    {ok, [#{tree := Tree}]} ->
+      Specs = erl_prettypr:format(Tree),
+      unicode:characters_to_binary(Specs);
+    {ok, []} ->
+      <<>>
   end.
+
+-spec format_code(markup_kind(), binary()) -> binary().
+format_code(plaintext, Code) ->
+  Code;
+format_code(markdown, Code) ->
+  <<"```erlang\n", Code/binary, "\n```\n">>.
 
 -spec edoc(atom(), atom(), non_neg_integer()) -> binary().
 edoc(M, F, A) ->
@@ -101,7 +114,7 @@ format(Signature, Desc) when is_map(Desc) ->
   Lang         = <<"en">>,
   Doc          = maps:get(Lang, Desc, <<>>),
   FormattedDoc = list_to_binary(docsh_edoc:format_edoc(Doc, #{})),
-  <<"# ", Signature/binary, "\n", FormattedDoc/binary>>.
+  <<"### ", Signature/binary, "\n", FormattedDoc/binary>>.
 
 -spec content_kind() -> markup_kind().
 content_kind() ->

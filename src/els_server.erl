@@ -25,6 +25,7 @@
 -export([ process_requests/1
         , set_connection/1
         , send_notification/2
+        , send_request/2
         ]).
 
 %% Testing
@@ -46,6 +47,7 @@
 %%==============================================================================
 -record(state, { transport      :: module()
                , connection     :: any()
+               , request_id     :: number()
                , internal_state :: map()
                }).
 
@@ -78,6 +80,10 @@ set_connection(Connection) ->
 send_notification(Method, Params) ->
   gen_server:cast(?SERVER, {notification, Method, Params}).
 
+-spec send_request(binary(), map()) -> ok.
+send_request(Method, Params) ->
+  gen_server:cast(?SERVER, {request, Method, Params}).
+
 %%==============================================================================
 %% Testing
 %%==============================================================================
@@ -92,6 +98,7 @@ reset_internal_state() ->
 init(Transport) ->
   lager:info("Starting els_server..."),
   State = #state{ transport      = Transport
+                , request_id     = 0
                 , internal_state = #{}
                 },
   {ok, State}.
@@ -109,6 +116,9 @@ handle_cast({process_requests, Requests}, State0) ->
 handle_cast({notification, Method, Params}, State) ->
   do_send_notification(Method, Params, State),
   {noreply, State};
+handle_cast({request, Method, Params}, State0) ->
+  State = do_send_request(Method, Params, State0),
+  {noreply, State};
 handle_cast(_, State) ->
   {noreply, State}.
 
@@ -116,7 +126,8 @@ handle_cast(_, State) ->
 %% Internal Functions
 %%==============================================================================
 -spec handle_request(map(), state()) -> state().
-handle_request(Request, #state{internal_state = InternalState} = State0) ->
+handle_request(#{ <<"method">> := _ReqMethod } = Request
+              , #state{internal_state = InternalState} = State0) ->
   Method = maps:get(<<"method">>, Request),
   Params = maps:get(<<"params">>, Request),
   Type = case maps:is_key(<<"id">>, Request) of
@@ -144,7 +155,12 @@ handle_request(Request, #state{internal_state = InternalState} = State0) ->
     {notification, M, P, NewInternalState} ->
       do_send_notification(M, P, State0),
       State0#state{internal_state = NewInternalState}
-  end.
+  end;
+handle_request(Response, State0) ->
+  lager:debug( "[SERVER] got request response [response=~p]"
+             , [Response]
+             ),
+  State0.
 
 -spec do_send_notification(binary(), map(), state()) -> ok.
 do_send_notification(Method, Params, State) ->
@@ -153,6 +169,16 @@ do_send_notification(Method, Params, State) ->
              , [Notification]
              ),
   send(Notification, State).
+
+-spec do_send_request(binary(), map(), state()) -> state().
+do_send_request(Method, Params, #state{request_id = RequestId0} = State0) ->
+  RequestId = RequestId0 + 1,
+  Request = els_protocol:request(RequestId, Method, Params),
+  lager:debug( "[SERVER] Sending request [request=~p]"
+             , [Request]
+             ),
+  send(Request, State0),
+  State0#state{request_id = RequestId}.
 
 -spec send(iolist(), state()) -> ok.
 send(Payload, #state{transport = T, connection = C}) ->

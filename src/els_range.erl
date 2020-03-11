@@ -28,7 +28,7 @@ range({Line, Column}, application, {M, F, _A}, _Data) ->
   #{ from => From, to => To };
 range({Line, Column}, application, {F, _A}, _Data) ->
   From = {Line, Column},
-  To = {Line, Column + length(atom_to_list(F))},
+  To = plus(From, atom_to_list(F)),
   #{ from => From, to => To };
 range({Line, Column}, implicit_fun, {M, F, A}, _Data) ->
   From = {Line, Column},
@@ -56,7 +56,7 @@ range(Pos, import_entry, {_M, F, A}, _Data) ->
   get_entry_range(Pos, F, A);
 range({Line, Column}, function, {F, _A}, _Data) ->
   From = {Line, Column},
-  To = {Line, Column + length(atom_to_list(F))},
+  To = plus(From, atom_to_list(F)),
   #{ from => From, to => To };
 range({Line, Column}, define, Define, _Data) ->
   From = plus({Line, Column}, "define("),
@@ -72,11 +72,12 @@ range({Line, Column}, include_lib, Include, _Data) ->
   #{ from => From, to => To };
 range({Line, Column}, macro, Macro, _Data) when is_atom(Macro) ->
   From = {Line, Column},
-  To = {Line, Column + length(atom_to_list(Macro))},
+  To = plus(From, atom_to_list(Macro)),
   #{ from => From, to => To };
-range({Line, Column}, module, _, _Data) ->
-  From = {Line, Column},
-  To = From,
+range({Line, Column}, module, Module, _Data) ->
+  %% The Column we get is of the 'm' in the -module pragma
+  From = plus({Line, Column}, "module("),
+  To = plus(From, atom_to_list(Module)),
   #{ from => From, to => To };
 range({Line, _Column}, parse_transform, _Define, _Data) ->
   From = {Line, 1},
@@ -99,7 +100,7 @@ range({Line, Column}, spec, _, _Data) ->
    };
 range({Line, Column}, type_application, {F, _A}, _Data) ->
   From = {Line, Column - 1},
-  To = {Line, Column + length(atom_to_list(F)) - 1},
+  To = plus(From, atom_to_list(F)),
   #{ from => From, to => To };
 range({Line, Column}, type_application, {M, F, _A}, _Data) ->
   From = {Line, Column - 1},
@@ -111,7 +112,7 @@ range({Line, Column}, type_definition, _Type, _Data) ->
   #{ from => From, to => To };
 range({Line, Column}, variable, Name, _Data) ->
   From = {Line, Column},
-  To = {Line, Column + length(atom_to_list(Name))},
+  To = plus(From, atom_to_list(Name)),
   #{ from => From, to => To }.
 
 -spec get_entry_range(pos(), atom(), non_neg_integer()) -> poi_range().
