@@ -5,13 +5,9 @@ Thank you for using Erlang LS! :tada:
 This document offers some guidelines when asking for support related to an issue
 you might be having with the Erlang LS tool.
 
-We will always try to help as much as we can. This is an open-source project and
-as such the people that work on and maintain it do so with the time they have
-available. Please keep this in mind when setting your expectations.
-
 # Guidelines
 
-These aresome general guidelines to follow when reaching out through any of the
+These are some general guidelines to follow when reaching out through any of the
 available support channels.
 
 1. **Search through the existing
@@ -30,7 +26,6 @@ available support channels.
 
    This can be applied to life in general, but it's specially important when
    communicating only through written text.
-
 
 # Support Channels
 
