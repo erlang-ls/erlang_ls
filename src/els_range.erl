@@ -17,7 +17,21 @@ compare( #{from := FromA, to := ToA}
 compare(_, _) ->
   false.
 
--spec range(pos(), poi_kind(), any(), any()) -> poi_range().
+-spec range(pos() | {pos(), pos()}, poi_kind(), any(), any()) -> poi_range().
+range({{Line, Column}, {ToLine, ToColumn}}, Name, _, _Data)
+  when Name =:= export;
+       Name =:= export_type;
+       Name =:= folding_range;
+       Name =:= spec ->
+  From = {Line, Column - 1},
+  To = {ToLine, ToColumn - 1},
+  #{ from => From, to => To };
+range(Pos, export_entry, {F, A}, _Data) ->
+  get_entry_range(Pos, F, A);
+range(Pos, import_entry, {_M, F, A}, _Data) ->
+  get_entry_range(Pos, F, A);
+range({Line, Column}, export_type_entry, {F, A}, _Data) ->
+  get_entry_range({Line, Column}, F, A);
 range({Line, Column}, application, {M, F, _A}, _Data) ->
   %% Column indicates the position of the :
   CFrom = Column - length(atom_to_list(M)),
@@ -46,14 +60,6 @@ range({Line, Column}, behaviour, Behaviour, _Data) ->
   From = {Line, Column - 1},
   To = {Line, Column + length("behaviour") + length(atom_to_list(Behaviour))},
   #{ from => From, to => To };
-range({Line, Column}, exports, {ToLine, ToColumn}, _Data) ->
-  From = {Line, Column - 1},
-  To = {ToLine, ToColumn - 1},
-  #{ from => From, to => To };
-range(Pos, export_entry, {F, A}, _Data) ->
-  get_entry_range(Pos, F, A);
-range(Pos, import_entry, {_M, F, A}, _Data) ->
-  get_entry_range(Pos, F, A);
 range({Line, Column}, function, {F, _A}, _Data) ->
   From = {Line, Column},
   To = plus(From, atom_to_list(F)),
@@ -94,10 +100,6 @@ range({Line, Column}, record, Record, _Data) ->
   From = plus({Line, Column}, "record("),
   To = plus(From, atom_to_list(Record)),
   #{ from => From, to => To };
-range({Line, Column}, spec, _, _Data) ->
-  #{ from => {Line, Column}
-   , to => {Line, Column}
-   };
 range({Line, Column}, type_application, {F, _A}, _Data) ->
   From = {Line, Column - 1},
   To = plus(From, atom_to_list(F)),

@@ -85,8 +85,19 @@ find_attribute_pois(Tree, Tokens) ->
           [_, _|Atoms] = [T || {atom, _, _} = T <- Tokens],
           [ poi(Pos, import_entry, {M, F, A})
             || {{F, A}, {atom, Pos, _}} <- lists:zip(Imports, Atoms)];
-        {spec, {spec, {_, FTs}}} ->
-          lists:flatten([find_spec_points_of_interest(FT) || FT <- FTs]);
+        {spec, {spec, {{F, A}, FTs}}} ->
+          From = erl_syntax:get_pos(Tree),
+          To   = erl_scan:location(lists:last(Tokens)),
+          [ poi({From, To}, spec, {F, A}, Tree)
+          | lists:flatten([find_spec_points_of_interest(FT) || FT <- FTs])
+          ];
+        {export_type, {export_type, Exports}} ->
+          [_ | Atoms] = [T || {atom, _, _} = T <- Tokens],
+          ExportTypeEntries =
+            [ poi(Pos, export_type_entry, {F, A})
+              || {{F, A}, {atom, Pos, _}} <- lists:zip(Exports, Atoms)
+            ],
+          [find_attribute_tokens(Tokens), ExportTypeEntries];
         _ -> []
       catch
         throw:syntax_error ->
@@ -96,11 +107,24 @@ find_attribute_pois(Tree, Tokens) ->
       []
   end.
 
+%% @doc Resolve POI for specific sections
+%%
+%% These sections are such things as `export' or `spec' attributes, for which
+%% we want to detect their start and end, for example to provide different
+%% completion items. Using the tokens provides accurate position for the
+%% beginning and end for this sections, and can also handle the situations when
+%% the code is not parsable.
 -spec find_attribute_tokens([erl_scan:token()]) -> [poi()].
-find_attribute_tokens([ {'-', Anno}, {atom, _, export} | [_|_] = Rest]) ->
-  LastPos = erl_scan:location(lists:last(Rest)),
-  Pos = erl_anno:location(Anno),
-  [poi(Pos, exports, LastPos)];
+find_attribute_tokens([ {'-', Anno}, {atom, _, Name} | [_|_] = Rest])
+  when Name =:= export;
+       Name =:= export_type ->
+  From = erl_anno:location(Anno),
+  To = erl_scan:location(lists:last(Rest)),
+  [poi({From, To}, Name, From)];
+find_attribute_tokens([ {'-', Anno}, {atom, _, spec} | [_|_] = Rest]) ->
+  From = erl_anno:location(Anno),
+  To = erl_scan:location(lists:last(Rest)),
+  [poi({From, To}, spec, undefined)];
 find_attribute_tokens(_) ->
   [].
 
@@ -236,10 +260,8 @@ attribute(Tree) ->
       end;
     {record, {Record, Fields}} ->
       [poi(Pos, record, Record, Fields)];
-    {spec, {spec, {{F, A}, _}}} ->
-      [poi(Pos, spec, {F, A}, Tree)];
     {type, {type, {Type, _, Args}}} ->
-      [poi(Pos, type_definition, {Type, length(Args)})];
+      [poi(Pos, type_definition, {Type, length(Args)}, type_args(Args))];
     {opaque, {opaque, {Type, _, Args}}} ->
       [poi(Pos, type_definition, {Type, length(Args)})];
     _ ->
@@ -247,6 +269,15 @@ attribute(Tree) ->
   catch throw:syntax_error ->
       []
   end.
+
+-spec type_args([any()]) -> [{integer(), string()}].
+type_args(Args) ->
+  [ case erl_syntax:type(T) of
+      variable -> {N, erl_syntax:variable_literal(T)};
+      _        -> {N, "Type" ++ integer_to_list(N)}
+    end
+    || {N, T} <- lists:zip(lists:seq(1, length(Args)), Args)
+  ].
 
 -spec function(tree(), erl_anno:location()) -> [poi()].
 function(Tree, {EndLine, _} = _EndLocation) ->
@@ -362,11 +393,12 @@ is_type_application(Tree) ->
   Types = [type_application, user_type_application],
   lists:member(Type, Types).
 
--spec poi(pos(), poi_kind(), any()) -> poi().
+-spec poi(pos() | {pos(), pos()}, poi_kind(), any()) -> poi().
 poi(Pos, Kind, Id) ->
   poi(Pos, Kind, Id, undefined).
 
--spec poi(pos(), poi_kind(), any(), any()) -> poi().
+-spec poi(pos() | {pos(), pos()}, poi_kind(), any(), any()) ->
+  poi().
 poi(Pos, Kind, Id, Data) ->
   Range = els_range:range(Pos, Kind, Id, Data),
   els_poi:new(Range, Kind, Id, Data).

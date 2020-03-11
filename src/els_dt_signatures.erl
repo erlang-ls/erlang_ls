@@ -35,7 +35,7 @@
                            }).
 -type els_dt_signatures() :: #els_dt_signatures{}.
 
--type item() :: #{ mfa      := mfa()
+-type item() :: #{ mfa  := mfa()
                  , tree := tree()
                  }.
 -export_type([ item/0 ]).

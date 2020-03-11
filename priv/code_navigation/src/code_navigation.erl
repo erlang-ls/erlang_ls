@@ -52,7 +52,7 @@ function_g(X) ->
   G = {fun code_navigation_extra:do/1, X#included_record_a.field_b},
   {?INCLUDED_MACRO_A, #included_record_a{}, F, G}.
 
--spec function_h() -> type_a() | undefined_type_a().
+-spec function_h() -> type_a() | undefined_type_a() | file:fd().
 function_h() ->
   function_i().
 

@@ -17,6 +17,7 @@
         , empty_completions/1
         , exported_functions/1
         , exported_functions_arity/1
+        , exported_types/1
         , functions_arity/1
         , functions_export_list/1
         , handle_empty_lines/1
@@ -25,6 +26,8 @@
         , only_exported_functions_after_colon/1
         , records/1
         , record_fields/1
+        , types/1
+        , types_export_list/1
         , variables/1
         ]).
 
@@ -160,6 +163,29 @@ exported_functions_arity(Config) ->
   #{result := Completion} =
     els_client:completion(Uri, 52, 35, TriggerKind, <<"">>),
   ?assertEqual(lists:sort(ExpectedCompletion), lists:sort(Completion)),
+
+  ok.
+
+-spec exported_types(config()) -> ok.
+exported_types(Config) ->
+  TriggerKind = ?COMPLETION_TRIGGER_KIND_CHARACTER,
+  Uri = ?config(code_navigation_uri, Config),
+  Types = [ <<"date_time">>, <<"fd">>, <<"file_info">>, <<"filename">>
+          , <<"filename_all">>, <<"io_device">>, <<"mode">>, <<"name">>
+          , <<"name_all">>, <<"posix">>
+          ],
+  Expected = [ #{ insertText => <<T/binary, "()">>
+                , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+                , kind => ?COMPLETION_ITEM_KIND_TYPE_PARAM
+                , label => <<T/binary, "/0">>
+                }
+               || T <- Types
+             ],
+
+  ct:comment("Exported types from module are returned in a spec context"),
+  #{result := Completion1} =
+    els_client:completion(Uri, 55, 60, TriggerKind, <<":">>),
+  ?assertEqual(lists:sort(Expected), lists:sort(Completion1)),
 
   ok.
 
@@ -348,6 +374,52 @@ record_fields(Config) ->
   #{result := Completion4} =
     els_client:completion(Uri, 52, 63, TriggerKindInvoked, <<"">>),
   ?assertEqual(lists:sort(Expected2), lists:sort(Completion4)),
+
+  ok.
+
+-spec types(config()) -> ok.
+types(Config) ->
+  TriggerKind = ?COMPLETION_TRIGGER_KIND_INVOKED,
+  Uri = ?config(code_navigation_uri, Config),
+  Expected = [ #{ insertText       => <<"type_a()">>
+                , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+                , kind             => ?COMPLETION_ITEM_KIND_TYPE_PARAM
+                , label            => <<"type_a/0">>
+                }
+             , #{ insertText       => <<"included_type_a()">>
+                , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+                , kind             => ?COMPLETION_ITEM_KIND_TYPE_PARAM
+                , label            => <<"included_type_a/0">>
+                }
+             | els_completion_provider:keywords()
+             ],
+
+  ct:comment("Types defined both in the current file and in includes"),
+  #{result := Completion1} =
+    els_client:completion(Uri, 55, 27, TriggerKind, <<"">>),
+  ?assertEqual(lists:sort(Expected), lists:sort(Completion1)),
+
+  ok.
+
+-spec types_export_list(config()) -> ok.
+types_export_list(Config) ->
+  TriggerKind = ?COMPLETION_TRIGGER_KIND_INVOKED,
+  Uri = ?config(code_navigation_types_uri, Config),
+  Expected = [ #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+                , kind             => ?COMPLETION_ITEM_KIND_TYPE_PARAM
+                , label            => <<"type_a/0">>
+                }
+             , #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+                , kind             => ?COMPLETION_ITEM_KIND_TYPE_PARAM
+                , label            => <<"opaque_type_a/0">>
+                }
+             | els_completion_provider:keywords()
+             ],
+
+  ct:comment("Types in an export_type section is provided with arity"),
+  #{result := Completion1} =
+    els_client:completion(Uri, 5, 19, TriggerKind, <<"">>),
+  ?assertEqual(lists:sort(Expected), lists:sort(Completion1)),
 
   ok.
 
