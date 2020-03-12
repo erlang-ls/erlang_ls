@@ -36,9 +36,13 @@ goto_definition( Uri
                       Kind =:= implicit_fun;
                       Kind =:= export_entry ->
   find(Uri, function, {F, A});
-goto_definition(_Uri, #{ kind := behaviour, id := Behaviour }) ->
-  case els_utils:find_module(Behaviour) of
-    {ok, Uri}      -> find(Uri, module, Behaviour);
+goto_definition( _Uri
+               , #{ kind := Kind, id := Module }
+               ) when Kind =:= atom;
+                      Kind =:= behaviour;
+                      Kind =:= module ->
+  case els_utils:find_module(Module) of
+    {ok, Uri}      -> find(Uri, module, Module);
     {error, Error} -> {error, Error}
   end;
 goto_definition(Uri, #{ kind := macro, id := Define }) ->
