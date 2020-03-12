@@ -16,6 +16,7 @@
       , ephemeral
       , rebar3_format
       , tdiff
+      , getopt
       ]
     }
   , { env

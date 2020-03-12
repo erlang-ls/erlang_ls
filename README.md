@@ -111,11 +111,18 @@ Compile the project:
 These are the command-line arguments that can be provided to the
 `erlang_ls` escript:
 
-| Argument                | Description                                                                                     |
-|-------------------------|-------------------------------------------------------------------------------------------------|
-| --transport tcp / stdio | Specifies the transport the server will use for the connection with the client (default: `tcp`) |
-| --port PORT             | Used when the transport is `tcp` (default: `10000`)                                             |
-| --log-dir DIR           | Directory where logs will be written. When not provided no logs are generated.                  |
+``` shell
+Usage: Erlang LS [-v] [-t [<transport>]] [-p [<port>]] [-d [<log_dir>]]
+                 [-l [<log_level>]] [<port_old>]
+
+  -v, --version    Print the current version of Erlang LS
+  -t, --transport  Specifies the transport the server will use for the
+                   connection with the client. [default: tcp]
+  -p, --port       Used when the transport is tcp. [default: 10000]
+  -d, --log-dir    Directory where logs will be written.
+                   [default: filename:basedir(user_log, "erlang_ls")]
+  -l, --log-level  The log level that should be used. [default: info]
+```
 
 ### Emacs Setup
 
