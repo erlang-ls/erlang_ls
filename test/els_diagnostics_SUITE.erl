@@ -114,7 +114,7 @@ compiler(Config) ->
 
 -spec compiler_with_behaviour(config()) -> ok.
 compiler_with_behaviour(Config) ->
-  Uri = ?config(diagnostics_beh_impl_uri, Config),
+  Uri = ?config(diagnostics_behaviour_impl_uri, Config),
   ok = els_client:did_save(Uri),
   {Method, Params} = wait_for_notification(),
   ?assertEqual( <<"textDocument/publishDiagnostics">>
@@ -179,7 +179,7 @@ compiler_with_parse_transform(Config) ->
 
 -spec compiler_with_parse_transform_included(config()) -> ok.
 compiler_with_parse_transform_included(Config) ->
-  Uri = ?config(diagnostics_parse_transform_included_uri, Config),
+  Uri = ?config(diagnostics_parse_transform_usage_included_uri, Config),
   ok = els_client:did_save(Uri),
   {Method, Params} = wait_for_notification(),
   ?assertEqual( <<"textDocument/publishDiagnostics">>

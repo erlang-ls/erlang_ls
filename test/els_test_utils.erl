@@ -40,113 +40,23 @@ all(Module, Functions) ->
 
 -spec init_per_suite(config()) -> config().
 init_per_suite(Config) ->
-  PrivDir                = code:priv_dir(erlang_ls),
-  RootPath               = filename:join([ list_to_binary(PrivDir)
-                                         , ?TEST_APP]),
-  RootUri                = els_uri:uri(RootPath),
-  Path                   = filename:join([ RootPath
-                                         , <<"src">>
-                                         , <<"code_navigation.erl">>]),
-  ExtraPath              = filename:join([ RootPath
-                                         , <<"src">>
-                                         , <<"code_navigation_extra.erl">>]),
-  TypesPath              = filename:join([ RootPath
-                                         , <<"src">>
-                                         , <<"code_navigation_types.erl">>]),
-  BehaviourPath          = filename:join([ RootPath
-                                         , <<"src">>
-                                         , <<"behaviour_a.erl">>]),
-  IncludePath            = filename:join([ RootPath
-                                         , <<"include">>
-                                         , <<"code_navigation.hrl">>]),
-  DiagnosticsPath        = filename:join([ RootPath
-                                         , <<"src">>
-                                         , <<"diagnostics.erl">>]),
-  DiagnosticsBehPath     = filename:join([ RootPath
-                                         , <<"src">>
-                                         , <<"diagnostics_behaviour.erl">>]),
-  DiagnosticsBehImplPath = filename:join([ RootPath
-                                         , <<"src">>
-                                         , <<"diagnostics_behaviour_impl.erl">>
-                                         ]),
-  DiagnosticsMacrosPath  = filename:join([ RootPath
-                                         , <<"src">>
-                                         , <<"diagnostics_macros.erl">>]),
-  ParseTransformPath     =
-    filename:join([ RootPath
-                  , <<"src">>
-                  , <<"diagnostics_parse_transform.erl">>]),
-  ParseTransformUsagePath =
-    filename:join([ RootPath
-                  , <<"src">>
-                  , <<"diagnostics_parse_transform_usage.erl">>]),
-  ParseTransformInclPath =
-    filename:join([ RootPath
-                  , <<"src">>
-                  , <<"diagnostics_parse_transform_usage_included.erl">>]),
-  DiagnosticsDiffPath    = filename:join([ RootPath
-                                         , <<"src">>
-                                         , <<"diagnostics.new.erl">>]),
-  ElvisDiagnosticsPath   = filename:join([ RootPath
-                                         , <<"src">>
-                                         , <<"elvis_diagnostics.erl">>]),
-  DiagnosticsIncludePath = filename:join([ RootPath
-                                         , <<"include">>
-                                         , <<"diagnostics.hrl">>]),
-  FormatInputPath        = filename:join([ RootPath
-                                         , <<"src">>
-                                         , <<"format_input.erl">>]),
-  GenServerPath          = filename:join([ RootPath
-                                         , <<"src">>
-                                         , <<"my_gen_server.erl">>]),
-
-  Uri                    = els_uri:uri(Path),
-  ExtraUri               = els_uri:uri(ExtraPath),
-  TypesUri               = els_uri:uri(TypesPath),
-  BehaviourUri           = els_uri:uri(BehaviourPath),
-  IncludeUri             = els_uri:uri(IncludePath),
-  DiagnosticsUri         = els_uri:uri(DiagnosticsPath),
-  DiagnosticsBehUri      = els_uri:uri(DiagnosticsBehPath),
-  DiagnosticsBehImplUri  = els_uri:uri(DiagnosticsBehImplPath),
-  DiagnosticsMacrosUri   = els_uri:uri(DiagnosticsMacrosPath),
-  ParseTransformUri      = els_uri:uri(ParseTransformPath),
-  ParseTransformUsageUri = els_uri:uri(ParseTransformUsagePath),
-  ParseTransformInclUri  = els_uri:uri(ParseTransformInclPath),
-  ElvisDiagnosticsUri    = els_uri:uri(ElvisDiagnosticsPath),
-  DiagnosticsIncludeUri  = els_uri:uri(DiagnosticsIncludePath),
-  FormatInputUri         = els_uri:uri(FormatInputPath),
-  GenServerUri           = els_uri:uri(GenServerPath),
-
-  {ok, Text} = file:read_file(Path),
-
+  PrivDir = code:priv_dir(erlang_ls),
+  RootPath = filename:join([ list_to_binary(PrivDir)
+                           , ?TEST_APP]),
+  RootUri = els_uri:uri(RootPath),
   application:load(erlang_ls),
-
   Priv = ?config(priv_dir, Config),
   application:set_env(erlang_ls, db_dir, Priv),
-
-  [ {root_uri, RootUri}
-  , {root_path, RootPath}
-  , {code_navigation_uri, Uri}
-  , {code_navigation_path, Path}
-  , {code_navigation_text, Text}
-  , {code_navigation_extra_uri, ExtraUri}
-  , {code_navigation_types_uri, TypesUri}
-  , {behaviour_uri, BehaviourUri}
-  , {include_uri, IncludeUri}
-  , {diagnostics_uri, DiagnosticsUri}
-  , {diagnostics_beh_uri, DiagnosticsBehUri}
-  , {diagnostics_beh_impl_uri, DiagnosticsBehImplUri}
-  , {diagnostics_macros_uri, DiagnosticsMacrosUri}
-  , {diagnostics_parse_transform_uri, ParseTransformUri}
-  , {diagnostics_parse_transform_usage_uri, ParseTransformUsageUri}
-  , {diagnostics_parse_transform_included_uri, ParseTransformInclUri}
-  , {diagnostics_diff_path, DiagnosticsDiffPath}
-  , {elvis_diagnostics_uri, ElvisDiagnosticsUri}
-  , {diagnostics_include_uri, DiagnosticsIncludeUri}
-  , {format_input_uri, FormatInputUri}
-  , {gen_server_uri, GenServerUri}
-  | Config
-  ].
+  SrcConfig = lists:flatten(
+                [file_config(RootPath, src, S) || S <- sources()]),
+  IncludeConfig = lists:flatten(
+                    [file_config(RootPath, include, S) || S <- includes()]),
+  lists:append( [ SrcConfig
+                , IncludeConfig
+                , [ {root_uri, RootUri}
+                  , {root_path, RootPath}
+                  | Config]
+                ]).
 
 -spec end_per_suite(config()) -> ok.
 end_per_suite(_Config) ->
@@ -161,15 +71,7 @@ init_per_testcase(_TestCase, Config) ->
   els_client:initialize(RootUri, []),
 
   %% Ensure modules used in test suites are indexed
-  els_indexer:find_and_index_file("behaviour_a"),
-  els_indexer:find_and_index_file("code_navigation"),
-  els_indexer:find_and_index_file("code_navigation_extra"),
-  els_indexer:find_and_index_file("code_navigation_types"),
-  els_indexer:find_and_index_file("code_navigation.hrl"),
-  els_indexer:find_and_index_file("diagnostics.hrl"),
-  els_indexer:find_and_index_file("my_gen_server"),
-  els_indexer:find_and_index_file("diagnostics_behaviour"),
-  els_indexer:find_and_index_file("diagnostics_behaviour_impl"),
+  index_modules(),
 
   [{started, Started} | Config].
 
@@ -207,3 +109,83 @@ wait_for(Message, Timeout) ->
 get_group(Config) ->
   GroupProperties = ?config(tc_group_properties, Config),
   proplists:get_value(name, GroupProperties).
+
+-spec sources() -> [atom()].
+sources() ->
+  [ 'diagnostics.new'
+  , behaviour_a
+  , code_navigation
+  , code_navigation_extra
+  , code_navigation_types
+  , diagnostics
+  , diagnostics_behaviour
+  , diagnostics_behaviour_impl
+  , diagnostics_macros
+  , diagnostics_parse_transform
+  , diagnostics_parse_transform_usage
+  , diagnostics_parse_transform_usage_included
+  , elvis_diagnostics
+  , format_input
+  , my_gen_server
+  ].
+
+-spec includes() -> [atom()].
+includes() ->
+  [ code_navigation
+  , diagnostics
+  ].
+
+%% @doc Produce the config entries for a file identifier
+%%
+%%      Given an identifier representing a source or include file,
+%%      produce a config containing the respective path, uri and text
+%%      to simplify accessing this information from test cases.
+-spec file_config(binary(), src | include, atom()) ->
+        [{atom(), any()}].
+file_config(RootPath, Type, Id) ->
+  BinaryId = atom_to_binary(Id, utf8),
+  Ext = extension(Type),
+  Dir = directory(Type),
+  Path = filename:join([RootPath, Dir, <<BinaryId/binary, Ext/binary>>]),
+  Uri = els_uri:uri(Path),
+  {ok, Text} = file:read_file(Path),
+  ConfigId = config_id(Id, Type),
+  [ {atoms_append(ConfigId, '_path'), Path}
+  , {atoms_append(ConfigId, '_uri'), Uri}
+  , {atoms_append(ConfigId, '_text'), Text}
+  ].
+
+-spec config_id(atom(), src | include) -> atom().
+config_id(Id, src) -> Id;
+config_id(Id, include) -> list_to_atom(atom_to_list(Id) ++ "_h").
+
+-spec directory(src | include) -> binary().
+directory(Atom) ->
+  atom_to_binary(Atom, utf8).
+
+-spec extension(src | include) -> binary().
+extension(src) ->
+  <<".erl">>;
+extension(include) ->
+  <<".hrl">>.
+
+-spec atoms_append(atom(), atom()) -> atom().
+atoms_append(Atom1, Atom2) ->
+  Bin1 = atom_to_binary(Atom1, utf8),
+  Bin2 = atom_to_binary(Atom2, utf8),
+  binary_to_atom(<<Bin1/binary, Bin2/binary>>, utf8).
+
+index_modules() ->
+  [els_indexer:find_and_index_file(Module) || Module <- modules_to_index()].
+
+modules_to_index() ->
+  [ "behaviour_a"
+  , "code_navigation"
+  , "code_navigation.hrl"
+  , "code_navigation_extra"
+  , "code_navigation_types"
+  , "diagnostics.hrl"
+  , "diagnostics_behaviour"
+  , "diagnostics_behaviour_impl"
+  , "my_gen_server"
+  ].
