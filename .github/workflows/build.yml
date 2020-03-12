@@ -11,7 +11,7 @@ jobs:
     strategy:
       matrix:
         platform: [ubuntu-latest]
-        otp-version: [21.3, 22.2]
+        otp-version: [21.3, 22.2, 23]
     runs-on: ${{ matrix.platform }}
     container:
       image: erlang:${{ matrix.otp-version }}
