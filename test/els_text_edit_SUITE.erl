@@ -65,7 +65,7 @@ end_per_testcase(TestCase, Config) ->
 text_edit_diff(Config) ->
   DiagnosticsUri = ?config(diagnostics_uri, Config),
   DiagnosticsPath = els_uri:path(DiagnosticsUri),
-  DiagnosticsDiffPath = ?config(diagnostics_diff_path, Config),
+  DiagnosticsDiffPath = ?config('diagnostics.new_path', Config),
   Result = els_text_edit:diff_files(DiagnosticsPath, DiagnosticsDiffPath),
   [Edit1, Edit2] = Result,
   ?assertEqual( #{newText =>

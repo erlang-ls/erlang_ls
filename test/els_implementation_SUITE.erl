@@ -64,7 +64,7 @@ end_per_testcase(TestCase, Config) ->
 
 -spec gen_server_call(config()) -> ok.
 gen_server_call(Config) ->
-  Uri = ?config(gen_server_uri, Config),
+  Uri = ?config(my_gen_server_uri, Config),
   #{result := Result} = els_client:implementation(Uri, 30, 10),
   Expected = #{ range =>
                   #{ 'end' => #{character => 4, line => 46}
