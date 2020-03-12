@@ -87,6 +87,8 @@ handle_request({get_line, _Encoding, _Prompt}, State0) ->
     _ ->
       {noreply, State0}
   end;
+handle_request({get_chars, Encoding, _Prompt, Count}, State) ->
+  handle_request({get_chars, Encoding, Count}, State);
 handle_request({get_chars, _Encoding, Count}, State0) ->
   case State0#state.buffer of
     <<Data:Count/binary, Rest/binary>> ->

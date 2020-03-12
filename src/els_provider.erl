@@ -15,6 +15,7 @@
         ]).
 
 -callback is_enabled() -> boolean().
+-callback handle_request(request(), state()) -> {any(), state()}.
 
 -type config()   :: any().
 -type provider() :: els_completion_provider
@@ -34,6 +35,7 @@
 
 -export_type([ config/0
              , provider/0
+             , request/0
              , state/0
              ]).
 
