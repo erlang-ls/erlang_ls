@@ -13,7 +13,7 @@
         ]).
 
 %% Test cases
--export([ atom_completions/1
+-export([ default_completions/1
         , empty_completions/1
         , exported_functions/1
         , exported_functions_arity/1
@@ -77,46 +77,62 @@ end_per_testcase(TestCase, Config) ->
 %% Testcases
 %%==============================================================================
 
--spec atom_completions(config()) -> ok.
-atom_completions(Config) ->
+-spec default_completions(config()) -> ok.
+default_completions(Config) ->
   TriggerKind = ?COMPLETION_TRIGGER_KIND_INVOKED,
   Uri = ?config(code_navigation_extra_uri, Config),
-  Expected = [ #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
-                , kind             => ?COMPLETION_ITEM_KIND_MODULE
-                , label            => <<"code_navigation_extra">>
-                }
-             , #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
-                , kind             => ?COMPLETION_ITEM_KIND_MODULE
-                , label            => <<"code_navigation">>
-                }
-             , #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
-                , kind             => ?COMPLETION_ITEM_KIND_MODULE
-                , label            => <<"code_navigation_types">>
-                }
-             , #{ insertText => <<"do_4(${1:Arg1}, ${2:Arg2})">>
-                , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
-                , kind             => ?COMPLETION_ITEM_KIND_FUNCTION,
-                  label => <<"do_4/2">>
-                }
-             , #{ insertText => <<"do_3(${1:Arg1}, ${2:Arg2})">>
-                , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
-                , kind             => ?COMPLETION_ITEM_KIND_FUNCTION,
-                  label => <<"do_3/2">>
-                }
-             , #{ insertText => <<"do_2()">>
-                , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
-                , kind             => ?COMPLETION_ITEM_KIND_FUNCTION,
-                  label => <<"do_2/0">>
-                }
-             , #{ insertText => <<"do(${1:_Config})">>
-                , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
-                , kind             => ?COMPLETION_ITEM_KIND_FUNCTION,
-                  label => <<"do/1">>
-                }
-             ] ++ els_completion_provider:keywords(),
-  #{ result := Completion
-   } = els_client:completion(Uri, 9, 6, TriggerKind, <<"d">>),
-  ?assertEqual(lists:sort(Expected), lists:sort(Completion)),
+  Functions = [ #{ insertText => <<"do_3(${1:Arg1}, ${2:Arg2})">>
+                 , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+                 , kind             => ?COMPLETION_ITEM_KIND_FUNCTION,
+                   label => <<"do_3/2">>
+                 }
+              , #{ insertText => <<"do_2()">>
+                 , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+                 , kind             => ?COMPLETION_ITEM_KIND_FUNCTION,
+                   label => <<"do_2/0">>
+                 }
+              , #{ insertText => <<"do(${1:_Config})">>
+                 , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+                 , kind             => ?COMPLETION_ITEM_KIND_FUNCTION,
+                   label => <<"do/1">>
+                 }
+              , #{ insertText => <<"do_4(${1:Arg1}, ${2:Arg2})">>
+                 , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+                 , kind             => ?COMPLETION_ITEM_KIND_FUNCTION,
+                   label => <<"do_4/2">>
+                 }
+              ],
+
+  Expected1 = [ #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+                 , kind             => ?COMPLETION_ITEM_KIND_MODULE
+                 , label            => <<"code_navigation_extra">>
+                 }
+              , #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+                 , kind             => ?COMPLETION_ITEM_KIND_MODULE
+                 , label            => <<"code_navigation">>
+                 }
+              , #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+                 , kind             => ?COMPLETION_ITEM_KIND_MODULE
+                 , label            => <<"code_navigation_types">>
+                 }
+              | Functions ++ els_completion_provider:keywords()
+              ],
+
+  #{ result := Completion1
+   } = els_client:completion(Uri, 9, 6, TriggerKind, <<"">>),
+  ?assertEqual(lists:sort(Expected1), lists:sort(Completion1)),
+
+  Expected2 = [ #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+                 , kind             => ?COMPLETION_ITEM_KIND_CONSTANT
+                 , label            => <<"foo">>
+                 }
+              | Functions ++ els_completion_provider:keywords()
+              ],
+
+  #{ result := Completion2
+   } = els_client:completion(Uri, 6, 14, TriggerKind, <<"">>),
+  ?assertEqual(lists:sort(Expected2), lists:sort(Completion2)),
+
   ok.
 
 -spec empty_completions(config()) -> ok.
@@ -125,7 +141,7 @@ empty_completions(Config) ->
   Uri = ?config(code_navigation_extra_uri, Config),
 
   #{ result := Completion
-   } = els_client:completion(Uri, 5, 1, TriggerKind, <<"d">>),
+   } = els_client:completion(Uri, 5, 1, TriggerKind, <<"">>),
   ?assertEqual([], Completion),
   ok.
 

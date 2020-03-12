@@ -132,6 +132,7 @@ find_completion( Prefix
       NameBinary = atom_to_binary(Name, utf8),
       {ExportFormat, POIKind} = completion_context(Document, Line, Column),
       keywords()
+      ++ atoms(Document, NameBinary)
       ++ modules(NameBinary)
       ++ definitions(Document, POIKind, ExportFormat);
     _ ->
@@ -139,6 +140,24 @@ find_completion( Prefix
   end;
 find_completion(_Prefix, _TriggerKind, _Opts) ->
   null.
+
+%%==============================================================================
+%% Atoms
+%%==============================================================================
+
+-spec atoms(els_dt_document:item(), binary()) -> [map()].
+atoms(Document, Prefix) ->
+  POIs   = local_and_included_pois(Document, atom),
+  Atoms  = [Id || #{id := Id} <- POIs],
+  Unique = lists:usort(Atoms),
+  filter_by_prefix(Prefix, Unique, fun to_binary/1, fun item_kind_atom/1).
+
+-spec item_kind_atom(binary()) -> map().
+item_kind_atom(Module) ->
+  #{ label            => Module
+   , kind             => ?COMPLETION_ITEM_KIND_CONSTANT
+   , insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+   }.
 
 %%==============================================================================
 %% Modules

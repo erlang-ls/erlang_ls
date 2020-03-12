@@ -189,7 +189,6 @@ module(Config) ->
   assert_locations(Locations, ExpectedLocations),
   ok.
 
-
 -spec record(config()) -> ok.
 record(Config) ->
   Uri = ?config(code_navigation_uri, Config),

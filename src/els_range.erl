@@ -32,6 +32,9 @@ range(Pos, import_entry, {_M, F, A}, _Data) ->
   get_entry_range(Pos, F, A);
 range({Line, Column}, export_type_entry, {F, A}, _Data) ->
   get_entry_range({Line, Column}, F, A);
+range({_Line, _Column} = From, atom, Name, _Data) ->
+  To = plus(From, atom_to_list(Name)),
+  #{ from => From, to => To };
 range({Line, Column}, application, {M, F, _A}, _Data) ->
   %% Column indicates the position of the :
   CFrom = Column - length(atom_to_list(M)),

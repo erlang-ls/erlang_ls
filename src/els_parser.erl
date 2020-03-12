@@ -131,9 +131,7 @@ find_attribute_tokens(_) ->
 %% @doc Find points of interest in a spec attribute.
 -spec find_spec_points_of_interest(tree()) -> [poi()].
 find_spec_points_of_interest(Tree) ->
-  Fun = fun do_find_spec_points_of_interest/2,
-  Res = erl_syntax_lib:fold(Fun, [], Tree),
-  Res.
+  fold(fun do_find_spec_points_of_interest/2, [], Tree).
 
 -spec do_find_spec_points_of_interest(tree(), [any()]) -> [poi()].
 do_find_spec_points_of_interest(Tree, Acc) ->
@@ -157,8 +155,8 @@ do_find_spec_points_of_interest(Tree, Acc) ->
 
 -spec points_of_interest(tree(), erl_anno:location()) -> [poi()].
 points_of_interest(Tree, EndLocation) ->
-  FoldFun = fun(T, Acc) -> [do_points_of_interest(T, EndLocation), Acc] end,
-  erl_syntax_lib:fold(FoldFun, [], Tree).
+  FoldFun = fun(T, Acc) -> [do_points_of_interest(T, EndLocation) | Acc] end,
+  fold(FoldFun, [], Tree).
 
 %% @doc Return the list of points of interest for a given `Tree'.
 -spec do_points_of_interest(tree(), erl_anno:location()) -> [poi()].
@@ -173,6 +171,7 @@ do_points_of_interest(Tree, EndLocation) ->
       record_access -> record_access(Tree);
       record_expr   -> record_expr(Tree);
       variable      -> variable(Tree);
+      atom          -> atom(Tree);
       _             -> []
     end
   catch throw:syntax_error -> []
@@ -364,6 +363,14 @@ variable(Tree) ->
     _ -> [poi(Pos, variable, node_name(Tree))]
   end.
 
+-spec atom(tree()) -> [poi()].
+atom(Tree) ->
+  Pos = erl_syntax:get_pos(Tree),
+  case Pos of
+    0 -> [];
+    _ -> [poi(Pos, atom, node_name(Tree))]
+  end.
+
 -spec define_name(tree()) -> atom().
 define_name(Tree) ->
   case erl_syntax:type(Tree) of
@@ -402,3 +409,59 @@ poi(Pos, Kind, Id) ->
 poi(Pos, Kind, Id, Data) ->
   Range = els_range:range(Pos, Kind, Id, Data),
   els_poi:new(Range, Kind, Id, Data).
+
+%% @doc Fold over nodes in the tree
+%%
+%% Modified version of `erl_syntax_lib:fold/3', to get control over
+%% what subtrees should be folded over for certain types of nodes.
+-spec fold(fun((tree(), term()) -> term()), term(), tree()) -> term().
+fold(F, S, Tree) ->
+  case subtrees(Tree, erl_syntax:type(Tree)) of
+    [] -> F(Tree, S);
+    Gs -> F(Tree, fold_1(F, S, Gs))
+  end.
+
+-spec fold_1(fun((tree(), term()) -> term()), term(), [[tree()]]) ->
+  term().
+fold_1(F, S, [L | Ls]) ->
+  fold_1(F, fold_2(F, S, L), Ls);
+fold_1(_, S, []) ->
+  S.
+
+-spec fold_2(fun((tree(), term()) -> term()), term(), [tree()]) ->
+  term().
+fold_2(F, S, [T | Ts]) ->
+  fold_2(F, fold(F, S, T), Ts);
+fold_2(_, S, []) ->
+  S.
+
+-spec subtrees(tree(), atom()) -> [[tree()]].
+subtrees(Tree, application) ->
+  [erl_syntax:application_arguments(Tree)];
+subtrees(Tree, function) ->
+  [erl_syntax:function_clauses(Tree)];
+subtrees(_Tree, implicit_fun) ->
+  [];
+subtrees(Tree, macro) ->
+  case erl_syntax:macro_arguments(Tree) of
+    none -> [];
+    Args -> [Args]
+  end;
+subtrees(Tree, record_access) ->
+  [ [ erl_syntax:record_access_argument(Tree)
+    , erl_syntax:record_access_field(Tree)
+    ]
+  ];
+subtrees(Tree, record_expr) ->
+  Fields = erl_syntax:record_expr_fields(Tree),
+  case erl_syntax:record_expr_argument(Tree) of
+    none -> [Fields];
+    Arg  -> [[Arg], Fields]
+  end;
+subtrees(Tree, attribute) ->
+  case erl_syntax:attribute_arguments(Tree) of
+    none -> [];
+    [_ | RestArgs] -> [RestArgs]
+  end;
+subtrees(Tree, _) ->
+  erl_syntax:subtrees(Tree).

@@ -617,6 +617,7 @@
 -type pos()       :: {integer(), integer()}.
 -type uri()       :: binary().
 -type poi_kind()  :: application
+                   | atom
                    | behaviour
                    | define
                    | export

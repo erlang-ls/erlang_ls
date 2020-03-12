@@ -3,7 +3,7 @@
 -export([ do/1, do_2/0 ]).
 
 do(_Config) ->
-  do_4(1,foo).
+  do_4(1, foo).
 
 do_2() ->
   code_navigation:function_h().
