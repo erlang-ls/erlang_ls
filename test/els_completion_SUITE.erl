@@ -115,7 +115,9 @@ default_completions(Config) ->
                  , kind             => ?COMPLETION_ITEM_KIND_MODULE
                  , label            => <<"code_navigation_types">>
                  }
-              | Functions ++ els_completion_provider:keywords()
+              | Functions
+                ++ els_completion_provider:keywords()
+                ++ els_completion_provider:bifs(function, false)
               ],
 
   #{ result := Completion1
@@ -126,7 +128,9 @@ default_completions(Config) ->
                  , kind             => ?COMPLETION_ITEM_KIND_CONSTANT
                  , label            => <<"foo">>
                  }
-              | Functions ++ els_completion_provider:keywords()
+              | Functions
+                ++ els_completion_provider:keywords()
+                ++ els_completion_provider:bifs(function, false)
               ],
 
   #{ result := Completion2
@@ -230,7 +234,7 @@ functions_arity(Config) ->
                           , insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
                           }
                          || FunName <- ExportedFunctions
-                       ],
+                       ] ++ els_completion_provider:bifs(function, true),
 
   #{result := Completion} =
     els_client:completion(Uri, 51, 17, TriggerKind, <<"">>),
@@ -259,7 +263,9 @@ functions_export_list(Config) ->
                           , kind             => ?COMPLETION_ITEM_KIND_FUNCTION
                           , label            => <<"do_4/2">>
                           }
-                       ] ++ els_completion_provider:keywords(),
+                       | els_completion_provider:keywords()
+                         ++ els_completion_provider:bifs(function, true)
+                       ],
 
   #{result := Completion} =
     els_client:completion(Uri, 3, 13, TriggerKind, <<"">>),
@@ -409,6 +415,7 @@ types(Config) ->
                 , label            => <<"included_type_a/0">>
                 }
              | els_completion_provider:keywords()
+               ++ els_completion_provider:bifs(type_definition, false)
              ],
 
   ct:comment("Types defined both in the current file and in includes"),
@@ -431,6 +438,7 @@ types_export_list(Config) ->
                 , label            => <<"opaque_type_a/0">>
                 }
              | els_completion_provider:keywords()
+               ++ els_completion_provider:bifs(type_definition, true)
              ],
 
   ct:comment("Types in an export_type section is provided with arity"),

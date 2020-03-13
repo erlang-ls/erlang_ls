@@ -9,7 +9,9 @@
         ]).
 
 %% Exported to ease testing.
--export([ keywords/0 ]).
+-export([ bifs/2
+        , keywords/0
+        ]).
 
 -type options() :: #{ trigger  := binary()
                     , document := els_dt_document:item()
@@ -25,7 +27,7 @@
 is_enabled() ->
   true.
 
--spec handle_request(any(), els_provider:state()) ->
+-spec handle_request(els_provider:request(), els_provider:state()) ->
   {any(), els_provider:state()}.
 handle_request({completion, Params}, State) ->
   #{ <<"position">>     := #{ <<"line">>      := Line
@@ -126,15 +128,17 @@ find_completion( Prefix
       variables(Document);
     %% Check for "[...] fun atom"
     [{atom, _, _}, {'fun', _} | _] ->
-      definitions(Document, function, _ExportFormat = true);
+      bifs(function, _ExportFormat = true)
+        ++ definitions(Document, function, _ExportFormat = true);
     %% Check for "[...] atom"
     [{atom, _, Name} | _] ->
       NameBinary = atom_to_binary(Name, utf8),
       {ExportFormat, POIKind} = completion_context(Document, Line, Column),
       keywords()
-      ++ atoms(Document, NameBinary)
-      ++ modules(NameBinary)
-      ++ definitions(Document, POIKind, ExportFormat);
+        ++ bifs(POIKind, ExportFormat)
+        ++ atoms(Document, NameBinary)
+        ++ modules(NameBinary)
+        ++ definitions(Document, POIKind, ExportFormat);
     _ ->
       []
   end;
@@ -278,9 +282,58 @@ keywords() ->
              , 'bsr', 'bxor', 'case', 'catch', 'cond', 'div', 'end', 'fun'
              , 'if', 'let', 'not', 'of', 'or', 'orelse', 'receive', 'rem'
              , 'try', 'when', 'xor'],
+
   [ #{ label => atom_to_binary(K, utf8)
      , kind  => ?COMPLETION_ITEM_KIND_KEYWORD
      } || K <- Keywords ].
+
+%%==============================================================================
+%% Built-in functions
+%%==============================================================================
+
+-spec bifs(poi_kind(), boolean()) -> [map()].
+bifs(function, ExportFormat) ->
+  Range = #{from => {0, 0}, to => {0, 0}},
+  Exports = erlang:module_info(exports),
+  BIFs = [ #{ kind  => function
+            , id    => X
+            , range => Range
+            , data  => generate_arguments("Arg", A)
+            }
+           || {F, A} = X <- Exports, erl_internal:bif(F, A)
+         ],
+  [completion_item(X, ExportFormat) || X <- BIFs];
+bifs(type_definition, true = _ExportFormat) ->
+  %% We don't want to include the built-in types when we are in
+  %% a -export_types(). context.
+  [];
+bifs(type_definition, false = ExportFormat) ->
+  Types = [ {'any', 0}, {'arity', 0}, {'atom', 0}, {'binary', 0}
+          , {'bitstring', 0}, {'boolean', 0}, {'byte', 0}, {'char', 0}
+          , {'float', 0}, {'fun', 0}, {'fun', 1}, {'function', 0}
+          , {'identifier', 0}, {'integer', 0}, {'iodata', 0}, {'iolist', 0}
+          , {'list', 0}, {'list', 1}, {'map', 0}, {'maybe_improper_list', 0}
+          , {'maybe_improper_list', 2}, {'mfa', 0}, {'module', 0}
+          , {'neg_integer', 0}, {'nil', 0}, {'no_return', 0}, {'node', 0}
+          , {'nonempty_improper_list', 2}, {'nonempty_list', 1}
+          , {'non_neg_integer', 0}, {'none', 0}, {'nonempty_list', 0}
+          , {'nonempty_string', 0}, {'number', 0}, {'pid', 0}, {'port', 0}
+          , {'pos_integer', 0}, {'reference', 0}, {'string', 0}, {'term', 0}
+          , {'timeout', 0}
+          ],
+  Range = #{from => {0, 0}, to => {0, 0}},
+  POIs = [ #{ kind  => type_definition
+            , id    => X
+            , range => Range
+            , data  => generate_arguments("Type", A)
+            }
+           || {_, A} = X <- Types
+         ],
+  [completion_item(X, ExportFormat) || X <- POIs].
+
+-spec generate_arguments(string(), integer()) -> [{integer(), string()}].
+generate_arguments(Prefix, Arity) ->
+  [{N, Prefix ++ integer_to_list(N)} || N <- lists:seq(1, Arity)].
 
 %%==============================================================================
 %% Filter by prefix
@@ -308,7 +361,7 @@ to_binary(X) when is_binary(X) ->
 %% Helper functions
 %%==============================================================================
 
--spec completion_item(poi(), boolean()) -> map().
+-spec completion_item(poi(), ExportFormat :: boolean()) -> map().
 completion_item(#{kind := Kind, id := {F, A}, data := ArgsNames}, false)
   when Kind =:= function;
        Kind =:= type_definition ->
