@@ -16,6 +16,7 @@
 %% Test cases
 -export([ application_local/1
         , application_remote/1
+        , atom/1
         , behaviour/1
         , definition_after_closing/1
         , duplicate_definition/1
@@ -104,6 +105,26 @@ application_remote(Config) ->
   ?assertEqual(?config(code_navigation_extra_uri, Config), DefUri),
   ?assertEqual( els_protocol:range(#{from => {5, 1}, to => {5, 3}})
               , Range),
+  ok.
+
+-spec atom(config()) -> ok.
+atom(Config) ->
+  Uri = ?config(code_navigation_uri, Config),
+  Def0 = els_client:definition(Uri, 84, 20),
+  Def1 = els_client:definition(Uri, 85, 20),
+  Def2 = els_client:definition(Uri, 86, 20),
+  #{result := #{range := Range0, uri := DefUri0}} = Def0,
+  #{result := #{range := Range1, uri := DefUri1}} = Def1,
+  #{result := #{range := Range2, uri := DefUri2}} = Def2,
+  ?assertEqual(?config(code_navigation_types_uri, Config), DefUri0),
+  ?assertEqual( els_protocol:range(#{from => {1, 9}, to => {1, 30}})
+              , Range0),
+  ?assertEqual(?config(code_navigation_extra_uri, Config), DefUri1),
+  ?assertEqual( els_protocol:range(#{from => {1, 9}, to => {1, 30}})
+              , Range1),
+  ?assertEqual(?config(code_navigation_extra_uri, Config), DefUri2),
+  ?assertEqual( els_protocol:range(#{from => {1, 9}, to => {1, 30}})
+              , Range2),
   ok.
 
 -spec behaviour(config()) -> ok.

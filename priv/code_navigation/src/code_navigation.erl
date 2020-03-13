@@ -79,3 +79,8 @@ function_k() ->
 function_l(X, Y) ->
     A = X,
     Y.
+
+%% [#485] atoms referencing a module
+function_m(code_navigation_types) ->
+  code_navigation_extra,
+  function_m(code_navigation_extra).
