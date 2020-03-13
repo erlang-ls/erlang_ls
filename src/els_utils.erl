@@ -197,7 +197,8 @@ contains_symlink(Path, RootPath) ->
     [] -> false;
     ParentParts ->
       Parent = filename:join(ParentParts),
-      is_symlink(Parent) orelse contains_symlink(Parent, RootPath)
+      ((not (Parent == RootPath)) and (is_symlink(Parent)))
+        orelse contains_symlink(Parent, RootPath)
   end.
 
 %%==============================================================================
