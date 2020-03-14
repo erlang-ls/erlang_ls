@@ -10,8 +10,11 @@
 %% Includes
 %%==============================================================================
 -include("erlang_ls.hrl").
--ifdef(OTP_23).
+
+-ifdef(OTP_RELEASE).
+-if(OTP_RELEASE >= 23).
 -include_lib("kernel/include/eep48.hrl").
+-endif
 -endif.
 
 %%==============================================================================
@@ -68,7 +71,8 @@ documentation(_M, _POI) ->
 %% modified to render markdown, or make an PR to OTP with an option
 %% in erlang's shell_docs to render markdown instead of ANSI-codes.
 -spec get_docs(atom(), atom(), byte()) -> binary().
--ifdef(OTP_23).
+-ifdef(OTP_RELEASE).
+-if(OTP_RELEASE >= 23).
 get_docs(M, F, A) ->
   case code:get_doc(M) of
     {ok, #docs_v1{ format = ?NATIVE_FORMAT
@@ -88,6 +92,7 @@ get_docs(M, F, A) ->
 -else.
 get_docs(M, F, A) ->
   docs_from_src(M, F, A).
+-endif.
 -endif.
 
 %%==============================================================================
