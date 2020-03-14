@@ -10,6 +10,9 @@
 %% Includes
 %%==============================================================================
 -include("erlang_ls.hrl").
+-ifdef(OTP_23).
+-include_lib("kernel/include/eep48.hrl").
+-endif.
 
 %%==============================================================================
 %% els_provider functions
@@ -58,10 +61,6 @@ documentation(_M, _POI) ->
 %%
 %% Uses code:get_doc/1 if available and docs are available
 %% otherwise uses the source files to gather the documentation
-%% code:get_doc/1 is available from OTP-23
-%%
-%% Implemented with apply and hard coded record-tuple so the code can
-%% be compiled on older OTP's.
 %%
 %% Currently uses shell_docs:render/4 (OTP-23) which render plain text.
 %%
@@ -69,23 +68,27 @@ documentation(_M, _POI) ->
 %% modified to render markdown, or make an PR to OTP with an option
 %% in erlang's shell_docs to render markdown instead of ANSI-codes.
 -spec get_docs(atom(), atom(), byte()) -> binary().
+-ifdef(OTP_23).
 get_docs(M, F, A) ->
-  try apply(code, get_doc, [M]) of
-    {ok, {docs_v1, _, _, <<"application/erlang+html">>, MDoc, _, _} = DocChunk}
-      when MDoc =/= none ->
-        case apply(shell_docs, render, [M, F, A, DocChunk]) of
-          {error, _R0} ->
-            docs_from_src(M, F, A);
-          FuncDoc ->
-            #{ kind => content_kind()
-             , value => unicode:characters_to_binary(FuncDoc)
-             }
-        end;
+  case code:get_doc(M) of
+    {ok, #docs_v1{ format = ?NATIVE_FORMAT
+                 , module_doc = MDoc
+                 } = DocChunk} when MDoc =/= none ->
+      case shell_docs:render(M, F, A, DocChunk) of
+        {error, _R0} ->
+          docs_from_src(M, F, A);
+        FuncDoc ->
+          #{ kind => content_kind()
+           , value => unicode:characters_to_binary(FuncDoc)
+           }
+      end;
     _R1 ->
       docs_from_src(M, F, A)
-  catch error:undef ->
-      docs_from_src(M, F, A)
   end.
+-else.
+get_docs(M, F, A) ->
+  docs_from_src(M, F, A).
+-endif.
 
 %%==============================================================================
 %% Internal functions
