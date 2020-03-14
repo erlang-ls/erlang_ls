@@ -12,9 +12,9 @@
 -include("erlang_ls.hrl").
 
 -ifdef(OTP_RELEASE).
--if(OTP_RELEASE >= 23).
+-if(?OTP_RELEASE >= 23).
 -include_lib("kernel/include/eep48.hrl").
--endif
+-endif.
 -endif.
 
 %%==============================================================================
@@ -72,7 +72,7 @@ documentation(_M, _POI) ->
 %% in erlang's shell_docs to render markdown instead of ANSI-codes.
 -spec get_docs(atom(), atom(), byte()) -> binary().
 -ifdef(OTP_RELEASE).
--if(OTP_RELEASE >= 23).
+-if(?OTP_RELEASE >= 23).
 get_docs(M, F, A) ->
   case code:get_doc(M) of
     {ok, #docs_v1{ format = ?NATIVE_FORMAT
