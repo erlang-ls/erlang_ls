@@ -1,4 +1,4 @@
-case {os:getenv("GITHUB_ACTIONS"), os:getenv("COVERALLS_REPO_TOKEN")} of
+case {os:getenv("GITHUB_ACTIONS"), os:getenv("GITHUB_TOKEN")} of
   {"true", Token} when is_list(Token) ->
     JobId = os:getenv("GITHUB_RUN_ID"),
     CONFIG1 = lists:keystore(coveralls_service_job_id, 1, CONFIG, {coveralls_service_job_id, JobId}),
