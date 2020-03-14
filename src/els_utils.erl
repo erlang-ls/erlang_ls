@@ -8,6 +8,7 @@
         , project_relative/1
         , resolve_paths/3
         , halt/1
+        , cmd/2
         ]).
 
 -include("erlang_ls.hrl").
@@ -243,3 +244,30 @@ make_normalized_path([".." | T], [Head | Tail]) when Head =/= ".." ->
   make_normalized_path(T, Tail);
 make_normalized_path([H | T], NormalizedPath) ->
   make_normalized_path(T, [H | NormalizedPath]).
+
+% @private Replacement for os:cmd that allows for spaces in args and paths
+-spec cmd(string(), [string()]) -> integer().
+cmd(Cmd, Args) ->
+  Tag = make_ref(),
+  {Pid, Ref} = erlang:spawn_monitor(fun() ->
+    P = open_port(
+      {spawn_executable, Cmd},
+      [binary, use_stdio, stream, exit_status, hide, {args, Args}]
+    ),
+    exit({Tag, cmd_receive(P)})
+  end),
+  receive
+    {'DOWN', Ref, process, Pid, {Tag, Data}} ->
+      Data;
+    {'DOWN', Ref, process, Pid, Reason} ->
+      exit(Reason)
+  end.
+
+-spec cmd_receive(port()) -> integer().
+cmd_receive(Port) ->
+  receive
+    {Port, {exit_status, ExitCode}} ->
+      ExitCode;
+    {Port, _} ->
+      cmd_receive(Port)
+  end.
