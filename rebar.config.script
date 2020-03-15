@@ -1,7 +1,8 @@
-case os:getenv("TRAVIS") of
-  "true" ->
-    JobId = os:getenv("TRAVIS_JOB_ID"),
-    lists:keystore(coveralls_service_job_id, 1, CONFIG, {coveralls_service_job_id, JobId});
+case {os:getenv("GITHUB_ACTIONS"), os:getenv("GITHUB_TOKEN")} of
+  {"true", Token} when is_list(Token) ->
+    JobId = os:getenv("GITHUB_RUN_ID"),
+    CONFIG1 = lists:keystore(coveralls_service_job_id, 1, CONFIG, {coveralls_service_job_id, JobId}),
+    lists:keystore(coveralls_repo_token, 1, CONFIG1, {coveralls_repo_token, Token});
   _ ->
     CONFIG
 end.

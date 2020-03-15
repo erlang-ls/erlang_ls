@@ -39,6 +39,8 @@ jobs:
     - name: Run PropEr Tests
       run: rebar3 proper --cover --constraint_tries 100
     - name: Run Checks
-      run: rebar3 dialyzer xref
+      run: rebar3 do dialyzer, xref
     - name: Create Cover Reports
-      run: rebar3 do cover coveralls send
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: rebar3 do cover, coveralls send
