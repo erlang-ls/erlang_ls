@@ -111,7 +111,8 @@ do_initialize(RootUri, Capabilities, {ConfigPath, Config}) ->
   ok = set(plt_path       , DialyzerPltPath),
   ok = set(code_reload    , CodeReload),
   %% Calculated from the above
-  ok = set(apps_paths     , project_paths(RootPath, AppsDirs, false)),
+  AppsPaths = apps_paths(RootPath, AppsDirs),
+  ok = set(apps_paths     , AppsPaths),
   ok = set(deps_paths     , project_paths(RootPath, DepsDirs, false)),
   ok = set(include_paths  , include_paths(RootPath, IncludeDirs, false)),
   ok = set(otp_paths      , otp_paths(OtpPath, false) -- ExcludePaths),
@@ -208,6 +209,22 @@ include_paths(RootPath, IncludeDirs, Recursive) ->
             || Dir <- IncludeDirs
           ],
   lists:append(Paths).
+
+-spec apps_paths(path(), [string()]) -> [string()].
+apps_paths(_RootPath, []) -> [];
+apps_paths(RootPath, Dirs) ->
+  case project_paths(RootPath, Dirs, false) of
+    [] ->
+      SubDirs = [ filename:join(Dir, SubDir) ||
+                  Dir <-
+                    Dirs,
+                  SubDir <-
+                    els_utils:subdirs(filename:join(RootPath, Dir), false)
+                ],
+      apps_paths(RootPath, SubDirs);
+    Paths ->
+      Paths
+  end.
 
 -spec project_paths(path(), [string()], boolean()) -> [string()].
 project_paths(RootPath, Dirs, Recursive) ->

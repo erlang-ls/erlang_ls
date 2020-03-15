@@ -9,6 +9,7 @@
         , lookup_document/1
         , project_relative/1
         , resolve_paths/3
+        , subdirs/2
         , to_binary/1
         , to_list/1
         ]).
@@ -192,35 +193,44 @@ resolve_path(PathSpec, RootPath, Recursive) ->
 
   case Recursive of
     true  ->
-      lists:append([ [make_normalized_path(P) | subdirs(P)]
+      lists:append([ [make_normalized_path(P) | subdirs(P, true)]
                      || P <- Paths, not contains_symlink(P, RootPath)
                    ]);
     false ->
       [make_normalized_path(P) || P <- Paths, not contains_symlink(P, RootPath)]
   end.
 
-%% Returns all subdirectories for the provided path
--spec subdirs(path()) -> [path()].
-subdirs(Path) ->
-  subdirs(Path, []).
+%% @doc Returns subdirectories for the provided path
+%% If Recursive returns all paths absolute mode,
+%% and otherwise returns dirs below Path.
 
--spec subdirs(path(), [path()]) -> [path()].
-subdirs(Path, Subdirs) ->
+-spec subdirs(path(), boolean()) -> [path()].
+subdirs(Path, Recursive) ->
+  lists:reverse(subdirs(Path, Recursive, [])).
+
+-spec subdirs(path(), boolean(), [path()]) -> [path()].
+subdirs(Path, Recursive, Subdirs) ->
   case file:list_dir(Path) of
-    {ok, Files} -> subdirs_(Path, Files, Subdirs);
+    {ok, Files} -> subdirs_(Path, Files, Recursive, Subdirs);
     {error, _}  -> Subdirs
   end.
 
--spec subdirs_(path(), [path()], [path()]) -> [path()].
-subdirs_(Path, Files, Subdirs) ->
+-spec subdirs_(path(), [path()], boolean(), [path()]) -> [path()].
+subdirs_(Path, Files, Recursive, Subdirs) ->
   Fold = fun(F, Acc) ->
              FullPath = filename:join([Path, F]),
              case
                not is_symlink(FullPath)
                andalso filelib:is_dir(FullPath)
              of
-               true  -> subdirs(FullPath, [FullPath | Acc]);
-               false -> Acc
+               true when F =:= ".git" ->
+                     Acc;
+               true when Recursive ->
+                     subdirs(FullPath, Recursive, [FullPath | Acc]);
+               true  ->
+                     [F | Acc];
+               false ->
+                     Acc
              end
          end,
   lists:foldl(Fold, Subdirs, Files).
