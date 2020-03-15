@@ -59,6 +59,9 @@ Normally, the location of the _User Config_ directory is:
 | OS X             | /Users/USER/Library/Application\ Support/erlang\_ls |
 | Windows          | c:/Users/USER/AppData/Local/erlang\_ls              |
 
+Thus on Linux, for example, the full path to the default configuation file
+would be `/home/USER/.config/erlang_ls/erlang_ls.config`
+
 A sample `erlang_ls.config` file would look like the following:
 
 ```yaml
