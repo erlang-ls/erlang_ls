@@ -75,21 +75,21 @@
 
 %% Create a complete escript file with both header and body
 -spec create(file:filename() | binary, [section()]) ->
-		    ok | {ok, binary()} | {error, term()}.
+        ok | {ok, binary()} | {error, term()}.
 
 create(File, Options) when is_list(Options) ->
   try
     S = prepare(Options, #sections{}),
     BinList =
-	    [Section || Section <- [S#sections.shebang,
+      [Section || Section <- [S#sections.shebang,
                               S#sections.comment,
                               S#sections.emu_args,
                               S#sections.body],
                   Section =/= undefined],
     case File of
-	    binary ->
+      binary ->
         {ok, list_to_binary(BinList)};
-	    _ ->
+      _ ->
         case file:write_file(File, BinList) of
           ok ->
             ok;
@@ -99,51 +99,51 @@ create(File, Options) when is_list(Options) ->
     end
   catch
     throw:PrepareReason ->
-	    {error, PrepareReason}
+      {error, PrepareReason}
   end.
 
 prepare([H | T], S) ->
   case H of
     {shebang, undefined} ->
-	    prepare(T, S);
+      prepare(T, S);
     shebang ->
-	    prepare(T, S#sections{shebang = "#!" ++ ?SHEBANG ++ "\n"});
+      prepare(T, S#sections{shebang = "#!" ++ ?SHEBANG ++ "\n"});
     {shebang, default} ->
-	    prepare(T, S#sections{shebang = "#!" ++ ?SHEBANG ++ "\n"});
+      prepare(T, S#sections{shebang = "#!" ++ ?SHEBANG ++ "\n"});
     {shebang, Shebang} when is_list(Shebang) ->
-	    prepare(T, S#sections{shebang = "#!" ++ Shebang ++ "\n"});
+      prepare(T, S#sections{shebang = "#!" ++ Shebang ++ "\n"});
     {comment, undefined} ->
-	    prepare(T, S);
+      prepare(T, S);
     comment ->
-	    prepare(T, S#sections{comment = "%% " ++ ?COMMENT ++ "\n"});
+      prepare(T, S#sections{comment = "%% " ++ ?COMMENT ++ "\n"});
     {comment, default} ->
-	    prepare(T, S#sections{comment = "%% " ++ ?COMMENT ++ "\n"});
+      prepare(T, S#sections{comment = "%% " ++ ?COMMENT ++ "\n"});
     {comment, Comment} when is_list(Comment) ->
-	    prepare(T, S#sections{comment = "%% " ++ Comment ++ "\n"});
+      prepare(T, S#sections{comment = "%% " ++ Comment ++ "\n"});
     {emu_args, undefined} ->
-	    prepare(T, S);
+      prepare(T, S);
     {emu_args, Args} when is_list(Args) ->
-	    prepare(T, S#sections{emu_args = "%%!" ++ Args ++ "\n"});
+      prepare(T, S#sections{emu_args = "%%!" ++ Args ++ "\n"});
     {Type, File} when is_list(File) ->
-	    case file:read_file(File) of
+      case file:read_file(File) of
         {ok, Bin} ->
           prepare(T, S#sections{type = Type, body = Bin});
         {error, Reason} ->
           throw({Reason, H})
-	    end;
+      end;
     {Type, Bin} when is_binary(Bin) ->
-	    prepare(T, S#sections{type = Type, body = Bin});
+      prepare(T, S#sections{type = Type, body = Bin});
     {archive = Type, ZipFiles, ZipOptions}
       when is_list(ZipFiles), is_list(ZipOptions) ->
-	    File = "dummy.zip",
-	    case zip:create(File, ZipFiles, ZipOptions ++ [memory]) of
+      File = "dummy.zip",
+      case zip:create(File, ZipFiles, ZipOptions ++ [memory]) of
         {ok, {File, ZipBin}} ->
           prepare(T, S#sections{type = Type, body = ZipBin});
         {error, Reason} ->
           throw({Reason, H})
-	    end;
+      end;
     _ ->
-	    throw({badarg, H})
+      throw({badarg, H})
   end;
 prepare([], #sections{body = undefined}) ->
   throw(missing_body);
@@ -165,34 +165,33 @@ extract(File, Options) when is_list(File), is_list(Options) ->
     EO = parse_extract_options(Options,
                                #extract_options{compile_source = false}),
     {HeaderSz, NextLineNo, Fd, Sections} =
-	    parse_header(File, not EO#extract_options.compile_source),
+      parse_header(File, not EO#extract_options.compile_source),
     Type = Sections#sections.type,
     case {Type, EO#extract_options.compile_source} of
-	    {source, true} ->
-        Bin = compile_source(Type, File, Fd, NextLineNo, HeaderSz);
-	    {_, _} ->
+      {source, true} ->
+        Bin = compile_source(Type, File, Fd, NextLineNo, HeaderSz),
+        return_sections(Sections, Bin);
+      {_, _} ->
         ok = file:close(Fd),
         case file:read_file(File) of
           {ok, <<_Header:HeaderSz/binary, Bin/binary>>} ->
-            ok;
+            return_sections(Sections, Bin);
           {error, ReadReason} ->
-            Bin = get_rid_of_compiler_warning,
             throw(ReadReason)
         end
-    end,
-    return_sections(Sections, Bin)
+    end
   catch
     throw:Reason ->
-	    {error, Reason}
+      {error, Reason}
   end.
 
 parse_extract_options([H | T], EO) ->
   case H of
     compile_source ->
-	    EO2 = EO#extract_options{compile_source = true},
-	    parse_extract_options(T, EO2);
+      EO2 = EO#extract_options{compile_source = true},
+      parse_extract_options(T, EO2);
     _ ->
-	    throw({badarg, H})
+      throw({badarg, H})
   end;
 parse_extract_options([], EO) ->
   EO.
@@ -203,9 +202,9 @@ compile_source(Type, File, Fd, NextLineNo, HeaderSz) ->
   ok = file:close(Fd),
   case compile:forms(Forms, [return_errors, debug_info]) of
     {ok, _, BeamBin} ->
-	    BeamBin;
+      BeamBin;
     {error, Errors, Warnings} ->
-	    throw({compile, [{errors, format_errors(Errors)},
+      throw({compile, [{errors, format_errors(Errors)},
                        {warnings, format_errors(Warnings)}]})
   end.
 
@@ -228,18 +227,18 @@ normalize_section(shebang, "#!" ++ Chars) ->
   Stripped = string:trim(Chopped, both),
   if
     Stripped =:= ?SHEBANG ->
-	    {shebang, default};
+      {shebang, default};
     true ->
-	    {shebang, Stripped}
+      {shebang, Stripped}
   end;
 normalize_section(comment, Chars) ->
   Chopped = string:trim(Chars, trailing, "$\n"),
   Stripped = string:trim(string:trim(Chopped, leading, "$%"), both),
   if
     Stripped =:= ?COMMENT ->
-	    {comment, default};
+      {comment, default};
     true ->
-	    {comment, Stripped}
+      {comment, Stripped}
   end;
 normalize_section(emu_args, "%%!" ++ Chars) ->
   Chopped = string:trim(Chars, trailing, "$\n"),
@@ -404,12 +403,12 @@ parse_file(File) ->
   try parse_file(File, false) of
     {_Source, _Module, FormsOrBin, _HasRecs, _Mode}
       when is_binary(FormsOrBin) ->
-	    {ok, FormsOrBin};
+      {ok, FormsOrBin};
     _ ->
-	    {error, no_archive_bin}
+      {error, no_archive_bin}
   catch
     throw:Reason ->
-	    {error, Reason}
+      {error, Reason}
   end.
 
 parse_file(File, CheckOnly) ->
@@ -426,15 +425,15 @@ do_parse_file(Type, File, Fd, NextLineNo, HeaderSz, CheckOnly) ->
          forms_or_bin = FormsOrBin,
          has_records = HasRecs} =
     case Type of
-	    archive ->
+      archive ->
         %% Archive file
         ok = file:close(Fd),
         parse_archive(S, File, HeaderSz);
-	    beam ->
+      beam ->
         %% Beam file
         ok = file:close(Fd),
         parse_beam(S, File, HeaderSz, CheckOnly);
-	    source ->
+      source ->
         %% Source code
         parse_source(S, File, Fd, NextLineNo, HeaderSz, CheckOnly)
     end,
@@ -466,11 +465,11 @@ parse_header(File, KeepFirst) ->
       find_first_body_line(Fd, HeaderSz0, LineNo, KeepFirst,
                            #sections{shebang = Line1});
     archive ->
-	    {HeaderSz0, LineNo, Fd,
-	     #sections{type = archive}};
+      {HeaderSz0, LineNo, Fd,
+       #sections{type = archive}};
     beam ->
       {HeaderSz0, LineNo, Fd,
-	     #sections{type = beam}};
+       #sections{type = beam}};
     _ ->
       find_first_body_line(Fd, HeaderSz0, LineNo, KeepFirst,
                            #sections{})
@@ -554,7 +553,7 @@ get_line(P) ->
 parse_archive(S, File, HeaderSz) ->
   case file:read_file(File) of
     {ok, <<_Header:HeaderSz/binary, Bin/binary>>} ->
-	    Mod =
+      Mod =
         case init:get_argument(escript) of
           {ok, [["main", M]]} ->
             %% Use explicit module name
@@ -569,14 +568,14 @@ parse_archive(S, File, HeaderSz) ->
               end,
             list_to_atom(lists:reverse(RevBase2))
         end,
-	    S#state{source = archive,
+      S#state{source = archive,
               mode = run,
               module = Mod,
               forms_or_bin = Bin};
     {ok, _} ->
-	    fatal("Illegal archive format");
+      fatal("Illegal archive format");
     {error, Reason} ->
-	    fatal(file:format_error(Reason))
+      fatal(file:format_error(Reason))
   end.
 
 
@@ -585,7 +584,7 @@ parse_beam(S, File, HeaderSz, CheckOnly) ->
     file:read_file(File),
   case beam_lib:chunks(Bin, [exports]) of
     {ok, {Module, [{exports, Exports}]}} ->
-	    case CheckOnly of
+      case CheckOnly of
         true ->
           case lists:member({main, 1}, Exports) of
             true ->
@@ -599,7 +598,7 @@ parse_beam(S, File, HeaderSz, CheckOnly) ->
                   mode = run,
                   module = Module,
                   forms_or_bin = Bin}
-	    end;
+      end;
     {error, beam_lib, Reason} when is_tuple(Reason) ->
       fatal(element(1, Reason))
   end.
@@ -633,26 +632,26 @@ parse_source(S, File, Fd, StartLine, HeaderSz, CheckOnly) ->
         end,
       ok = epp:close(Epp),
       ok = file:close(Fd),
-	    check_source(S3, CheckOnly);
+      check_source(S3, CheckOnly);
     {error, Reason} ->
-	    io:format("escript: ~tp\n", [Reason]),
-	    fatal("Preprocessor error")
+      io:format("escript: ~tp\n", [Reason]),
+      fatal("Preprocessor error")
   end.
 
 check_source(S, CheckOnly) ->
   case S of
     #state{n_errors = Nerrs} when Nerrs =/= 0 ->
-	    fatal("There were compilation errors.");
+      fatal("There were compilation errors.");
     #state{exports_main = ExpMain,
            forms_or_bin = [FileForm2, ModForm2 | Forms]} ->
-	    %% Optionally add export of main/1
-	    Forms2 =
+      %% Optionally add export of main/1
+      Forms2 =
         case ExpMain of
           false -> [{attribute, a0(), export, [{main,1}]} | Forms];
           true  -> Forms
         end,
-	    Forms3 = [FileForm2, ModForm2 | Forms2],
-	    case CheckOnly of
+      Forms3 = [FileForm2, ModForm2 | Forms2],
+      case CheckOnly of
         true ->
           %% Strong validation and halt
           case compile:forms(Forms3, [report,strong_validation]) of
@@ -663,7 +662,7 @@ check_source(S, CheckOnly) ->
           end;
         false ->
           S#state{forms_or_bin = Forms3}
-	    end
+      end
   end.
 
 pre_def_macros(File) ->
@@ -739,16 +738,16 @@ epp_parse_file2(Epp, S, Forms, Parsed) ->
 debug(Module, AbsMod, Args) ->
   case hidden_apply(debugger, debugger, start, []) of
     {ok, _} ->
-	    case hidden_apply(debugger, int, i, [AbsMod]) of
+      case hidden_apply(debugger, int, i, [AbsMod]) of
         {module, _} ->
           hidden_apply(debugger, debugger, auto_attach, [[init]]),
           run(Module, Args);
         error ->
           Text = lists:concat(["Cannot load the code for ", Module, " into the debugger"]),
           fatal(Text)
-	    end;
+      end;
     _ ->
-	    fatal("Cannot start the debugger")
+      fatal("Cannot start the debugger")
   end.
 
 -spec run(_, _) -> no_return().
@@ -768,17 +767,17 @@ interpret(Forms, HasRecs,  File, Args) ->
   %% Basic validation before execution
   case erl_lint:module(Forms) of
     {ok,Ws} ->
-	    report_warnings(Ws);
+      report_warnings(Ws);
     {error,Es,Ws} ->
-	    report_errors(Es),
-	    report_warnings(Ws),
-	    fatal("There were compilation errors.")
+      report_errors(Es),
+      report_warnings(Ws),
+      fatal("There were compilation errors.")
   end,
   %% Optionally expand records
   Forms2 =
     case HasRecs of
-	    false -> Forms;
-	    true  -> erl_expand_records:module(Forms, [])
+      false -> Forms;
+      true  -> erl_expand_records:module(Forms, [])
     end,
   Dict = parse_to_map(Forms2),
   ArgsA = erl_parse:abstract(Args, 0),
@@ -924,7 +923,7 @@ hidden_apply(App, M, F, Args) ->
     apply(fun() -> M end(), F, Args)
   catch
     error:undef:StackTrace ->
-	    case StackTrace of
+      case StackTrace of
         [{M,F,Args,_} | _] ->
           Arity = length(Args),
           Text = io_lib:format("Call to ~w:~w/~w in application ~w failed.\n",
@@ -932,5 +931,5 @@ hidden_apply(App, M, F, Args) ->
           fatal(Text);
         Stk ->
           erlang:raise(error, undef, Stk)
-	    end
+      end
   end.
