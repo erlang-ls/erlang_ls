@@ -70,10 +70,10 @@ documentation(_M, _POI) ->
 %% in erlang's shell_docs to render markdown instead of ANSI-codes.
 -spec get_docs(atom(), atom(), byte()) -> binary().
 get_docs(M, F, A) ->
-  try apply(code, get_doc, [M]) of
+  try apply(code, id(get_doc), [M]) of
     {ok, {docs_v1, _, _, <<"application/erlang+html">>, MDoc, _, _} = DocChunk}
       when MDoc =/= none ->
-        case apply(shell_docs, render, [M, F, A, DocChunk]) of
+        case apply(shell_docs, id(render), [M, F, A, DocChunk]) of
           {error, _R0} ->
             docs_from_src(M, F, A);
           FuncDoc ->
@@ -87,9 +87,15 @@ get_docs(M, F, A) ->
       docs_from_src(M, F, A)
   end.
 
+
 %%==============================================================================
 %% Internal functions
 %%==============================================================================
+
+%% Hide calls from xref
+-spec id(term()) -> term().
+id(Id) ->
+  Id.
 
 -spec docs_from_src(atom(), atom(), byte()) -> binary().
 docs_from_src(M, F, A) ->
