@@ -33,10 +33,14 @@ handle_request({document_codelens, Params}, State) ->
 -spec lenses(uri()) -> [map()].
 lenses(Uri) ->
   {ok, _Document} = els_utils:lookup_document(Uri),
-  Lenses = [#{ range => one_line_range(3)
+  Command = els_execute_command_provider:add_server_prefix(<<"info">>),
+  Root = filename:basename(els_uri:path(els_config:get(root_uri))),
+  Lenses = [#{ range => one_line_range(1)
              , command =>
-                   make_command(<<"Foo Title">>, <<"foo command">>, [])}],
-  lager:info("lenses: [Lenses=~p]", [Lenses]),
+                   make_command( <<"Erlang LS info (in ", Root/binary, ")">>
+                               , Command
+                               , [#{ uri => Uri }])
+             }],
   Lenses.
 
 -spec one_line_range(non_neg_integer()) -> range().

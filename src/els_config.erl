@@ -74,8 +74,8 @@ initialize(RootUri, Capabilities, InitOptions) ->
   Config = consult_config(config_paths(RootPath, InitOptions)),
   do_initialize(RootUri, Capabilities, Config).
 
--spec do_initialize(uri(), map(), map()) -> ok.
-do_initialize(RootUri, Capabilities, Config) ->
+-spec do_initialize(uri(), map(), {undefined|path(), map()}) -> ok.
+do_initialize(RootUri, Capabilities, {ConfigPath, Config}) ->
   RootPath        = unicode:characters_to_list(els_uri:path(RootUri)),
   OtpPath         = maps:get("otp_path", Config, code:root_dir()),
   DepsDirs        = maps:get("deps_dirs", Config, []),
@@ -95,6 +95,7 @@ do_initialize(RootUri, Capabilities, Config) ->
   %% Passed by the LSP client
   ok = set(root_uri       , RootUri),
   %% Read from the erlang_ls.config file
+  ok = set(config_path    , ConfigPath),
   ok = set(otp_path       , OtpPath),
   ok = set(deps_dirs      , DepsDirs),
   ok = set(apps_dirs      , AppsDirs),
@@ -177,14 +178,14 @@ default_config_paths(RootPath) ->
 possible_config_paths(Path) ->
   [ Path, filename:join([Path, ?DEFAULT_CONFIG_FILE]) ].
 
--spec consult_config([path()]) -> map().
-consult_config([]) -> #{};
+-spec consult_config([path()]) -> {undefined|path(), map()}.
+consult_config([]) -> {undefined, #{}};
 consult_config([Path | Paths]) ->
   lager:info("Reading config file. path=~p", [Path]),
   Options = [{map_node_format, map}],
   try yamerl:decode_file(Path, Options) of
-      [] -> #{};
-      [Config] -> Config
+      [] -> {Path, #{}};
+      [Config] -> {Path, Config}
   catch
     Class:Error ->
       lager:warning( "Could not read config file: path=~p class=~p error=~p"
