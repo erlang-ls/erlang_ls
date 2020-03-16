@@ -136,7 +136,7 @@ transaction(F) ->
 
 -spec start_epmd() -> ok.
 start_epmd() ->
-  [] = os:cmd(epmd_path() ++ " -daemon"),
+  0 = els_utils:cmd(epmd_path(), ["-daemon"]),
   ok.
 
 -spec epmd_path() -> string().
