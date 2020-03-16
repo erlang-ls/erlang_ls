@@ -19,7 +19,7 @@ contributors are putting into the project.
 ## What should I know before I get started?
 
 `erlang_ls` is an implementation of Microsoft's Language Server
-Protocol, so you should familiar with it. You can read about the
+Protocol, so you should be familiar with it. You can read about the
 protocol [here][lsp]. You can find the detailed specification
 [here][lsp-specs].
 
