@@ -111,7 +111,6 @@ set(transport, Name) ->
 set(port, Port) ->
   application:set_env(?APP, port, Port);
 set(log_dir, Dir) ->
-  application:set_env(?APP, logging_enabled, true),
   application:set_env(?APP, log_dir, Dir);
 set(log_level, Level) ->
   application:set_env(?APP, log_level, Level);
@@ -125,7 +124,7 @@ set(port_old, Port) ->
 
 -spec lager_config() -> ok.
 lager_config() ->
-  LoggingEnabled = application:get_env(?APP, logging_enabled, false),
+  LoggingEnabled = application:get_env(?APP, logging_enabled, true),
   case LoggingEnabled of
     true ->
       LogRoot   = log_root(),
