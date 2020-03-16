@@ -50,21 +50,24 @@ find_references(Uri, #{ kind := Kind
                       }) when Kind =:= application;
                               Kind =:= implicit_fun;
                               Kind =:= function;
-                              Kind =:= export_entry ->
+                              Kind =:= export_entry;
+                              Kind =:= export_type_entry;
+                              Kind =:= type_application;
+                              Kind =:= type_definition ->
   Key = case Id of
           {F, A}    -> {els_uri:module(Uri), F, A};
           {M, F, A} -> {M, F, A}
         end,
-  find_references_for_id(Key);
+  find_references_for_id(Kind, Key);
 find_references(_Uri, #{kind := Kind, id := Name})
   when Kind =:= record_expr;
        Kind =:= record;
        Kind =:= record_access ->
-  find_references_for_id({record, Name});
+  find_references_for_id(Kind, Name);
 find_references(_Uri, #{kind := Kind, id := Name})
   when Kind =:= macro;
        Kind =:= define ->
-  find_references_for_id({macro, Name});
+  find_references_for_id(Kind, Name);
 find_references(Uri, #{kind := module}) ->
   case els_utils:lookup_document(Uri) of
     {ok, Doc} ->
@@ -79,9 +82,9 @@ find_references(Uri, #{kind := module}) ->
 find_references(_Uri, _POI) ->
   [].
 
--spec find_references_for_id(any()) -> [location()].
-find_references_for_id(Id) ->
-  {ok, Refs} = els_dt_references:find_by_id(Id),
+-spec find_references_for_id(poi_kind(), any()) -> [location()].
+find_references_for_id(Kind, Id) ->
+  {ok, Refs} = els_dt_references:find_by_id(Kind, Id),
   [location(U, R) || #{uri := U, range := R} <- Refs].
 
 -spec location(uri(), poi_range()) -> location().

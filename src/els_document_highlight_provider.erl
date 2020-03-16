@@ -45,20 +45,17 @@ find_highlights(Uri, #{ kind := Kind
                       }) when Kind =:= application;
                               Kind =:= implicit_fun;
                               Kind =:= function;
-                              Kind =:= variable;
                               Kind =:= export_entry ->
   Key = case Id of
           {F, A}    -> {els_uri:module(Uri), F, A};
-          {M, F, A} -> {M, F, A};
-          V         -> {els_uri:module(Uri), V, 0}
+          {M, F, A} -> {M, F, A}
         end,
-  case els_dt_references:find_by_id(Key) of
+  case els_dt_references:find_by_id(Kind, Key) of
     {ok, []} ->
       null;
     {ok, Refs} ->
       R = [ document_highlight(R) ||
-            #{uri := U, range := R} <- ordsets:to_list(Refs)
-              , Uri == U
+            #{uri := U, range := R} <- ordsets:to_list(Refs), Uri =:= U
           ],
       R
   end;

@@ -104,16 +104,16 @@ range({Line, Column}, record, Record, _Data) ->
   To = plus(From, atom_to_list(Record)),
   #{ from => From, to => To };
 range({Line, Column}, type_application, {F, _A}, _Data) ->
-  From = {Line, Column - 1},
+  From = {Line, Column},
   To = plus(From, atom_to_list(F)),
   #{ from => From, to => To };
 range({Line, Column}, type_application, {M, F, _A}, _Data) ->
-  From = {Line, Column - 1},
+  From = {Line, Column},
   To = {Line, Column + length(atom_to_list(M)) + length(atom_to_list(F))},
   #{ from => From, to => To };
-range({Line, Column}, type_definition, _Type, _Data) ->
-  From = {Line, Column},
-  To = From,
+range({Line, Column}, type_definition, {Name, _}, _Data) ->
+  From = plus({Line, Column}, "type "),
+  To = plus(From, atom_to_list(Name)),
   #{ from => From, to => To };
 range({Line, Column}, variable, Name, _Data) ->
   From = {Line, Column},

@@ -78,27 +78,33 @@ do_index(#{uri := Uri, id := Id, kind := Kind} = Document, Mode) ->
   %% Mapping from document id to uri
   ModuleItem = els_dt_document_index:new(Id, Uri, Kind),
   ok = els_dt_document_index:insert(ModuleItem),
+  index_signatures(Document),
+  index_references(Document, Mode).
+
+-spec index_signatures(els_dt_document:item()) -> ok.
+index_signatures(#{id := Id} = Document) ->
   %% Signatures
   Specs  = els_dt_document:pois(Document, [spec]),
-  [els_dt_signatures:insert(#{ mfa  => {Id, F, A}
-                             , tree => Tree
-                             }) ||
-    #{id := {F, A}, data := Tree} <- Specs],
-  case Mode of
-    'deep' ->
-      %% References
-      POIs  = els_dt_document:pois(Document, [ application
-                                             , implicit_fun
-                                             , macro
-                                             , record_access
-                                             , record_expr
-                                             ]),
-      ok = els_dt_references:delete_by_uri(Uri),
-      [register_reference(Uri, POI) || POI <- POIs],
-      ok;
-    'shallow' ->
-      ok
-  end.
+  [ els_dt_signatures:insert(#{mfa => {Id, F, A}, tree => Tree})
+    || #{id := {F, A}, data := Tree} <- Specs
+  ],
+  ok.
+
+-spec index_references(els_dt_document:item(), mode()) -> ok.
+index_references(#{uri := Uri} = Document, 'deep') ->
+  %% References
+  POIs  = els_dt_document:pois(Document, [ application
+                                         , implicit_fun
+                                         , macro
+                                         , record_access
+                                         , record_expr
+                                         , type_application
+                                         ]),
+  ok = els_dt_references:delete_by_uri(Uri),
+  [register_reference(Uri, POI) || POI <- POIs],
+  ok;
+index_references(_Document, 'shallow') ->
+  ok.
 
 -spec start([string()], mode()) -> ok.
 start(Dirs, Mode) ->
@@ -161,26 +167,23 @@ try_index_file(FullName, Mode) ->
   end.
 
 -spec register_reference(uri(), poi()) -> ok.
-register_reference(Uri, #{kind := Kind, id := RecordName, range := Range})
-  when Kind =:= record_expr;
-       Kind =:= record_access ->
-  els_dt_references:insert(#{ id    => {record, RecordName}
-                            , uri   => Uri
-                            , range => Range
-                            });
-register_reference(Uri, #{kind := macro, id := MacroName, range := Range}) ->
-  els_dt_references:insert(#{ id    => {macro, MacroName}
-                            , uri   => Uri
-                            , range => Range
-                            });
 register_reference(Uri, #{id := {F, A}} = POI) ->
   M = els_uri:module(Uri),
   register_reference(Uri, POI#{id => {M, F, A}});
-register_reference(Uri, #{id := {M, F, A}, range := Range}) ->
-  els_dt_references:insert(#{ id    => {M, F, A}
-                            , uri   => Uri
-                            , range => Range
-                            }).
+register_reference(Uri, #{kind := Kind, id := Id, range := Range})
+  when %% Record
+       Kind =:= record_expr;
+       Kind =:= record_access;
+       %% Macro
+       Kind =:= macro;
+       %% Function
+       Kind =:= application;
+       Kind =:= implicit_fun;
+       %% Type
+       Kind =:= type_application ->
+  els_dt_references:insert( Kind
+                          , #{id => Id, uri => Uri, range => Range}
+                          ).
 
 -spec index_dir(string(), mode()) -> {non_neg_integer(), non_neg_integer()}.
 index_dir(Dir, Mode) ->
