@@ -102,6 +102,7 @@ create(File, Options) when is_list(Options) ->
       {error, PrepareReason}
   end.
 
+-spec prepare([any()], #sections{}) -> #sections{}.
 prepare([H | T], S) ->
   case H of
     {shebang, undefined} ->
@@ -185,6 +186,8 @@ extract(File, Options) when is_list(File), is_list(Options) ->
       {error, Reason}
   end.
 
+-spec parse_extract_options(['compile_source'], #extract_options{}) ->
+        #extract_options{}.
 parse_extract_options([H | T], EO) ->
   case H of
     compile_source ->
@@ -196,6 +199,12 @@ parse_extract_options([H | T], EO) ->
 parse_extract_options([], EO) ->
   EO.
 
+-spec compile_source( 'source'
+                    , file:filename()
+                    , any()
+                    , pos_integer()
+                    , pos_integer()) ->
+        any().
 compile_source(Type, File, Fd, NextLineNo, HeaderSz) ->
   {text, _Module, Forms, _HasRecs, _Mode} =
     do_parse_file(Type, File, Fd, NextLineNo, HeaderSz, false),
@@ -208,18 +217,21 @@ compile_source(Type, File, Fd, NextLineNo, HeaderSz) ->
                        {warnings, format_errors(Warnings)}]})
   end.
 
+-spec format_errors(maybe_improper_list()) -> [[any()]].
 format_errors(CompileErrors) ->
   [lists:flatten([File, ":", integer_to_list(LineNo), ": ",
                   Mod:format_error(Error)]) ||
     {File, FileErrors} <- CompileErrors,
     {LineNo, Mod, Error} <- FileErrors].
 
+-spec return_sections(#sections{}, any()) -> {ok, [any()]}.
 return_sections(S, Bin) ->
   {ok, [normalize_section(shebang,  S#sections.shebang),
         normalize_section(comment,  S#sections.comment),
         normalize_section(emu_args, S#sections.emu_args),
         normalize_section(S#sections.type, Bin)]}.
 
+-spec normalize_section(any(), any()) -> {any(), any()}.
 normalize_section(Name, undefined) ->
   {Name, undefined};
 normalize_section(shebang, "#!" ++ Chars) ->
@@ -305,7 +317,7 @@ parse_and_run(File, Args, Options) ->
           false ->
             case lists:member("i", Options) of
               true  -> interpret;
-              false -> 
+              false ->
                 case lists:member("n", Options) of
                   true -> native;
                   false -> Mode
@@ -399,6 +411,7 @@ parse_and_run(File, Args, Options) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Only used as callback by erl_prim_loader
+-spec parse_file(_) -> {'error',_} | {'ok',binary()}.
 parse_file(File) ->
   try parse_file(File, false) of
     {_Source, _Module, FormsOrBin, _HasRecs, _Mode}
@@ -411,12 +424,15 @@ parse_file(File) ->
       {error, Reason}
   end.
 
+-spec parse_file(_, boolean()) -> any().
 parse_file(File, CheckOnly) ->
   {HeaderSz, NextLineNo, Fd, Sections} =
     parse_header(File, false),
   do_parse_file(Sections#sections.type,
                 File, Fd, NextLineNo, HeaderSz, CheckOnly).
 
+-spec do_parse_file(atom(), any(), any(), pos_integer(), any(), boolean()) ->
+        any().
 do_parse_file(Type, File, Fd, NextLineNo, HeaderSz, CheckOnly) ->
   S = initial_state(File),
   #state{mode = Mode,
@@ -439,6 +455,7 @@ do_parse_file(Type, File, Fd, NextLineNo, HeaderSz, CheckOnly) ->
     end,
   {Source, Module, FormsOrBin, HasRecs, Mode}.
 
+-spec initial_state(_) -> #state{}.
 initial_state(File) ->
   #state{file = File,
          n_errors = 0,
@@ -447,6 +464,7 @@ initial_state(File) ->
          has_records = false}.
 
 %% Skip header and make a heuristic guess about the script type
+-spec parse_header(_, boolean()) -> {any(), any(), any(), #sections{}}.
 parse_header(File, KeepFirst) ->
   LineNo = 1,
   {ok, Fd} =
@@ -475,6 +493,8 @@ parse_header(File, KeepFirst) ->
                            #sections{})
   end.
 
+-spec find_first_body_line(_, _, 1, boolean(), #sections{}) ->
+        {any(), any(), any(), #sections{}}.
 find_first_body_line(Fd, HeaderSz0, LineNo, KeepFirst, Sections) ->
   {ok, HeaderSz1} = file:position(Fd, cur),
   %% Look for special comment on second line
@@ -525,6 +545,7 @@ find_first_body_line(Fd, HeaderSz0, LineNo, KeepFirst, Sections) ->
       end
   end.
 
+-spec classify_line(_) -> atom().
 classify_line(Line) ->
   case Line of
     "#!" ++ _ -> shebang;
@@ -535,6 +556,7 @@ classify_line(Line) ->
     _ -> undefined
   end.
 
+-spec guess_type(_) -> 'archive' | 'beam' | 'source'.
 guess_type(Line) ->
   case classify_line(Line) of
     archive -> archive;
@@ -542,6 +564,7 @@ guess_type(Line) ->
     _       -> source
   end.
 
+-spec get_line(_) -> any().
 get_line(P) ->
   case io:get_line(P, '') of
     eof ->
@@ -550,6 +573,7 @@ get_line(P) ->
       Line
   end.
 
+-spec parse_archive(#state{}, _, non_neg_integer()) -> #state{}.
 parse_archive(S, File, HeaderSz) ->
   case file:read_file(File) of
     {ok, <<_Header:HeaderSz/binary, Bin/binary>>} ->
@@ -578,7 +602,7 @@ parse_archive(S, File, HeaderSz) ->
       fatal(file:format_error(Reason))
   end.
 
-
+-spec parse_beam(#state{}, _, non_neg_integer(), 'false') -> #state{}.
 parse_beam(S, File, HeaderSz, CheckOnly) ->
   {ok, <<_Header:HeaderSz/binary, Bin/binary>>} =
     file:read_file(File),
@@ -603,6 +627,7 @@ parse_beam(S, File, HeaderSz, CheckOnly) ->
       fatal(element(1, Reason))
   end.
 
+-spec parse_source(#state{}, _, _, pos_integer(), _, 'false') -> #state{}.
 parse_source(S, File, Fd, StartLine, HeaderSz, CheckOnly) ->
   {PreDefMacros, Module} = pre_def_macros(File),
   IncludePath = [],
@@ -638,6 +663,7 @@ parse_source(S, File, Fd, StartLine, HeaderSz, CheckOnly) ->
       fatal("Preprocessor error")
   end.
 
+-spec check_source(#state{}, 'false') -> #state{}.
 check_source(S, CheckOnly) ->
   case S of
     #state{n_errors = Nerrs} when Nerrs =/= 0 ->
@@ -665,6 +691,7 @@ check_source(S, CheckOnly) ->
       end
   end.
 
+-spec pre_def_macros(_) -> {[{_,_,_},...],_}.
 pre_def_macros(File) ->
   {MegaSecs, Secs, MicroSecs} = erlang:timestamp(),
   Unique = erlang:unique_integer([positive]),
@@ -687,10 +714,12 @@ PreDefMacros = [{'MODULE', Module, redefine},
                 {'MODULE_STRING', ModuleStr, redefine}],
 {PreDefMacros, Module}.
 
+-spec epp_parse_file(_, #state{}, [any(),...]) -> #state{}.
 epp_parse_file(Epp, S, Forms) ->
   Parsed = epp:parse_erl_form(Epp),
   epp_parse_file2(Epp, S, Forms, Parsed).
 
+-spec epp_parse_file2(_, #state{}, [any(),...], any()) -> #state{}.
 epp_parse_file2(Epp, S, Forms, Parsed) ->
   %% io:format("~p\n", [Parsed]),
   case Parsed of
@@ -734,7 +763,6 @@ epp_parse_file2(Epp, S, Forms, Parsed) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 -spec debug(_, _, _) -> no_return().
-
 debug(Module, AbsMod, Args) ->
   case hidden_apply(debugger, debugger, start, []) of
     {ok, _} ->
@@ -751,7 +779,6 @@ debug(Module, AbsMod, Args) ->
   end.
 
 -spec run(_, _) -> no_return().
-
 run(Module, Args) ->
   try
     Module:main(Args),
@@ -762,7 +789,6 @@ run(Module, Args) ->
   end.
 
 -spec interpret(_, _, _, _) -> no_return().
-
 interpret(Forms, HasRecs,  File, Args) ->
   %% Basic validation before execution
   case erl_lint:module(Forms) of
@@ -795,11 +821,13 @@ interpret(Forms, HasRecs,  File, Args) ->
       fatal(format_exception(Class, Reason, StackTrace))
   end.
 
+-spec report_errors([any()]) -> 'ok'.
 report_errors(Errors) ->
   lists:foreach(fun ({{F,_L},Eds}) -> list_errors(F, Eds);
                     ({F,Eds}) -> list_errors(F, Eds) end,
                 Errors).
 
+-spec list_errors(_,[{atom(),_} | {_,atom(),_}]) -> 'ok'.
 list_errors(F, [{Line,Mod,E}|Es]) ->
   io:fwrite("~ts:~w: ~ts\n", [F,Line,Mod:format_error(E)]),
   list_errors(F, Es);
@@ -808,6 +836,7 @@ list_errors(F, [{Mod,E}|Es]) ->
   list_errors(F, Es);
 list_errors(_F, []) -> ok.
 
+-spec report_warnings([any()]) -> 'ok'.
 report_warnings(Ws0) ->
   Ws1 = lists:flatmap(fun({{F,_L},Eds}) -> format_message(F, Eds);
                          ({F,Eds}) -> format_message(F, Eds) end,
@@ -815,16 +844,20 @@ report_warnings(Ws0) ->
   Ws = ordsets:from_list(Ws1),
   lists:foreach(fun({_,Str}) -> io:put_chars(Str) end, Ws).
 
+-spec format_message(_,[{atom(),_} | {_,atom(),_}]) -> [{'none' | {_,_},_}].
 format_message(F, [{Line,Mod,E}|Es]) ->
-  M = {{F,Line},io_lib:format("~ts:~w: Warning: ~ts\n", [F,Line,Mod:format_error(E)])},
+  M = {{F,Line},io_lib:format("~ts:~w: Warning: ~ts\n"
+                             , [F,Line,Mod:format_error(E)])},
   [M|format_message(F, Es)];
 format_message(F, [{Mod,E}|Es]) ->
   M = {none,io_lib:format("~ts: Warning: ~ts\n", [F,Mod:format_error(E)])},
   [M|format_message(F, Es)];
 format_message(_, []) -> [].
 
+-spec parse_to_map([any()]) -> any().
 parse_to_map(L) -> parse_to_map(L, maps:new()).
 
+-spec parse_to_map([any()],_) -> any().
 parse_to_map([{function,_,Name,Arity,Clauses}|T], Map0) ->
   Map = maps:put({local, Name,Arity}, Clauses, Map0),
   parse_to_map(T, Map);
@@ -838,6 +871,7 @@ parse_to_map([_|T], Map) ->
 parse_to_map([], Map) ->
   Map.
 
+-spec code_handler(_,[any()],_,_) -> any().
 code_handler(local, [file], _, File) ->
   File;
 code_handler(Name, Args, Map, File) ->
@@ -863,6 +897,8 @@ code_handler(Name, Args, Map, File) ->
       end
   end.
 
+-spec eval_exprs([any(),...],_,{'value',fun((_,_) -> any())},'none','none') ->
+        any().
 eval_exprs([E], Bs0, Lf, Ef, _RBs) ->
   RBs1 = value,
   erl_eval:expr(E, Bs0, Lf, Ef, RBs1);
@@ -871,6 +907,7 @@ eval_exprs([E|Es], Bs0, Lf, Ef, RBs) ->
   {value,_V,Bs} = erl_eval:expr(E, Bs0, Lf, Ef, RBs1),
   eval_exprs(Es, Bs, Lf, Ef, RBs).
 
+-spec format_exception(_,_,[{atom(),atom(),[any()] | byte(),[any()]}]) -> any().
 format_exception(Class, Reason, StackTrace) ->
   Enc = encoding(),
   P = case Enc of
@@ -883,6 +920,7 @@ format_exception(Class, Reason, StackTrace) ->
   StackFun = fun(M, _F, _A) -> (M =:= erl_eval) or (M =:= ?MODULE) end,
   erl_error:format_exception(1, Class, Reason, StackTrace, StackFun, PF, Enc).
 
+-spec encoding() -> any().
 encoding() ->
   case io:getopts() of
     {error, _}=_Err ->
@@ -894,6 +932,7 @@ encoding() ->
       end
   end.
 
+-spec put_chars(_) -> any().
 put_chars(String) ->
   try
     io:put_chars(String)
@@ -902,22 +941,30 @@ put_chars(String) ->
       erlang:display(lists:flatten(String))
   end.
 
+-spec a0() -> any().
 a0() ->
   anno(0).
 
+-spec a1() -> any().
 a1() ->
   anno(1).
 
+-spec anno(0 | 1) -> any().
 anno(L) ->
   erl_anno:new(L).
 
+-spec fatal(_) -> none().
 fatal(Str) ->
   throw(Str).
 
 -spec my_halt(_) -> no_return().
+
 my_halt(Reason) ->
   erlang:halt(Reason).
 
+-spec hidden_apply('debugger', 'debugger' | 'int',
+                   'auto_attach' | 'i' | 'start',
+                   [atom() | ['init',...] | {atom(),_,_,_}]) -> any().
 hidden_apply(App, M, F, Args) ->
   try
     apply(fun() -> M end(), F, Args)
