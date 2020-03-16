@@ -19,6 +19,9 @@
         , code_reload/1
         , code_reload_sticky_mod/1
         , elvis/1
+        , escript/1
+        , escript_warnings/1
+        , escript_errors/1
         ]).
 
 %%==============================================================================
@@ -240,6 +243,64 @@ elvis(Config) ->
   catch _Err ->
       file:set_cwd(Cwd)
   end,
+  ok.
+
+-spec escript(config()) -> ok.
+escript(Config) ->
+  Uri = ?config(diagnostics_escript_uri, Config),
+  ok = els_client:did_save(Uri),
+  {Method, Params} = wait_for_notification(),
+  ?assertEqual(<<"textDocument/publishDiagnostics">>, Method),
+  ?assert(maps:is_key(uri, Params)),
+  #{uri := Uri} = Params,
+  ?assert(maps:is_key(diagnostics, Params)),
+  #{diagnostics := Diagnostics} = Params,
+  ?assertEqual([], Diagnostics),
+  ok.
+
+-spec escript_warnings(config()) -> ok.
+escript_warnings(Config) ->
+  Uri = ?config(diagnostics_warnings_escript_uri, Config),
+  ok = els_client:did_save(Uri),
+  {Method, Params} = wait_for_notification(),
+  ?assertEqual(<<"textDocument/publishDiagnostics">>, Method),
+  ?assert(maps:is_key(uri, Params)),
+  #{uri := Uri} = Params,
+  ?assert(maps:is_key(diagnostics, Params)),
+  #{diagnostics := Diagnostics} = Params,
+  ?assertEqual(1, length(Diagnostics)),
+  Warnings = [D || #{severity := ?DIAGNOSTIC_WARNING} = D <- Diagnostics],
+  Errors   = [D || #{severity := ?DIAGNOSTIC_ERROR}   = D <- Diagnostics],
+  ?assertEqual([], Errors),
+  ?assertEqual(1, length(Warnings)),
+  WarningRanges = [ Range || #{range := Range} <- Warnings],
+  ExpectedWarningRanges = [ #{'end' => #{character => 0, line => 24},
+                              start => #{character => 0, line => 23}}
+                          ],
+  ?assertEqual(ExpectedWarningRanges, WarningRanges),
+  ok.
+
+-spec escript_errors(config()) -> ok.
+escript_errors(Config) ->
+  Uri = ?config(diagnostics_errors_escript_uri, Config),
+  ok = els_client:did_save(Uri),
+  {Method, Params} = wait_for_notification(),
+  ?assertEqual( <<"textDocument/publishDiagnostics">>
+              , Method),
+  ?assert(maps:is_key(uri, Params)),
+  #{uri := Uri} = Params,
+  ?assert(maps:is_key(diagnostics, Params)),
+  #{diagnostics := Diagnostics} = Params,
+  ?assertEqual(1, length(Diagnostics)),
+  Warnings = [D || #{severity := ?DIAGNOSTIC_WARNING} = D <- Diagnostics],
+  Errors   = [D || #{severity := ?DIAGNOSTIC_ERROR}   = D <- Diagnostics],
+  ?assertEqual([], Warnings),
+  ?assertEqual(1, length(Errors)),
+  ErrorRanges = [ Range || #{range := Range} <- Errors],
+  ExpectedErrorRanges = [ #{'end' => #{character => 0, line => 24},
+                            start => #{character => 0, line => 23}}
+                        ],
+  ?assertEqual(ExpectedErrorRanges, ErrorRanges),
   ok.
 
 -spec code_reload(config()) -> ok.

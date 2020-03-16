@@ -193,7 +193,7 @@ index_dir(Dir, Mode) ->
       end,
   Filter = fun(Path) ->
                Ext = filename:extension(Path),
-               lists:member(Ext, [".erl", ".hrl"])
+               lists:member(Ext, [".erl", ".hrl", ".escript"])
            end,
 
   {Time, {Succeeded, Failed}} = timer:tc( els_utils

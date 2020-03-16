@@ -48,6 +48,8 @@ diagnostics(Uri) ->
       %% file, since that allows us to identify most of the common
       %% errors in header files.
       parse(Uri);
+    <<".escript">> ->
+      parse_escript(Uri);
     _Ext ->
       lager:debug("Skipping diagnostics due to extension [uri=~p]", [Uri]),
       []
@@ -82,6 +84,17 @@ parse(Uri) ->
          || {error, {Line, Module, Desc}} <- epp:parse_file(Epp)],
   epp:close(Epp),
   Res.
+
+-spec parse_escript(uri()) -> [diagnostic()].
+parse_escript(Uri) ->
+  FileName = binary_to_list(els_uri:path(Uri)),
+  case els_escript:extract(FileName) of
+    {ok, WS} ->
+      diagnostics(FileName, WS, ?DIAGNOSTIC_WARNING);
+    {error, ES, WS} ->
+      diagnostics(FileName, WS, ?DIAGNOSTIC_WARNING) ++
+        diagnostics(FileName, ES, ?DIAGNOSTIC_ERROR)
+  end.
 
 %% @doc Convert compiler messages into diagnostics
 %%

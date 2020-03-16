@@ -49,9 +49,12 @@ init_per_suite(Config) ->
   application:set_env(erlang_ls, db_dir, Priv),
   SrcConfig = lists:flatten(
                 [file_config(RootPath, src, S) || S <- sources()]),
+  EscriptConfig = lists:flatten(
+                    [file_config(RootPath, escript, S) || S <- escripts()]),
   IncludeConfig = lists:flatten(
                     [file_config(RootPath, include, S) || S <- includes()]),
   lists:append( [ SrcConfig
+                , EscriptConfig
                 , IncludeConfig
                 , [ {root_uri, RootUri}
                   , {root_path, RootPath}
@@ -129,6 +132,13 @@ sources() ->
   , my_gen_server
   ].
 
+-spec escripts() -> [atom()].
+escripts() ->
+  [ diagnostics
+  , diagnostics_warnings
+  , diagnostics_errors
+  ].
+
 -spec includes() -> [atom()].
 includes() ->
   [ code_navigation
@@ -140,7 +150,7 @@ includes() ->
 %%      Given an identifier representing a source or include file,
 %%      produce a config containing the respective path, uri and text
 %%      to simplify accessing this information from test cases.
--spec file_config(binary(), src | include, atom()) ->
+-spec file_config(binary(), src | include | escript, atom()) ->
         [{atom(), any()}].
 file_config(RootPath, Type, Id) ->
   BinaryId = atom_to_binary(Id, utf8),
@@ -155,19 +165,26 @@ file_config(RootPath, Type, Id) ->
   , {atoms_append(ConfigId, '_text'), Text}
   ].
 
--spec config_id(atom(), src | include) -> atom().
+-spec config_id(atom(), src | include | escript) -> atom().
 config_id(Id, src) -> Id;
-config_id(Id, include) -> list_to_atom(atom_to_list(Id) ++ "_h").
+config_id(Id, include) -> list_to_atom(atom_to_list(Id) ++ "_h");
+config_id(Id, escript) -> list_to_atom(atom_to_list(Id) ++ "_escript").
 
--spec directory(src | include) -> binary().
-directory(Atom) ->
-  atom_to_binary(Atom, utf8).
+-spec directory(src | include | escript) -> binary().
+directory(src) ->
+  <<"src">>;
+directory(include) ->
+  <<"include">>;
+directory(escript) ->
+  <<"src">>.
 
--spec extension(src | include) -> binary().
+-spec extension(src | include | escript) -> binary().
 extension(src) ->
   <<".erl">>;
 extension(include) ->
-  <<".hrl">>.
+  <<".hrl">>;
+extension(escript) ->
+  <<".escript">>.
 
 -spec atoms_append(atom(), atom()) -> atom().
 atoms_append(Atom1, Atom2) ->
@@ -187,5 +204,6 @@ modules_to_index() ->
   , "diagnostics.hrl"
   , "diagnostics_behaviour"
   , "diagnostics_behaviour_impl"
+  , "diagnostics_escript"
   , "my_gen_server"
   ].
