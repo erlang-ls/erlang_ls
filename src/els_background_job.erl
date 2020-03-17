@@ -59,21 +59,24 @@ handle_cast(_Request, State) ->
 handle_info(init, State) ->
   #{config := Config} = State,
   #{task := Task, entries := Entries} = Config,
-  Step = step(Entries),
+  %% TODO: If supported
+  Title = <<"Indexing">>,
+  Total = length(Entries),
+  Step = step(Total),
+  Token = els_work_done_progress:send_create_request(),
+  BeginMsg = progress_msg(0, Total),
+  Begin = els_work_done_progress:value_begin(Title, BeginMsg, 0),
+  els_progress:send_notification(Token, Begin),
   F = fun(Entry, Progress) ->
           %% TODO: Handle failures, eg log, add test
           Task(Entry),
-          erlang:display(Entry),
-          %% TODO: Do not hard-code notification
-          Msg = io_lib:format("Progress: ~p", [floor(Progress * Step)]),
-          els_server:send_notification(<<"window/showMessage">>,
-                                       #{ type => 3, %% TODO: Hard-coded
-                                          message => list_to_binary(Msg)
-                                        }),
+          Percentage = floor(Progress * Step),
+          ReportMsg = progress_msg(Progress, Total),
+          Report = els_work_done_progress:value_report(ReportMsg, Percentage),
+          els_progress:send_notification(Token, Report),
           Progress + 1
       end,
-  lager:info("Completing"),
-  Res = lists:foldl(F, 1, Entries),
+  _Res = lists:foldl(F, 1, Entries),
   case maps:is_key(on_complete, Config) of
     true ->
       OnCompleteFun = maps:get(on_complete, Config),
@@ -81,8 +84,9 @@ handle_info(init, State) ->
     false ->
       ok
   end,
-  lager:info("Completed"),
-  erlang:display({res, Res}),
+  EndMsg = progress_msg(Total, Total),
+  End = els_work_done_progress:value_end(EndMsg),
+  els_progress:send_notification(Token, End),
   {stop, normal, State};
 handle_info(_Request, State) ->
   {noreply, State}.
@@ -90,8 +94,10 @@ handle_info(_Request, State) ->
 %%==============================================================================
 %% Internal functions
 %%==============================================================================
--spec step([entry()]) -> pos_integer().
-step([]) ->
-  100;
-step(Entries) ->
-  100 / length(Entries).
+-spec step(pos_integer()) -> pos_integer().
+step(0) -> 0;
+step(N) -> 100 / N.
+
+-spec progress_msg(pos_integer(), pos_integer()) -> binary().
+progress_msg(Current, Total) ->
+  list_to_binary(io_lib:format("~p/~p", [Current, Total])).
