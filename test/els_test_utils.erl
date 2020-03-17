@@ -12,8 +12,6 @@
         , wait_for/2
         ]).
 
--type config() :: [{atom(), any()}].
-
 -include_lib("common_test/include/ct.hrl").
 
 %%==============================================================================
@@ -22,6 +20,16 @@
 -define(TEST_APP, <<"code_navigation">>).
 -define(HOSTNAME, {127, 0, 0, 1}).
 -define(PORT    , 10000).
+
+%%==============================================================================
+%% Types
+%%==============================================================================
+-type config() :: [{atom(), any()}].
+-type file_type() :: src | include | escript.
+
+%%==============================================================================
+%% API
+%%==============================================================================
 
 -spec groups(module()) -> [{atom(), [], [atom()]}].
 groups(Module) ->
@@ -150,8 +158,7 @@ includes() ->
 %%      Given an identifier representing a source or include file,
 %%      produce a config containing the respective path, uri and text
 %%      to simplify accessing this information from test cases.
--spec file_config(binary(), src | include | escript, atom()) ->
-        [{atom(), any()}].
+-spec file_config(binary(), file_type(), atom()) -> [{atom(), any()}].
 file_config(RootPath, Type, Id) ->
   BinaryId = atom_to_binary(Id, utf8),
   Ext = extension(Type),
@@ -165,12 +172,12 @@ file_config(RootPath, Type, Id) ->
   , {atoms_append(ConfigId, '_text'), Text}
   ].
 
--spec config_id(atom(), src | include | escript) -> atom().
+-spec config_id(atom(), file_type()) -> atom().
 config_id(Id, src) -> Id;
 config_id(Id, include) -> list_to_atom(atom_to_list(Id) ++ "_h");
 config_id(Id, escript) -> list_to_atom(atom_to_list(Id) ++ "_escript").
 
--spec directory(src | include | escript) -> binary().
+-spec directory(file_type()) -> binary().
 directory(src) ->
   <<"src">>;
 directory(include) ->
@@ -178,7 +185,7 @@ directory(include) ->
 directory(escript) ->
   <<"src">>.
 
--spec extension(src | include | escript) -> binary().
+-spec extension(file_type()) -> binary().
 extension(src) ->
   <<".erl">>;
 extension(include) ->
@@ -204,6 +211,5 @@ modules_to_index() ->
   , "diagnostics.hrl"
   , "diagnostics_behaviour"
   , "diagnostics_behaviour_impl"
-  , "diagnostics_escript"
   , "my_gen_server"
   ].
