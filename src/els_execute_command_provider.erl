@@ -75,7 +75,7 @@ execute_command(Command, Arguments) ->
 strip_server_prefix(PrefixedCommand) ->
   case binary:split(PrefixedCommand, <<":">>) of
     [_, Command] -> Command;
-    Command -> Command
+    [Command] -> Command
   end.
 
 %% @doc Add a server-unique prefix to a command.

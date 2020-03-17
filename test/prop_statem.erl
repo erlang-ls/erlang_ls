@@ -94,8 +94,9 @@ initialize_post(#{shutdown := true}, _Args, Res) ->
   assert_invalid_request(Res),
   true;
 initialize_post(_S, _Args, Res) ->
-  PrefixedCommand
-    = els_execute_command_provider:add_server_prefix(<<"replace-lines">>),
+  PrefixedCommands
+    = [ els_execute_command_provider:add_server_prefix(<<"replace-lines">>)
+      , els_execute_command_provider:add_server_prefix(<<"info">>)],
   Expected = #{ capabilities =>
                   #{ hoverProvider => true
                    , completionProvider =>
@@ -118,7 +119,7 @@ initialize_post(_S, _Args, Res) ->
                    , documentSymbolProvider  => true
                    , foldingRangeProvider => true
                    , executeCommandProvider =>
-                       #{ commands => [PrefixedCommand] }
+                       #{ commands => PrefixedCommands }
                    , codeActionProvider => true
                    , codeLensProvider =>
                        #{resolveProvider => false}
