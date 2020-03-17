@@ -21,6 +21,8 @@
         , module/1
         , record/1
         , purge_references/1
+        , type_local/1
+        , type_remote/1
         ]).
 
 %%==============================================================================
@@ -247,6 +249,45 @@ purge_references(_Config) ->
                       }]}
               , els_dt_references:find_all()
               ),
+  ok.
+
+-spec type_local(config()) -> ok.
+type_local(Config) ->
+  Uri = ?config(code_navigation_uri, Config),
+  ExpectedLocations = [ #{ uri => Uri
+                         , range => #{from => {55, 23}, to => {55, 29}}
+                         }
+                      ],
+
+  ct:comment("Find references type_a from its definition"),
+  #{result := Locations} = els_client:references(Uri, 37, 9),
+  ct:comment("Find references type_a from a usage"),
+  #{result := Locations} = els_client:references(Uri, 55, 23),
+  ct:comment("Find references type_a from beginning of definition"),
+  #{result := Locations} = els_client:references(Uri, 37, 7),
+  ct:comment("Find references type_a from end of definition"),
+  #{result := Locations} = els_client:references(Uri, 37, 12),
+
+  assert_locations(Locations, ExpectedLocations),
+
+  ok.
+
+-spec type_remote(config()) -> ok.
+type_remote(Config) ->
+  UriTypes = ?config(code_navigation_types_uri, Config),
+  Uri = ?config(code_navigation_extra_uri, Config),
+  ExpectedLocations = [ #{ uri   => Uri
+                         , range => #{from => {11, 38}, to => {11, 65}}
+                         }
+                      ],
+
+  ct:comment("Find references for type_a from a remote usage"),
+  #{result := Locations} = els_client:references(Uri, 11, 45),
+  ct:comment("Find references type_a from definition"),
+  #{result := Locations} = els_client:references(UriTypes, 3, 8),
+
+  assert_locations(Locations, ExpectedLocations),
+
   ok.
 
 %%==============================================================================

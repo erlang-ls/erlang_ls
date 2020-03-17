@@ -20,8 +20,8 @@
 -export([ delete_by_uri/1
         , find_all/0
         , find_by/1
-        , find_by_id/1
-        , insert/1
+        , find_by_id/2
+        , insert/2
         ]).
 
 %%==============================================================================
@@ -66,12 +66,13 @@ opts() ->
 %% API
 %%==============================================================================
 
--spec from_item(item()) -> els_dt_references().
-from_item(#{ id := Id, uri := Uri, range := Range}) ->
-  #els_dt_references{ id = Id, uri = Uri, range = Range}.
+-spec from_item(poi_kind(), item()) -> els_dt_references().
+from_item(Kind, #{ id := Id, uri := Uri, range := Range}) ->
+  InternalId = {kind_to_category(Kind), Id},
+  #els_dt_references{ id = InternalId, uri = Uri, range = Range}.
 
 -spec to_item(els_dt_references()) -> item().
-to_item(#els_dt_references{ id = Id, uri = Uri, range = Range }) ->
+to_item(#els_dt_references{ id = {_Category, Id}, uri = Uri, range = Range }) ->
   #{ id    => Id
    , uri   => Uri
    , range => Range
@@ -84,9 +85,9 @@ delete_by_uri(Uri) ->
   [ok = els_db:delete_object(Item) ||  Item <- Items],
   ok.
 
--spec insert(item()) -> ok | {error, any()}.
-insert(Map) when is_map(Map) ->
-  Record = from_item(Map),
+-spec insert(poi_kind(), item()) -> ok | {error, any()}.
+insert(Kind, Map) when is_map(Map) ->
+  Record = from_item(Kind, Map),
   els_db:write(Record).
 
 %% @doc Find all
@@ -96,12 +97,31 @@ find_all() ->
   find_by(Pattern).
 
 %% @doc Find by id
--spec find_by_id(any()) -> {ok, [item()]} | {error, any()}.
-find_by_id(Id) ->
-  Pattern = #els_dt_references{id = Id, _ = '_'},
+-spec find_by_id(poi_kind(), any()) -> {ok, [item()]} | {error, any()}.
+find_by_id(Kind, Id) ->
+  InternalId = {kind_to_category(Kind), Id},
+  Pattern = #els_dt_references{id = InternalId, _ = '_'},
   find_by(Pattern).
 
 -spec find_by(tuple()) -> {ok, [item()]}.
 find_by(Pattern) ->
   {ok, Items} = els_db:match(Pattern),
   {ok, [to_item(Item) || Item <- Items]}.
+
+-spec kind_to_category(poi_kind()) -> function | type | macro | record.
+kind_to_category(Kind) when Kind =:= application;
+                            Kind =:= export_entry;
+                            Kind =:= function;
+                            Kind =:= implicit_fun ->
+  function;
+kind_to_category(Kind) when Kind =:= export_type_entry;
+                            Kind =:= type_application;
+                            Kind =:= type_definition ->
+  type;
+kind_to_category(Kind) when Kind =:= macro;
+                            Kind =:= define ->
+  macro;
+kind_to_category(Kind) when Kind =:= record_expr;
+                            Kind =:= record;
+                            Kind =:= record_access ->
+  record.

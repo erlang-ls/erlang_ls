@@ -323,7 +323,7 @@ type_application_remote(Config) ->
   Def = els_client:definition(ExtraUri, 11, 38),
   #{result := #{range := Range, uri := DefUri}} = Def,
   ?assertEqual(TypesUri, DefUri),
-  ?assertEqual( els_protocol:range(#{from => {3, 2}, to => {3, 2}})
+  ?assertEqual( els_protocol:range(#{from => {3, 7}, to => {3, 13}})
               , Range),
   ok.
 
@@ -341,7 +341,7 @@ type_application_user(Config) ->
   Def = els_client:definition(Uri, 55, 25),
   #{result := #{range := Range, uri := DefUri}} = Def,
   ?assertEqual(Uri, DefUri),
-  ?assertEqual( els_protocol:range(#{from => {37, 2}, to => {37, 2}})
+  ?assertEqual( els_protocol:range(#{from => {37, 7}, to => {37, 13}})
               , Range),
   ok.
 
@@ -352,7 +352,7 @@ opaque_application_remote(Config) ->
   Def = els_client:definition(ExtraUri, 16, 61),
   #{result := #{range := Range, uri := DefUri}} = Def,
   ?assertEqual(TypesUri, DefUri),
-  ?assertEqual( els_protocol:range(#{from => {7, 2}, to => {7, 2}})
+  ?assertEqual( els_protocol:range(#{from => {7, 7}, to => {7, 20}})
               , Range),
   ok.
 
@@ -362,6 +362,6 @@ opaque_application_user(Config) ->
   Def      = els_client:definition(ExtraUri, 16, 24),
   #{result := #{range := Range, uri := DefUri}} = Def,
   ?assertEqual(ExtraUri, DefUri),
-  ?assertEqual( els_protocol:range(#{from => {20, 2}, to => {20, 2}})
+  ?assertEqual( els_protocol:range(#{from => {20, 7}, to => {20, 19}})
               , Range),
   ok.

@@ -640,8 +640,12 @@
                    | type_definition
                    | variable.
 -type poi_range() :: #{ from := pos(), to := pos() }.
+-type poi_id()    :: atom()
+                   | string() %% include, include_lib
+                   | {atom(), arity()}
+                   | {module(), atom(), arity()}.
 -type poi()       :: #{ kind  := poi_kind()
-                      , id    := any()
+                      , id    := poi_id()
                       , data  := any()
                       , range := poi_range()
                       }.
