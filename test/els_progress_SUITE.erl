@@ -73,16 +73,18 @@ sample_job(_Config) ->
   Entries = lists:seq(1, 27),
   %% TODO: Move to init/end
   meck:new(sample_job, [non_strict]),
-  meck:expect(sample_job, do, fun(_) -> ok end),
+  meck:expect(sample_job, task, fun(_) -> ok end),
+  meck:expect(sample_job, on_complete, fun() -> ok end),
   %% TODO: Proper API to start a job
-  Config = #{ task => fun sample_job:do/1
+  Config = #{ task => fun sample_job:task/1
             , entries => Entries
+            , on_complete => fun sample_job:on_complete/0
             },
   %% TODO: Accept parameter with progress type ($/progress or showMessage)
   {ok, Pid} = supervisor:start_child(els_background_job_sup, [Config]),
   wait_for_completion(Pid),
-  History = meck:history(sample_job),
-  ?assertEqual(length(Entries), length(History)),
+  ?assertEqual(length(Entries), meck:num_calls(sample_job, task, '_')),
+  ?assertEqual(1, meck:num_calls(sample_job, on_complete, '_')),
   ok.
 
 %%==============================================================================

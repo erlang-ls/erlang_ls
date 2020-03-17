@@ -24,6 +24,8 @@
 -type entry() :: any().
 -type config() :: #{ task := fun((entry()) -> ok)
                    , entries := [any()]
+                   , on_complete => fun()
+                     %% TODO: Add label
                    }.
 -type state() :: #{config := config()}.
 
@@ -61,10 +63,25 @@ handle_info(init, State) ->
   F = fun(Entry, Progress) ->
           %% TODO: Handle failures, eg log, add test
           Task(Entry),
-          erlang:display({progress, floor(Progress * Step)}),
+          erlang:display(Entry),
+          %% TODO: Do not hard-code notification
+          Msg = io_lib:format("Progress: ~p", [floor(Progress * Step)]),
+          els_server:send_notification(<<"window/showMessage">>,
+                                       #{ type => 3, %% TODO: Hard-coded
+                                          message => list_to_binary(Msg)
+                                        }),
           Progress + 1
       end,
+  lager:info("Completing"),
   Res = lists:foldl(F, 1, Entries),
+  case maps:is_key(on_complete, Config) of
+    true ->
+      OnCompleteFun = maps:get(on_complete, Config),
+      OnCompleteFun();
+    false ->
+      ok
+  end,
+  lager:info("Completed"),
   erlang:display({res, Res}),
   {stop, normal, State};
 handle_info(_Request, State) ->

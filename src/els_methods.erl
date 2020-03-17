@@ -444,6 +444,15 @@ default_db_dir() ->
 
 -spec trigger_indexing() -> ok.
 trigger_indexing() ->
-  els_indexer:start(els_config:get(apps_paths), 'deep'),
-  els_indexer:start(els_config:get(deps_paths), 'deep'),
-  els_indexer:start(els_config:get(otp_paths), 'shallow').
+  %% TODO: Proper API
+  Task = fun({Dir, Mode}) -> els_indexer:index_dir(Dir, Mode) end,
+  Entries =
+    [{Dir, 'deep'} || Dir <- els_config:get(apps_paths)] ++
+    [{Dir, 'deep'} || Dir <- els_config:get(deps_paths)] ++
+    [{Dir, 'shallow'} || Dir <- els_config:get(otp_paths)],
+  Config = #{ task => Task
+            , entries => Entries
+            , on_complete => fun() -> els_db:dump_tables() end
+            },
+  {ok, _Pid} = supervisor:start_child(els_background_job_sup, [Config]),
+  ok.

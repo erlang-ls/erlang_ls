@@ -41,6 +41,7 @@ init([]) ->
               },
   ChildSpecs = [#{ id       => els_background_job
                  , start    => {els_background_job, start_link, []}
+                 , restart  => transient
                  , shutdown => brutal_kill
                  }],
   {ok, {SupFlags, ChildSpecs}}.

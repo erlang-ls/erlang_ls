@@ -8,6 +8,7 @@
         , index_file/1
         , index/3
         , index_dirs/2
+        , index_dir/2
         , start_link/0
         , start/2
         ]).
