@@ -120,11 +120,17 @@ method_to_function_name(Method) ->
 
 -spec initialize(params(), state()) -> result().
 initialize(Params, State) ->
-  #{ <<"rootUri">> := RootUri
+  #{ <<"rootUri">> := RootUri0
      %% TODO: Use ClientCapabilities in completion_provider
      %%       to verify when Context is present
    , <<"capabilities">> := Capabilities
    } = Params,
+  RootUri = case RootUri0 of
+              null ->
+                {ok, Cwd} = file:get_cwd(),
+                els_uri:uri(unicode:characters_to_binary(Cwd));
+              _ -> RootUri0
+            end,
   InitOptions = maps:get(<<"initializationOptions">>, Params, #{}),
   ok = els_config:initialize(RootUri, Capabilities, InitOptions),
   DbDir = application:get_env(erlang_ls, db_dir, default_db_dir()),
