@@ -28,7 +28,7 @@
       , {index_otp, true}
       , {index_deps, true}
         %% Logging
-      , {logging_enabled, false}
+      , {logging_enabled, true}
       ]
     }
   , {modules, []}
