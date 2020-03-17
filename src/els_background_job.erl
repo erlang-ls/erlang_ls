@@ -6,7 +6,7 @@
 %%==============================================================================
 %% API
 %%==============================================================================
--export([ start_link/0 ]).
+-export([ start_link/1 ]).
 
 %%==============================================================================
 %% Callbacks for gen_server
@@ -15,26 +15,32 @@
 -export([ init/1
         , handle_call/3
         , handle_cast/2
+        , handle_info/2
         ]).
 
 %%==============================================================================
 %% Types
 %%==============================================================================
--type state() :: #{}.
+-type entry() :: any().
+-type config() :: #{ task := fun((entry()) -> ok)
+                   , entries := [any()]
+                   }.
+-type state() :: #{config := config()}.
 
 %%==============================================================================
 %% API
 %%==============================================================================
--spec start_link() -> {ok, pid()}.
-start_link() ->
-  gen_server:start_link(?MODULE, none, []).
+-spec start_link(config()) -> {ok, pid()}.
+start_link(Config) ->
+  gen_server:start_link(?MODULE, Config, []).
 
 %%==============================================================================
 %% Callbacks for gen_server
 %%==============================================================================
--spec init(none) -> {ok, state()}.
-init(none) ->
-  {ok, #{}}.
+-spec init(config()) -> {ok, state()}.
+init(Config) ->
+  self() ! init,
+  {ok, #{config => Config}}.
 
 -spec handle_call(any(), {pid(), any()}, state()) ->
   {noreply, state()}.
@@ -46,6 +52,29 @@ handle_call(_Request, _From, State) ->
 handle_cast(_Request, State) ->
   {noreply, State}.
 
+-spec handle_info(any(), any()) ->
+  {noreply, state()}.
+handle_info(init, State) ->
+  #{config := Config} = State,
+  #{task := Task, entries := Entries} = Config,
+  Step = step(Entries),
+  F = fun(Entry, Progress) ->
+          %% TODO: Handle failures, eg log, add test
+          Task(Entry),
+          erlang:display({progress, floor(Progress * Step)}),
+          Progress + 1
+      end,
+  Res = lists:foldl(F, 1, Entries),
+  erlang:display({res, Res}),
+  {stop, normal, State};
+handle_info(_Request, State) ->
+  {noreply, State}.
+
 %%==============================================================================
 %% Internal functions
 %%==============================================================================
+-spec step([entry()]) -> pos_integer().
+step([]) ->
+  100;
+step(Entries) ->
+  100 / length(Entries).

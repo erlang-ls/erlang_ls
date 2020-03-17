@@ -70,8 +70,29 @@ end_per_testcase(TestCase, Config) ->
 
 -spec sample_job(config()) -> ok.
 sample_job(_Config) ->
+  Entries = lists:seq(1, 27),
+  %% TODO: Move to init/end
+  meck:new(sample_job, [non_strict]),
+  meck:expect(sample_job, do, fun(_) -> ok end),
+  %% TODO: Proper API to start a job
+  Config = #{ task => fun sample_job:do/1
+            , entries => Entries
+            },
+  %% TODO: Accept parameter with progress type ($/progress or showMessage)
+  {ok, Pid} = supervisor:start_child(els_background_job_sup, [Config]),
+  wait_for_completion(Pid),
+  History = meck:history(sample_job),
+  ?assertEqual(length(Entries), length(History)),
   ok.
 
 %%==============================================================================
 %% Internal Functions
 %%==============================================================================
+-spec wait_for_completion(pid()) -> ok.
+wait_for_completion(Pid) ->
+  case is_process_alive(Pid) of
+    false ->
+      ok;
+    true ->
+      timer:sleep(10)
+  end.
