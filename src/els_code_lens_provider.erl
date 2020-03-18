@@ -37,7 +37,7 @@ lenses(Uri) ->
   Root = filename:basename(els_uri:path(els_config:get(root_uri))),
   Lenses = [#{ range => one_line_range(1)
              , command =>
-                   make_command( <<"Erlang LS info (in ", Root/binary, ")">>
+                   make_command( <<"Erlang LS (in ", Root/binary, ") info">>
                                , Command
                                , [#{ uri => Uri }])
              }],

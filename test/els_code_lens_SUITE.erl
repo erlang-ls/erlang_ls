@@ -65,7 +65,7 @@ get_erlang_ls_info(Config) ->
   #{result := Result} = els_client:document_codelens(Uri),
   PrefixedCommand
     = els_execute_command_provider:add_server_prefix(<<"info">>),
-  Title = <<"Erlang LS info (in code_navigation)">>,
+  Title = <<"Erlang LS (in code_navigation) info">>,
   Expected =
     [ #{ command => #{ arguments => [ #{ uri => Uri } ]
                      , command   => PrefixedCommand
