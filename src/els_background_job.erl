@@ -76,7 +76,6 @@ handle_info(init, State) ->
       ok
   end,
   F = fun(Entry, Progress) ->
-          %% TODO: Handle failures, eg log, add test
           Task(Entry),
           case ProgressEnabled of
             true ->
