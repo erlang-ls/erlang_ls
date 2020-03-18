@@ -25,7 +25,7 @@
 -type config() :: #{ task := fun((entry()) -> ok)
                    , entries := [any()]
                    , on_complete => fun()
-                     %% TODO: Add label
+                   , title := binary()
                    }.
 -type state() :: #{config := config()}.
 
@@ -58,9 +58,8 @@ handle_cast(_Request, State) ->
   {noreply, state()}.
 handle_info(init, State) ->
   #{config := Config} = State,
-  #{task := Task, entries := Entries} = Config,
+  #{task := Task, entries := Entries, title := Title} = Config,
   %% TODO: If supported
-  Title = <<"Indexing">>,
   Total = length(Entries),
   Step = step(Total),
   Token = els_work_done_progress:send_create_request(),

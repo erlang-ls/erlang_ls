@@ -79,6 +79,7 @@ sample_job(_Config) ->
   Config = #{ task => fun sample_job:task/1
             , entries => Entries
             , on_complete => fun sample_job:on_complete/0
+            , title => <<"Sample job">>
             },
   %% TODO: Accept parameter with progress type ($/progress or showMessage)
   {ok, Pid} = supervisor:start_child(els_background_job_sup, [Config]),

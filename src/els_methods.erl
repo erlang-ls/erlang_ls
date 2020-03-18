@@ -453,6 +453,7 @@ trigger_indexing() ->
   Config = #{ task => Task
             , entries => Entries
             , on_complete => fun() -> els_db:dump_tables() end
+            , title => <<"Indexing">>
             },
   {ok, _Pid} = supervisor:start_child(els_background_job_sup, [Config]),
   ok.
