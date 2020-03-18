@@ -6,7 +6,6 @@
 -export([ find_and_index_file/1
         , index_file/1
         , index/3
-        , index_dirs/2
         , index_dir/2
         ]).
 
@@ -99,15 +98,6 @@ index_references(#{uri := Uri} = Document, 'deep') ->
   ok;
 index_references(_Document, 'shallow') ->
   ok.
-
--spec index_dirs([string()], mode()) -> ok.
-index_dirs(Dirs, Mode) ->
-  [index_dir(Dir, Mode) || Dir <- Dirs],
-  %% Indexing a directory can lead to a huge number of DB transactions
-  %% happening in a very short time window. After indexing, let's
-  %% manually trigger a DB dump. This ensures that the DB can be
-  %% loaded much faster on a restart.
-  els_db:dump_tables().
 
 %%==============================================================================
 %% Internal functions
