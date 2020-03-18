@@ -49,10 +49,6 @@ init([]) ->
                   , start    => {els_config, start_link, []}
                   , shutdown => brutal_kill
                   }
-               , #{ id       => els_indexer
-                  , start    => {els_indexer, start_link, []}
-                  , shutdown => brutal_kill
-                  }
                , #{ id    => els_providers_sup
                   , start => {els_providers_sup, start_link, []}
                   , type  => supervisor

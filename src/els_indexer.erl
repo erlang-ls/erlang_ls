@@ -2,21 +2,12 @@
 
 -callback index(els_dt_document:item()) -> ok.
 
-%% TODO: Solve API mix (gen_server and not)
 %% API
 -export([ find_and_index_file/1
         , index_file/1
         , index/3
         , index_dirs/2
         , index_dir/2
-        , start_link/0
-        ]).
-
-%% gen_server callbacks
--export([ init/1
-        , handle_call/3
-        , handle_cast/2
-        , terminate/2
         ]).
 
 %%==============================================================================
@@ -28,7 +19,6 @@
 %%==============================================================================
 %% Types
 %%==============================================================================
--type state() :: #{}.
 -type mode()  :: 'deep' | 'shallow'.
 
 %%==============================================================================
@@ -118,31 +108,6 @@ index_dirs(Dirs, Mode) ->
   %% manually trigger a DB dump. This ensures that the DB can be
   %% loaded much faster on a restart.
   els_db:dump_tables().
-
--spec start_link() -> {ok, pid()}.
-start_link() ->
-  gen_server:start_link({local, ?SERVER}, ?MODULE, {}, []).
-
-%%==============================================================================
-%% gen_server Callback Functions
-%%==============================================================================
-
--spec init({}) -> {ok, state()}.
-init({}) ->
-  {ok, #{}}.
-
--spec handle_call(any(), any(), state()) ->
-  {noreply, state()} | {reply, ok, state()}.
-handle_call(_Request, _From, State) ->
-  {noreply, State}.
-
--spec handle_cast(any(), state()) -> {noreply, state()}.
-handle_cast(_Msg, State) ->
-  {noreply, State}.
-
--spec terminate(any(), state()) -> ok.
-terminate(_, _State) ->
-  ok.
 
 %%==============================================================================
 %% Internal functions
