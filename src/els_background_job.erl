@@ -27,7 +27,9 @@
                    , on_complete => fun()
                    , title := binary()
                    }.
--type state() :: #{config := config()}.
+-type state() :: #{ config := config()
+                  , progress_enabled := boolean()
+                  }.
 
 %%==============================================================================
 %% API
@@ -42,7 +44,10 @@ start_link(Config) ->
 -spec init(config()) -> {ok, state()}.
 init(Config) ->
   self() ! init,
-  {ok, #{config => Config}}.
+  ProgressEnabled = els_work_done_progress:is_supported(),
+  {ok, #{ config => Config
+        , progress_enabled => ProgressEnabled
+        }}.
 
 -spec handle_call(any(), {pid(), any()}, state()) ->
   {noreply, state()}.
@@ -57,22 +62,32 @@ handle_cast(_Request, State) ->
 -spec handle_info(any(), any()) ->
   {noreply, state()}.
 handle_info(init, State) ->
-  #{config := Config} = State,
+  #{config := Config, progress_enabled := ProgressEnabled} = State,
   #{task := Task, entries := Entries, title := Title} = Config,
-  %% TODO: If supported
   Total = length(Entries),
   Step = step(Total),
   Token = els_work_done_progress:send_create_request(),
-  BeginMsg = progress_msg(0, Total),
-  Begin = els_work_done_progress:value_begin(Title, BeginMsg, 0),
-  els_progress:send_notification(Token, Begin),
+  case ProgressEnabled of
+    true ->
+      BeginMsg = progress_msg(0, Total),
+      Begin = els_work_done_progress:value_begin(Title, BeginMsg, 0),
+      els_progress:send_notification(Token, Begin);
+    false ->
+      ok
+  end,
   F = fun(Entry, Progress) ->
           %% TODO: Handle failures, eg log, add test
           Task(Entry),
-          Percentage = floor(Progress * Step),
-          ReportMsg = progress_msg(Progress, Total),
-          Report = els_work_done_progress:value_report(ReportMsg, Percentage),
-          els_progress:send_notification(Token, Report),
+          case ProgressEnabled of
+            true ->
+              Percentage = floor(Progress * Step),
+              ReportMsg = progress_msg(Progress, Total),
+              Report =
+                els_work_done_progress:value_report(ReportMsg, Percentage),
+              els_progress:send_notification(Token, Report);
+            false ->
+              ok
+          end,
           Progress + 1
       end,
   _Res = lists:foldl(F, 1, Entries),
@@ -83,9 +98,14 @@ handle_info(init, State) ->
     false ->
       ok
   end,
-  EndMsg = progress_msg(Total, Total),
-  End = els_work_done_progress:value_end(EndMsg),
-  els_progress:send_notification(Token, End),
+  case ProgressEnabled of
+    true ->
+      EndMsg = progress_msg(Total, Total),
+      End = els_work_done_progress:value_end(EndMsg),
+      els_progress:send_notification(Token, End);
+    false ->
+      ok
+  end,
   {stop, normal, State};
 handle_info(_Request, State) ->
   {noreply, State}.
