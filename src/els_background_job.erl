@@ -100,4 +100,4 @@ step(N) -> 100 / N.
 
 -spec progress_msg(pos_integer(), pos_integer()) -> binary().
 progress_msg(Current, Total) ->
-  list_to_binary(io_lib:format("~p/~p", [Current, Total])).
+  list_to_binary(io_lib:format("~p / ~p", [Current, Total])).
