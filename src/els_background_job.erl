@@ -6,7 +6,9 @@
 %%==============================================================================
 %% API
 %%==============================================================================
--export([ start_link/1 ]).
+-export([ new/1
+        , start_link/1
+        ]).
 
 %%==============================================================================
 %% Callbacks for gen_server
@@ -34,6 +36,15 @@
 %%==============================================================================
 %% API
 %%==============================================================================
+
+%% @doc Create a new background job
+-spec new(config()) -> {ok, pid()}.
+new(Config) ->
+  supervisor:start_child(els_background_job_sup, [Config]).
+
+%% @doc Start the server responsible for a background job
+%%
+%% To be used by the supervisor
 -spec start_link(config()) -> {ok, pid()}.
 start_link(Config) ->
   gen_server:start_link(?MODULE, Config, []).

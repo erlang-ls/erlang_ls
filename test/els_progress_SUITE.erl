@@ -77,7 +77,6 @@ sample_job(_Config) ->
   meck:new(sample_job, [non_strict]),
   meck:expect(sample_job, task, fun(_) -> ok end),
   meck:expect(sample_job, on_complete, fun() -> ok end),
-  %% TODO: Proper API to start a job
   Config = #{ task => fun sample_job:task/1
             , entries => Entries
             , on_complete => fun sample_job:on_complete/0
@@ -97,14 +96,12 @@ failing_job(_Config) ->
   meck:new(sample_job, [non_strict]),
   meck:expect(sample_job, task, fun(_) -> throw(fail) end),
   meck:expect(sample_job, on_complete, fun() -> ok end),
-  %% TODO: Proper API to start a job
   Config = #{ task => fun sample_job:task/1
             , entries => Entries
             , on_complete => fun sample_job:on_complete/0
             , title => <<"Sample job">>
             },
-  %% TODO: Accept parameter with progress type ($/progress or showMessage)
-  {ok, Pid} = supervisor:start_child(els_background_job_sup, [Config]),
+  {ok, Pid} = els_background_job:new(Config),
   wait_for_completion(Pid),
   ?assertEqual(1, meck:num_calls(sample_job, task, '_')),
   ?assertEqual(0, meck:num_calls(sample_job, on_complete, '_')),
