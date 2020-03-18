@@ -10,7 +10,6 @@
         , index_dirs/2
         , index_dir/2
         , start_link/0
-        , start/2
         ]).
 
 %% gen_server callbacks
@@ -111,10 +110,6 @@ index_references(#{uri := Uri} = Document, 'deep') ->
 index_references(_Document, 'shallow') ->
   ok.
 
--spec start([string()], mode()) -> ok.
-start(Dirs, Mode) ->
-  gen_server:cast(?SERVER, {start, Dirs, Mode}).
-
 -spec index_dirs([string()], mode()) -> ok.
 index_dirs(Dirs, Mode) ->
   [index_dir(Dir, Mode) || Dir <- Dirs],
@@ -142,9 +137,6 @@ handle_call(_Request, _From, State) ->
   {noreply, State}.
 
 -spec handle_cast(any(), state()) -> {noreply, state()}.
-handle_cast({start, Dirs, Mode}, State) ->
-  index_dirs(Dirs, Mode),
-  {noreply, State};
 handle_cast(_Msg, State) ->
   {noreply, State}.
 

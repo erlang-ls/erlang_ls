@@ -444,7 +444,6 @@ default_db_dir() ->
 
 -spec trigger_indexing() -> ok.
 trigger_indexing() ->
-  %% TODO: Proper API
   Task = fun({Dir, Mode}) -> els_indexer:index_dir(Dir, Mode) end,
   Entries =
     [{Dir, 'deep'} || Dir <- els_config:get(apps_paths)] ++
