@@ -9,7 +9,7 @@
 %%==============================================================================
 %% Types
 %%==============================================================================
--type percentage() :: pos_integer().
+-type percentage() :: 0..100.
 -type value_begin() :: #{ kind := 'begin'
                         , title := binary()
                         , cancellable => boolean()
@@ -57,8 +57,7 @@ is_supported() ->
 
 -spec send_create_request() -> els_progress:token().
 send_create_request() ->
-  %% TODO: Hard-coded
-  Token = <<"1">>,
+  Token = els_progress:token(),
   Method = <<"window/workDoneProgress/create">>,
   Params = #{token => Token},
   ok = els_server:send_request(Method, Params),
@@ -86,5 +85,3 @@ value_end(Message) ->
   #{ kind    => 'end'
    , message => Message
    }.
-
-%% TODO: Implement workdone cancellation
