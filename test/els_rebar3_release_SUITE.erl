@@ -101,7 +101,7 @@ code_navigation(Config) ->
 -spec root_path() -> binary().
 root_path() ->
   RootPath = filename:join([code:priv_dir(erlang_ls), ?TEST_APP]),
-  unicode:characters_to_binary(RootPath).
+  els_utils:to_binary(RootPath).
 
 -spec src_path(binary(), [any()]) -> binary().
 src_path(RootPath, FileName) ->

@@ -111,7 +111,7 @@ method_to_function_name(<<"$/", Method/binary>>) ->
 method_to_function_name(Method) ->
   Replaced = string:replace(Method, <<"/">>, <<"_">>),
   Lower    = string:lowercase(Replaced),
-  Binary   = unicode:characters_to_binary(Lower),
+  Binary   = els_utils:to_binary(Lower),
   binary_to_atom(Binary, utf8).
 
 %%==============================================================================
@@ -128,14 +128,14 @@ initialize(Params, State) ->
   RootUri = case RootUri0 of
               null ->
                 {ok, Cwd} = file:get_cwd(),
-                els_uri:uri(unicode:characters_to_binary(Cwd));
+                els_uri:uri(els_utils:to_binary(Cwd));
               _ -> RootUri0
             end,
   InitOptions = maps:get(<<"initializationOptions">>, Params, #{}),
   ok = els_config:initialize(RootUri, Capabilities, InitOptions),
   DbDir = application:get_env(erlang_ls, db_dir, default_db_dir()),
   OtpPath = els_config:get(otp_path),
-  els_db:install( node_name(RootUri, unicode:characters_to_binary(OtpPath))
+  els_db:install( node_name(RootUri, els_utils:to_binary(OtpPath))
                 , DbDir
                 ),
   case application:get_env(?APP, indexing_enabled) of
@@ -192,7 +192,7 @@ initialized(_Params, State) ->
   %% Report to the user the server version
   {ok, Version} = application:get_key(?APP, vsn),
   lager:info("initialized: [App=~p] [Version=~p]", [?APP, Version]),
-  BinVersion = unicode:characters_to_binary(Version),
+  BinVersion = els_utils:to_binary(Version),
   Root = filename:basename(els_uri:path(els_config:get(root_uri))),
   Message = <<"Erlang LS (in ", Root/binary, "), version: "
              , BinVersion/binary>>,

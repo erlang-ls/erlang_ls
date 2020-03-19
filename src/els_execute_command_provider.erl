@@ -70,4 +70,4 @@ add_server_prefix(Command) ->
 %% same time against a single client.
 -spec server_prefix() -> binary().
 server_prefix() ->
-   unicode:characters_to_binary(os:getpid()).
+   els_utils:to_binary(os:getpid()).

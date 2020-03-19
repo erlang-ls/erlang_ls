@@ -77,7 +77,7 @@ format_item(_File, _Name, []) ->
 diagnostic(_File, Name, Msg, Ln, Info) ->
   FMsg    = io_lib:format(Msg, Info),
   Range   = els_protocol:range(#{from => {Ln, 1}, to => {Ln + 1, 1}}),
-  Message = unicode:characters_to_binary(FMsg),
+  Message = els_utils:to_binary(FMsg),
   [#{ range    => Range
     , severity => ?DIAGNOSTIC_WARNING
     , code     => Name

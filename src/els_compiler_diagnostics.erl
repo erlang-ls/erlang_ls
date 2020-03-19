@@ -65,7 +65,7 @@ source() ->
 -spec compile(uri()) -> [diagnostic()].
 compile(Uri) ->
   Dependencies = els_diagnostics_utils:dependencies(Uri),
-  Path = unicode:characters_to_list(els_uri:path(Uri)),
+  Path = els_utils:to_list(els_uri:path(Uri)),
   case compile_file(Path, Dependencies) of
     {ok, _, WS} ->
       diagnostics(Path, WS, ?DIAGNOSTIC_WARNING);
@@ -76,7 +76,7 @@ compile(Uri) ->
 
 -spec parse(uri()) -> [diagnostic()].
 parse(Uri) ->
-  FileName = unicode:characters_to_list(els_uri:path(Uri)),
+  FileName = els_utils:to_list(els_uri:path(Uri)),
   {ok, Epp} = epp:open([ {name, FileName}
                        , {includes, els_config:get(include_paths)}
                        ]),
@@ -87,7 +87,7 @@ parse(Uri) ->
 
 -spec parse_escript(uri()) -> [diagnostic()].
 parse_escript(Uri) ->
-  FileName = unicode:characters_to_list(els_uri:path(Uri)),
+  FileName = els_utils:to_list(els_uri:path(Uri)),
   case els_escript:extract(FileName) of
     {ok, WS} ->
       diagnostics(FileName, WS, ?DIAGNOSTIC_WARNING);
@@ -106,7 +106,7 @@ parse_escript(Uri) ->
 %% the file inclusion happens.
 -spec diagnostics(list(), [compiler_msg()], severity()) -> [diagnostic()].
 diagnostics(Path, List, Severity) ->
-  Uri = els_uri:uri(unicode:characters_to_binary(Path)),
+  Uri = els_uri:uri(els_utils:to_binary(Path)),
   {ok, [Document]} = els_dt_document:lookup(Uri),
   lists:flatten([[ diagnostic( Path
                              , MessagePath
@@ -141,7 +141,7 @@ diagnostic(_Path, MessagePath, Range, Document, Module, Desc0, Severity) ->
   diagnostic().
 diagnostic(Range, Module, Desc, Severity) ->
   Message0 = lists:flatten(Module:format_error(Desc)),
-  Message  = unicode:characters_to_binary(Message0),
+  Message  = els_utils:to_binary(Message0),
   #{ range    => els_protocol:range(Range)
    , message  => Message
    , severity => Severity
@@ -247,7 +247,7 @@ load_dependency(Module) ->
   Old = code:get_object_code(Module),
   case els_utils:find_module(Module) of
     {ok, Uri} ->
-      Path = unicode:characters_to_list(els_uri:path(Uri)),
+      Path = els_utils:to_list(els_uri:path(Uri)),
       Opts = lists:append([macro_options(), include_options(), [binary]]),
       case compile:file(Path, Opts) of
         {ok, Module, Binary} ->

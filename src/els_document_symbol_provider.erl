@@ -42,4 +42,4 @@ functions(Uri) ->
 
 -spec function_name(atom(), non_neg_integer()) -> binary().
 function_name(F, A) ->
-  unicode:characters_to_binary(io_lib:format("~p/~p", [F, A])).
+  els_utils:to_binary(io_lib:format("~p/~p", [F, A])).

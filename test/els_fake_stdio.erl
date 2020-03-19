@@ -75,7 +75,7 @@ handle_request({put_chars, Encoding, M, F, Args}, State0) ->
   handle_request({put_chars, Encoding, Chars}, State0);
 handle_request({put_chars, Encoding, Chars}, State0) ->
   EncodedChars = unicode:characters_to_list(Chars, Encoding),
-  CharsBin     = unicode:characters_to_binary(EncodedChars),
+  CharsBin     = els_utils:to_binary(EncodedChars),
   Buffer       = State0#state.buffer,
   State        = State0#state{buffer = <<Buffer/binary, CharsBin/binary>>},
   {reply, ok, State};
