@@ -43,14 +43,8 @@ end_per_suite(Config) ->
 init_per_testcase(_TestCase, Config) ->
   {ok, Started} = application:ensure_all_started(erlang_ls),
   RootDir = code:root_dir(),
-  RootUri = els_uri:uri(list_to_binary(RootDir)),
+  RootUri = els_uri:uri(unicode:characters_to_binary(RootDir)),
   %% Do not index the entire list of OTP apps in the pipelines.
-  %% This portion of code is stolen from els_config, which needs some
-  %% serious refactoring.
-  %% ExcludePathsSpecs = [[RootDir, "lib", P ++ "*"] || P <- otp_apps_exclude()]
-  %% RootPath = binary_to_list(els_uri:path(RootUri)),
-  %% ExcludePaths = els_utils:resolve_paths(ExcludePathsSpecs, RootPath, true),
-  %% erlang:display(ExcludePaths),
   Cfg = #{"otp_apps_exclude" => otp_apps_exclude()},
   els_config:do_initialize(RootUri, [], Cfg),
   [{started, Started}|Config].

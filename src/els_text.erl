@@ -29,7 +29,7 @@ line(Text, LineNum, ColumnNum) ->
 %% @doc Return tokens from text.
 -spec tokens(text()) -> [any()].
 tokens(Text) ->
-  case erl_scan:string(binary_to_list(Text)) of
+  case erl_scan:string(unicode:characters_to_list(Text)) of
     {ok, Tokens, _} -> Tokens;
     {error, _, _} -> []
   end.
