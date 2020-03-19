@@ -83,6 +83,7 @@ start_link(Config) ->
 %%==============================================================================
 -spec init(config()) -> {ok, state()}.
 init(#{entries := Entries, title := Title} = Config) ->
+  lager:info("Background job started. [pid=~p] [title=~p]", [self(), Title]),
   %% Ensure the terminate function is called on shutdown, allowing the
   %% job to clean up.
   process_flag(trap_exit, true),

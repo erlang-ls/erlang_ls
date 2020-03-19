@@ -102,9 +102,15 @@ index_references(_Document, 'shallow') ->
 
 -spec start() -> ok.
 start() ->
+  start(<<"OTP">>, entries_otp()),
+  start(<<"Applications">>, entries_apps()),
+  start(<<"Dependencies">>, entries_deps()).
+
+-spec start(binary(), [{string(), 'deep' | 'shallow'}]) -> ok.
+start(Group, Entries) ->
   Task = fun({Dir, Mode}) -> index_dir(Dir, Mode) end,
   Config = #{ task => Task
-            , entries => entries()
+            , entries => Entries
               %% Indexing a directory can lead to a huge number
               %% of DB transactions happening in a very short
               %% time window. After indexing, let's manually
@@ -112,7 +118,7 @@ start() ->
               %% be loaded much faster on a restart.
             , on_complete => fun els_db:dump_tables/0
             , on_error => fun els_db:dump_tables/0
-            , title => <<"Indexing">>
+            , title => <<"Indexing ", Group/binary>>
             },
   {ok, _Pid} = els_background_job:new(Config),
   ok.
@@ -181,10 +187,6 @@ index_dir(Dir, Mode) ->
              "[succeeded=~p] "
              "[failed=~p]", [Dir, Mode, Time/1000/1000, Succeeded, Failed]),
   {Succeeded, Failed}.
-
--spec entries() -> [{string(), 'deep' | 'shallow'}].
-entries() ->
-  entries_apps() ++ entries_deps() ++ entries_otp().
 
 -spec entries_apps() -> [{string(), 'deep' | 'shallow'}].
 entries_apps() ->
