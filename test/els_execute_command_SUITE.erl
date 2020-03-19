@@ -70,8 +70,12 @@ erlang_ls_info(Config) ->
     = els_client:workspace_executecommand(PrefixedCommand, [#{uri => Uri}]),
   Expected = [],
   ?assertEqual(Expected, Result),
-  timer:sleep(10), %% otherwise the stdio client does not get the Notification
-  [Notification] = els_client:get_notifications(),
+  CheckFun = fun() -> case els_client:get_notifications() of
+                        [] -> false;
+                        Notifications -> {true, Notifications}
+                      end
+             end,
+  {ok, [Notification]} = els_test_utils:wait_for_fun(CheckFun, 10, 3),
   ?assertEqual(maps:get(method, Notification), <<"window/showMessage">>),
   Params = maps:get(params, Notification),
   ?assertEqual(<<"Erlang LS (in code_navigation), ">>
@@ -94,7 +98,3 @@ strip_server_prefix(_Config) ->
   ?assertEqual(<<"info:f">>
            , els_execute_command_provider:strip_server_prefix(<<"13:info:f">>)),
   ok.
-
-%%==============================================================================
-%% Internal functions
-%%==============================================================================

@@ -10,6 +10,7 @@
         , init_per_testcase/2
         , start/1
         , wait_for/2
+        , wait_for_fun/3
         ]).
 
 -include_lib("common_test/include/ct.hrl").
@@ -114,6 +115,19 @@ wait_for(_Message, Timeout) when Timeout =< 0 ->
 wait_for(Message, Timeout) ->
   receive Message -> ok
   after 10 -> wait_for(Message, Timeout - 10)
+  end.
+
+-spec wait_for_fun(fun(), non_neg_integer(), non_neg_integer())
+                  -> {ok, any()} | timeout.
+wait_for_fun(_CheckFun, _WaitTime, 0) ->
+  timeout;
+wait_for_fun(CheckFun, WaitTime, Retries) ->
+  case CheckFun() of
+    {true, Value} ->
+      {ok, Value};
+    false ->
+      timer:sleep(WaitTime),
+      wait_for_fun(CheckFun, WaitTime, Retries - 1)
   end.
 
 -spec get_group(config()) -> atom().

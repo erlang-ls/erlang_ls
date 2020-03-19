@@ -52,8 +52,10 @@ execute_command(<<"info">>
   {ok, Version} = application:get_key(?APP, vsn),
   BinVersion = list_to_binary(Version),
   Root = filename:basename(els_uri:path(els_config:get(root_uri))),
-  ConfigPath = list_to_binary(els_config:get(config_path)),
-  lager:info("execute_command info: [ConfigPath=~p]", [ConfigPath]),
+  ConfigPath = case els_config:get(config_path) of
+                 undefined -> <<"undefined">>;
+                 Path -> list_to_binary(Path)
+               end,
   Message = <<"Erlang LS (in ", Root/binary, "), version: "
              , BinVersion/binary
              , ", config from "

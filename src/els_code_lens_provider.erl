@@ -50,7 +50,7 @@ one_line_range(Line) ->
 
 -spec make_command(binary(), binary(), [any()]) -> command().
 make_command(Title, Command, Args) ->
-    #{ title => Title
-     , command => Command
-     , arguments => Args
-     }.
+  #{ title => Title
+   , command => Command
+   , arguments => Args
+   }.
