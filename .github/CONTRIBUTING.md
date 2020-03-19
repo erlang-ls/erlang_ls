@@ -104,7 +104,7 @@ A good commit may look like this:
 ### Code Reviews
 
 * Always be constructive when providing feedback (e.g. be explicit on
-  what could improved and how)
+  what could be improved and how)
 * Use [GitHub suggestion blocks][github-suggest] for fixing typos and
   small mistakes
 * Positive feedback is as important as negative feedback
