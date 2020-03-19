@@ -7,7 +7,12 @@
 %% API
 %%==============================================================================
 -export([ new/1
-        , start_link/1
+        , list/0
+        , stop/1
+        , stop_all/0
+        ]).
+
+-export([ start_link/1
         ]).
 
 %%==============================================================================
@@ -44,6 +49,24 @@
 new(Config) ->
   supervisor:start_child(els_background_job_sup, [Config]).
 
+%% @doc Return the list of running background jobs
+-spec list() -> pid().
+list() ->
+  [Pid || {_Id, Pid, _Type, _Modules}
+            <- supervisor:which_children(els_background_job_sup)].
+
+%% @doc Terminate a background job
+-spec stop(pid()) -> ok.
+stop(Pid) ->
+  supervisor:terminate_child(els_background_job_sup, Pid).
+
+%% @doc Terminate all background jobs
+-spec stop_all() -> ok.
+stop_all() ->
+  [ok = supervisor:terminate_child(els_background_job_sup, Pid) ||
+    Pid <- list()],
+  ok.
+
 %% @doc Start the server responsible for a background job
 %%
 %% To be used by the supervisor
@@ -56,6 +79,7 @@ start_link(Config) ->
 %%==============================================================================
 -spec init(config()) -> {ok, state()}.
 init(Config) ->
+  process_flag(trap_exit, true),
   self() ! init,
   ProgressEnabled = els_work_done_progress:is_supported(),
   {ok, #{ config => Config
@@ -117,10 +141,13 @@ handle_info(_Request, State) ->
 
 -spec terminate(any(), state()) -> ok.
 terminate(normal, #{config := Config}) ->
+  lager:info("Background job completed. [pid=~p]", [self()]),
   OnComplete = maps:get(on_complete, Config, noop()),
   OnComplete(),
   ok;
-terminate(_Reason, #{config := Config}) ->
+terminate(Reason, #{config := Config}) ->
+  lager:warning( "Background job aborted. [reason=~p] [pid=~p]"
+               , [Reason, self()]),
   OnError = maps:get(on_error, Config, noop()),
   OnError(),
   ok.
