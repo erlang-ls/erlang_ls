@@ -64,7 +64,7 @@ init_per_testcase(sample_job = TestCase, Config) ->
   setup_mocks(Task),
   [{task, Task} | els_test_utils:init_per_testcase(TestCase, Config)];
 init_per_testcase(failing_job = TestCase, Config) ->
-  Task = fun(_) -> throw(fail) end,
+  Task = fun(_) -> exit(fail) end,
   setup_mocks(Task),
   [{task, Task} | els_test_utils:init_per_testcase(TestCase, Config)].
 
@@ -104,7 +104,8 @@ wait_for_completion(Pid) ->
     false ->
       ok;
     true ->
-      timer:sleep(10)
+      timer:sleep(10),
+      wait_for_completion(Pid)
   end.
 
 -spec setup_mocks(fun((_) -> ok)) -> ok.

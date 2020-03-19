@@ -38,6 +38,10 @@
                    }.
 -type state() :: #{ config := config()
                   , progress_enabled := boolean()
+                  , token := els_progress:token()
+                  , current := pos_integer()
+                  , step := pos_integer()
+                  , total := non_neg_integer()
                   }.
 
 %%==============================================================================
@@ -78,14 +82,22 @@ start_link(Config) ->
 %% Callbacks for gen_server
 %%==============================================================================
 -spec init(config()) -> {ok, state()}.
-init(Config) ->
+init(#{entries := Entries, title := Title} = Config) ->
   %% Ensure the terminate function is called on shutdown, allowing the
   %% job to clean up.
   process_flag(trap_exit, true),
-  self() ! init,
   ProgressEnabled = els_work_done_progress:is_supported(),
+  Total = length(Entries),
+  Step = step(Total),
+  Token = els_work_done_progress:send_create_request(),
+  notify_begin(Token, Title, Total, ProgressEnabled),
+  self() ! exec,
   {ok, #{ config => Config
         , progress_enabled => ProgressEnabled
+        , token => Token
+        , current => 0
+        , step => Step
+        , total => Total
         }}.
 
 -spec handle_call(any(), {pid(), any()}, state()) ->
@@ -100,21 +112,25 @@ handle_cast(_Request, State) ->
 
 -spec handle_info(any(), any()) ->
   {noreply, state()}.
-handle_info(init, State) ->
-  #{config := Config, progress_enabled := ProgressEnabled} = State,
-  #{task := Task, entries := Entries, title := Title} = Config,
-  Total = length(Entries),
-  Step = step(Total),
-  Token = els_work_done_progress:send_create_request(),
-  notify_begin(Token, Title, Total, ProgressEnabled),
-  F = fun(Entry, Current) ->
-          Task(Entry),
-          notify_report(Token, Current, Step, Total, ProgressEnabled),
-          Current + 1
-      end,
-  _Res = lists:foldl(F, 1, Entries),
-  notify_end(Token, Total, ProgressEnabled),
-  {stop, normal, State};
+handle_info(exec, State) ->
+  #{ config := #{ entries := Entries, task := Task} = Config
+   , progress_enabled := ProgressEnabled
+   , token := Token
+   , current := Current
+   , step := Step
+   , total := Total
+   } = State,
+  case Entries of
+    [] ->
+      notify_end(Token, Total, ProgressEnabled),
+      {stop, normal, State};
+    [Entry|Rest] ->
+      Task(Entry),
+      notify_report(Token, Current, Step, Total, ProgressEnabled),
+      self() ! exec,
+      {noreply, State#{ config => Config#{ entries => Rest }
+                      , current => Current + 1}}
+  end;
 handle_info(_Request, State) ->
   {noreply, State}.
 
