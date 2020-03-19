@@ -17,6 +17,7 @@
       , rebar3_format
       , tdiff
       , getopt
+      , uuid
       ]
     }
   , { env
