@@ -81,6 +81,12 @@ init_per_testcase(_TestCase, Config) ->
 
   els_client:initialize(RootUri, []),
 
+  %% Let's not index OTP for real in the background, to avoid
+  %% flakyness in the tests (e.g. the list of completion entries
+  %% returned may vary due to the OTP version or the progressing state
+  %% of the indexer.
+  meck:new(els_methods, [passthrough, non_strict]),
+  meck:expect(els_methods, entries_otp, 0, []),
   %% Ensure modules used in test suites are indexed
   index_modules(),
 
@@ -88,6 +94,10 @@ init_per_testcase(_TestCase, Config) ->
 
 -spec end_per_testcase(atom(), config()) -> ok.
 end_per_testcase(_TestCase, Config) ->
+  %% The initialize call in the init_per_testcase triggers indexing in
+  %% the background, so let's stop it
+  els_background_job:stop_all(),
+  meck:unload(els_methods),
   [application:stop(App) || App <- ?config(started, Config)],
   ok.
 

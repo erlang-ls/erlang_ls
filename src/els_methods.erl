@@ -445,12 +445,8 @@ default_db_dir() ->
 -spec trigger_indexing() -> ok.
 trigger_indexing() ->
   Task = fun({Dir, Mode}) -> els_indexer:index_dir(Dir, Mode) end,
-  Entries =
-    [{Dir, 'deep'} || Dir <- els_config:get(apps_paths)] ++
-    [{Dir, 'deep'} || Dir <- els_config:get(deps_paths)] ++
-    [{Dir, 'shallow'} || Dir <- els_config:get(otp_paths)],
   Config = #{ task => Task
-            , entries => Entries
+            , entries => entries()
               %% Indexing a directory can lead to a huge number
               %% of DB transactions happening in a very short
               %% time window. After indexing, let's manually
@@ -462,3 +458,19 @@ trigger_indexing() ->
             },
   {ok, _Pid} = els_background_job:new(Config),
   ok.
+
+-spec entries() -> [{string(), 'deep' | 'shallow'}].
+entries() ->
+  entries_apps() ++ entries_deps() ++ entries_otp().
+
+-spec entries_apps() -> [{string(), 'deep' | 'shallow'}].
+entries_apps() ->
+  [{Dir, 'deep'} || Dir <- els_config:get(apps_paths)].
+
+-spec entries_deps() -> [{string(), 'deep' | 'shallow'}].
+entries_deps() ->
+  [{Dir, 'deep'} || Dir <- els_config:get(deps_paths)].
+
+-spec entries_otp() -> [{string(), 'deep' | 'shallow'}].
+entries_otp() ->
+  [{Dir, 'shallow'} || Dir <- els_config:get(otp_paths)].
