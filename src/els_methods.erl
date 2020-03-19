@@ -451,15 +451,13 @@ trigger_indexing() ->
     [{Dir, 'shallow'} || Dir <- els_config:get(otp_paths)],
   Config = #{ task => Task
             , entries => Entries
-            , on_complete =>
-                fun() ->
-                    %% Indexing a directory can lead to a huge number
-                    %% of DB transactions happening in a very short
-                    %% time window. After indexing, let's manually
-                    %% trigger a DB dump. This ensures that the DB can
-                    %% be loaded much faster on a restart.
-                    els_db:dump_tables()
-                end
+              %% Indexing a directory can lead to a huge number
+              %% of DB transactions happening in a very short
+              %% time window. After indexing, let's manually
+              %% trigger a DB dump. This ensures that the DB can
+              %% be loaded much faster on a restart.
+            , on_complete => fun els_db:dump_tables/0
+            , on_error => fun els_db:dump_tables/0
             , title => <<"Indexing">>
             },
   {ok, _Pid} = els_background_job:new(Config),

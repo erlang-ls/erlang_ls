@@ -77,9 +77,11 @@ sample_job(_Config) ->
   meck:new(sample_job, [non_strict]),
   meck:expect(sample_job, task, fun(_) -> ok end),
   meck:expect(sample_job, on_complete, fun() -> ok end),
+  meck:expect(sample_job, on_error, fun() -> ok end),
   Config = #{ task => fun sample_job:task/1
             , entries => Entries
             , on_complete => fun sample_job:on_complete/0
+            , on_error => fun sample_job:on_error/0
             , title => <<"Sample job">>
             },
   %% TODO: Accept parameter with progress type ($/progress or showMessage)
@@ -87,6 +89,7 @@ sample_job(_Config) ->
   wait_for_completion(Pid),
   ?assertEqual(length(Entries), meck:num_calls(sample_job, task, '_')),
   ?assertEqual(1, meck:num_calls(sample_job, on_complete, '_')),
+  ?assertEqual(0, meck:num_calls(sample_job, on_error, '_')),
   ok.
 
 -spec failing_job(config()) -> ok.
@@ -96,15 +99,18 @@ failing_job(_Config) ->
   meck:new(sample_job, [non_strict]),
   meck:expect(sample_job, task, fun(_) -> throw(fail) end),
   meck:expect(sample_job, on_complete, fun() -> ok end),
+  meck:expect(sample_job, on_error, fun() -> ok end),
   Config = #{ task => fun sample_job:task/1
             , entries => Entries
             , on_complete => fun sample_job:on_complete/0
+            , on_error => fun sample_job:on_error/0
             , title => <<"Sample job">>
             },
   {ok, Pid} = els_background_job:new(Config),
   wait_for_completion(Pid),
   ?assertEqual(1, meck:num_calls(sample_job, task, '_')),
   ?assertEqual(0, meck:num_calls(sample_job, on_complete, '_')),
+  ?assertEqual(1, meck:num_calls(sample_job, on_error, '_')),
   ok.
 
 %%==============================================================================

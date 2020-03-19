@@ -18,6 +18,7 @@
         , handle_call/3
         , handle_cast/2
         , handle_info/2
+        , terminate/2
         ]).
 
 %%==============================================================================
@@ -27,6 +28,7 @@
 -type config() :: #{ task := fun((entry()) -> ok)
                    , entries := [any()]
                    , on_complete => fun()
+                   , on_error => fun()
                    , title := binary()
                    }.
 -type state() :: #{ config := config()
@@ -101,13 +103,6 @@ handle_info(init, State) ->
           Progress + 1
       end,
   _Res = lists:foldl(F, 1, Entries),
-  case maps:is_key(on_complete, Config) of
-    true ->
-      OnCompleteFun = maps:get(on_complete, Config),
-      OnCompleteFun();
-    false ->
-      ok
-  end,
   case ProgressEnabled of
     true ->
       EndMsg = progress_msg(Total, Total),
@@ -120,6 +115,16 @@ handle_info(init, State) ->
 handle_info(_Request, State) ->
   {noreply, State}.
 
+-spec terminate(any(), state()) -> ok.
+terminate(normal, #{config := Config}) ->
+  OnComplete = maps:get(on_complete, Config, noop()),
+  OnComplete(),
+  ok;
+terminate(_Reason, #{config := Config}) ->
+  OnError = maps:get(on_error, Config, noop()),
+  OnError(),
+  ok.
+
 %%==============================================================================
 %% Internal functions
 %%==============================================================================
@@ -130,3 +135,6 @@ step(N) -> 100 / N.
 -spec progress_msg(pos_integer(), pos_integer()) -> binary().
 progress_msg(Current, Total) ->
   list_to_binary(io_lib:format("~p / ~p", [Current, Total])).
+
+-spec noop() -> fun().
+noop() -> fun() -> ok end.
