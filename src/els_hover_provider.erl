@@ -133,7 +133,9 @@ edoc(M, F, A) ->
   try
     {ok, Uri} = els_utils:find_module(M),
     Path      = els_uri:path(Uri),
-    {M, EDoc} = edoc:get_doc(binary_to_list(Path), [{private, true}]),
+    {M, EDoc} = edoc:get_doc( unicode:characters_to_list(Path)
+                            , [{private, true}]
+                            ),
     Internal  = xmerl:export_simple([EDoc], docsh_edoc_xmerl),
     %% TODO: Something is weird with the docsh specs.
     %%       For now, let's avoid the Dialyzer warnings.

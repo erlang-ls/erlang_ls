@@ -54,10 +54,11 @@ source() ->
 %%==============================================================================
 -spec diagnostic({any(), {any(), integer()}, any()}) -> diagnostic().
 diagnostic({_, {_, Line}, _} = Warning) ->
-  Range   = els_protocol:range(#{ from => {Line, 1}
-                                , to   => {Line + 1, 1}
-                                }),
-  Message = list_to_binary(lists:flatten(dialyzer:format_warning(Warning))),
+  Range    = els_protocol:range(#{ from => {Line, 1}
+                                 , to   => {Line + 1, 1}
+                                 }),
+  Message0 = lists:flatten(dialyzer:format_warning(Warning)),
+  Message  = unicode:characters_to_binary(Message0),
   #{ range    => Range
    , message  => Message
    , severity => ?DIAGNOSTIC_WARNING

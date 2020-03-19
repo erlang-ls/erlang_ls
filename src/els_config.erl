@@ -70,13 +70,13 @@
 
 -spec initialize(uri(), map(), map()) -> ok.
 initialize(RootUri, Capabilities, InitOptions) ->
-  RootPath = binary_to_list(els_uri:path(RootUri)),
+  RootPath = unicode:characters_to_list(els_uri:path(RootUri)),
   Config = consult_config(config_paths(RootPath, InitOptions)),
   do_initialize(RootUri, Capabilities, Config).
 
 -spec do_initialize(uri(), map(), map()) -> ok.
 do_initialize(RootUri, Capabilities, Config) ->
-  RootPath        = binary_to_list(els_uri:path(RootUri)),
+  RootPath        = unicode:characters_to_list(els_uri:path(RootUri)),
   OtpPath         = maps:get("otp_path", Config, code:root_dir()),
   DepsDirs        = maps:get("deps_dirs", Config, []),
   AppsDirs        = maps:get("apps_dirs", Config, ["."]),
@@ -158,7 +158,7 @@ handle_cast(_Msg, State) -> {noreply, State}.
 -spec config_paths(path(), map()) -> [path()].
 config_paths( RootPath
             , #{<<"erlang">> := #{<<"config_path">> := ConfigPath0}}) ->
-  ConfigPath = binary_to_list(ConfigPath0),
+  ConfigPath = unicode:characters_to_list(ConfigPath0),
   lists:append([ possible_config_paths(ConfigPath)
                , possible_config_paths(filename:join([RootPath, ConfigPath]))
                , default_config_paths(RootPath)]);

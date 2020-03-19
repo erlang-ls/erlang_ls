@@ -79,7 +79,7 @@ handle_rpc_result({ok, Module}, _) ->
   Msg = io_lib:format("code_reload success for: ~s", [Module]),
   els_server:send_notification(<<"window/showMessage">>,
                                #{ type => ?MESSAGE_TYPE_INFO,
-                                  message => list_to_binary(Msg)
+                                  message => unicode:characters_to_binary(Msg)
                                 });
 handle_rpc_result(Err, Module) ->
   lager:info("[code_reload] code_reload using c:c/1 crashed with: ~p",
@@ -88,5 +88,5 @@ handle_rpc_result(Err, Module) ->
                       [Module, Err]),
   els_server:send_notification(<<"window/showMessage">>,
                                #{ type => ?MESSAGE_TYPE_ERROR,
-                                  message => list_to_binary(Msg)
+                                  message => unicode:characters_to_binary(Msg)
                                 }).

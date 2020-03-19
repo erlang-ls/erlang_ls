@@ -111,7 +111,7 @@ method_to_function_name(<<"$/", Method/binary>>) ->
 method_to_function_name(Method) ->
   Replaced = string:replace(Method, <<"/">>, <<"_">>),
   Lower    = string:lowercase(Replaced),
-  Binary   = erlang:iolist_to_binary(Lower),
+  Binary   = unicode:characters_to_binary(Lower),
   binary_to_atom(Binary, utf8).
 
 %%==============================================================================
@@ -134,7 +134,8 @@ initialize(Params, State) ->
   InitOptions = maps:get(<<"initializationOptions">>, Params, #{}),
   ok = els_config:initialize(RootUri, Capabilities, InitOptions),
   DbDir = application:get_env(erlang_ls, db_dir, default_db_dir()),
-  els_db:install( node_name(RootUri, list_to_binary(els_config:get(otp_path)))
+  OtpPath = els_config:get(otp_path),
+  els_db:install( node_name(RootUri, unicode:characters_to_binary(OtpPath))
                 , DbDir
                 ),
   trigger_indexing(),
@@ -186,7 +187,7 @@ initialized(_Params, State) ->
   %% Report to the user the server version
   {ok, Version} = application:get_key(?APP, vsn),
   lager:info("initialized: [App=~p] [Version=~p]", [?APP, Version]),
-  BinVersion = list_to_binary(Version),
+  BinVersion = unicode:characters_to_binary(Version),
   Root = filename:basename(els_uri:path(els_config:get(root_uri))),
   Message = <<"Erlang LS (in ", Root/binary, "), version: "
              , BinVersion/binary>>,

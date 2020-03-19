@@ -35,4 +35,4 @@ start_link(#{io_device := IoDevice}) ->
 
 -spec send(pid(), iolist()) -> ok.
 send(Server, Payload) ->
-  io:format(Server, iolist_to_binary(Payload), []).
+  io:format(Server, unicode:characters_to_binary(Payload), []).

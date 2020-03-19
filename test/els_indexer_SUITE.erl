@@ -73,7 +73,7 @@ index_dir_not_dir(Config) ->
 -spec index_erl_file(config()) -> ok.
 index_erl_file(Config) ->
   DataDir = ?config(data_dir, Config),
-  Path = filename:join(list_to_binary(DataDir), "test.erl"),
+  Path = filename:join(unicode:characters_to_binary(DataDir), "test.erl"),
   {ok, Uri} = els_indexer:index_file(Path),
   {ok, [#{id := test, kind := module}]} = els_dt_document:lookup(Uri),
   ok.
@@ -81,7 +81,7 @@ index_erl_file(Config) ->
 -spec index_hrl_file(config()) -> ok.
 index_hrl_file(Config) ->
   DataDir = ?config(data_dir, Config),
-  Path = filename:join(list_to_binary(DataDir), "test.hrl"),
+  Path = filename:join(unicode:characters_to_binary(DataDir), "test.hrl"),
   {ok, Uri} = els_indexer:index_file(Path),
   {ok, [#{id := test, kind := header}]} = els_dt_document:lookup(Uri),
   ok.
@@ -89,7 +89,7 @@ index_hrl_file(Config) ->
 -spec index_unkown_extension(config()) -> ok.
 index_unkown_extension(Config) ->
   DataDir = ?config(data_dir, Config),
-  Path = filename:join(list_to_binary(DataDir), "test.foo"),
+  Path = filename:join(unicode:characters_to_binary(DataDir), "test.foo"),
   {ok, Uri} = els_indexer:index_file(Path),
   {ok, [#{kind := other}]} = els_dt_document:lookup(Uri),
   ok.
