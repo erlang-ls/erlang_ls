@@ -92,19 +92,10 @@ hover_docs_local(Config) ->
   ExtraUri = ?config(code_navigation_extra_uri, Config),
   Response1 = els_client:hover(ExtraUri, 6, 5),
   ?assertMatch(#{result := #{contents := _}}, Response1),
-  #{result := #{contents := Contents1}} = Response1,
-  Expected1 = #{ kind  => <<"markdown">>
-               , value => <<"```erlang\n"
-                            "-spec do_4(nat(), opaque_local()) -> {atom(),"
-                            "\n\t\t\t\t"
-                            "      code_navigation_types:opaque_type_a()}.\n"
-                            "```\n\n"
-                            "### code_navigation_extra:do_4/2"
-                            "\n\ndo_4 is a local-only function"
-                            "\n\n">>
-               },
-  ?assertEqual(Expected1, Contents1),
-
+  #{result := #{contents := #{kind := Kind, value := Value}}} = Response1,
+  ?assertEqual(<<"markdown">>, Kind),
+  ?assertMatch( <<"```erlang\n-spec do_4(nat(), opaque_local()) ->", _/binary>>
+              , Value),
   ct:comment("Hover the export entry for function_j/0"),
   Uri = ?config(code_navigation_uri, Config),
   Response2 = els_client:hover(Uri, 5, 55),
