@@ -39,7 +39,7 @@
 -type state() :: #{ config := config()
                   , progress_enabled := boolean()
                   , token := els_progress:token()
-                  , current := pos_integer()
+                  , current := non_neg_integer()
                   , step := pos_integer()
                   , total := non_neg_integer()
                   }.
