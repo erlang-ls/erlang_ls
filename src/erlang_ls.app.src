@@ -24,6 +24,8 @@
     , [ {transport, els_tcp}
       , {io_device, standard_io}
       , {port, 10000}
+        %% Indexing can be disabled to ensure reproducible tests
+      , {indexing_enabled, true}
         %% Logging
       , {logging_enabled, true}
       ]

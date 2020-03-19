@@ -342,19 +342,18 @@ setup() ->
   meck:new(els_dialyzer_diagnostics, [no_link, passthrough]),
   meck:new(els_elvis_diagnostics, [no_link, passthrough]),
   meck:new(els_utils, [no_link, passthrough]),
-  %% Do not perform real indexing. Indexing is out of scope from the
-  %% property-based tests and it slows down things.
-  meck:new(els_indexer, [no_link, passthrough]),
   meck:expect(els_compiler_diagnostics, diagnostics, 1, []),
   meck:expect(els_dialyzer_diagnostics, diagnostics, 1, []),
   meck:expect(els_elvis_diagnostics, diagnostics, 1, []),
-  meck:expect(els_indexer, index_dir, 2, ok),
   Self    = erlang:self(),
   HaltFun = fun(_X) -> Self ! halt_called, ok end,
   meck:expect(els_utils, halt, HaltFun),
   application:ensure_all_started(erlang_ls),
   file:write_file("/tmp/erlang_ls.config", <<"">>),
   lager:set_loglevel(lager_console_backend, warning),
+  %% Do not perform real indexing. Indexing is out of scope from the
+  %% property-based tests and it slows down things.
+  application:set_env(erlang_ls, indexing_enabled, false),
   ok.
 
 %%==============================================================================
@@ -365,7 +364,6 @@ teardown(_) ->
   meck:unload(els_dialyzer_diagnostics),
   meck:unload(els_elvis_diagnostics),
   meck:unload(els_utils),
-  meck:unload(els_indexer),
   ok.
 
 %%==============================================================================
@@ -376,8 +374,6 @@ cleanup() ->
   %% Restart the server, since though the client disconnects the
   %% server keeps its state.
   els_server:reset_internal_state(),
-  %% Also stop all background jobs, so they do not accumulate
-  ok = els_background_job:stop_all(),
   ok.
 
 %%==============================================================================

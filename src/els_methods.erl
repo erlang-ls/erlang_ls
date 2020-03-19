@@ -138,7 +138,12 @@ initialize(Params, State) ->
   els_db:install( node_name(RootUri, unicode:characters_to_binary(OtpPath))
                 , DbDir
                 ),
-  trigger_indexing(),
+  case application:get_env(?APP, indexing_enabled) of
+    {ok, true} ->
+      els_indexing:start();
+    _ ->
+      lager:info("Indexing disabled")
+  end,
   ok = els_provider:initialize(),
   Result =
     #{ capabilities =>
@@ -240,7 +245,7 @@ textdocument_didchange(Params, State) ->
   case ContentChanges of
     []                      -> ok;
     [#{<<"text">> := Text}] ->
-      els_indexer:index(Uri, Text, 'deep')
+      els_indexing:index(Uri, Text, 'deep')
   end,
   {noresponse, State}.
 
@@ -441,36 +446,3 @@ node_name(RootUri, OtpPath) ->
 -spec default_db_dir() -> string().
 default_db_dir() ->
   filename:basedir(user_cache, "erlang_ls").
-
--spec trigger_indexing() -> ok.
-trigger_indexing() ->
-  Task = fun({Dir, Mode}) -> els_indexer:index_dir(Dir, Mode) end,
-  Config = #{ task => Task
-            , entries => entries()
-              %% Indexing a directory can lead to a huge number
-              %% of DB transactions happening in a very short
-              %% time window. After indexing, let's manually
-              %% trigger a DB dump. This ensures that the DB can
-              %% be loaded much faster on a restart.
-            , on_complete => fun els_db:dump_tables/0
-            , on_error => fun els_db:dump_tables/0
-            , title => <<"Indexing">>
-            },
-  {ok, _Pid} = els_background_job:new(Config),
-  ok.
-
--spec entries() -> [{string(), 'deep' | 'shallow'}].
-entries() ->
-  entries_apps() ++ entries_deps() ++ entries_otp().
-
--spec entries_apps() -> [{string(), 'deep' | 'shallow'}].
-entries_apps() ->
-  [{Dir, 'deep'} || Dir <- els_config:get(apps_paths)].
-
--spec entries_deps() -> [{string(), 'deep' | 'shallow'}].
-entries_deps() ->
-  [{Dir, 'deep'} || Dir <- els_config:get(deps_paths)].
-
--spec entries_otp() -> [{string(), 'deep' | 'shallow'}].
-entries_otp() ->
-  [{Dir, 'shallow'} || Dir <- els_config:get(otp_paths)].

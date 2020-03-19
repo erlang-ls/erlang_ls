@@ -1,4 +1,4 @@
--module(els_indexer).
+-module(els_indexing).
 
 -callback index(els_dt_document:item()) -> ok.
 
@@ -7,6 +7,7 @@
         , index_file/1
         , index/3
         , index_dir/2
+        , start/0
         ]).
 
 %%==============================================================================
@@ -99,6 +100,23 @@ index_references(#{uri := Uri} = Document, 'deep') ->
 index_references(_Document, 'shallow') ->
   ok.
 
+-spec start() -> ok.
+start() ->
+  Task = fun({Dir, Mode}) -> index_dir(Dir, Mode) end,
+  Config = #{ task => Task
+            , entries => entries()
+              %% Indexing a directory can lead to a huge number
+              %% of DB transactions happening in a very short
+              %% time window. After indexing, let's manually
+              %% trigger a DB dump. This ensures that the DB can
+              %% be loaded much faster on a restart.
+            , on_complete => fun els_db:dump_tables/0
+            , on_error => fun els_db:dump_tables/0
+            , title => <<"Indexing">>
+            },
+  {ok, _Pid} = els_background_job:new(Config),
+  ok.
+
 %%==============================================================================
 %% Internal functions
 %%==============================================================================
@@ -163,3 +181,19 @@ index_dir(Dir, Mode) ->
              "[succeeded=~p] "
              "[failed=~p]", [Dir, Mode, Time/1000/1000, Succeeded, Failed]),
   {Succeeded, Failed}.
+
+-spec entries() -> [{string(), 'deep' | 'shallow'}].
+entries() ->
+  entries_apps() ++ entries_deps() ++ entries_otp().
+
+-spec entries_apps() -> [{string(), 'deep' | 'shallow'}].
+entries_apps() ->
+  [{Dir, 'deep'} || Dir <- els_config:get(apps_paths)].
+
+-spec entries_deps() -> [{string(), 'deep' | 'shallow'}].
+entries_deps() ->
+  [{Dir, 'deep'} || Dir <- els_config:get(deps_paths)].
+
+-spec entries_otp() -> [{string(), 'deep' | 'shallow'}].
+entries_otp() ->
+  [{Dir, 'shallow'} || Dir <- els_config:get(otp_paths)].

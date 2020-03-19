@@ -50,7 +50,7 @@ new(Config) ->
   supervisor:start_child(els_background_job_sup, [Config]).
 
 %% @doc Return the list of running background jobs
--spec list() -> pid().
+-spec list() -> [pid()].
 list() ->
   [Pid || {_Id, Pid, _Type, _Modules}
             <- supervisor:which_children(els_background_job_sup)].
@@ -138,7 +138,7 @@ terminate(Reason, #{config := Config}) ->
 step(0) -> 0;
 step(N) -> 100 / N.
 
--spec progress_msg(pos_integer(), pos_integer()) -> binary().
+-spec progress_msg(non_neg_integer(), pos_integer()) -> binary().
 progress_msg(Current, Total) ->
   list_to_binary(io_lib:format("~p / ~p", [Current, Total])).
 

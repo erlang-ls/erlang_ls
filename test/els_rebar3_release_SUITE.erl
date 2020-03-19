@@ -69,10 +69,8 @@ init_per_testcase(_TestCase, Config) ->
   els_client:initialize(RootUri, []),
   {ok, AppText} = file:read_file(els_uri:path(AppUri)),
   els_client:did_open(AppUri, erlang, 1, AppText),
-  els_indexer:find_and_index_file("rebar3_release_app.erl"),
-  els_indexer:find_and_index_file("rebar3_release_sup.erl"),
-  meck:new(els_methods, [passthrough, non_strict, no_link]),
-  meck:expect(els_methods, entries_otp, 0, []),
+  els_indexing:find_and_index_file("rebar3_release_app.erl"),
+  els_indexing:find_and_index_file("rebar3_release_sup.erl"),
   [{started, Started}|Config].
 
 -spec end_per_testcase(atom(), config()) -> ok.
