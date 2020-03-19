@@ -1,5 +1,5 @@
 %%==============================================================================
-%% Background Job Server
+%% API and Implementation for Background Jobs
 %%==============================================================================
 -module(els_background_job).
 
@@ -79,6 +79,8 @@ start_link(Config) ->
 %%==============================================================================
 -spec init(config()) -> {ok, state()}.
 init(Config) ->
+  %% Ensure the terminate function is called on shutdown, allowing the
+  %% job to clean up.
   process_flag(trap_exit, true),
   self() ! init,
   ProgressEnabled = els_work_done_progress:is_supported(),
@@ -104,37 +106,14 @@ handle_info(init, State) ->
   Total = length(Entries),
   Step = step(Total),
   Token = els_work_done_progress:send_create_request(),
-  case ProgressEnabled of
-    true ->
-      BeginMsg = progress_msg(0, Total),
-      Begin = els_work_done_progress:value_begin(Title, BeginMsg, 0),
-      els_progress:send_notification(Token, Begin);
-    false ->
-      ok
-  end,
-  F = fun(Entry, Progress) ->
+  notify_begin(Token, Title, Total, ProgressEnabled),
+  F = fun(Entry, Current) ->
           Task(Entry),
-          case ProgressEnabled of
-            true ->
-              Percentage = floor(Progress * Step),
-              ReportMsg = progress_msg(Progress, Total),
-              Report =
-                els_work_done_progress:value_report(ReportMsg, Percentage),
-              els_progress:send_notification(Token, Report);
-            false ->
-              ok
-          end,
-          Progress + 1
+          notify_report(Token, Current, Step, Total, ProgressEnabled),
+          Current + 1
       end,
   _Res = lists:foldl(F, 1, Entries),
-  case ProgressEnabled of
-    true ->
-      EndMsg = progress_msg(Total, Total),
-      End = els_work_done_progress:value_end(EndMsg),
-      els_progress:send_notification(Token, End);
-    false ->
-      ok
-  end,
+  notify_end(Token, Total, ProgressEnabled),
   {stop, normal, State};
 handle_info(_Request, State) ->
   {noreply, State}.
@@ -165,3 +144,30 @@ progress_msg(Current, Total) ->
 
 -spec noop() -> fun().
 noop() -> fun() -> ok end.
+
+-spec notify_begin(els_progress:token(), binary(), pos_integer(), boolean()) ->
+        ok.
+notify_begin(Token, Title, Total, true) ->
+  BeginMsg = progress_msg(0, Total),
+  Begin = els_work_done_progress:value_begin(Title, BeginMsg, 0),
+  els_progress:send_notification(Token, Begin);
+notify_begin(_Token, _Title, _Total, false) ->
+  ok.
+
+-spec notify_report( els_progress:token(), pos_integer(), pos_integer()
+                   , pos_integer(), boolean()) -> ok.
+notify_report(Token, Current, Step, Total, true) ->
+  Percentage = floor(Current * Step),
+  ReportMsg = progress_msg(Current, Total),
+  Report = els_work_done_progress:value_report(ReportMsg, Percentage),
+  els_progress:send_notification(Token, Report);
+notify_report(_Token, _Current, _Step, _Total, false) ->
+  ok.
+
+-spec notify_end(els_progress:token(), pos_integer(), boolean()) -> ok.
+notify_end(Token, Total, true) ->
+  EndMsg = progress_msg(Total, Total),
+  End = els_work_done_progress:value_end(EndMsg),
+  els_progress:send_notification(Token, End);
+notify_end(_Token, _Total, false) ->
+  ok.
