@@ -56,7 +56,8 @@ end_per_suite(Config) ->
 init_per_testcase(_TestCase, Config) ->
   Transport = els_test_utils:get_group(Config),
   Started   = els_test_utils:start(Transport),
-
+  meck:new(els_methods, [passthrough, non_strict]),
+  meck:expect(els_methods, entries_otp, 0, []),
   [{started, Started} | Config].
 
 -spec end_per_testcase(atom(), config()) -> ok.
