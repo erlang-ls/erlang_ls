@@ -70,8 +70,8 @@ init_per_testcase(failing_job = TestCase, Config) ->
 
 -spec end_per_testcase(atom(), config()) -> ok.
 end_per_testcase(TestCase, Config) ->
-  teardown_mocks(),
-  els_test_utils:end_per_testcase(TestCase, Config).
+  els_test_utils:end_per_testcase(TestCase, Config),
+  teardown_mocks().
 
 %%==============================================================================
 %% Testcases
