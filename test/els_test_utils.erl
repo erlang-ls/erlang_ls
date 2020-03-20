@@ -50,7 +50,7 @@ all(Module, Functions) ->
 -spec init_per_suite(config()) -> config().
 init_per_suite(Config) ->
   PrivDir = code:priv_dir(erlang_ls),
-  RootPath = filename:join([ unicode:characters_to_binary(PrivDir)
+  RootPath = filename:join([ els_utils:to_binary(PrivDir)
                            , ?TEST_APP]),
   RootUri = els_uri:uri(RootPath),
   application:load(erlang_ls),

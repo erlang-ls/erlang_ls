@@ -85,10 +85,10 @@ make_unused_variable_action(Uri, Range, UnusedVariable) ->
    } = Range,
   %% processing messages like "variable 'Foo' is unused"
   {ok, #{text := Bin}} = els_utils:lookup_document(Uri),
-  Line = unicode:characters_to_list(els_text:line(Bin, StartLine)),
+  Line = els_utils:to_list(els_text:line(Bin, StartLine)),
 
   {ok, Tokens, _} = erl_scan:string(Line, 1, [return, text]),
-  UnusedString = unicode:characters_to_list(UnusedVariable),
+  UnusedString = els_utils:to_list(UnusedVariable),
   Replace =
         fun(Tok) ->
             case Tok of
@@ -102,7 +102,7 @@ make_unused_variable_action(Uri, Range, UnusedVariable) ->
     [ replace_lines_action( Uri
                       , <<"Add '_' to '", UnusedVariable/binary, "'">>
                       , ?CODE_ACTION_KIND_QUICKFIX
-                      , unicode:characters_to_binary(UpdatedLine)
+                      , els_utils:to_binary(UpdatedLine)
                       , Range)].
 
 %%------------------------------------------------------------------------------

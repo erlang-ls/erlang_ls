@@ -35,7 +35,7 @@
 find_and_index_file(FileName) ->
   SearchPaths = els_config:get(search_paths),
   case file:path_open( SearchPaths
-                     , unicode:characters_to_binary(FileName)
+                     , els_utils:to_binary(FileName)
                      , [read]
                      )
   of
@@ -165,7 +165,7 @@ register_reference(Uri, #{kind := Kind, id := Id, range := Range})
 index_dir(Dir, Mode) ->
   lager:debug("Indexing directory. [dir=~s] [mode=~s]", [Dir, Mode]),
   F = fun(FileName, {Succeeded, Failed}) ->
-          case try_index_file(unicode:characters_to_binary(FileName), Mode) of
+          case try_index_file(els_utils:to_binary(FileName), Mode) of
             ok              -> {Succeeded + 1, Failed};
             {error, _Error} -> {Succeeded, Failed + 1}
           end

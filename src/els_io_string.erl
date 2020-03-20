@@ -18,7 +18,7 @@
 
 -spec new(string() | binary()) -> pid().
 new(Str) when is_binary(Str) ->
-  new(unicode:characters_to_list(Str));
+  new(els_utils:to_list(Str));
 new(Str) ->
   start_link(Str).
 

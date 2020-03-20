@@ -83,7 +83,7 @@ get_docs(M, F, A) ->
           docs_from_src(M, F, A);
         FuncDoc ->
           #{ kind => content_kind()
-           , value => unicode:characters_to_binary(FuncDoc)
+           , value => els_utils:to_binary(FuncDoc)
            }
       end;
     _R1 ->
@@ -117,7 +117,7 @@ specs(M, F, A) ->
   case els_dt_signatures:lookup({M, F, A}) of
     {ok, [#{tree := Tree}]} ->
       Specs = erl_prettypr:format(Tree),
-      unicode:characters_to_binary(Specs);
+      els_utils:to_binary(Specs);
     {ok, []} ->
       <<>>
   end.
@@ -133,7 +133,7 @@ edoc(M, F, A) ->
   try
     {ok, Uri} = els_utils:find_module(M),
     Path      = els_uri:path(Uri),
-    {M, EDoc} = edoc:get_doc( unicode:characters_to_list(Path)
+    {M, EDoc} = edoc:get_doc( els_utils:to_list(Path)
                             , [{private, true}]
                             ),
     Internal  = xmerl:export_simple([EDoc], docsh_edoc_xmerl),
@@ -156,7 +156,7 @@ format(_Signature, none) ->
 format(Signature, Desc) when is_map(Desc) ->
   Lang         = <<"en">>,
   Doc          = maps:get(Lang, Desc, <<>>),
-  FormattedDoc = unicode:characters_to_binary(docsh_edoc:format_edoc(Doc, #{})),
+  FormattedDoc = els_utils:to_binary(docsh_edoc:format_edoc(Doc, #{})),
   <<"### ", Signature/binary, "\n", FormattedDoc/binary>>.
 
 -spec content_kind() -> markup_kind().

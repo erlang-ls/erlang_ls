@@ -36,7 +36,7 @@ tokens() ->
       , vector(10, token())
       , begin
           Concatenated = [string:join(Tokens, ","), "."],
-          unicode:characters_to_binary(Concatenated)
+          els_utils:to_binary(Concatenated)
         end
       ).
 

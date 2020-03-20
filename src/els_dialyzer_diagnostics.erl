@@ -30,7 +30,7 @@ diagnostics(Uri) ->
     undefined -> [];
     DialyzerPltPath ->
       Deps  = [dep_path(X) || X <- els_diagnostics_utils:dependencies(Uri)],
-      Files = [unicode:characters_to_list(Path) | Deps],
+      Files = [els_utils:to_list(Path) | Deps],
       WS = try dialyzer:run([ {files, Files}
                             , {from, src_code}
                             , {include_dirs, els_config:get(include_paths)}
@@ -58,7 +58,7 @@ diagnostic({_, {_, Line}, _} = Warning) ->
                                  , to   => {Line + 1, 1}
                                  }),
   Message0 = lists:flatten(dialyzer:format_warning(Warning)),
-  Message  = unicode:characters_to_binary(Message0),
+  Message  = els_utils:to_binary(Message0),
   #{ range    => Range
    , message  => Message
    , severity => ?DIAGNOSTIC_WARNING
@@ -68,4 +68,4 @@ diagnostic({_, {_, Line}, _} = Warning) ->
 -spec dep_path(module()) -> string().
 dep_path(Module) ->
   {ok, Uri} = els_utils:find_module(Module),
-  unicode:characters_to_list(els_uri:path(Uri)).
+  els_utils:to_list(els_uri:path(Uri)).

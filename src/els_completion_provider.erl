@@ -366,7 +366,7 @@ completion_item(#{kind := Kind, id := {F, A}, data := ArgsNames}, false)
   when Kind =:= function;
        Kind =:= type_definition ->
   Label = io_lib:format("~p/~p", [F, A]),
-  #{ label            => unicode:characters_to_binary(Label)
+  #{ label            => els_utils:to_binary(Label)
    , kind             => completion_item_kind(Kind)
    , insertText       => snippet_function_call(F, ArgsNames)
    , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
@@ -375,7 +375,7 @@ completion_item(#{kind := Kind, id := {F, A}}, true)
   when Kind =:= function;
        Kind =:= type_definition ->
   Label = io_lib:format("~p/~p", [F, A]),
-  #{ label            => unicode:characters_to_binary(Label)
+  #{ label            => els_utils:to_binary(Label)
    , kind             => completion_item_kind(Kind)
    , insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
    };
@@ -392,7 +392,7 @@ snippet_function_call(Function, Args0) ->
               || {N, A} <- Args0
             ],
   Snippet = [atom_to_list(Function), "(", string:join(Args, ", "), ")"],
-  unicode:characters_to_binary(Snippet).
+  els_utils:to_binary(Snippet).
 
 -spec is_in(els_dt_document:item(), line(), column(), [poi_kind()]) ->
   boolean().

@@ -1,14 +1,16 @@
 -module(els_utils).
 
--export([ filename_to_atom/1
+-export([ cmd/2
+        , filename_to_atom/1
         , find_header/1
         , find_module/1
         , fold_files/4
+        , halt/1
         , lookup_document/1
         , project_relative/1
         , resolve_paths/3
-        , halt/1
-        , cmd/2
+        , to_binary/1
+        , to_list/1
         ]).
 
 -include("erlang_ls.hrl").
@@ -18,6 +20,24 @@
 %%==============================================================================
 %% File and module functions
 %%==============================================================================
+
+% @doc Replacement for os:cmd that allows for spaces in args and paths
+-spec cmd(string(), [string()]) -> integer().
+cmd(Cmd, Args) ->
+  Tag = make_ref(),
+  {Pid, Ref} = erlang:spawn_monitor(fun() ->
+    P = open_port(
+      {spawn_executable, Cmd},
+      [binary, use_stdio, stream, exit_status, hide, {args, Args}]
+    ),
+    exit({Tag, cmd_receive(P)})
+  end),
+  receive
+    {'DOWN', Ref, process, Pid, {Tag, Data}} ->
+      Data;
+    {'DOWN', Ref, process, Pid, Reason} ->
+      exit(Reason)
+  end.
 
 -spec filename_to_atom(els_dt_document:id()) -> atom().
 filename_to_atom(FileName) ->
@@ -96,9 +116,27 @@ project_relative(Uri) ->
   case Uri of
     <<RootUri:Size/binary, Relative/binary>> ->
       Trimmed = string:trim(Relative, leading, [$/, $\\ ]),
-      unicode:characters_to_list(Trimmed);
+      to_list(Trimmed);
     _ ->
       {error, not_relative}
+  end.
+
+-spec to_binary(unicode:chardata()) -> binary().
+to_binary(X) when is_binary(X) ->
+  X;
+to_binary(X) when is_list(X) ->
+  case unicode:characters_to_binary(X) of
+    Result when is_binary(Result) -> Result;
+    _ -> iolist_to_binary(X)
+  end.
+
+-spec to_list(unicode:chardata()) -> string().
+to_list(X) when is_list(X) ->
+  X;
+to_list(X) when is_binary(X) ->
+  case unicode:characters_to_list(X) of
+    Result when is_list(Result) -> Result;
+    _ -> binary_to_list(X)
   end.
 
 %%==============================================================================
@@ -202,6 +240,15 @@ contains_symlink(Path, RootPath) ->
         orelse contains_symlink(Parent, RootPath)
   end.
 
+-spec cmd_receive(port()) -> integer().
+cmd_receive(Port) ->
+  receive
+    {Port, {exit_status, ExitCode}} ->
+      ExitCode;
+    {Port, _} ->
+      cmd_receive(Port)
+  end.
+
 %%==============================================================================
 %% This section excerpted from the rebar3 sources, rebar_dir.erl
 %% Pending resolution of https://github.com/erlang/rebar3/issues/2223
@@ -244,30 +291,3 @@ make_normalized_path([".." | T], [Head | Tail]) when Head =/= ".." ->
   make_normalized_path(T, Tail);
 make_normalized_path([H | T], NormalizedPath) ->
   make_normalized_path(T, [H | NormalizedPath]).
-
-% @private Replacement for os:cmd that allows for spaces in args and paths
--spec cmd(string(), [string()]) -> integer().
-cmd(Cmd, Args) ->
-  Tag = make_ref(),
-  {Pid, Ref} = erlang:spawn_monitor(fun() ->
-    P = open_port(
-      {spawn_executable, Cmd},
-      [binary, use_stdio, stream, exit_status, hide, {args, Args}]
-    ),
-    exit({Tag, cmd_receive(P)})
-  end),
-  receive
-    {'DOWN', Ref, process, Pid, {Tag, Data}} ->
-      Data;
-    {'DOWN', Ref, process, Pid, Reason} ->
-      exit(Reason)
-  end.
-
--spec cmd_receive(port()) -> integer().
-cmd_receive(Port) ->
-  receive
-    {Port, {exit_status, ExitCode}} ->
-      ExitCode;
-    {Port, _} ->
-      cmd_receive(Port)
-  end.
