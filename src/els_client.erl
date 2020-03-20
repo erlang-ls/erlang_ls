@@ -37,6 +37,7 @@
         , references/3
         , document_highlight/3
         , document_codeaction/3
+        , document_codelens/1
         , document_formatting/3
         , document_rangeformatting/3
         , document_ontypeformatting/4
@@ -45,6 +46,9 @@
         , start_link/2
         , stop/0
         , workspace_symbol/1
+        , workspace_executecommand/2
+
+        , get_notifications/0
         ]).
 
 -export([ handle_responses/1 ]).
@@ -66,6 +70,7 @@
                , transport_server     :: pid()
                , request_id       = 1 :: request_id()
                , pending          = []
+               , notifications    = []
                }).
 
 %%==============================================================================
@@ -127,6 +132,10 @@ document_highlight(Uri, Line, Char) ->
 -spec document_codeaction(uri(), range(), [diagnostic()]) -> ok.
 document_codeaction(Uri, Range, Diagnostics) ->
   gen_server:call(?SERVER, {document_codeaction, {Uri, Range, Diagnostics}}).
+
+-spec document_codelens(uri()) -> ok.
+document_codelens(Uri) ->
+  gen_server:call(?SERVER, {document_codelens, {Uri}}).
 
 -spec document_formatting(uri(), non_neg_integer(), boolean()) ->
   ok.
@@ -191,6 +200,15 @@ stop() ->
   ok.
 workspace_symbol(Query) ->
   gen_server:call(?SERVER, {workspace_symbol, {Query}}).
+
+-spec workspace_executecommand(string(), [map()]) ->
+  ok.
+workspace_executecommand(Command, Args) ->
+  gen_server:call(?SERVER, {workspace_executecommand, {Command, Args}}).
+
+-spec get_notifications() -> [any()].
+get_notifications() ->
+  gen_server:call(?SERVER, {get_notifications}).
 
 -spec handle_responses([map()]) -> ok.
 handle_responses(Responses) ->
@@ -258,6 +276,9 @@ handle_call({'$_unexpectedrequest'}, From, State) ->
   {noreply, State#state{ request_id = RequestId + 1
                        , pending    = [{RequestId, From} | State#state.pending]
                        }};
+handle_call({get_notifications}, _From, State) ->
+  #state{notifications = Notifications} = State,
+  {reply, Notifications, State#state { notifications = []}};
 handle_call(Input = {Action, _}, From, State) ->
   #state{ transport_cb     = Cb
         , transport_server = Server
@@ -273,9 +294,10 @@ handle_call(Input = {Action, _}, From, State) ->
 
 -spec handle_cast(any(), state()) -> {noreply, state()}.
 handle_cast({handle_responses, Responses}, State) ->
-  #state{pending = Pending0} = State,
-  Pending = do_handle_responses(Responses, Pending0),
-  {noreply, State#state{pending = Pending}};
+  #state{pending = Pending0, notifications = Notifications0} = State,
+  {Pending, Notifications}
+    = do_handle_responses(Responses, Pending0, Notifications0),
+  {noreply, State#state{pending = Pending, notifications = Notifications}};
 handle_cast(_Request, State) ->
   {noreply, State}.
 
@@ -287,10 +309,11 @@ code_change(_OldVsn, State, _Extra) ->
 %% Internal Functions
 %%==============================================================================
 
--spec do_handle_responses([map()], [any()]) -> [any()].
-do_handle_responses([], Pending) ->
-  Pending;
-do_handle_responses([Response|Responses], Pending) ->
+%% @doc handle messages received from the transport layer
+-spec do_handle_responses([map()], [any()], [any()]) -> {[any()], [any()]}.
+do_handle_responses([], Pending, Notifications) ->
+  {Pending, Notifications};
+do_handle_responses([Response|Responses], Pending, Notifications) ->
   case maps:find(id, Response) of
     {ok, RequestId} ->
       lager:debug("[CLIENT] Handling Response [response=~p]", [Response]),
@@ -298,14 +321,15 @@ do_handle_responses([Response|Responses], Pending) ->
         {RequestId, From} ->
           gen_server:reply(From, Response),
           do_handle_responses( Responses
-                          , lists:keydelete(RequestId, 1, Pending));
+                          , lists:keydelete(RequestId, 1, Pending)
+                          , Notifications);
         false ->
-          do_handle_responses(Responses, Pending)
+          do_handle_responses(Responses, Pending, Notifications)
       end;
     error ->
       lager:debug( "[CLIENT] Handling Notification [notification=~p]"
                  , [Response]),
-      do_handle_responses(Responses, Pending)
+      do_handle_responses(Responses, Pending, [Response|Notifications])
   end.
 
 -spec method_lookup(atom()) -> binary().
@@ -315,6 +339,7 @@ method_lookup(document_symbol)          -> <<"textDocument/documentSymbol">>;
 method_lookup(references)               -> <<"textDocument/references">>;
 method_lookup(document_highlight)       -> <<"textDocument/documentHighlight">>;
 method_lookup(document_codeaction)      -> <<"textDocument/codeAction">>;
+method_lookup(document_codelens)        -> <<"textDocument/codeLens">>;
 method_lookup(document_formatting)      -> <<"textDocument/formatting">>;
 method_lookup(document_rangeformatting) -> <<"textDocument/rangeFormatting">>;
 method_lookup(document_ontypeormatting) -> <<"textDocument/onTypeFormatting">>;
@@ -324,6 +349,7 @@ method_lookup(did_close)                -> <<"textDocument/didClose">>;
 method_lookup(hover)                    -> <<"textDocument/hover">>;
 method_lookup(implementation)           -> <<"textDocument/implementation">>;
 method_lookup(workspace_symbol)         -> <<"workspace/symbol">>;
+method_lookup(workspace_executecommand) -> <<"workspace/executeCommand">>;
 method_lookup(folding_range)            -> <<"textDocument/foldingRange">>;
 method_lookup(initialize)               -> <<"initialize">>.
 
@@ -333,6 +359,9 @@ request_params({document_symbol, {Uri}}) ->
   #{ textDocument => TextDocument };
 request_params({workspace_symbol, {Query}}) ->
   #{ query => Query };
+request_params({workspace_executecommand, {Command, Args}}) ->
+  #{ command   => Command
+   , arguments => Args };
 request_params({ completion
                , {Uri, Line, Char, TriggerKind, TriggerCharacter}}) ->
   #{ textDocument => #{ uri => Uri }
@@ -359,6 +388,8 @@ request_params({ document_codeaction, {Uri, Range, Diagnostics}}) ->
    , range        => Range
    , context      => #{ diagnostics => Diagnostics }
    };
+request_params({ document_codelens, {Uri}}) ->
+  #{ textDocument => #{ uri => Uri }};
 request_params({ document_formatting
                , {Uri, TabSize, InsertSpaces}}) ->
   #{ textDocument => #{ uri => Uri }

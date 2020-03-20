@@ -95,6 +95,7 @@ do_initialize(RootUri, Capabilities, Config) ->
   %% Passed by the LSP client
   ok = set(root_uri       , RootUri),
   %% Read from the erlang_ls.config file
+  ok = set(config_path    , ConfigPath),
   ok = set(otp_path       , OtpPath),
   ok = set(deps_dirs      , DepsDirs),
   ok = set(apps_dirs      , AppsDirs),
@@ -177,14 +178,14 @@ default_config_paths(RootPath) ->
 possible_config_paths(Path) ->
   [ Path, filename:join([Path, ?DEFAULT_CONFIG_FILE]) ].
 
--spec consult_config([path()]) -> map().
-consult_config([]) -> #{};
+-spec consult_config([path()]) -> {undefined|path(), map()}.
+consult_config([]) -> {undefined, #{}};
 consult_config([Path | Paths]) ->
   lager:info("Reading config file. path=~p", [Path]),
   Options = [{map_node_format, map}],
   try yamerl:decode_file(Path, Options) of
-      [] -> #{};
-      [Config] -> Config
+      [] -> {Path, #{}};
+      [Config] -> {Path, Config}
   catch
     Class:Error ->
       lager:warning( "Could not read config file: path=~p class=~p error=~p"
