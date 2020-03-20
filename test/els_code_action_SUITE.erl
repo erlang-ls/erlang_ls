@@ -70,8 +70,7 @@ add_underscore_to_unused_var(Config) ->
           , source   => <<"Compiler">>
           },
   Range = els_protocol:range(#{from => {80, 1}, to => {81, 1}}),
-  PrefixedCommand
-    = els_execute_command_provider:add_server_prefix(<<"replace-lines">>),
+  PrefixedCommand = els_command:with_prefix(<<"replace-lines">>),
   #{result := Result} = els_client:document_codeaction(Uri, Range, [Diag]),
   Expected =
     [ #{ command => #{ arguments => [ #{ from  => 79

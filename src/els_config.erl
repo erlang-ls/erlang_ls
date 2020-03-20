@@ -36,6 +36,7 @@
 -type key()   :: apps_dirs
                | apps_paths
                | capabilities
+               | code_lenses
                | deps_dirs
                | deps_paths
                | include_dirs
@@ -51,6 +52,7 @@
 -type path()  :: file:filename().
 -type state() :: #{ apps_dirs        => [path()]
                   , apps_paths       => [path()]
+                  , code_lenses      => [els_code_lens:lens()]
                   , deps_dirs        => [path()]
                   , deps_paths       => [path()]
                   , include_dirs     => [path()]
@@ -87,6 +89,7 @@ do_initialize(RootUri, Capabilities, {ConfigPath, Config}) ->
                             , Config
                             , ?DEFAULT_EXCLUDED_OTP_APPS
                             ),
+  CodeLenses = maps:get("code_lenses", Config, els_code_lens:default_lenses()),
   ExcludePathsSpecs = [[OtpPath, "lib", P ++ "*"] || P <- OtpAppsExclude],
   ExcludePaths = els_utils:resolve_paths(ExcludePathsSpecs, RootPath, true),
   lager:info("Excluded OTP Applications: ~p", [OtpAppsExclude]),
@@ -108,6 +111,7 @@ do_initialize(RootUri, Capabilities, {ConfigPath, Config}) ->
   ok = set(deps_paths     , project_paths(RootPath, DepsDirs, false)),
   ok = set(include_paths  , include_paths(RootPath, IncludeDirs, false)),
   ok = set(otp_paths      , otp_paths(OtpPath, false) -- ExcludePaths),
+  ok = set(code_lenses    , CodeLenses),
   %% All (including subdirs) paths used to search files with file:path_open/3
   ok = set( search_paths
           , lists:append([ project_paths(RootPath, AppsDirs, true)

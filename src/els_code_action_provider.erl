@@ -47,17 +47,15 @@ replace_lines_action(Uri, Title, Kind, Lines, Range) ->
    , <<"end">>   := #{ <<"character">> := _EndCol
                      , <<"line">>      := EndLine }
    } = Range,
-  PrefixedCommand
-    = els_execute_command_provider:add_server_prefix(<<"replace-lines">>),
   #{ title => Title
    , kind => Kind
    , command =>
-          els_protocol:command( Title
-                              , PrefixedCommand
-                              , [#{ uri   => Uri
-                                  , lines => Lines
-                                  , from  => StartLine
-                                  , to    => EndLine }])
+       els_command:make_command( Title
+                               , <<"replace-lines">>
+                               , [#{ uri   => Uri
+                                   , lines => Lines
+                                   , from  => StartLine
+                                   , to    => EndLine }])
    }.
 
 -spec make_code_action(uri(), diagnostic()) -> [map()].

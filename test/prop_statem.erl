@@ -95,8 +95,8 @@ initialize_post(#{shutdown := true}, _Args, Res) ->
   true;
 initialize_post(_S, _Args, Res) ->
   PrefixedCommands
-    = [ els_execute_command_provider:add_server_prefix(<<"replace-lines">>)
-      , els_execute_command_provider:add_server_prefix(<<"info">>)],
+    = [ els_command:with_prefix(<<"replace-lines">>)
+      , els_command:with_prefix(<<"server-info">>)],
   Expected = #{ capabilities =>
                   #{ hoverProvider => true
                    , completionProvider =>
