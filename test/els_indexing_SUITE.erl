@@ -69,7 +69,8 @@ reindex_otp(Config) ->
 -spec index_otp(atom(), string()) -> ok.
 index_otp(DBName, DBDir) ->
   ok = els_db:install(DBName, DBDir),
-  els_indexer:index_dirs(els_config:get(otp_paths), 'shallow'),
+  [els_indexing:index_dir(Dir, 'shallow') || Dir <- els_config:get(otp_paths)],
+  els_db:dump_tables(),
   ok = els_db:stop().
 
 -spec otp_apps_exclude() -> [string()].

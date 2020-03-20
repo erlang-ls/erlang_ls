@@ -55,19 +55,9 @@ init_per_suite(Config) ->
   application:load(erlang_ls),
   Priv = ?config(priv_dir, Config),
   application:set_env(erlang_ls, db_dir, Priv),
-  SrcConfig = lists:flatten(
-                [file_config(RootPath, src, S) || S <- sources()]),
-  EscriptConfig = lists:flatten(
-                    [file_config(RootPath, escript, S) || S <- escripts()]),
-  IncludeConfig = lists:flatten(
-                    [file_config(RootPath, include, S) || S <- includes()]),
-  lists:append( [ SrcConfig
-                , EscriptConfig
-                , IncludeConfig
-                , [ {root_uri, RootUri}
-                  , {root_path, RootPath}
-                  | Config]
-                ]).
+  [ {root_uri, RootUri}
+  , {root_path, RootPath}
+  | Config ].
 
 -spec end_per_suite(config()) -> ok.
 end_per_suite(_Config) ->
@@ -77,14 +67,22 @@ end_per_suite(_Config) ->
 init_per_testcase(_TestCase, Config) ->
   Transport = get_group(Config),
   Started   = start(Transport),
+  RootPath  = ?config(root_path, Config),
   RootUri   = ?config(root_uri, Config),
-
   els_client:initialize(RootUri, []),
-
-  %% Ensure modules used in test suites are indexed
-  index_modules(),
-
-  [{started, Started} | Config].
+  application:set_env(erlang_ls, indexing_enabled, false),
+  SrcConfig = lists:flatten(
+                [index_file(RootPath, src, S) || S <- sources()]),
+  EscriptConfig = lists:flatten(
+                    [index_file(RootPath, escript, S) || S <- escripts()]),
+  IncludeConfig = lists:flatten(
+                    [index_file(RootPath, include, S) || S <- includes()]),
+  lists:append( [ SrcConfig
+                , EscriptConfig
+                , IncludeConfig
+                , [ {started, Started}
+                  | Config]
+                ]).
 
 -spec end_per_testcase(atom(), config()) -> ok.
 end_per_testcase(_TestCase, Config) ->
@@ -153,18 +151,19 @@ includes() ->
   , diagnostics
   ].
 
-%% @doc Produce the config entries for a file identifier
+%% @doc Index a file and produce the respective config entries
 %%
 %%      Given an identifier representing a source or include file,
-%%      produce a config containing the respective path, uri and text
-%%      to simplify accessing this information from test cases.
--spec file_config(binary(), file_type(), atom()) -> [{atom(), any()}].
-file_config(RootPath, Type, Id) ->
+%%      index it and produce a config containing the respective path,
+%%      uri and text to simplify accessing this information from test
+%%      cases.
+-spec index_file(binary(), file_type(), atom()) -> [{atom(), any()}].
+index_file(RootPath, Type, Id) ->
   BinaryId = atom_to_binary(Id, utf8),
   Ext = extension(Type),
   Dir = directory(Type),
   Path = filename:join([RootPath, Dir, <<BinaryId/binary, Ext/binary>>]),
-  Uri = els_uri:uri(Path),
+  {ok, Uri} = els_indexing:index_file(Path),
   {ok, Text} = file:read_file(Path),
   ConfigId = config_id(Id, Type),
   [ {atoms_append(ConfigId, '_path'), Path}
@@ -198,18 +197,3 @@ atoms_append(Atom1, Atom2) ->
   Bin1 = atom_to_binary(Atom1, utf8),
   Bin2 = atom_to_binary(Atom2, utf8),
   binary_to_atom(<<Bin1/binary, Bin2/binary>>, utf8).
-
-index_modules() ->
-  [els_indexer:find_and_index_file(Module) || Module <- modules_to_index()].
-
-modules_to_index() ->
-  [ "behaviour_a"
-  , "code_navigation"
-  , "code_navigation.hrl"
-  , "code_navigation_extra"
-  , "code_navigation_types"
-  , "diagnostics.hrl"
-  , "diagnostics_behaviour"
-  , "diagnostics_behaviour_impl"
-  , "my_gen_server"
-  ].

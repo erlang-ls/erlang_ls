@@ -50,15 +50,15 @@ end_per_testcase(_TestCase, _Config) -> ok.
 
 -spec scan_forms(config()) -> ok.
 scan_forms(Config) ->
-  Path         = ?config(code_navigation_path, Config),
+  Path         = path(Config),
   {ok, IoFile} = file:open(Path, [read]),
   Expected     = scan_all_forms(IoFile, []),
   ok           = file:close(IoFile),
 
-  Text     = ?config(code_navigation_text, Config),
-  IoString = els_io_string:new(Text),
-  Result   = scan_all_forms(IoString, []),
-  ok       = file:close(IoString),
+  {ok, Text} = file:read_file(Path),
+  IoString   = els_io_string:new(Text),
+  Result     = scan_all_forms(IoString, []),
+  ok         = file:close(IoString),
 
   ?assertEqual(Expected, Result),
 
@@ -66,12 +66,12 @@ scan_forms(Config) ->
 
 -spec parse_text(config()) -> ok.
 parse_text(Config) ->
-  Path           = ?config(code_navigation_path, Config),
+  Path           = path(Config),
   {ok, IoFile}   = file:open(Path, [read]),
   {ok, Expected} = els_parser:parse_file(IoFile),
   ok             = file:close(IoFile),
 
-  Text           = ?config(code_navigation_text, Config),
+  {ok, Text}     = file:read_file(Path),
   IoString       = els_io_string:new(Text),
   {ok, Result}   = els_parser:parse_file(IoString),
   ok             = file:close(IoString),
@@ -92,3 +92,8 @@ scan_all_forms(IoDevice, Acc) ->
     {eof, _} ->
       Acc
   end.
+
+-spec path(config()) -> string().
+path(Config) ->
+  RootPath = ?config(root_path, Config) ,
+  filename:join([RootPath, "src", "code_navigation.erl"]).

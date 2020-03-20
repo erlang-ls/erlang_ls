@@ -56,7 +56,6 @@ end_per_suite(Config) ->
 init_per_testcase(_TestCase, Config) ->
   Transport = els_test_utils:get_group(Config),
   Started   = els_test_utils:start(Transport),
-
   [{started, Started} | Config].
 
 -spec end_per_testcase(atom(), config()) -> ok.
