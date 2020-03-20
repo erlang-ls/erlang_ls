@@ -28,6 +28,7 @@
         , textdocument_foldingrange/2
         , workspace_didchangeconfiguration/2
         , textdocument_codeaction/2
+        , textdocument_codelens/2
         , workspace_executecommand/2
         , workspace_didchangewatchedfiles/2
         , workspace_symbol/2
@@ -179,6 +180,8 @@ initialize(Params, State) ->
               els_implementation_provider:is_enabled()
           , executeCommandProvider =>
               els_execute_command_provider:options()
+          , codeLensProvider =>
+              els_code_lens_provider:options()
           }
      },
   {response, Result, State#{status => initialized}}.
@@ -402,6 +405,16 @@ textdocument_codeaction(Params, State) ->
   Provider = els_code_action_provider,
   Response = els_provider:handle_request(Provider,
                                          {document_codeaction, Params}),
+  {response, Response, State}.
+
+%% textDocument/codeLens
+%%==============================================================================
+
+-spec textdocument_codelens(params(), state()) -> result().
+textdocument_codelens(Params, State) ->
+  Provider = els_code_lens_provider,
+  Response = els_provider:handle_request(Provider,
+                                         {document_codelens, Params}),
   {response, Response, State}.
 
 %%==============================================================================

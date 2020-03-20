@@ -46,7 +46,7 @@ init_per_testcase(_TestCase, Config) ->
   RootUri = els_uri:uri(unicode:characters_to_binary(RootDir)),
   %% Do not index the entire list of OTP apps in the pipelines.
   Cfg = #{"otp_apps_exclude" => otp_apps_exclude()},
-  els_config:do_initialize(RootUri, [], Cfg),
+  els_config:do_initialize(RootUri, [], {undefined, Cfg}),
   [{started, Started}|Config].
 
 -spec end_per_testcase(atom(), config()) -> ok.

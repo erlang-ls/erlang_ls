@@ -20,7 +20,8 @@ is_enabled() -> true.
 
 -spec options() -> map().
 options() ->
-  #{ commands => [add_server_prefix(<<"replace-lines">>)] }.
+  #{ commands => [ add_server_prefix(<<"replace-lines">>)
+                 , add_server_prefix(<<"info">>)] }.
 
 -spec handle_request(any(), els_provider:state()) ->
   {any(), els_provider:state()}.
@@ -46,6 +47,25 @@ execute_command(<<"replace-lines">>
             },
   els_server:send_request(Method, Params),
   [];
+execute_command(<<"info">>
+               , [#{ <<"uri">>   := _Uri }] = _Arguments) ->
+  {ok, Version} = application:get_key(?APP, vsn),
+  BinVersion = list_to_binary(Version),
+  Root = filename:basename(els_uri:path(els_config:get(root_uri))),
+  ConfigPath = case els_config:get(config_path) of
+                 undefined -> <<"undefined">>;
+                 Path -> list_to_binary(Path)
+               end,
+  Message = <<"Erlang LS (in ", Root/binary, "), version: "
+             , BinVersion/binary
+             , ", config from "
+             , ConfigPath/binary
+            >>,
+  els_server:send_notification(<<"window/showMessage">>,
+                               #{ type => ?MESSAGE_TYPE_INFO,
+                                  message => Message
+                                }),
+  [];
 execute_command(Command, Arguments) ->
   lager:info("Unsupported command: [Command=~p] [Arguments=~p]"
             , [Command, Arguments]),
@@ -55,8 +75,10 @@ execute_command(Command, Arguments) ->
 %% @doc Strip a server-unique prefix from a command.
 -spec strip_server_prefix(binary()) -> binary().
 strip_server_prefix(PrefixedCommand) ->
-  [_, Command] = binary:split(PrefixedCommand, <<":">>),
-  Command.
+  case binary:split(PrefixedCommand, <<":">>) of
+    [_, Command] -> Command;
+    [Command] -> Command
+  end.
 
 %% @doc Add a server-unique prefix to a command.
 -spec add_server_prefix(binary()) -> binary().
