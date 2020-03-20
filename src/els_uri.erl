@@ -30,9 +30,35 @@ module(Uri) ->
   binary_to_atom(filename:basename(path(Uri), <<".erl">>), utf8).
 
 -spec path(uri()) -> path().
-path(<<"file://", Path/binary>>) ->
-  Path.
+path(Uri) ->
+  Uri1 = http_uri:decode(Uri),
+  #{ host := Host
+   , path := Path
+   , scheme := <<"file">>
+  } = uri_string:parse(Uri1),
+
+  case {is_windows(), is_local(Host)} of
+    {_, true} ->
+      string:slice(Path, 1);
+    {true, false} ->
+      <<"//", Host/binary, Path/binary>>;
+    {false, false} ->
+      error(badarg)
+  end.
 
 -spec uri(path()) -> uri().
 uri(Path) ->
-  <<"file://", Path/binary>>.
+  Path1 = case is_windows() of
+           true -> els_utils:to_binary(string:replace(Path, "\\", "/"));
+           false -> Path
+         end,
+  <<"file:///", Path1/binary>>.
+
+-spec is_windows() -> boolean().
+is_windows() ->
+  {OS, _} = os:type(),
+  OS =:= win32.
+
+-spec is_local(binary()) -> boolean().
+is_local(Host) ->
+  Host =:= <<>> orelse Host =:= <<"localhost">>.
