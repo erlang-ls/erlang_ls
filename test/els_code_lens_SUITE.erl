@@ -11,7 +11,8 @@
         ]).
 
 %% Test cases
--export([ get_erlang_ls_info/1
+-export([ default_lenses/1
+        , server_info/1
         ]).
 
 %%==============================================================================
@@ -49,28 +50,44 @@ end_per_suite(Config) ->
   els_test_utils:end_per_suite(Config).
 
 -spec init_per_testcase(atom(), config()) -> config().
+init_per_testcase(server_info, Config) ->
+  meck:new(els_code_lens_server_info, [passthrough, no_link]),
+  meck:expect(els_code_lens_server_info, is_default, 0, true),
+  els_test_utils:init_per_testcase(server_info, Config);
 init_per_testcase(TestCase, Config) ->
   els_test_utils:init_per_testcase(TestCase, Config).
 
 -spec end_per_testcase(atom(), config()) -> ok.
+end_per_testcase(server_info, Config) ->
+  els_test_utils:end_per_testcase(server_info, Config),
+  meck:unload(els_code_lens_server_info),
+  ok;
 end_per_testcase(TestCase, Config) ->
   els_test_utils:end_per_testcase(TestCase, Config).
 
 %%==============================================================================
 %% Testcases
 %%==============================================================================
--spec get_erlang_ls_info(config()) -> ok.
-get_erlang_ls_info(Config) ->
+
+-spec default_lenses(config()) -> ok.
+default_lenses(Config) ->
   Uri = ?config(code_navigation_uri, Config),
   #{result := Result} = els_client:document_codelens(Uri),
-  PrefixedCommand
-    = els_execute_command_provider:add_server_prefix(<<"info">>),
+  ?assertEqual([], Result),
+  ok.
+
+-spec server_info(config()) -> ok.
+server_info(Config) ->
+  Uri = ?config(code_navigation_uri, Config),
+  #{result := Result} = els_client:document_codelens(Uri),
+  PrefixedCommand = els_command:with_prefix(<<"server-info">>),
   Title = <<"Erlang LS (in code_navigation) info">>,
   Expected =
-    [ #{ command => #{ arguments => [ #{ uri => Uri } ]
+    [ #{ command => #{ arguments => []
                      , command   => PrefixedCommand
                      , title     => Title
                      }
+       , data => []
        , range =>
            #{'end' => #{character => 0, line => 1},
              start => #{character => 0, line => 0}}

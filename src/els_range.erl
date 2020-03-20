@@ -3,6 +3,7 @@
 -include("erlang_ls.hrl").
 
 -export([ compare/2
+        , line/1
         , range/4
         ]).
 
@@ -16,6 +17,12 @@ compare( #{from := FromA, to := ToA}
   true;
 compare(_, _) ->
   false.
+
+%% @doc Return a range data structure for a given line number
+-spec line(non_neg_integer()) -> range().
+line(Line) ->
+  Range = #{from => {Line, 1}, to => {Line + 1, 1}},
+  els_protocol:range(Range).
 
 -spec range(pos() | {pos(), pos()}, poi_kind(), any(), any()) -> poi_range().
 range({{Line, Column}, {ToLine, ToColumn}}, Name, _, _Data)

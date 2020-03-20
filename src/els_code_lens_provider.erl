@@ -30,27 +30,9 @@ handle_request({document_codelens, Params}, State) ->
 %%==============================================================================
 %% Internal Functions
 %%==============================================================================
--spec lenses(uri()) -> [map()].
+-spec lenses(uri()) -> [els_code_lens:lens()].
 lenses(Uri) ->
-  {ok, _Document} = els_utils:lookup_document(Uri),
-  Command = els_execute_command_provider:add_server_prefix(<<"info">>),
-  Root = filename:basename(els_uri:path(els_config:get(root_uri))),
-  Lenses = [#{ range => one_line_range(1)
-             , command =>
-                   make_command( <<"Erlang LS (in ", Root/binary, ") info">>
-                               , Command
-                               , [#{ uri => Uri }])
-             }],
-  Lenses.
-
--spec one_line_range(non_neg_integer()) -> range().
-one_line_range(Line) ->
-  Range   = #{from => {Line, 1}, to => {Line + 1, 1}},
-  els_protocol:range(Range).
-
--spec make_command(binary(), binary(), [any()]) -> command().
-make_command(Title, Command, Args) ->
-  #{ title => Title
-   , command => Command
-   , arguments => Args
-   }.
+  {ok, Document} = els_utils:lookup_document(Uri),
+  lists:flatten(
+    [els_code_lens:lenses(Id, Document) ||
+      Id <- els_code_lens:enabled_lenses()]).

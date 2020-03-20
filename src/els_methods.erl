@@ -407,14 +407,14 @@ textdocument_codeaction(Params, State) ->
                                          {document_codeaction, Params}),
   {response, Response, State}.
 
+%%==============================================================================
 %% textDocument/codeLens
 %%==============================================================================
 
 -spec textdocument_codelens(params(), state()) -> result().
 textdocument_codelens(Params, State) ->
   Provider = els_code_lens_provider,
-  Response = els_provider:handle_request(Provider,
-                                         {document_codelens, Params}),
+  Response = els_provider:handle_request(Provider, {document_codelens, Params}),
   {response, Response, State}.
 
 %%==============================================================================

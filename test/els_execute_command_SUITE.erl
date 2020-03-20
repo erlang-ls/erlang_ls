@@ -64,8 +64,7 @@ end_per_testcase(TestCase, Config) ->
 -spec erlang_ls_info(config()) -> ok.
 erlang_ls_info(Config) ->
   Uri = ?config(code_navigation_uri, Config),
-  PrefixedCommand
-    = els_execute_command_provider:add_server_prefix(<<"info">>),
+  PrefixedCommand = els_command:with_prefix(<<"server-info">>),
   #{result := Result}
     = els_client:workspace_executecommand(PrefixedCommand, [#{uri => Uri}]),
   Expected = [],
@@ -84,17 +83,16 @@ erlang_ls_info(Config) ->
 
 -spec strip_server_prefix(config()) -> ok.
 strip_server_prefix(_Config) ->
-  PrefixedCommand
-    = els_execute_command_provider:add_server_prefix(<<"info">>),
-  ?assertEqual(<<"info">>
-           , els_execute_command_provider:strip_server_prefix(PrefixedCommand)),
+  PrefixedCommand = els_command:with_prefix(<<"server-info">>),
+  ?assertEqual( <<"server-info">>
+              , els_command:without_prefix(PrefixedCommand)),
 
-  ?assertEqual(<<"info">>
-           , els_execute_command_provider:strip_server_prefix(<<"123:info">>)),
+  ?assertEqual( <<"server-info">>
+              , els_command:without_prefix(<<"123:server-info">>)),
 
-  ?assertEqual(<<"info">>
-           , els_execute_command_provider:strip_server_prefix(<<"info">>)),
+  ?assertEqual( <<"server-info">>
+              , els_command:without_prefix(<<"server-info">>)),
 
-  ?assertEqual(<<"info:f">>
-           , els_execute_command_provider:strip_server_prefix(<<"13:info:f">>)),
+  ?assertEqual( <<"server-info:f">>
+              , els_command:without_prefix(<<"13:server-info:f">>)),
   ok.

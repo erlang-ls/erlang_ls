@@ -15,7 +15,6 @@
 
 %% Data Structures
 -export([ range/1
-        , command/3
         ]).
 
 %%==============================================================================
@@ -69,13 +68,6 @@ range(#{ from := {FromL, FromC}, to := {ToL, ToC} }) ->
   #{ start => #{line => FromL - 1, character => FromC - 1}
    , 'end' => #{line => ToL - 1,   character => ToC - 1}
    }.
-
--spec command(binary(), binary(), [any()]) -> command().
-command(Title, Command, Args) ->
-    #{ title     => Title
-     , command   => Command
-     , arguments => Args
-     }.
 
 %%==============================================================================
 %% Internal Functions
