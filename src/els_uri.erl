@@ -39,7 +39,7 @@ path(Uri) ->
 
   case {is_windows(), is_local(Host)} of
     {_, true} ->
-      string:slice(Path, 1);
+      Path;
     {true, false} ->
       <<"//", Host/binary, Path/binary>>;
     {false, false} ->
@@ -52,7 +52,7 @@ uri(Path) ->
            true -> els_utils:to_binary(string:replace(Path, "\\", "/"));
            false -> Path
          end,
-  <<"file:///", Path1/binary>>.
+  <<"file://", Path1/binary>>.
 
 -spec is_windows() -> boolean().
 is_windows() ->
