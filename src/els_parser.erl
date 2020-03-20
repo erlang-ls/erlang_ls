@@ -181,8 +181,21 @@ do_points_of_interest(Tree, EndLocation) ->
 application(Tree) ->
   case application_mfa(Tree) of
     undefined -> [];
-    MFA -> [poi(erl_syntax:get_pos(Tree), application, MFA)]
+    {F, A} ->
+      Pos = erl_syntax:get_pos(Tree),
+      case is_erlang_bif(F, A) of
+        %% Call to a function from the `erlang` module
+        true -> [poi(Pos, application, {erlang, F, A}, #{imported => true})];
+        %% Local call
+        false -> [poi(Pos, application, {F, A})]
+      end;
+    MFA ->
+      [poi(erl_syntax:get_pos(Tree), application, MFA)]
   end.
+
+-spec is_erlang_bif(atom(), arity()) -> boolean().
+is_erlang_bif(F, A) ->
+  lists:member({F, A}, erlang:module_info(exports)).
 
 -spec application_mfa(tree()) ->
   {module(), atom(), arity()} | {atom(), arity()} | undefined.
@@ -190,13 +203,7 @@ application_mfa(Tree) ->
   case erl_syntax_lib:analyze_application(Tree) of
     %% Remote call
     {M, {F, A}} -> {M, F, A};
-    {F, A} ->
-      case lists:member({F, A}, erlang:module_info(exports)) of
-        %% Call to a function from the `erlang` module
-              true -> {erlang, F, A};
-        %% Local call
-        false -> {F, A}
-      end;
+    {F, A} -> {F, A};
     A when is_integer(A) ->
       %% If the function is not explicitly named (e.g. a variable is
       %% used as the module qualifier or the function name), only the

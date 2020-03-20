@@ -35,6 +35,8 @@ range({Line, Column}, export_type_entry, {F, A}, _Data) ->
 range({_Line, _Column} = From, atom, Name, _Data) ->
   To = plus(From, atom_to_list(Name)),
   #{ from => From, to => To };
+range({Line, Column}, application, {_, F, A}, #{imported := true} = Data) ->
+  range({Line, Column}, application, {F, A}, Data);
 range({Line, Column}, application, {M, F, _A}, _Data) ->
   %% Column indicates the position of the :
   CFrom = Column - length(atom_to_list(M)),
