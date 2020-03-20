@@ -74,8 +74,8 @@ initialize(RootUri, Capabilities, InitOptions) ->
   Config = consult_config(config_paths(RootPath, InitOptions)),
   do_initialize(RootUri, Capabilities, Config).
 
--spec do_initialize(uri(), map(), map()) -> ok.
-do_initialize(RootUri, Capabilities, Config) ->
+-spec do_initialize(uri(), map(), {undefined|path(), map()}) -> ok.
+do_initialize(RootUri, Capabilities, {ConfigPath, Config}) ->
   RootPath        = els_utils:to_list(els_uri:path(RootUri)),
   OtpPath         = maps:get("otp_path", Config, code:root_dir()),
   DepsDirs        = maps:get("deps_dirs", Config, []),
