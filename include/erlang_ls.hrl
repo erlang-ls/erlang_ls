@@ -115,29 +115,13 @@
                           }.
 
 %%------------------------------------------------------------------------------
-%% Diagnostic
+%% Diagnostics
 %%------------------------------------------------------------------------------
--type diagnostic() :: #{ range              := range()
-                       , severity           => severity()
-                       , code               => number() | binary()
-                       , source             => binary()
-                       , message            := binary()
-                       , relatedInformation => [related_info()]
-                       }.
 
 -define(DIAGNOSTIC_ERROR   , 1).
 -define(DIAGNOSTIC_WARNING , 2).
 -define(DIAGNOSTIC_INFO    , 3).
 -define(DIAGNOSTIC_HINT    , 4).
-
--type severity() :: ?DIAGNOSTIC_ERROR
-                  | ?DIAGNOSTIC_WARNING
-                  | ?DIAGNOSTIC_INFO
-                  | ?DIAGNOSTIC_HINT.
-
--type related_info() :: #{ location := location()
-                         , message  := binary()
-                         }.
 
 %%------------------------------------------------------------------------------
 %% Insert Text Format
@@ -587,7 +571,7 @@
 -define(CODE_ACTION_KIND_QUICKFIX, <<"quickfix">>).
 -type code_action_kind() :: binary().
 
--type code_action_context() :: #{ diagnostics := [diagnostic()]
+-type code_action_context() :: #{ diagnostics := [els_diagnostics:diagnostic()]
                                 , only        => [code_action_kind()]
                                 }.
 
@@ -598,7 +582,7 @@
 
 -type code_action() :: #{ title       := string()
                         , kind        => code_action_kind()
-                        , diagnostics => [diagnostic()]
+                        , diagnostics => [els_diagnostics:diagnostic()]
                         , edit        => workspace_edit()
                         , command     => els_command:command()
                         }.

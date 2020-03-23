@@ -129,7 +129,7 @@ references(Uri, Line, Char) ->
 document_highlight(Uri, Line, Char) ->
   gen_server:call(?SERVER, {document_highlight, {Uri, Line, Char}}).
 
--spec document_codeaction(uri(), range(), [diagnostic()]) -> ok.
+-spec document_codeaction(uri(), range(), [els_diagnostics:diagnostic()]) -> ok.
 document_codeaction(Uri, Range, Diagnostics) ->
   gen_server:call(?SERVER, {document_codeaction, {Uri, Range, Diagnostics}}).
 

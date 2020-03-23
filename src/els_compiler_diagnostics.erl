@@ -32,7 +32,7 @@
 %%==============================================================================
 %% Callback Functions
 %%==============================================================================
--spec diagnostics(uri()) -> [diagnostic()].
+-spec diagnostics(uri()) -> [els_diagnostics:diagnostic()].
 diagnostics(Uri) ->
   case filename:extension(Uri) of
     <<".erl">> ->
@@ -62,7 +62,7 @@ source() ->
 %%==============================================================================
 %% Internal Functions
 %%==============================================================================
--spec compile(uri()) -> [diagnostic()].
+-spec compile(uri()) -> [els_diagnostics:diagnostic()].
 compile(Uri) ->
   Dependencies = els_diagnostics_utils:dependencies(Uri),
   Path = els_utils:to_list(els_uri:path(Uri)),
@@ -74,7 +74,7 @@ compile(Uri) ->
         diagnostics(Path, ES, ?DIAGNOSTIC_ERROR)
   end.
 
--spec parse(uri()) -> [diagnostic()].
+-spec parse(uri()) -> [els_diagnostics:diagnostic()].
 parse(Uri) ->
   FileName = els_utils:to_list(els_uri:path(Uri)),
   {ok, Epp} = epp:open([ {name, FileName}
@@ -85,7 +85,7 @@ parse(Uri) ->
   epp:close(Epp),
   Res.
 
--spec parse_escript(uri()) -> [diagnostic()].
+-spec parse_escript(uri()) -> [els_diagnostics:diagnostic()].
 parse_escript(Uri) ->
   FileName = els_utils:to_list(els_uri:path(Uri)),
   case els_escript:extract(FileName) of
@@ -104,7 +104,8 @@ parse_escript(Uri) ->
 %% Compiler messages related to included files are grouped together
 %% and they are presented to the user by highlighting the line where
 %% the file inclusion happens.
--spec diagnostics(list(), [compiler_msg()], severity()) -> [diagnostic()].
+-spec diagnostics(list(), [compiler_msg()], els_diagnostics:severity()) ->
+        [els_diagnostics:diagnostic()].
 diagnostics(Path, List, Severity) ->
   Uri = els_uri:uri(els_utils:to_binary(Path)),
   {ok, [Document]} = els_dt_document:lookup(Uri),
@@ -124,7 +125,7 @@ diagnostics(Path, List, Severity) ->
                 , els_dt_document:item()
                 , module()
                 , string()
-                , integer()) -> diagnostic().
+                , integer()) -> els_diagnostics:diagnostic().
 diagnostic(Path, Path, Range, _Document, Module, Desc, Severity) ->
   %% The compiler message is related to the same .erl file, so
   %% preserve the location information.
@@ -138,7 +139,7 @@ diagnostic(_Path, MessagePath, Range, Document, Module, Desc0, Severity) ->
   diagnostic(InclusionRange, Module, Desc, Severity).
 
 -spec diagnostic(poi_range(), module(), string(), integer()) ->
-  diagnostic().
+        els_diagnostics:diagnostic().
 diagnostic(Range, Module, Desc, Severity) ->
   Message0 = lists:flatten(Module:format_error(Desc)),
   Message  = els_utils:to_binary(Message0),

@@ -4,26 +4,39 @@
 
 -module(els_code_lens_server_info).
 
--export([ command/0
+-behaviour(els_code_lens).
+-export([ command/1
+        , command_args/2
         , is_default/0
-        , lenses/1
+        , pois/1
+        , precondition/1
+        , title/1
         ]).
 
--behaviour(els_code_lens).
+-include("erlang_ls.hrl").
 
--spec command() -> els_command:command_id().
-command() ->
+-spec command(poi()) -> els_command:command_id().
+command(_POI) ->
   <<"server-info">>.
+
+-spec command_args(els_dt_document:item(), poi()) -> [any()].
+command_args(_Document, _POI) ->
+  [].
 
 -spec is_default() -> boolean().
 is_default() ->
   false.
 
-%% @doc Given a Document, returns the available lenses
--spec lenses(els_dt_document:item()) -> [els_code_lens:lens()].
-lenses(_Document) ->
+-spec precondition(els_dt_document:item()) -> boolean().
+precondition(_Document) ->
+  true.
+
+-spec pois(els_dt_document:item()) -> [poi()].
+pois(_Document) ->
+  %% Return a dummy POI on the first line
+  [els_poi:new(#{from => {1, 1}, to => {2, 1}}, dummy, dummy)].
+
+-spec title(poi()) -> binary().
+title(_POI) ->
   Root = filename:basename(els_uri:path(els_config:get(root_uri))),
-  Title = <<"Erlang LS (in ", Root/binary, ") info">>,
-  Range = els_range:line(1),
-  Command = els_command:make_command(Title, command(), []),
-  [ els_code_lens:make_lens(Range, Command, []) ].
+  <<"Erlang LS (in ", Root/binary, ") info">>.

@@ -12,6 +12,7 @@
 
 %% Test cases
 -export([ erlang_ls_info/1
+        , ct_run_test/1
         , strip_server_prefix/1
         ]).
 
@@ -50,10 +51,17 @@ end_per_suite(Config) ->
   els_test_utils:end_per_suite(Config).
 
 -spec init_per_testcase(atom(), config()) -> config().
+init_per_testcase(ct_run_test, Config0) ->
+  Config = els_test_utils:init_per_testcase(ct_run_test, Config0),
+  setup_mocks(),
+  Config;
 init_per_testcase(TestCase, Config) ->
   els_test_utils:init_per_testcase(TestCase, Config).
 
 -spec end_per_testcase(atom(), config()) -> ok.
+end_per_testcase(ct_run_test, Config) ->
+  teardown_mocks(),
+  els_test_utils:end_per_testcase(ct_run_test, Config);
 end_per_testcase(TestCase, Config) ->
   els_test_utils:end_per_testcase(TestCase, Config).
 
@@ -81,6 +89,40 @@ erlang_ls_info(Config) ->
               , binary:part(maps:get(message, Params), 0, 32)),
   ok.
 
+-spec ct_run_test(config()) -> ok.
+ct_run_test(Config) ->
+  Uri = ?config(sample_SUITE_uri, Config),
+  PrefixedCommand = els_command:with_prefix(<<"ct-run-test">>),
+  #{result := Result}
+    = els_client:workspace_executecommand( PrefixedCommand
+                                         , [#{ uri => Uri
+                                             , module => sample_SUITE
+                                             , function => one
+                                             , arity => 1
+                                             , line => 58
+                                             }]),
+  Expected = [],
+  ?assertEqual(Expected, Result),
+  wait_until_mock_called(els_protocol, notification),
+  ?assertEqual(1, meck:num_calls(els_command_ct_run_test, ct_run_test, '_')),
+  Notifications = [{Method, Args} ||
+                    { _Pid
+                    , {els_protocol, notification, [Method, Args]}
+                    , _Result
+                    } <- meck:history(els_protocol)],
+  ?assertEqual([{ <<"textDocument/publishDiagnostics">>
+                , #{diagnostics =>
+                      [ #{ message => <<"Test passed!">>
+                         , range =>
+                             #{ 'end' => #{character => 0, line => 58}
+                              , start => #{character => 0, line => 57}}
+                         , severity => 3
+                         , source => <<"Common Test">>}],
+                    uri => Uri}
+                }]
+              , Notifications),
+  ok.
+
 -spec strip_server_prefix(config()) -> ok.
 strip_server_prefix(_Config) ->
   PrefixedCommand = els_command:with_prefix(<<"server-info">>),
@@ -96,3 +138,33 @@ strip_server_prefix(_Config) ->
   ?assertEqual( <<"server-info:f">>
               , els_command:without_prefix(<<"13:server-info:f">>)),
   ok.
+
+-spec setup_mocks() -> ok.
+setup_mocks() ->
+  meck:new(els_command_ct_run_test, [passthrough, no_link, non_strict]),
+  meck:new(els_protocol, [passthrough, no_link]),
+  meck:expect( els_command_ct_run_test, ct_run_test, 1
+             , fun(_) ->
+                   {1, 0, {0, 0}}
+               end),
+  meck:expect( els_protocol, notification, 2
+             , fun(Method, Params) ->
+                   meck:passthrough([Method, Params])
+               end),
+  ok.
+
+-spec teardown_mocks() -> ok.
+teardown_mocks() ->
+  meck:unload(els_command_ct_run_test),
+  meck:unload(els_protocol),
+  ok.
+
+-spec wait_until_mock_called(atom(), atom()) -> ok.
+wait_until_mock_called(M, F) ->
+  case meck:num_calls(M, F, '_') of
+    0 ->
+      timer:sleep(100),
+      wait_until_mock_called(M, F);
+    _ ->
+      ok
+  end.

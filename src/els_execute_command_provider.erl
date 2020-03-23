@@ -19,7 +19,9 @@ is_enabled() -> true.
 -spec options() -> map().
 options() ->
   #{ commands => [ els_command:with_prefix(<<"replace-lines">>)
-                 , els_command:with_prefix(<<"server-info">>)] }.
+                 , els_command:with_prefix(<<"server-info">>)
+                 , els_command:with_prefix(<<"ct-run-test">>)
+                 ] }.
 
 -spec handle_request(any(), els_provider:state()) ->
   {any(), els_provider:state()}.
@@ -39,7 +41,7 @@ execute_command(<<"replace-lines">>
                , [#{ <<"uri">>   := Uri
                    , <<"lines">> := Lines
                    , <<"from">>  := LineFrom
-                   , <<"to">>    := LineTo }] = _Arguments) ->
+                   , <<"to">>    := LineTo }]) ->
   Method = <<"workspace/applyEdit">>,
   Params = #{ edit =>
                   els_text_edit:edit_replace_text(Uri, Lines, LineFrom, LineTo)
@@ -63,6 +65,9 @@ execute_command(<<"server-info">>, _Arguments) ->
                                #{ type => ?MESSAGE_TYPE_INFO,
                                   message => Message
                                 }),
+  [];
+execute_command(<<"ct-run-test">>, [Params]) ->
+  els_command_ct_run_test:execute(Params),
   [];
 execute_command(Command, Arguments) ->
   lager:info("Unsupported command: [Command=~p] [Arguments=~p]"

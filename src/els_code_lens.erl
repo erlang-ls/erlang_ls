@@ -8,9 +8,12 @@
 %% Callback Functions
 %%==============================================================================
 
--callback command() -> els_command:command_id().
+-callback command(poi()) -> els_command:command_id().
+-callback command_args(els_dt_document:item(), poi()) -> [any()].
 -callback is_default() -> boolean().
--callback lenses(els_dt_document:item()) -> [lens()].
+-callback pois(els_dt_document:item()) -> [poi()].
+-callback precondition(els_dt_document:item()) -> boolean().
+-callback title(poi()) -> binary().
 
 %%==============================================================================
 %% API
@@ -21,12 +24,6 @@
         , enabled_lenses/0
         , lenses/2
         ]).
-
-%%==============================================================================
-%% Constructors
-%%==============================================================================
-
--export([ make_lens/3 ]).
 
 %%==============================================================================
 %% Includes
@@ -53,7 +50,9 @@
 
 -spec available_lenses() -> [lens_id()].
 available_lenses() ->
-  [<<"server-info">>].
+  [ <<"ct-run-test">>
+  , <<"server-info">>
+  ].
 
 -spec default_lenses() -> [lens_id()].
 default_lenses() ->
@@ -66,17 +65,25 @@ enabled_lenses() ->
 -spec lenses(lens_id(), els_dt_document:item()) -> [lens()].
 lenses(Id, Document) ->
   CbModule = cb_module(Id),
-  CbModule:lenses(Document).
+  case CbModule:precondition(Document) of
+    true ->
+      [make_lens(CbModule, Document, POI) || POI <- CbModule:pois(Document)];
+    false ->
+      []
+  end.
 
 %%==============================================================================
 %% Constructors
 %%==============================================================================
 
--spec make_lens(range(), els_command:command(), any()) -> lens().
-make_lens(Range, Command, Data) ->
-  #{ range   => Range
+-spec make_lens(atom(), els_dt_document:item(), poi()) -> lens().
+make_lens(CbModule, Document, #{range := Range} = POI) ->
+  Command = els_command:make_command( CbModule:title(POI)
+                                    , CbModule:command(POI)
+                                    , CbModule:command_args(Document, POI)),
+  #{ range   => els_protocol:range(Range)
    , command => Command
-   , data    => Data
+   , data    => []
    }.
 
 %% @doc Return the callback module for a given Code Lens Identifier
