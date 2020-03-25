@@ -77,10 +77,9 @@ do_index(#{uri := Uri, id := Id, kind := Kind} = Document, Mode) ->
 
 -spec index_signatures(els_dt_document:item()) -> ok.
 index_signatures(#{id := Id} = Document) ->
-  %% Signatures
   Specs  = els_dt_document:pois(Document, [spec]),
-  [ els_dt_signatures:insert(#{mfa => {Id, F, A}, tree => Tree})
-    || #{id := {F, A}, data := Tree} <- Specs
+  [ els_dt_signatures:insert(#{ mfa => {Id, F, A}, spec => Spec})
+    || #{id := {F, A}, data := Spec} <- Specs
   ],
   ok.
 

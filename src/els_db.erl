@@ -17,7 +17,7 @@
 
 -define(SERVER, ?MODULE).
 -define(TIMEOUT, infinity).
--define(DB_SCHEMA_VSN, <<"6">>).
+-define(DB_SCHEMA_VSN, <<"7">>).
 -define(DB_SCHEMA_VSN_FILE, "DB_SCHEMA_VSN").
 
 %%==============================================================================
