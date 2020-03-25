@@ -4,14 +4,11 @@
 -module(els_compiler_diagnostics).
 
 %%==============================================================================
-%% Behaviours
-%%==============================================================================
--behaviour(els_diagnostics).
-
-%%==============================================================================
 %% Exports
 %%==============================================================================
--export([ diagnostics/1
+-behaviour(els_diagnostics).
+-export([ is_default/0
+        , run/1
         , source/0
         ]).
 
@@ -32,8 +29,13 @@
 %%==============================================================================
 %% Callback Functions
 %%==============================================================================
--spec diagnostics(uri()) -> [els_diagnostics:diagnostic()].
-diagnostics(Uri) ->
+
+-spec is_default() -> boolean().
+is_default() ->
+  true.
+
+-spec run(uri()) -> [els_diagnostics:diagnostic()].
+run(Uri) ->
   case filename:extension(Uri) of
     <<".erl">> ->
       compile(Uri);

@@ -11,7 +11,8 @@
 %%==============================================================================
 %% Exports
 %%==============================================================================
--export([ diagnostics/1
+-export([ is_default/0
+        , run/1
         , source/0
         ]).
 
@@ -23,8 +24,13 @@
 %%==============================================================================
 %% Callback Functions
 %%==============================================================================
--spec diagnostics(uri()) -> [els_diagnostics:diagnostic()].
-diagnostics(Uri) ->
+
+-spec is_default() -> boolean().
+is_default() ->
+  true.
+
+-spec run(uri()) -> [els_diagnostics:diagnostic()].
+run(Uri) ->
   case els_utils:project_relative(Uri) of
     {error, not_relative} -> [];
     RelFile ->

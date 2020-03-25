@@ -18,6 +18,7 @@
                        , message            := binary()
                        , relatedInformation => [related_info()]
                        }.
+-type diagnostic_id() :: binary().
 -type related_info() :: #{ location := location()
                          , message  := binary()
                          }.
@@ -26,25 +27,46 @@
                   | ?DIAGNOSTIC_INFO
                   | ?DIAGNOSTIC_HINT.
 -export_type([ diagnostic/0
+             , diagnostic_id/0
              , severity/0
              ]).
 
 %%==============================================================================
 %% Callback Functions Definitions
 %%==============================================================================
--callback diagnostics(uri()) -> [diagnostic()].
--callback source()           -> binary().
+-callback is_default() -> boolean().
+-callback run(uri())   -> [diagnostic()].
+-callback source()     -> binary().
 
 %%==============================================================================
 %% API
 %%==============================================================================
--export([ make_diagnostic/4
+-export([ available_diagnostics/0
+        , default_diagnostics/0
+        , enabled_diagnostics/0
+        , make_diagnostic/4
         , publish/2
+        , run_diagnostics/1
         ]).
 
 %%==============================================================================
 %% API
 %%==============================================================================
+
+-spec available_diagnostics() -> [diagnostic_id()].
+available_diagnostics() ->
+  [ <<"compiler">>
+  , <<"dialyzer">>
+  , <<"elvis">>
+  ].
+
+-spec default_diagnostics() -> [diagnostic_id()].
+default_diagnostics() ->
+  [Id || Id <- available_diagnostics(), (cb_module(Id)):is_default()].
+
+-spec enabled_diagnostics() -> [diagnostic_id()].
+enabled_diagnostics() ->
+  els_config:get(diagnostics).
 
 -spec make_diagnostic(range(), binary(), severity(), binary()) -> diagnostic().
 make_diagnostic(Range, Message, Severity, Source) ->
@@ -61,3 +83,25 @@ publish(Uri, Diagnostics) ->
             , diagnostics => Diagnostics
             },
   els_server:send_notification(Method, Params).
+
+-spec run_diagnostics(uri()) -> ok.
+run_diagnostics(Uri) ->
+  [run_diagnostic(Uri, Id) || Id <- enabled_diagnostics()].
+
+%%==============================================================================
+%% Internal Functions
+%%==============================================================================
+
+-spec run_diagnostic(uri(), diagnostic_id()) -> ok.
+run_diagnostic(Uri, Id) ->
+  CbModule = cb_module(Id),
+  Config = #{ task => fun CbModule:run/1
+            , entries => [Uri]
+            , title => CbModule:source()
+            },
+  els_background_job:new(Config).
+
+%% @doc Return the callback module for a given Diagnostic Identifier
+-spec cb_module(els_diagnostics:diagnostic_id()) -> module().
+cb_module(Id) ->
+  binary_to_atom(<<"els_", Id/binary, "_diagnostics">>, utf8).
