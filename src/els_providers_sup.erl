@@ -26,10 +26,11 @@
 %%==============================================================================
 %% Type Definitions
 %%==============================================================================
--type provider_spec() :: #{ id => els_provider:provider()
-                          , start => {els_provider:provider(), start_link, []}
-                          , shutdown => brutal_kill
-                          }.
+-type provider_spec() ::
+        #{ id := els_provider:provider()
+         , start := {els_provider, start_link, [els_provider:provider()]}
+         , shutdown := brutal_kill
+         }.
 
 %%==============================================================================
 %% API

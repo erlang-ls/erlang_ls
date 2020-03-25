@@ -86,7 +86,8 @@ publish(Uri, Diagnostics) ->
 
 -spec run_diagnostics(uri()) -> ok.
 run_diagnostics(Uri) ->
-  [run_diagnostic(Uri, Id) || Id <- enabled_diagnostics()].
+  [run_diagnostic(Uri, Id) || Id <- enabled_diagnostics()],
+  ok.
 
 %%==============================================================================
 %% Internal Functions
@@ -103,7 +104,8 @@ run_diagnostic(Uri, Id) ->
                     publish(Uri, Diagnostics)
                 end
             },
-  els_background_job:new(Config).
+  {ok, _Pid} = els_background_job:new(Config),
+  ok.
 
 %% @doc Return the callback module for a given Diagnostic Identifier
 -spec cb_module(els_diagnostics:diagnostic_id()) -> module().

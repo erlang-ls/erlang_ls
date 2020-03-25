@@ -30,7 +30,7 @@
 %% Types
 %%==============================================================================
 -type entry() :: any().
--type config() :: #{ task := fun((entry()) -> ok)
+-type config() :: #{ task := fun((entry(), any()) -> any())
                    , entries := [any()]
                    , on_complete => fun()
                    , on_error => fun()
@@ -169,7 +169,7 @@ step(N) -> 100 / N.
 progress_msg(Current, Total) ->
   list_to_binary(io_lib:format("~p / ~p", [Current, Total])).
 
--spec noop(any()) -> fun().
+-spec noop(any()) -> ok.
 noop(_) ->
   ok.
 
