@@ -122,8 +122,6 @@ method_to_function_name(Method) ->
 -spec initialize(params(), state()) -> result().
 initialize(Params, State) ->
   #{ <<"rootUri">> := RootUri0
-     %% TODO: Use ClientCapabilities in completion_provider
-     %%       to verify when Context is present
    , <<"capabilities">> := Capabilities
    } = Params,
   RootUri = case RootUri0 of
