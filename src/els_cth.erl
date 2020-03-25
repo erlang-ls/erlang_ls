@@ -33,5 +33,5 @@ on_tc_skip(_Suite, _TestCase, {_ReasonType, Reason}, State) ->
 
 -spec publish_result(reason(), state()) -> ok.
 publish_result(Reason, #{options := #{uri := Uri, line := Line}}) ->
-  Message = unicode:characters_to_binary(io_lib:format("~p", [Reason])),
+  Message = els_utils:to_binary(io_lib:format("~p", [Reason])),
   els_command_ct_run_test:publish_result(Uri, Line, ?DIAGNOSTIC_ERROR, Message).
