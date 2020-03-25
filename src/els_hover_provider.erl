@@ -115,9 +115,8 @@ docs_from_src(M, F, A) ->
 -spec specs(atom(), atom(), non_neg_integer()) -> binary().
 specs(M, F, A) ->
   case els_dt_signatures:lookup({M, F, A}) of
-    {ok, [#{tree := Tree}]} ->
-      Specs = erl_prettypr:format(Tree),
-      els_utils:to_binary(Specs);
+    {ok, [#{spec := Spec}]} ->
+      Spec;
     {ok, []} ->
       <<>>
   end.

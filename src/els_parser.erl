@@ -88,7 +88,8 @@ find_attribute_pois(Tree, Tokens) ->
         {spec, {spec, {{F, A}, FTs}}} ->
           From = erl_syntax:get_pos(Tree),
           To   = erl_scan:location(lists:last(Tokens)),
-          [ poi({From, To}, spec, {F, A})
+          Data = els_utils:to_binary(erl_prettypr:format(Tree)),
+          [ poi({From, To}, spec, {F, A}, Data)
           | lists:flatten([find_spec_points_of_interest(FT) || FT <- FTs])
           ];
         {export_type, {export_type, Exports}} ->

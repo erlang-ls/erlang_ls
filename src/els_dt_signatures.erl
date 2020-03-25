@@ -31,12 +31,12 @@
 %%==============================================================================
 
 -record(els_dt_signatures, { mfa  :: mfa()  | '_'
-                           , tree :: tree()
+                           , spec :: binary()
                            }).
 -type els_dt_signatures() :: #els_dt_signatures{}.
 
 -type item() :: #{ mfa  := mfa()
-                 , tree := tree()
+                 , spec := binary()
                  }.
 -export_type([ item/0 ]).
 
@@ -61,13 +61,13 @@ opts() ->
 %%==============================================================================
 
 -spec from_item(item()) -> els_dt_signatures().
-from_item(#{ mfa := MFA, tree := Tree }) ->
-  #els_dt_signatures{ mfa = MFA, tree = Tree }.
+from_item(#{ mfa := MFA, spec := Spec }) ->
+  #els_dt_signatures{ mfa = MFA, spec = Spec }.
 
 -spec to_item(els_dt_signatures()) -> item().
-to_item(#els_dt_signatures{ mfa = MFA, tree = Tree }) ->
+to_item(#els_dt_signatures{ mfa = MFA, spec = Spec }) ->
   #{ mfa  => MFA
-   , tree => Tree
+   , spec => Spec
    }.
 
 -spec insert(item()) -> ok | {error, any()}.
