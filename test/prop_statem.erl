@@ -321,9 +321,6 @@ setup() ->
   application:ensure_all_started(erlang_ls),
   file:write_file("/tmp/erlang_ls.config", <<"">>),
   lager:set_loglevel(lager_console_backend, warning),
-  %% Do not perform real indexing. Indexing is out of scope from the
-  %% property-based tests and it slows down things.
-  application:set_env(erlang_ls, indexing_enabled, false),
   ok.
 
 %%==============================================================================

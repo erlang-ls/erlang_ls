@@ -55,11 +55,9 @@ handle_request({initialize, Params}, State) ->
   els_db:install( node_name(RootUri, els_utils:to_binary(OtpPath))
                 , DbDir
                 ),
-  case application:get_env(?APP, indexing_enabled) of
-    {ok, true} ->
-      els_indexing:start();
-    _ ->
-      lager:info("Indexing disabled")
+  case maps:get(<<"indexingEnabled">>, InitOptions, true) of
+    true  -> els_indexing:start();
+    false -> lager:info("Skipping Indexing (disabled via options)")
   end,
   ok = els_provider:initialize(),
   {response, server_capabilities(), State#{status => initialized}}.

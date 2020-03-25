@@ -33,6 +33,7 @@
         , exit/0
         , hover/3
         , implementation/3
+        , initialize/1
         , initialize/2
         , references/3
         , document_highlight/3
@@ -175,6 +176,10 @@ document_symbol(Uri) ->
 -spec folding_range(uri()) -> ok.
 folding_range(Uri) ->
   gen_server:call(?SERVER, {folding_range, {Uri}}).
+
+-spec initialize(uri()) -> map().
+initialize(RootUri) ->
+  initialize(RootUri, []).
 
 -spec initialize(uri(), init_options()) -> map().
 initialize(RootUri, InitOptions) ->
