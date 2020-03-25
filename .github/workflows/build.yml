@@ -44,3 +44,10 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: rebar3 do cover, coveralls send
+    - name: Produce Documentation
+      run: rebar3 edoc
+    - name: Publish Documentation
+      uses: actions/upload-artifact@v1
+      with:
+        name: edoc
+        path: doc
