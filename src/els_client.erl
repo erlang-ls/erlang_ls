@@ -78,7 +78,7 @@
 %% Type Definitions
 %%==============================================================================
 -type state()        :: #state{}.
--type init_options() :: [].
+-type init_options() :: #{}.
 -type transport()    :: stdio | tcp.
 -type transport_cb() :: els_stdio_client | els_tcp_client.
 -type request_id()   :: pos_integer().
@@ -179,7 +179,7 @@ folding_range(Uri) ->
 
 -spec initialize(uri()) -> map().
 initialize(RootUri) ->
-  initialize(RootUri, []).
+  initialize(RootUri, #{}).
 
 -spec initialize(uri(), init_options()) -> map().
 initialize(RootUri, InitOptions) ->

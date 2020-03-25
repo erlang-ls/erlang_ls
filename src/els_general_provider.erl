@@ -37,7 +37,7 @@
 is_enabled() -> true.
 
 -spec handle_request(initialize_request(), els_provider:state()) ->
-        {response, initialize_result(), els_provider:state()}.
+        {initialize_result(), els_provider:state()}.
 handle_request({initialize, Params}, State) ->
   #{ <<"rootUri">> := RootUri0
    , <<"capabilities">> := Capabilities
@@ -57,10 +57,9 @@ handle_request({initialize, Params}, State) ->
                 ),
   case maps:get(<<"indexingEnabled">>, InitOptions, true) of
     true  -> els_indexing:start();
-    false -> lager:info("Skipping Indexing (disabled via options)")
+    false -> lager:info("Skipping Indexing (disabled via InitOptions)")
   end,
-  ok = els_provider:initialize(),
-  {response, server_capabilities(), State#{status => initialized}}.
+  {server_capabilities(), State}.
 
 %%==============================================================================
 %% API

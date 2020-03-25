@@ -10,8 +10,7 @@
         , exit/2
         ]).
 
--export([ initialize/2
-        , textdocument_completion/2
+-export([ textdocument_completion/2
         , textdocument_didopen/2
         , textdocument_didchange/2
         , textdocument_didsave/2
@@ -85,6 +84,11 @@ do_dispatch(_Function, _Params, #{status := shutdown} = State) ->
              , message => Message
              },
   {error, Result, State};
+do_dispatch(initialize, Params, State) ->
+  Provider = els_general_provider,
+  Request  = {initialize, Params},
+  Response = els_provider:handle_request(Provider, Request),
+  {response, Response, State#{status => initialized}};
 do_dispatch(Function, Params, #{status := initialized} = State) ->
   els_methods:Function(Params, State);
 do_dispatch(_Function, _Params, State) ->
@@ -112,17 +116,6 @@ method_to_function_name(Method) ->
   Lower    = string:lowercase(Replaced),
   Binary   = els_utils:to_binary(Lower),
   binary_to_atom(Binary, utf8).
-
-%%==============================================================================
-%% initialize
-%%==============================================================================
-
--spec initialize(params(), state()) -> result().
-initialize(Params, State) ->
-  Provider = els_general_provider,
-  Request  = {initialize, Params},
-  Response = els_provider:handle_request(Provider, Request),
-  {response, Response, State}.
 
 %%==============================================================================
 %% Initialized

@@ -1,14 +1,13 @@
 -module(els_provider).
 
--behaviour(gen_server).
-
 %% API
--export([ initialize/0
-        , handle_request/2
+-export([ handle_request/2
         , start_link/1
+        , available_providers/0
+        , enabled_providers/0
         ]).
 
-%% gen_server callbacks
+-behaviour(gen_server).
 -export([ init/1
         , handle_call/3
         , handle_cast/2
@@ -45,11 +44,6 @@
 %% External functions
 %%==============================================================================
 
--spec initialize() -> ok.
-initialize() ->
-  [ start_provider(Provider) || Provider <- enabled_providers() ],
-  ok.
-
 -spec start_link(provider()) -> {ok, pid()}.
 start_link(Provider) ->
   gen_server:start_link({local, Provider}, ?MODULE, none, []).
@@ -77,18 +71,8 @@ handle_call({handle_request, Provider, Request}, _From, State) ->
 handle_cast(_Request, State) ->
   {noreply, State}.
 
-%%==============================================================================
-%% Internal functions
-%%==============================================================================
-
--spec start_provider(provider()) -> ok.
-start_provider(Provider) ->
-  supervisor:start_child(els_providers_sup, [Provider]),
-  ok.
-
-%% TODO: This could be moved to the supervisor
--spec providers() -> [provider()].
-providers() ->
+-spec available_providers() -> [provider()].
+available_providers() ->
   [ els_completion_provider
   , els_definition_provider
   , els_document_symbol_provider
@@ -107,4 +91,4 @@ providers() ->
 
 -spec enabled_providers() -> [provider()].
 enabled_providers() ->
-  [Provider || Provider <- providers(), Provider:is_enabled()].
+  [Provider || Provider <- available_providers(), Provider:is_enabled()].
