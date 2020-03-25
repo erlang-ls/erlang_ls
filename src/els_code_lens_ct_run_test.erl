@@ -58,4 +58,4 @@ title(_POI) ->
 
 -spec is_blacklisted(atom()) -> boolean().
 is_blacklisted(Function) ->
-  lists:member(Function, [init_per_suite, end_per_suite]).
+  lists:member(Function, [init_per_suite, end_per_suite, group]).
