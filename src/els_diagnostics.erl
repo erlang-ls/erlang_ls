@@ -95,9 +95,13 @@ run_diagnostics(Uri) ->
 -spec run_diagnostic(uri(), diagnostic_id()) -> ok.
 run_diagnostic(Uri, Id) ->
   CbModule = cb_module(Id),
-  Config = #{ task => fun CbModule:run/1
+  Config = #{ task => fun(U, _) -> CbModule:run(U) end
             , entries => [Uri]
             , title => CbModule:source()
+            , on_complete =>
+                fun(Diagnostics) ->
+                    publish(Uri, Diagnostics)
+                end
             },
   els_background_job:new(Config).
 

@@ -41,7 +41,7 @@
 %%==============================================================================
 -spec suite() -> [tuple()].
 suite() ->
-  [{timetrap, {seconds, 30}}].
+  [{timetrap, {seconds, 5}}].
 
 -spec all() -> [{group, stdio | tcp}].
 all() ->

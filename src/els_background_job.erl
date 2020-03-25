@@ -35,6 +35,7 @@
                    , on_complete => fun()
                    , on_error => fun()
                    , title := binary()
+                   , initial_state => any()
                    }.
 -type state() :: #{ config := config()
                   , progress_enabled := boolean()
@@ -42,6 +43,7 @@
                   , current := non_neg_integer()
                   , step := pos_integer()
                   , total := non_neg_integer()
+                  , internal_state := any()
                   }.
 
 %%==============================================================================
@@ -99,6 +101,7 @@ init(#{entries := Entries, title := Title} = Config) ->
         , current => 0
         , step => Step
         , total => Total
+        , internal_state => maps:get(initial_state, Config, undefined)
         }}.
 
 -spec handle_call(any(), {pid(), any()}, state()) ->
@@ -120,32 +123,39 @@ handle_info(exec, State) ->
    , current := Current
    , step := Step
    , total := Total
+   , internal_state := InternalState
    } = State,
   case Entries of
     [] ->
       notify_end(Token, Total, ProgressEnabled),
       {stop, normal, State};
     [Entry|Rest] ->
-      Task(Entry),
+      NewInternalState = Task(Entry, InternalState),
       notify_report(Token, Current, Step, Total, ProgressEnabled),
       self() ! exec,
       {noreply, State#{ config => Config#{ entries => Rest }
-                      , current => Current + 1}}
+                      , current => Current + 1
+                      , internal_state => NewInternalState
+                      }}
   end;
 handle_info(_Request, State) ->
   {noreply, State}.
 
 -spec terminate(any(), state()) -> ok.
-terminate(normal, #{config := Config}) ->
+terminate(normal, #{ config := Config
+                   , internal_state := InternalState
+                   }) ->
   lager:info("Background job completed. [pid=~p]", [self()]),
-  OnComplete = maps:get(on_complete, Config, noop()),
-  OnComplete(),
+  OnComplete = maps:get(on_complete, Config, fun noop/1),
+  OnComplete(InternalState),
   ok;
-terminate(Reason, #{config := Config}) ->
+terminate(Reason, #{ config := Config
+                   , internal_state := InternalState
+                   }) ->
   lager:warning( "Background job aborted. [reason=~p] [pid=~p]"
                , [Reason, self()]),
-  OnError = maps:get(on_error, Config, noop()),
-  OnError(),
+  OnError = maps:get(on_error, Config, fun noop/1),
+  OnError(InternalState),
   ok.
 
 %%==============================================================================
@@ -159,8 +169,9 @@ step(N) -> 100 / N.
 progress_msg(Current, Total) ->
   list_to_binary(io_lib:format("~p / ~p", [Current, Total])).
 
--spec noop() -> fun().
-noop() -> fun() -> ok end.
+-spec noop(any()) -> fun().
+noop(_) ->
+  ok.
 
 -spec notify_begin(els_progress:token(), binary(), pos_integer(), boolean()) ->
         ok.
