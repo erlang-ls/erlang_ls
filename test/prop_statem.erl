@@ -94,42 +94,7 @@ initialize_post(#{shutdown := true}, _Args, Res) ->
   assert_invalid_request(Res),
   true;
 initialize_post(_S, _Args, Res) ->
-  PrefixedCommands
-    = [ els_command:with_prefix(<<"replace-lines">>)
-      , els_command:with_prefix(<<"server-info">>)
-      , els_command:with_prefix(<<"ct-run-test">>)
-      ],
-  Expected = #{ capabilities =>
-                  #{ hoverProvider => true
-                   , completionProvider =>
-                       #{ resolveProvider => false
-                        , triggerCharacters => [ <<":">>
-                                               , <<"#">>
-                                               , <<"?">>
-                                               , <<".">>
-                                               ]
-                        }
-                   , textDocumentSync =>
-                       #{ openClose => true
-                        , change    => ?TEXT_DOCUMENT_SYNC_KIND_FULL
-                        , save      => #{includeText => true}
-                        }
-                   , definitionProvider      => true
-                   , implementationProvider  => true
-                   , referencesProvider      => true
-                   , documentHighlightProvider => true
-                   , documentSymbolProvider  => true
-                   , foldingRangeProvider => true
-                   , executeCommandProvider =>
-                       #{ commands => PrefixedCommands }
-                   , codeActionProvider => true
-                   , codeLensProvider =>
-                       #{resolveProvider => false}
-                   , workspaceSymbolProvider => true
-                   , documentFormattingProvider => true
-                   , documentRangeFormattingProvider => false
-                   }
-              },
+  Expected = els_general_provider:server_capabilities(),
   ?assertEqual(Expected, maps:get(result, Res)),
   true.
 

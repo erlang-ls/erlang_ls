@@ -29,6 +29,7 @@
                   | els_folding_range_provider
                   | els_implementation_provider
                   | els_code_action_provider
+                  | els_general_provider
                   | els_code_lens_provider
                   | els_execute_command_provider.
 -type request()  :: {atom(), map()}.
@@ -99,6 +100,7 @@ providers() ->
   , els_folding_range_provider
   , els_implementation_provider
   , els_code_action_provider
+  , els_general_provider
   , els_code_lens_provider
   , els_execute_command_provider
   ].
