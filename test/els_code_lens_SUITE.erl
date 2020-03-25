@@ -13,6 +13,7 @@
 %% Test cases
 -export([ default_lenses/1
         , server_info/1
+        , ct_run_test/1
         ]).
 
 %%==============================================================================
@@ -93,5 +94,29 @@ server_info(Config) ->
              start => #{character => 0, line => 0}}
        }
     ],
+  ?assertEqual(Expected, Result),
+  ok.
+
+-spec ct_run_test(config()) -> ok.
+ct_run_test(Config) ->
+  Uri = ?config(sample_SUITE_uri, Config),
+  PrefixedCommand = els_command:with_prefix(<<"ct-run-test">>),
+  #{result := Result} = els_client:document_codelens(Uri),
+  Expected = [ #{ command => #{ arguments => [ #{ arity => 1
+                                                , function => <<"one">>
+                                                , line => 58
+                                                , module => <<"sample_SUITE">>
+                                                , uri => Uri
+                                                }]
+                              , command => PrefixedCommand
+                              , title => <<"Run test">>
+                              }
+                , data => []
+                , range => #{ 'end' => #{ character => 3
+                                        , line => 57
+                                        }
+                            , start => #{ character => 0
+                                        , line => 57
+                                        }}}],
   ?assertEqual(Expected, Result),
   ok.

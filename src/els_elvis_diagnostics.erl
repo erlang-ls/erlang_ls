@@ -23,7 +23,7 @@
 %%==============================================================================
 %% Callback Functions
 %%==============================================================================
--spec diagnostics(uri()) -> [diagnostic()].
+-spec diagnostics(uri()) -> [els_diagnostics:diagnostic()].
 diagnostics(Uri) ->
   case els_utils:project_relative(Uri) of
     {error, not_relative} -> [];

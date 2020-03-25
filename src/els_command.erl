@@ -51,7 +51,7 @@ without_prefix(Id0) ->
 %% Constructors
 %%==============================================================================
 
--spec make_command(binary(), command_id(), [any()]) -> command().
+-spec make_command(binary(), command_id(), [map()]) -> command().
 make_command(Title, CommandId, Args) ->
   #{ title     => Title
    , command   => with_prefix(CommandId)

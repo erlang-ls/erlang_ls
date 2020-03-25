@@ -23,7 +23,7 @@
 %%==============================================================================
 %% Callback Functions
 %%==============================================================================
--spec diagnostics(uri()) -> [diagnostic()].
+-spec diagnostics(uri()) -> [els_diagnostics:diagnostic()].
 diagnostics(Uri) ->
   Path = els_uri:path(Uri),
   case els_config:get(plt_path) of
@@ -52,7 +52,8 @@ source() ->
 %%==============================================================================
 %% Internal Functions
 %%==============================================================================
--spec diagnostic({any(), {any(), integer()}, any()}) -> diagnostic().
+-spec diagnostic({any(), {any(), integer()}, any()}) ->
+        els_diagnostics:diagnostic().
 diagnostic({_, {_, Line}, _} = Warning) ->
   Range    = els_protocol:range(#{ from => {Line, 1}
                                  , to   => {Line + 1, 1}

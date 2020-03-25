@@ -47,7 +47,8 @@ generate_diagnostics(Uri) ->
   erlang:spawn(?MODULE, diagnostics, [Uri, Async, Diagnostics]),
   ok.
 
--spec diagnostics(uri(), [module()], [diagnostic()]) -> [diagnostic()].
+-spec diagnostics(uri(), [module()], [els_diagnostics:diagnostic()]) ->
+        [els_diagnostics:diagnostic()].
 diagnostics(Uri, Modules, Previous) ->
   Diagnostics = [apply(M, diagnostics, [Uri]) || M <- Modules],
   AllDiagnostics = lists:append([Previous | Diagnostics]),
@@ -58,7 +59,7 @@ diagnostics(Uri, Modules, Previous) ->
   els_server:send_notification(Method, Params),
   AllDiagnostics.
 
--spec maybe_compile_and_load(uri(), [diagnostic()]) -> ok.
+-spec maybe_compile_and_load(uri(), [els_diagnostics:diagnostic()]) -> ok.
 maybe_compile_and_load(Uri, [] = _CDiagnostics) ->
   case els_config:get(code_reload) of
     #{"node" := NodeStr} ->

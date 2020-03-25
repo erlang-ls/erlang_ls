@@ -58,7 +58,7 @@ replace_lines_action(Uri, Title, Kind, Lines, Range) ->
                                    , to    => EndLine }])
    }.
 
--spec make_code_action(uri(), diagnostic()) -> [map()].
+-spec make_code_action(uri(), els_diagnostics:diagnostic()) -> [map()].
 make_code_action(Uri, #{ <<"message">> := Message
                        , <<"range">>   := Range } = _Diagnostic) ->
   unused_variable_action(Uri, Range, Message).

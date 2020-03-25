@@ -26,7 +26,7 @@
 %% Types
 %%==============================================================================
 -type config() :: [{atom(), any()}].
--type file_type() :: src | include | escript.
+-type file_type() :: src | test | include | escript.
 
 %%==============================================================================
 %% API
@@ -74,11 +74,14 @@ init_per_testcase(_TestCase, Config) ->
   application:set_env(erlang_ls, indexing_enabled, false),
   SrcConfig = lists:flatten(
                 [index_file(RootPath, src, S) || S <- sources()]),
+  TestConfig = lists:flatten(
+                 [index_file(RootPath, test, S) || S <- tests()]),
   EscriptConfig = lists:flatten(
                     [index_file(RootPath, escript, S) || S <- escripts()]),
   IncludeConfig = lists:flatten(
                     [index_file(RootPath, include, S) || S <- includes()]),
   lists:append( [ SrcConfig
+                , TestConfig
                 , EscriptConfig
                 , IncludeConfig
                 , [ {started, Started}
@@ -152,6 +155,10 @@ sources() ->
   , my_gen_server
   ].
 
+tests() ->
+  [ sample_SUITE
+  ].
+
 -spec escripts() -> [atom()].
 escripts() ->
   [ diagnostics
@@ -187,12 +194,15 @@ index_file(RootPath, Type, Id) ->
 
 -spec config_id(atom(), file_type()) -> atom().
 config_id(Id, src) -> Id;
+config_id(Id, test) -> Id;
 config_id(Id, include) -> list_to_atom(atom_to_list(Id) ++ "_h");
 config_id(Id, escript) -> list_to_atom(atom_to_list(Id) ++ "_escript").
 
 -spec directory(file_type()) -> binary().
 directory(src) ->
   <<"src">>;
+directory(test) ->
+  <<"test">>;
 directory(include) ->
   <<"include">>;
 directory(escript) ->
@@ -200,6 +210,8 @@ directory(escript) ->
 
 -spec extension(file_type()) -> binary().
 extension(src) ->
+  <<".erl">>;
+extension(test) ->
   <<".erl">>;
 extension(include) ->
   <<".hrl">>;
