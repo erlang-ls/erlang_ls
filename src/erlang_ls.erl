@@ -66,7 +66,7 @@ opt_spec_list() ->
     , "transport"
     , {string, "tcp"}
     , "Specifies the transport the server will use for "
-      "the connection with the client."
+      "the connection with the client, either \"tcp\" or \"stdio\"."
     }
   , { port
     , $p
