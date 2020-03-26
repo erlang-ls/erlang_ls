@@ -66,7 +66,7 @@ init_per_testcase(TestCase, Config) when TestCase =:= code_reload orelse
   mock_code_reload_enabled(),
   els_test_utils:init_per_testcase(TestCase, Config);
 init_per_testcase(TestCase, Config) ->
-  mock_notifications(),
+  els_mock_background_job:setup(),
   els_test_utils:init_per_testcase(TestCase, Config).
 
 -spec end_per_testcase(atom(), config()) -> ok.
@@ -77,7 +77,7 @@ end_per_testcase(TestCase, Config) when TestCase =:= code_reload orelse
   els_test_utils:end_per_testcase(TestCase, Config);
 end_per_testcase(TestCase, Config) ->
   els_test_utils:end_per_testcase(TestCase, Config),
-  unmock_notifications(),
+  els_mock_background_job:teardown(),
   ok.
 
 %%==============================================================================
@@ -86,14 +86,9 @@ end_per_testcase(TestCase, Config) ->
 -spec compiler(config()) -> ok.
 compiler(Config) ->
   Uri = ?config(diagnostics_uri, Config),
+  els_mock_background_job:subscribe(),
   ok = els_client:did_save(Uri),
-  {Method, Params} = wait_for_notification(),
-  ?assertEqual( <<"textDocument/publishDiagnostics">>
-              , Method),
-  ?assert(maps:is_key(uri, Params)),
-  #{uri := Uri} = Params,
-  ?assert(maps:is_key(diagnostics, Params)),
-  #{diagnostics := Diagnostics} = Params,
+  Diagnostics = wait_for_diagnostics(),
   ?assertEqual(4, length(Diagnostics)),
   Warnings = [D || #{severity := ?DIAGNOSTIC_WARNING} = D <- Diagnostics],
   Errors   = [D || #{severity := ?DIAGNOSTIC_ERROR}   = D <- Diagnostics],
@@ -118,14 +113,9 @@ compiler(Config) ->
 -spec compiler_with_behaviour(config()) -> ok.
 compiler_with_behaviour(Config) ->
   Uri = ?config(diagnostics_behaviour_impl_uri, Config),
+  els_mock_background_job:subscribe(),
   ok = els_client:did_save(Uri),
-  {Method, Params} = wait_for_notification(),
-  ?assertEqual( <<"textDocument/publishDiagnostics">>
-              , Method),
-  ?assert(maps:is_key(uri, Params)),
-  #{uri := Uri} = Params,
-  ?assert(maps:is_key(diagnostics, Params)),
-  #{diagnostics := Diagnostics} = Params,
+  Diagnostics = wait_for_diagnostics(),
   ?assertEqual(2, length(Diagnostics)),
   Warnings = [D || #{severity := ?DIAGNOSTIC_WARNING} = D <- Diagnostics],
   ?assertEqual(2, length(Warnings)),
@@ -141,14 +131,9 @@ compiler_with_behaviour(Config) ->
 -spec compiler_with_custom_macros(config()) -> ok.
 compiler_with_custom_macros(Config) ->
   Uri = ?config(diagnostics_macros_uri, Config),
+  els_mock_background_job:subscribe(),
   ok = els_client:did_save(Uri),
-  {Method, Params} = wait_for_notification(),
-  ?assertEqual( <<"textDocument/publishDiagnostics">>
-              , Method),
-  ?assert(maps:is_key(uri, Params)),
-  #{uri := Uri} = Params,
-  ?assert(maps:is_key(diagnostics, Params)),
-  #{diagnostics := Diagnostics} = Params,
+  Diagnostics = wait_for_diagnostics(),
   ?assertEqual(1, length(Diagnostics)),
   Errors   = [D || #{severity := ?DIAGNOSTIC_ERROR}   = D <- Diagnostics],
   ?assertEqual(1, length(Errors)),
@@ -162,14 +147,9 @@ compiler_with_custom_macros(Config) ->
 -spec compiler_with_parse_transform(config()) -> ok.
 compiler_with_parse_transform(Config) ->
   Uri = ?config(diagnostics_parse_transform_usage_uri, Config),
+  els_mock_background_job:subscribe(),
   ok = els_client:did_save(Uri),
-  {Method, Params} = wait_for_notification(),
-  ?assertEqual( <<"textDocument/publishDiagnostics">>
-              , Method),
-  ?assert(maps:is_key(uri, Params)),
-  #{uri := Uri} = Params,
-  ?assert(maps:is_key(diagnostics, Params)),
-  #{diagnostics := Diagnostics} = Params,
+  Diagnostics = wait_for_diagnostics(),
   ?assertEqual(1, length(Diagnostics)),
   Warnings = [D || #{severity := ?DIAGNOSTIC_WARNING} = D <- Diagnostics],
   ?assertEqual(1, length(Warnings)),
@@ -183,14 +163,9 @@ compiler_with_parse_transform(Config) ->
 -spec compiler_with_parse_transform_included(config()) -> ok.
 compiler_with_parse_transform_included(Config) ->
   Uri = ?config(diagnostics_parse_transform_usage_included_uri, Config),
+  els_mock_background_job:subscribe(),
   ok = els_client:did_save(Uri),
-  {Method, Params} = wait_for_notification(),
-  ?assertEqual( <<"textDocument/publishDiagnostics">>
-              , Method),
-  ?assert(maps:is_key(uri, Params)),
-  #{uri := Uri} = Params,
-  ?assert(maps:is_key(diagnostics, Params)),
-  #{diagnostics := Diagnostics} = Params,
+  Diagnostics = wait_for_diagnostics(),
   ?assertEqual(1, length(Diagnostics)),
   Warnings = [D || #{severity := ?DIAGNOSTIC_WARNING} = D <- Diagnostics],
   ?assertEqual(1, length(Warnings)),
@@ -208,26 +183,15 @@ elvis(Config) ->
   try
       file:set_cwd(RootPath),
       Uri = ?config(elvis_diagnostics_uri, Config),
+      els_mock_background_job:subscribe(),
       ok = els_client:did_save(Uri),
-      %% Only the compiler diagnostics are in this notification
-      {CMethod, CParams} = wait_for_notification(),
-      ?assertEqual( <<"textDocument/publishDiagnostics">>
-                  , CMethod),
-      ?assert(maps:is_key(diagnostics, CParams)),
-      #{diagnostics := CDiagnostics} = CParams,
+      Diagnostics = wait_for_diagnostics(),
+      CDiagnostics = [D|| #{source := <<"Compiler">>} = D <- Diagnostics],
+      EDiagnostics = [D|| #{source := <<"Elvis">>} = D <- Diagnostics],
       ?assertEqual(0, length(CDiagnostics)),
-
-      %% Dialyzer and Elvis diagnostics are in this notification
-      {Method, Params} = wait_for_notification(),
-      ?assertEqual( <<"textDocument/publishDiagnostics">>
-                  , Method),
-      ?assert(maps:is_key(uri, Params)),
-      #{uri := Uri} = Params,
-      ?assert(maps:is_key(diagnostics, Params)),
-      #{diagnostics := Diagnostics} = Params,
-      ?assertEqual(2, length(Diagnostics)),
-      Warnings = [D || #{severity := ?DIAGNOSTIC_WARNING} = D <- Diagnostics],
-      Errors   = [D || #{severity := ?DIAGNOSTIC_ERROR}   = D <- Diagnostics],
+      ?assertEqual(2, length(EDiagnostics)),
+      Warnings = [D || #{severity := ?DIAGNOSTIC_WARNING} = D <- EDiagnostics],
+      Errors   = [D || #{severity := ?DIAGNOSTIC_ERROR}   = D <- EDiagnostics],
       ?assertEqual(2, length(Warnings)),
       ?assertEqual(0, length(Errors)),
       [ #{range := WarningRange1}
@@ -248,26 +212,18 @@ elvis(Config) ->
 -spec escript(config()) -> ok.
 escript(Config) ->
   Uri = ?config(diagnostics_escript_uri, Config),
+  els_mock_background_job:subscribe(),
   ok = els_client:did_save(Uri),
-  {Method, Params} = wait_for_notification(),
-  ?assertEqual(<<"textDocument/publishDiagnostics">>, Method),
-  ?assert(maps:is_key(uri, Params)),
-  #{uri := Uri} = Params,
-  ?assert(maps:is_key(diagnostics, Params)),
-  #{diagnostics := Diagnostics} = Params,
+  Diagnostics = wait_for_diagnostics(),
   ?assertEqual([], Diagnostics),
   ok.
 
 -spec escript_warnings(config()) -> ok.
 escript_warnings(Config) ->
   Uri = ?config(diagnostics_warnings_escript_uri, Config),
+  els_mock_background_job:subscribe(),
   ok = els_client:did_save(Uri),
-  {Method, Params} = wait_for_notification(),
-  ?assertEqual(<<"textDocument/publishDiagnostics">>, Method),
-  ?assert(maps:is_key(uri, Params)),
-  #{uri := Uri} = Params,
-  ?assert(maps:is_key(diagnostics, Params)),
-  #{diagnostics := Diagnostics} = Params,
+  Diagnostics = wait_for_diagnostics(),
   ?assertEqual(1, length(Diagnostics)),
   Warnings = [D || #{severity := ?DIAGNOSTIC_WARNING} = D <- Diagnostics],
   Errors   = [D || #{severity := ?DIAGNOSTIC_ERROR}   = D <- Diagnostics],
@@ -283,14 +239,9 @@ escript_warnings(Config) ->
 -spec escript_errors(config()) -> ok.
 escript_errors(Config) ->
   Uri = ?config(diagnostics_errors_escript_uri, Config),
+  els_mock_background_job:subscribe(),
   ok = els_client:did_save(Uri),
-  {Method, Params} = wait_for_notification(),
-  ?assertEqual( <<"textDocument/publishDiagnostics">>
-              , Method),
-  ?assert(maps:is_key(uri, Params)),
-  #{uri := Uri} = Params,
-  ?assert(maps:is_key(diagnostics, Params)),
-  #{diagnostics := Diagnostics} = Params,
+  Diagnostics = wait_for_diagnostics(),
   ?assertEqual(1, length(Diagnostics)),
   Warnings = [D || #{severity := ?DIAGNOSTIC_WARNING} = D <- Diagnostics],
   Errors   = [D || #{severity := ?DIAGNOSTIC_ERROR}   = D <- Diagnostics],
@@ -331,25 +282,6 @@ code_reload_sticky_mod(Config) ->
 %%==============================================================================
 %% Internal Functions
 %%==============================================================================
-mock_notifications() ->
-  meck:new(els_server, [passthrough, no_link]),
-  Self = self(),
-  meck:expect( els_server
-             , send_notification
-             , fun(Method, Params) ->
-                   Self ! {notification_sent, Method, Params},
-                   ok
-               end
-             ).
-
-unmock_notifications() ->
-  meck:unload(els_server).
-
-wait_for_notification() ->
-  receive
-    {notification_sent, Method, Params} ->
-      {Method, Params}
-  end.
 
 mock_rpc() ->
   meck:new(rpc, [passthrough, no_link, unstick]),
@@ -378,3 +310,9 @@ mock_code_reload_enabled() ->
 
 unmock_code_reload_enabled() ->
   meck:unload(els_config).
+
+-spec wait_for_diagnostics() -> [els_diagnostics:diagnostic()].
+wait_for_diagnostics() ->
+  Results = [els_mock_background_job:wait_until_complete() ||
+              _ <- els_diagnostics:enabled_diagnostics()],
+  lists:flatten(Results).

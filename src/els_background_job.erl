@@ -93,9 +93,13 @@ init(#{entries := Entries, title := Title} = Config) ->
   Total = length(Entries),
   Step = step(Total),
   Token = els_work_done_progress:send_create_request(),
+  OnComplete = maps:get(on_complete, Config, fun noop/1),
+  OnError = maps:get(on_error, Config, fun noop/1),
   notify_begin(Token, Title, Total, ProgressEnabled),
   self() ! exec,
-  {ok, #{ config => Config
+  {ok, #{ config => Config#{ on_complete => OnComplete
+                           , on_error => OnError
+                           }
         , progress_enabled => ProgressEnabled
         , token => Token
         , current => 0
@@ -142,19 +146,17 @@ handle_info(_Request, State) ->
   {noreply, State}.
 
 -spec terminate(any(), state()) -> ok.
-terminate(normal, #{ config := Config
+terminate(normal, #{ config := #{on_complete := OnComplete}
                    , internal_state := InternalState
                    }) ->
   lager:info("Background job completed. [pid=~p]", [self()]),
-  OnComplete = maps:get(on_complete, Config, fun noop/1),
   OnComplete(InternalState),
   ok;
-terminate(Reason, #{ config := Config
+terminate(Reason, #{ config := #{on_error := OnError}
                    , internal_state := InternalState
                    }) ->
   lager:warning( "Background job aborted. [reason=~p] [pid=~p]"
                , [Reason, self()]),
-  OnError = maps:get(on_error, Config, fun noop/1),
   OnError(InternalState),
   ok.
 
