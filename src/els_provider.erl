@@ -88,6 +88,7 @@ available_providers() ->
   , els_general_provider
   , els_code_lens_provider
   , els_execute_command_provider
+  , els_diagnostics_provider
   ].
 
 -spec enabled_providers() -> [provider()].
