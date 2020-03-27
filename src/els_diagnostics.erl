@@ -34,9 +34,11 @@
 %%==============================================================================
 %% Callback Functions Definitions
 %%==============================================================================
--callback is_default() -> boolean().
--callback run(uri())   -> [diagnostic()].
--callback source()     -> binary().
+-callback is_default()                       -> boolean().
+-callback run(uri())                         -> [diagnostic()].
+-callback source()                           -> binary().
+-callback on_complete(uri(), [diagnostic()]) -> ok.
+-optional_callbacks([ on_complete/2 ]).
 
 %%==============================================================================
 %% API
@@ -91,6 +93,12 @@ run_diagnostic(Uri, Id) ->
             , title => CbModule:source()
             , on_complete =>
                 fun(Diagnostics) ->
+                    case erlang:function_exported(CbModule, on_complete, 2) of
+                      true ->
+                        CbModule:on_complete(Uri, Diagnostics);
+                      false ->
+                        ok
+                    end,
                     els_diagnostics_provider:notify(Diagnostics, self())
                 end
             },
