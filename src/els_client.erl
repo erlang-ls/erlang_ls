@@ -63,6 +63,7 @@
 %% Defines
 %%==============================================================================
 -define(SERVER, ?MODULE).
+-define(TIMEOUT, infinity).
 
 %%==============================================================================
 %% Record Definitions
@@ -183,7 +184,7 @@ initialize(RootUri) ->
 
 -spec initialize(uri(), init_options()) -> map().
 initialize(RootUri, InitOptions) ->
-  gen_server:call(?SERVER, {initialize, {RootUri, InitOptions}}).
+  gen_server:call(?SERVER, {initialize, {RootUri, InitOptions}}, ?TIMEOUT).
 
 -spec shutdown() -> map().
 shutdown() ->
