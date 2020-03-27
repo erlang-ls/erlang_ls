@@ -48,7 +48,12 @@ handle_request({initialize, Params}, State) ->
                 els_uri:uri(els_utils:to_binary(Cwd));
               _ -> RootUri0
             end,
-  InitOptions = maps:get(<<"initializationOptions">>, Params, #{}),
+  InitOptions = case maps:get(<<"initializationOptions">>, Params, #{}) of
+                  null ->
+                    #{};
+                  InitOptions0 ->
+                    InitOptions0
+                end,
   ok = els_config:initialize(RootUri, Capabilities, InitOptions),
   DbDir = application:get_env(erlang_ls, db_dir, default_db_dir()),
   OtpPath = els_config:get(otp_path),

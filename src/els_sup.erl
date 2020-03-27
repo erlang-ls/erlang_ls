@@ -31,21 +31,18 @@ start_link() ->
   supervisor:start_link({local, ?SERVER}, ?MODULE, []).
 
 %%==============================================================================
-%% Supervisor callbacks
+%% supervisors callbacks
 %%==============================================================================
 -spec init([]) -> {ok, {supervisor:sup_flags(), [supervisor:child_spec()]}}.
 init([]) ->
-  SupFlags = #{ strategy  => rest_for_one
+  SupFlags = #{ strategy  =>rest_for_one
               , intensity => 5
               , period    => 60
               },
   {ok, Transport} = application:get_env(erlang_ls, transport),
   %% Restrict access to stdio when using that transport
   restrict_stdio_access(Transport),
-  ChildSpecs = [ #{ id       => els_server
-                  , start    => {els_server, start_link, [Transport]}
-                  }
-               , #{ id       => els_config
+  ChildSpecs = [ #{ id       => els_config
                   , start    => {els_config, start_link, []}
                   , shutdown => brutal_kill
                   }
@@ -56,6 +53,9 @@ init([]) ->
                , #{ id    => els_background_job_sup
                   , start => {els_background_job_sup, start_link, []}
                   , type  => supervisor
+                  }
+               , #{ id       => els_server
+                  , start    => {els_server, start_link, [Transport]}
                   }
                ],
   {ok, {SupFlags, ChildSpecs}}.

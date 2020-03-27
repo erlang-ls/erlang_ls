@@ -46,7 +46,7 @@
 
 -spec start_link(provider()) -> {ok, pid()}.
 start_link(Provider) ->
-  gen_server:start_link({local, Provider}, ?MODULE, none, []).
+  gen_server:start_link({local, Provider}, ?MODULE, Provider, []).
 
 -spec handle_request(provider(), request()) -> any().
 handle_request(Provider, Request) ->
@@ -56,8 +56,9 @@ handle_request(Provider, Request) ->
 %% gen_server callbacks
 %%==============================================================================
 
--spec init(none) -> {ok, state()}.
-init(none) ->
+-spec init(els_provider:provider()) -> {ok, state()}.
+init(Provider) ->
+  lager:info("Starting provider ~p", [Provider]),
   {ok, #{}}.
 
 -spec handle_call(any(), {pid(), any()}, state()) ->
