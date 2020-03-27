@@ -20,6 +20,11 @@
 -define(DEFAULT_SUB_INDENT, 2).
 
 %%==============================================================================
+%% Types
+%%==============================================================================
+-type state() :: any().
+
+%%==============================================================================
 %% els_provider functions
 %%==============================================================================
 
@@ -40,8 +45,7 @@ is_enabled_range() ->
 -spec is_enabled_on_type() -> document_ontypeformatting_options().
 is_enabled_on_type() -> false.
 
--spec handle_request(any(), els_provider:state()) ->
-  {any(), els_provider:state()}.
+-spec handle_request(any(), state()) -> {any(), state()}.
 handle_request({document_formatting, Params}, State) ->
   #{ <<"options">>      := Options
    , <<"textDocument">> := #{<<"uri">> := Uri}

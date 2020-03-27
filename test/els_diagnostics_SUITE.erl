@@ -66,7 +66,7 @@ init_per_testcase(TestCase, Config) when TestCase =:= code_reload orelse
   mock_code_reload_enabled(),
   els_test_utils:init_per_testcase(TestCase, Config);
 init_per_testcase(TestCase, Config) ->
-  els_mock_background_job:setup(),
+  els_mock_diagnostics:setup(),
   els_test_utils:init_per_testcase(TestCase, Config).
 
 -spec end_per_testcase(atom(), config()) -> ok.
@@ -77,7 +77,7 @@ end_per_testcase(TestCase, Config) when TestCase =:= code_reload orelse
   els_test_utils:end_per_testcase(TestCase, Config);
 end_per_testcase(TestCase, Config) ->
   els_test_utils:end_per_testcase(TestCase, Config),
-  els_mock_background_job:teardown(),
+  els_mock_diagnostics:teardown(),
   ok.
 
 %%==============================================================================
@@ -86,9 +86,9 @@ end_per_testcase(TestCase, Config) ->
 -spec compiler(config()) -> ok.
 compiler(Config) ->
   Uri = ?config(diagnostics_uri, Config),
-  els_mock_background_job:subscribe(),
+  els_mock_diagnostics:subscribe(),
   ok = els_client:did_save(Uri),
-  Diagnostics = wait_for_diagnostics(),
+  Diagnostics = els_mock_diagnostics:wait_until_complete(),
   ?assertEqual(4, length(Diagnostics)),
   Warnings = [D || #{severity := ?DIAGNOSTIC_WARNING} = D <- Diagnostics],
   Errors   = [D || #{severity := ?DIAGNOSTIC_ERROR}   = D <- Diagnostics],
@@ -113,9 +113,9 @@ compiler(Config) ->
 -spec compiler_with_behaviour(config()) -> ok.
 compiler_with_behaviour(Config) ->
   Uri = ?config(diagnostics_behaviour_impl_uri, Config),
-  els_mock_background_job:subscribe(),
+  els_mock_diagnostics:subscribe(),
   ok = els_client:did_save(Uri),
-  Diagnostics = wait_for_diagnostics(),
+  Diagnostics = els_mock_diagnostics:wait_until_complete(),
   ?assertEqual(2, length(Diagnostics)),
   Warnings = [D || #{severity := ?DIAGNOSTIC_WARNING} = D <- Diagnostics],
   ?assertEqual(2, length(Warnings)),
@@ -131,9 +131,9 @@ compiler_with_behaviour(Config) ->
 -spec compiler_with_custom_macros(config()) -> ok.
 compiler_with_custom_macros(Config) ->
   Uri = ?config(diagnostics_macros_uri, Config),
-  els_mock_background_job:subscribe(),
+  els_mock_diagnostics:subscribe(),
   ok = els_client:did_save(Uri),
-  Diagnostics = wait_for_diagnostics(),
+  Diagnostics = els_mock_diagnostics:wait_until_complete(),
   ?assertEqual(1, length(Diagnostics)),
   Errors   = [D || #{severity := ?DIAGNOSTIC_ERROR}   = D <- Diagnostics],
   ?assertEqual(1, length(Errors)),
@@ -147,9 +147,9 @@ compiler_with_custom_macros(Config) ->
 -spec compiler_with_parse_transform(config()) -> ok.
 compiler_with_parse_transform(Config) ->
   Uri = ?config(diagnostics_parse_transform_usage_uri, Config),
-  els_mock_background_job:subscribe(),
+  els_mock_diagnostics:subscribe(),
   ok = els_client:did_save(Uri),
-  Diagnostics = wait_for_diagnostics(),
+  Diagnostics = els_mock_diagnostics:wait_until_complete(),
   ?assertEqual(1, length(Diagnostics)),
   Warnings = [D || #{severity := ?DIAGNOSTIC_WARNING} = D <- Diagnostics],
   ?assertEqual(1, length(Warnings)),
@@ -163,9 +163,9 @@ compiler_with_parse_transform(Config) ->
 -spec compiler_with_parse_transform_included(config()) -> ok.
 compiler_with_parse_transform_included(Config) ->
   Uri = ?config(diagnostics_parse_transform_usage_included_uri, Config),
-  els_mock_background_job:subscribe(),
+  els_mock_diagnostics:subscribe(),
   ok = els_client:did_save(Uri),
-  Diagnostics = wait_for_diagnostics(),
+  Diagnostics = els_mock_diagnostics:wait_until_complete(),
   ?assertEqual(1, length(Diagnostics)),
   Warnings = [D || #{severity := ?DIAGNOSTIC_WARNING} = D <- Diagnostics],
   ?assertEqual(1, length(Warnings)),
@@ -183,9 +183,9 @@ elvis(Config) ->
   try
       file:set_cwd(RootPath),
       Uri = ?config(elvis_diagnostics_uri, Config),
-      els_mock_background_job:subscribe(),
+      els_mock_diagnostics:subscribe(),
       ok = els_client:did_save(Uri),
-      Diagnostics = wait_for_diagnostics(),
+      Diagnostics = els_mock_diagnostics:wait_until_complete(),
       CDiagnostics = [D|| #{source := <<"Compiler">>} = D <- Diagnostics],
       EDiagnostics = [D|| #{source := <<"Elvis">>} = D <- Diagnostics],
       ?assertEqual(0, length(CDiagnostics)),
@@ -212,18 +212,18 @@ elvis(Config) ->
 -spec escript(config()) -> ok.
 escript(Config) ->
   Uri = ?config(diagnostics_escript_uri, Config),
-  els_mock_background_job:subscribe(),
+  els_mock_diagnostics:subscribe(),
   ok = els_client:did_save(Uri),
-  Diagnostics = wait_for_diagnostics(),
+  Diagnostics = els_mock_diagnostics:wait_until_complete(),
   ?assertEqual([], Diagnostics),
   ok.
 
 -spec escript_warnings(config()) -> ok.
 escript_warnings(Config) ->
   Uri = ?config(diagnostics_warnings_escript_uri, Config),
-  els_mock_background_job:subscribe(),
+  els_mock_diagnostics:subscribe(),
   ok = els_client:did_save(Uri),
-  Diagnostics = wait_for_diagnostics(),
+  Diagnostics = els_mock_diagnostics:wait_until_complete(),
   ?assertEqual(1, length(Diagnostics)),
   Warnings = [D || #{severity := ?DIAGNOSTIC_WARNING} = D <- Diagnostics],
   Errors   = [D || #{severity := ?DIAGNOSTIC_ERROR}   = D <- Diagnostics],
@@ -239,9 +239,9 @@ escript_warnings(Config) ->
 -spec escript_errors(config()) -> ok.
 escript_errors(Config) ->
   Uri = ?config(diagnostics_errors_escript_uri, Config),
-  els_mock_background_job:subscribe(),
+  els_mock_diagnostics:subscribe(),
   ok = els_client:did_save(Uri),
-  Diagnostics = wait_for_diagnostics(),
+  Diagnostics = els_mock_diagnostics:wait_until_complete(),
   ?assertEqual(1, length(Diagnostics)),
   Warnings = [D || #{severity := ?DIAGNOSTIC_WARNING} = D <- Diagnostics],
   Errors   = [D || #{severity := ?DIAGNOSTIC_ERROR}   = D <- Diagnostics],
@@ -310,9 +310,3 @@ mock_code_reload_enabled() ->
 
 unmock_code_reload_enabled() ->
   meck:unload(els_config).
-
--spec wait_for_diagnostics() -> [els_diagnostics:diagnostic()].
-wait_for_diagnostics() ->
-  Results = [els_mock_background_job:wait_until_complete() ||
-              _ <- els_diagnostics:enabled_diagnostics()],
-  lists:flatten(Results).

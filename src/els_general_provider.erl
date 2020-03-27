@@ -28,6 +28,7 @@
                                                        | null
                               }.
 -type initialize_result() :: #{ capabilities => server_capabilities() }.
+-type state() :: any().
 
 %%==============================================================================
 %% els_provider functions
@@ -36,8 +37,8 @@
 -spec is_enabled() -> boolean().
 is_enabled() -> true.
 
--spec handle_request(initialize_request(), els_provider:state()) ->
-        {initialize_result(), els_provider:state()}.
+-spec handle_request(initialize_request(), state()) ->
+        {initialize_result(), state()}.
 handle_request({initialize, Params}, State) ->
   #{ <<"rootUri">> := RootUri0
    , <<"capabilities">> := Capabilities

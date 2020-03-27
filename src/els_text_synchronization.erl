@@ -17,13 +17,13 @@ did_open(Params) ->
   Text         = maps:get(<<"text">>        , TextDocument),
   ok           = els_indexing:index(Uri, Text, 'deep'),
   Provider = els_diagnostics_provider,
-  Response = els_provider:handle_request(Provider, {run_diagnostics, Params}),
+  els_provider:handle_request(Provider, {run_diagnostics, Params}),
   ok.
 
 -spec did_save(map()) -> ok.
 did_save(Params) ->
   Provider = els_diagnostics_provider,
-  Response = els_provider:handle_request(Provider, {run_diagnostics, Params}),
+  els_provider:handle_request(Provider, {run_diagnostics, Params}),
   ok.
 
 -spec did_close(map()) -> ok.

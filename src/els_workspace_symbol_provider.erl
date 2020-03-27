@@ -10,6 +10,8 @@
 
 -define(LIMIT, 100).
 
+-type state() :: any().
+
 %%==============================================================================
 %% els_provider functions
 %%==============================================================================
@@ -18,8 +20,7 @@
 is_enabled() ->
   true.
 
--spec handle_request(any(), els_provider:state()) ->
-  {any(), els_provider:state()}.
+-spec handle_request(any(), state()) -> {any(), state()}.
 handle_request({symbol, Params}, State) ->
   %% TODO: Version 3.15 of the protocol introduces a much nicer way of
   %%       specifying queries, allowing clients to send the symbol kind.

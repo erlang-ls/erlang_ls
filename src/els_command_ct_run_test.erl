@@ -51,7 +51,7 @@ publish_result(Uri, Line, Severity, Message) ->
   Range = els_protocol:range(#{from => {Line, 1}, to => {Line + 1, 1}}),
   Source = <<"Common Test">>,
   D = els_diagnostics:make_diagnostic(Range, Message, Severity, Source),
-  els_diagnostics:publish(Uri, [D]),
+  els_diagnostics_provider:publish(Uri, [D]),
   ok.
 
 -spec ct_run_test([any()]) -> any().

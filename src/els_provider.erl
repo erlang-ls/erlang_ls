@@ -11,10 +11,14 @@
 -export([ init/1
         , handle_call/3
         , handle_cast/2
+        , handle_info/2
         ]).
 
 -callback is_enabled() -> boolean().
--callback handle_request(request(), state()) -> {any(), state()}.
+-callback init() -> any().
+-callback handle_request(request(), any()) -> {any(), any()}.
+-callback handle_info(any(), any()) -> any().
+-optional_callbacks([init/0, handle_info/2]).
 
 -type config()   :: any().
 -type provider() :: els_completion_provider
@@ -32,7 +36,9 @@
                   | els_code_lens_provider
                   | els_execute_command_provider.
 -type request()  :: {atom(), map()}.
--type state()    :: any().
+-type state()    :: #{ provider := provider()
+                     , internal_state := any()
+                     }.
 
 -export_type([ config/0
              , provider/0
@@ -59,18 +65,37 @@ handle_request(Provider, Request) ->
 -spec init(els_provider:provider()) -> {ok, state()}.
 init(Provider) ->
   lager:info("Starting provider ~p", [Provider]),
-  {ok, #{}}.
+  InternalState = case erlang:function_exported(Provider, init, 0) of
+                    true ->
+                      Provider:init();
+                    false ->
+                      #{}
+                  end,
+  {ok, #{provider => Provider, internal_state => InternalState}}.
 
 -spec handle_call(any(), {pid(), any()}, state()) ->
   {reply, any(), state()}.
 handle_call({handle_request, Provider, Request}, _From, State) ->
-  {Reply, NewState} = Provider:handle_request(Request, State),
-  {reply, Reply, NewState}.
+  #{internal_state := InternalState} = State,
+  {Reply, NewInternalState} = Provider:handle_request(Request, InternalState),
+  {reply, Reply, State#{internal_state => NewInternalState}}.
 
--spec handle_cast(any(), any()) ->
+-spec handle_cast(any(), state()) ->
   {noreply, state()}.
 handle_cast(_Request, State) ->
   {noreply, State}.
+
+-spec handle_info(any(), state()) ->
+  {noreply, state()}.
+handle_info(Request, State) ->
+  #{provider := Provider, internal_state := InternalState} = State,
+  case erlang:function_exported(Provider, handle_info, 2) of
+    true ->
+      NewInternalState = Provider:handle_info(Request, InternalState),
+      {noreply, State#{internal_state => NewInternalState}};
+    false ->
+      {noreply, State}
+  end.
 
 -spec available_providers() -> [provider()].
 available_providers() ->

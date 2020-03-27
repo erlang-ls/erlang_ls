@@ -18,6 +18,7 @@
                     , line     := line()
                     , column   := column()
                     }.
+-type state() :: any().
 
 %%==============================================================================
 %% els_provider functions
@@ -27,8 +28,7 @@
 is_enabled() ->
   true.
 
--spec handle_request(els_provider:request(), els_provider:state()) ->
-  {any(), els_provider:state()}.
+-spec handle_request(els_provider:request(), state()) -> {any(), state()}.
 handle_request({completion, Params}, State) ->
   #{ <<"position">>     := #{ <<"line">>      := Line
                             , <<"character">> := Character

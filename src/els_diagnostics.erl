@@ -45,7 +45,6 @@
         , default_diagnostics/0
         , enabled_diagnostics/0
         , make_diagnostic/4
-        , publish/2
         , run_diagnostics/1
         ]).
 
@@ -76,24 +75,15 @@ make_diagnostic(Range, Message, Severity, Source) ->
    , source   => Source
    }.
 
--spec publish(uri(), [diagnostic()]) -> ok.
-publish(Uri, Diagnostics) ->
-  Method = <<"textDocument/publishDiagnostics">>,
-  Params = #{ uri         => Uri
-            , diagnostics => Diagnostics
-            },
-  els_server:send_notification(Method, Params).
-
--spec run_diagnostics(uri()) -> ok.
+-spec run_diagnostics(uri()) -> [pid()].
 run_diagnostics(Uri) ->
-  [run_diagnostic(Uri, Id) || Id <- enabled_diagnostics()],
-  ok.
+  [run_diagnostic(Uri, Id) || Id <- enabled_diagnostics()].
 
 %%==============================================================================
 %% Internal Functions
 %%==============================================================================
 
--spec run_diagnostic(uri(), diagnostic_id()) -> ok.
+-spec run_diagnostic(uri(), diagnostic_id()) -> pid().
 run_diagnostic(Uri, Id) ->
   CbModule = cb_module(Id),
   Config = #{ task => fun(U, _) -> CbModule:run(U) end
@@ -101,11 +91,11 @@ run_diagnostic(Uri, Id) ->
             , title => CbModule:source()
             , on_complete =>
                 fun(Diagnostics) ->
-                    publish(Uri, Diagnostics)
+                    els_diagnostics_provider:notify(Diagnostics, self())
                 end
             },
-  {ok, _Pid} = els_background_job:new(Config),
-  ok.
+  {ok, Pid} = els_background_job:new(Config),
+  Pid.
 
 %% @doc Return the callback module for a given Diagnostic Identifier
 -spec cb_module(els_diagnostics:diagnostic_id()) -> module().
