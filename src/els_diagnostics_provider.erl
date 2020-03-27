@@ -18,7 +18,7 @@
 -type state() :: #{in_progress => [progress_entry()]}.
 -type progress_entry() :: #{ uri := uri()
                            , pending := [job()]
-                           , diagnostics := [els_diagnostics:diagnostics()]
+                           , diagnostics := [els_diagnostics:diagnostic()]
                            }.
 -type job() :: pid().
 
@@ -35,7 +35,7 @@ is_enabled() -> true.
 options() ->
   #{}.
 
--spec init() -> els_provider:state().
+-spec init() -> state().
 init() ->
   #{ in_progress => [] }.
 
@@ -80,7 +80,8 @@ handle_request({run_diagnostics, Params}, State) ->
 %%==============================================================================
 -spec notify([els_diagnostics:diagnostic()], pid()) -> ok.
 notify(Diagnostics, Job) ->
-  ?SERVER ! {diagnostics, Diagnostics, Job}.
+  ?SERVER ! {diagnostics, Diagnostics, Job},
+  ok.
 
 -spec publish(uri(), [els_diagnostics:diagnostic()]) -> ok.
 publish(Uri, Diagnostics) ->
