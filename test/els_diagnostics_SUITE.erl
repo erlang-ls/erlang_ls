@@ -258,7 +258,7 @@ escript_errors(Config) ->
 code_reload(Config) ->
   Uri = ?config(diagnostics_uri, Config),
   Module = els_uri:module(Uri),
-  ok = els_text_synchronization:maybe_compile_and_load(Uri, []),
+  ok = els_compiler_diagnostics:on_complete(Uri, []),
   ?assert(meck:called(rpc, call, ['fakenode', c, c, [Module]])),
   ok.
 
@@ -274,7 +274,7 @@ code_reload_sticky_mod(Config) ->
                    meck:passthrough([Node, Mod, Fun, Args])
                end
              ),
-  ok = els_text_synchronization:maybe_compile_and_load(Uri, []),
+  ok = els_compiler_diagnostics:on_complete(Uri, []),
   ?assert(meck:called(rpc, call, ['fakenode', code, is_sticky, [Module]])),
   ?assertNot(meck:called(rpc, call, ['fakenode', c, c, [Module]])),
   ok.
