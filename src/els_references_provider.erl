@@ -12,6 +12,11 @@
 -include("erlang_ls.hrl").
 
 %%==============================================================================
+%% Types
+%%==============================================================================
+-type state() :: any().
+
+%%==============================================================================
 %% els_provider functions
 %%==============================================================================
 
@@ -19,8 +24,7 @@
 is_enabled() ->
   true.
 
--spec handle_request(any(), els_provider:state()) ->
-  {[location()] | null, els_provider:state()}.
+-spec handle_request(any(), state()) -> {[location()] | null, state()}.
 handle_request({references, Params}, State) ->
   #{ <<"position">>     := #{ <<"line">>      := Line
                             , <<"character">> := Character

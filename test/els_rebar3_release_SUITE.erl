@@ -66,7 +66,7 @@ init_per_testcase(_TestCase, Config) ->
   Started   = els_test_utils:start(Transport),
   RootUri   = ?config(root_uri, Config),
   AppUri    = ?config(app_uri, Config),
-  els_client:initialize(RootUri, []),
+  els_client:initialize(RootUri),
   {ok, AppText} = file:read_file(els_uri:path(AppUri)),
   els_client:did_open(AppUri, erlang, 1, AppText),
   els_indexing:find_and_index_file("rebar3_release_app.erl"),

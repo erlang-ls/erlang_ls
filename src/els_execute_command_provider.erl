@@ -9,6 +9,8 @@
 
 -include("erlang_ls.hrl").
 
+-type state() :: any().
+
 %%==============================================================================
 %% els_provider functions
 %%==============================================================================
@@ -23,8 +25,7 @@ options() ->
                  , els_command:with_prefix(<<"ct-run-test">>)
                  ] }.
 
--spec handle_request(any(), els_provider:state()) ->
-  {any(), els_provider:state()}.
+-spec handle_request(any(), state()) -> {any(), state()}.
 handle_request({workspace_executecommand, Params}, State) ->
   #{ <<"command">> := PrefixedCommand } = Params,
   Arguments = maps:get(<<"arguments">>, Params, []),

@@ -11,7 +11,8 @@
 %%==============================================================================
 %% Exports
 %%==============================================================================
--export([ diagnostics/1
+-export([ is_default/0
+        , run/1
         , source/0
         ]).
 
@@ -23,8 +24,13 @@
 %%==============================================================================
 %% Callback Functions
 %%==============================================================================
--spec diagnostics(uri()) -> [els_diagnostics:diagnostic()].
-diagnostics(Uri) ->
+
+-spec is_default() -> boolean().
+is_default() ->
+  true.
+
+-spec run(uri()) -> [els_diagnostics:diagnostic()].
+run(Uri) ->
   Path = els_uri:path(Uri),
   case els_config:get(plt_path) of
     undefined -> [];

@@ -70,8 +70,7 @@ init_per_testcase(_TestCase, Config) ->
   Started   = start(Transport),
   RootPath  = ?config(root_path, Config),
   RootUri   = ?config(root_uri, Config),
-  els_client:initialize(RootUri, []),
-  application:set_env(erlang_ls, indexing_enabled, false),
+  els_client:initialize(RootUri, #{indexingEnabled => false}),
   SrcConfig = lists:flatten(
                 [index_file(RootPath, src, S) || S <- sources()]),
   TestConfig = lists:flatten(

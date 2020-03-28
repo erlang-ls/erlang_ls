@@ -26,7 +26,7 @@ root_uri() ->
   <<"file:///tmp">>.
 
 init_options() ->
-  [].
+  #{<<"indexingEnabled">> => false}.
 
 document() ->
   elements([<<"a">>, <<"b">>, <<"c">>]).

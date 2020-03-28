@@ -107,7 +107,7 @@ start() ->
 
 -spec start(binary(), [{string(), 'deep' | 'shallow'}]) -> ok.
 start(Group, Entries) ->
-  Task = fun({Dir, Mode}) -> index_dir(Dir, Mode) end,
+  Task = fun({Dir, Mode}, _) -> index_dir(Dir, Mode) end,
   Config = #{ task => Task
             , entries => Entries
               %% Indexing a directory can lead to a huge number
@@ -115,8 +115,8 @@ start(Group, Entries) ->
               %% time window. After indexing, let's manually
               %% trigger a DB dump. This ensures that the DB can
               %% be loaded much faster on a restart.
-            , on_complete => fun els_db:dump_tables/0
-            , on_error => fun els_db:dump_tables/0
+            , on_complete => fun(_) -> els_db:dump_tables() end
+            , on_error => fun(_) -> els_db:dump_tables() end
             , title => <<"Indexing ", Group/binary>>
             },
   {ok, _Pid} = els_background_job:new(Config),

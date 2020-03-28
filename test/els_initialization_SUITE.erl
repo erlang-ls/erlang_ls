@@ -69,7 +69,7 @@ end_per_testcase(TestCase, Config) ->
 -spec initialize_default(config()) -> ok.
 initialize_default(Config) ->
   RootUri  = ?config(root_uri, Config),
-  els_client:initialize(RootUri, []),
+  els_client:initialize(RootUri),
   Result = els_config:get(macros),
   Expected = [#{"name" => "DEFINED_WITHOUT_VALUE"},
               #{"name" => "DEFINED_WITH_VALUE", "value" => 1}],

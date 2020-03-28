@@ -18,6 +18,11 @@
 -endif.
 
 %%==============================================================================
+%% Types
+%%==============================================================================
+-type state() :: any().
+
+%%==============================================================================
 %% els_provider functions
 %%==============================================================================
 
@@ -25,8 +30,7 @@
 is_enabled() ->
   true.
 
--spec handle_request(any(), els_provider:state()) ->
-  {any(), els_provider:state()}.
+-spec handle_request(any(), state()) -> {any(), state()}.
 handle_request({hover, Params}, State) ->
   #{ <<"position">>     := #{ <<"line">>      := Line
                             , <<"character">> := Character

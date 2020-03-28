@@ -8,6 +8,8 @@
 
 -include("erlang_ls.hrl").
 
+-type state() :: any().
+
 %%==============================================================================
 %% els_provider functions
 %%==============================================================================
@@ -15,8 +17,7 @@
 -spec is_enabled() -> boolean().
 is_enabled() -> true.
 
--spec handle_request(any(), els_provider:state()) ->
-  {any(), els_provider:state()}.
+-spec handle_request(any(), state()) -> {any(), state()}.
 handle_request({document_codeaction, Params}, State) ->
   #{ <<"textDocument">> := #{ <<"uri">> := Uri}
    , <<"range">>        := RangeLSP

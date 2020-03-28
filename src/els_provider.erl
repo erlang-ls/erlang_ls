@@ -1,21 +1,24 @@
 -module(els_provider).
 
--behaviour(gen_server).
-
 %% API
--export([ initialize/0
-        , handle_request/2
+-export([ handle_request/2
         , start_link/1
+        , available_providers/0
+        , enabled_providers/0
         ]).
 
-%% gen_server callbacks
+-behaviour(gen_server).
 -export([ init/1
         , handle_call/3
         , handle_cast/2
+        , handle_info/2
         ]).
 
 -callback is_enabled() -> boolean().
--callback handle_request(request(), state()) -> {any(), state()}.
+-callback init() -> any().
+-callback handle_request(request(), any()) -> {any(), any()}.
+-callback handle_info(any(), any()) -> any().
+-optional_callbacks([init/0, handle_info/2]).
 
 -type config()   :: any().
 -type provider() :: els_completion_provider
@@ -29,10 +32,13 @@
                   | els_folding_range_provider
                   | els_implementation_provider
                   | els_code_action_provider
+                  | els_general_provider
                   | els_code_lens_provider
                   | els_execute_command_provider.
 -type request()  :: {atom(), map()}.
--type state()    :: any().
+-type state()    :: #{ provider := provider()
+                     , internal_state := any()
+                     }.
 
 -export_type([ config/0
              , provider/0
@@ -44,14 +50,9 @@
 %% External functions
 %%==============================================================================
 
--spec initialize() -> ok.
-initialize() ->
-  [ start_provider(Provider) || Provider <- enabled_providers() ],
-  ok.
-
 -spec start_link(provider()) -> {ok, pid()}.
 start_link(Provider) ->
-  gen_server:start_link({local, Provider}, ?MODULE, none, []).
+  gen_server:start_link({local, Provider}, ?MODULE, Provider, []).
 
 -spec handle_request(provider(), request()) -> any().
 handle_request(Provider, Request) ->
@@ -61,33 +62,43 @@ handle_request(Provider, Request) ->
 %% gen_server callbacks
 %%==============================================================================
 
--spec init(none) -> {ok, state()}.
-init(none) ->
-  {ok, #{}}.
+-spec init(els_provider:provider()) -> {ok, state()}.
+init(Provider) ->
+  lager:info("Starting provider ~p", [Provider]),
+  InternalState = case erlang:function_exported(Provider, init, 0) of
+                    true ->
+                      Provider:init();
+                    false ->
+                      #{}
+                  end,
+  {ok, #{provider => Provider, internal_state => InternalState}}.
 
 -spec handle_call(any(), {pid(), any()}, state()) ->
   {reply, any(), state()}.
 handle_call({handle_request, Provider, Request}, _From, State) ->
-  {Reply, NewState} = Provider:handle_request(Request, State),
-  {reply, Reply, NewState}.
+  #{internal_state := InternalState} = State,
+  {Reply, NewInternalState} = Provider:handle_request(Request, InternalState),
+  {reply, Reply, State#{internal_state => NewInternalState}}.
 
--spec handle_cast(any(), any()) ->
+-spec handle_cast(any(), state()) ->
   {noreply, state()}.
 handle_cast(_Request, State) ->
   {noreply, State}.
 
-%%==============================================================================
-%% Internal functions
-%%==============================================================================
+-spec handle_info(any(), state()) ->
+  {noreply, state()}.
+handle_info(Request, State) ->
+  #{provider := Provider, internal_state := InternalState} = State,
+  case erlang:function_exported(Provider, handle_info, 2) of
+    true ->
+      NewInternalState = Provider:handle_info(Request, InternalState),
+      {noreply, State#{internal_state => NewInternalState}};
+    false ->
+      {noreply, State}
+  end.
 
--spec start_provider(provider()) -> ok.
-start_provider(Provider) ->
-  supervisor:start_child(els_providers_sup, [Provider]),
-  ok.
-
-%% TODO: This could be moved to the supervisor
--spec providers() -> [provider()].
-providers() ->
+-spec available_providers() -> [provider()].
+available_providers() ->
   [ els_completion_provider
   , els_definition_provider
   , els_document_symbol_provider
@@ -99,10 +110,12 @@ providers() ->
   , els_folding_range_provider
   , els_implementation_provider
   , els_code_action_provider
+  , els_general_provider
   , els_code_lens_provider
   , els_execute_command_provider
+  , els_diagnostics_provider
   ].
 
 -spec enabled_providers() -> [provider()].
 enabled_providers() ->
-  [Provider || Provider <- providers(), Provider:is_enabled()].
+  [Provider || Provider <- available_providers(), Provider:is_enabled()].

@@ -33,6 +33,7 @@
         , exit/0
         , hover/3
         , implementation/3
+        , initialize/1
         , initialize/2
         , references/3
         , document_highlight/3
@@ -62,6 +63,7 @@
 %% Defines
 %%==============================================================================
 -define(SERVER, ?MODULE).
+-define(TIMEOUT, infinity).
 
 %%==============================================================================
 %% Record Definitions
@@ -77,7 +79,7 @@
 %% Type Definitions
 %%==============================================================================
 -type state()        :: #state{}.
--type init_options() :: [].
+-type init_options() :: #{}.
 -type transport()    :: stdio | tcp.
 -type transport_cb() :: els_stdio_client | els_tcp_client.
 -type request_id()   :: pos_integer().
@@ -176,9 +178,13 @@ document_symbol(Uri) ->
 folding_range(Uri) ->
   gen_server:call(?SERVER, {folding_range, {Uri}}).
 
+-spec initialize(uri()) -> map().
+initialize(RootUri) ->
+  initialize(RootUri, #{}).
+
 -spec initialize(uri(), init_options()) -> map().
 initialize(RootUri, InitOptions) ->
-  gen_server:call(?SERVER, {initialize, {RootUri, InitOptions}}).
+  gen_server:call(?SERVER, {initialize, {RootUri, InitOptions}}, ?TIMEOUT).
 
 -spec shutdown() -> map().
 shutdown() ->

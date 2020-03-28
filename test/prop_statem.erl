@@ -94,42 +94,7 @@ initialize_post(#{shutdown := true}, _Args, Res) ->
   assert_invalid_request(Res),
   true;
 initialize_post(_S, _Args, Res) ->
-  PrefixedCommands
-    = [ els_command:with_prefix(<<"replace-lines">>)
-      , els_command:with_prefix(<<"server-info">>)
-      , els_command:with_prefix(<<"ct-run-test">>)
-      ],
-  Expected = #{ capabilities =>
-                  #{ hoverProvider => true
-                   , completionProvider =>
-                       #{ resolveProvider => false
-                        , triggerCharacters => [ <<":">>
-                                               , <<"#">>
-                                               , <<"?">>
-                                               , <<".">>
-                                               ]
-                        }
-                   , textDocumentSync =>
-                       #{ openClose => true
-                        , change    => ?TEXT_DOCUMENT_SYNC_KIND_FULL
-                        , save      => #{includeText => true}
-                        }
-                   , definitionProvider      => true
-                   , implementationProvider  => true
-                   , referencesProvider      => true
-                   , documentHighlightProvider => true
-                   , documentSymbolProvider  => true
-                   , foldingRangeProvider => true
-                   , executeCommandProvider =>
-                       #{ commands => PrefixedCommands }
-                   , codeActionProvider => true
-                   , codeLensProvider =>
-                       #{resolveProvider => false}
-                   , workspaceSymbolProvider => true
-                   , documentFormattingProvider => true
-                   , documentRangeFormattingProvider => false
-                   }
-              },
+  Expected = els_general_provider:server_capabilities(),
   ?assertEqual(Expected, maps:get(result, Res)),
   true.
 
@@ -347,18 +312,15 @@ setup() ->
   meck:new(els_dialyzer_diagnostics, [no_link, passthrough]),
   meck:new(els_elvis_diagnostics, [no_link, passthrough]),
   meck:new(els_utils, [no_link, passthrough]),
-  meck:expect(els_compiler_diagnostics, diagnostics, 1, []),
-  meck:expect(els_dialyzer_diagnostics, diagnostics, 1, []),
-  meck:expect(els_elvis_diagnostics, diagnostics, 1, []),
+  meck:expect(els_compiler_diagnostics, run, 1, []),
+  meck:expect(els_dialyzer_diagnostics, run, 1, []),
+  meck:expect(els_elvis_diagnostics, run, 1, []),
   Self    = erlang:self(),
   HaltFun = fun(_X) -> Self ! halt_called, ok end,
   meck:expect(els_utils, halt, HaltFun),
   application:ensure_all_started(erlang_ls),
   file:write_file("/tmp/erlang_ls.config", <<"">>),
   lager:set_loglevel(lager_console_backend, warning),
-  %% Do not perform real indexing. Indexing is out of scope from the
-  %% property-based tests and it slows down things.
-  application:set_env(erlang_ls, indexing_enabled, false),
   ok.
 
 %%==============================================================================

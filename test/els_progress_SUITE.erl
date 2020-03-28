@@ -60,11 +60,11 @@ end_per_suite(Config) ->
 
 -spec init_per_testcase(atom(), config()) -> config().
 init_per_testcase(sample_job = TestCase, Config) ->
-  Task = fun(_) -> ok end,
+  Task = fun(_, _) -> ok end,
   setup_mocks(Task),
   [{task, Task} | els_test_utils:init_per_testcase(TestCase, Config)];
 init_per_testcase(failing_job = TestCase, Config) ->
-  Task = fun(_) -> exit(fail) end,
+  Task = fun(_, _) -> exit(fail) end,
   setup_mocks(Task),
   [{task, Task} | els_test_utils:init_per_testcase(TestCase, Config)].
 
@@ -108,12 +108,12 @@ wait_for_completion(Pid) ->
       wait_for_completion(Pid)
   end.
 
--spec setup_mocks(fun((_) -> ok)) -> ok.
+-spec setup_mocks(fun((_, _) -> ok)) -> ok.
 setup_mocks(Task) ->
   meck:new(sample_job, [non_strict, no_link]),
   meck:expect(sample_job, task, Task),
-  meck:expect(sample_job, on_complete, fun() -> ok end),
-  meck:expect(sample_job, on_error, fun() -> ok end),
+  meck:expect(sample_job, on_complete, fun(_) -> ok end),
+  meck:expect(sample_job, on_error, fun(_) -> ok end),
   ok.
 
 -spec teardown_mocks() -> ok.
@@ -123,10 +123,10 @@ teardown_mocks() ->
 
 -spec new_background_job() -> {ok, pid()}.
 new_background_job() ->
-  Config = #{ task => fun sample_job:task/1
+  Config = #{ task => fun sample_job:task/2
             , entries => entries()
-            , on_complete => fun sample_job:on_complete/0
-            , on_error => fun sample_job:on_error/0
+            , on_complete => fun sample_job:on_complete/1
+            , on_error => fun sample_job:on_error/1
             , title => <<"Sample job">>
             },
   els_background_job:new(Config).

@@ -5,8 +5,7 @@
 -export([ dispatch/4
         ]).
 
--export([ initialize/2
-        , initialized/2
+-export([ initialized/2
         , shutdown/2
         , exit/2
         ]).
@@ -86,7 +85,10 @@ do_dispatch(_Function, _Params, #{status := shutdown} = State) ->
              },
   {error, Result, State};
 do_dispatch(initialize, Params, State) ->
-  els_methods:initialize(Params, State);
+  Provider = els_general_provider,
+  Request  = {initialize, Params},
+  Response = els_provider:handle_request(Provider, Request),
+  {response, Response, State#{status => initialized}};
 do_dispatch(Function, Params, #{status := initialized} = State) ->
   els_methods:Function(Params, State);
 do_dispatch(_Function, _Params, State) ->
@@ -114,77 +116,6 @@ method_to_function_name(Method) ->
   Lower    = string:lowercase(Replaced),
   Binary   = els_utils:to_binary(Lower),
   binary_to_atom(Binary, utf8).
-
-%%==============================================================================
-%% Initialize
-%%==============================================================================
-
--spec initialize(params(), state()) -> result().
-initialize(Params, State) ->
-  #{ <<"rootUri">> := RootUri0
-     %% TODO: Use ClientCapabilities in completion_provider
-     %%       to verify when Context is present
-   , <<"capabilities">> := Capabilities
-   } = Params,
-  RootUri = case RootUri0 of
-              null ->
-                {ok, Cwd} = file:get_cwd(),
-                els_uri:uri(els_utils:to_binary(Cwd));
-              _ -> RootUri0
-            end,
-  InitOptions = maps:get(<<"initializationOptions">>, Params, #{}),
-  ok = els_config:initialize(RootUri, Capabilities, InitOptions),
-  DbDir = application:get_env(erlang_ls, db_dir, default_db_dir()),
-  OtpPath = els_config:get(otp_path),
-  els_db:install( node_name(RootUri, els_utils:to_binary(OtpPath))
-                , DbDir
-                ),
-  case application:get_env(?APP, indexing_enabled) of
-    {ok, true} ->
-      els_indexing:start();
-    _ ->
-      lager:info("Indexing disabled")
-  end,
-  ok = els_provider:initialize(),
-  Result =
-    #{ capabilities =>
-         #{ textDocumentSync =>
-              #{ openClose => true
-               , change    => ?TEXT_DOCUMENT_SYNC_KIND_FULL
-               , save      => #{includeText => true}
-               }
-          , hoverProvider => els_hover_provider:is_enabled()
-          , completionProvider =>
-              #{ resolveProvider => false
-               , triggerCharacters => [<<":">>, <<"#">>, <<"?">>, <<".">>]
-               }
-          , definitionProvider => els_definition_provider:is_enabled()
-          , referencesProvider => els_references_provider:is_enabled()
-          , documentHighlightProvider =>
-              els_document_highlight_provider:is_enabled()
-          , documentSymbolProvider =>
-              els_document_symbol_provider:is_enabled()
-          , workspaceSymbolProvider =>
-              els_workspace_symbol_provider:is_enabled()
-          , codeActionProvider =>
-              els_code_action_provider:is_enabled()
-          , documentFormattingProvider =>
-              els_formatting_provider:is_enabled_document()
-          , documentRangeFormattingProvider =>
-              els_formatting_provider:is_enabled_range()
-          %%, documentOnTypeFormattingProvider =>
-          %%    els_formatting_provider:is_enabled_on_type()
-          , foldingRangeProvider =>
-              els_folding_range_provider:is_enabled()
-          , implementationProvider =>
-              els_implementation_provider:is_enabled()
-          , executeCommandProvider =>
-              els_execute_command_provider:options()
-          , codeLensProvider =>
-              els_code_lens_provider:options()
-          }
-     },
-  {response, Result, State#{status => initialized}}.
 
 %%==============================================================================
 %% Initialized
@@ -447,15 +378,3 @@ workspace_symbol(Params, State) ->
   Provider = els_workspace_symbol_provider,
   Response = els_provider:handle_request(Provider, {symbol, Params}),
   {response, Response, State}.
-
-%%==============================================================================
-%% Internal Functions
-%%==============================================================================
--spec node_name(uri(), binary()) -> atom().
-node_name(RootUri, OtpPath) ->
-  <<SHA:160/integer>> = crypto:hash(sha, <<RootUri/binary, OtpPath/binary>>),
-  list_to_atom(lists:flatten(io_lib:format("erlang_ls_~40.16.0b", [SHA]))).
-
--spec default_db_dir() -> string().
-default_db_dir() ->
-  filename:basedir(user_cache, "erlang_ls").

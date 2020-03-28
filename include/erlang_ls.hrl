@@ -297,18 +297,6 @@
                               | ?COMPLETION_ITEM_KIND_OPERATOR
                               | ?COMPLETION_ITEM_KIND_TYPE_PARAM.
 
--type initialize_params() :: #{ processId             := number() | null
-                              , rootPath              => binary() | null
-                              , rootUri               := uri() | null
-                              , initializationOptions => any()
-                              , capabilities          := client_capabilities()
-                              , trace                 => off
-                                                       | messages
-                                                       | verbose
-                              , workspaceFolders      => [workspace_folder()]
-                                                       | null
-                              }.
-
 -type client_capabilities() ::
         #{ workspace    => workspace_client_capabilities()
          , textDocument => text_document_client_capabilities()
@@ -428,24 +416,6 @@
               , lineFoldingOnly     => boolean()
               }
          }.
-
--type server_capabilities() :: #{
-                          }.
-
--type initialize_result() :: #{ capabilities => server_capabilities()
-                              }.
-
-%%------------------------------------------------------------------------------
-%% Initialize Notification
-%%-----------------------------------------------------------------------------
-
-%%------------------------------------------------------------------------------
-%% Shutdown Request
-%%-----------------------------------------------------------------------------
-
-%%------------------------------------------------------------------------------
-%% Exit Notification
-%%-----------------------------------------------------------------------------
 
 %%------------------------------------------------------------------------------
 %% ShowMessage Notification

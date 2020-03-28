@@ -30,11 +30,12 @@
 %% Types
 %%==============================================================================
 -type entry() :: any().
--type config() :: #{ task := fun((entry()) -> ok)
+-type config() :: #{ task := fun((entry(), any()) -> any())
                    , entries := [any()]
                    , on_complete => fun()
                    , on_error => fun()
                    , title := binary()
+                   , initial_state => any()
                    }.
 -type state() :: #{ config := config()
                   , progress_enabled := boolean()
@@ -42,6 +43,7 @@
                   , current := non_neg_integer()
                   , step := pos_integer()
                   , total := non_neg_integer()
+                  , internal_state := any()
                   }.
 
 %%==============================================================================
@@ -91,14 +93,19 @@ init(#{entries := Entries, title := Title} = Config) ->
   Total = length(Entries),
   Step = step(Total),
   Token = els_work_done_progress:send_create_request(),
+  OnComplete = maps:get(on_complete, Config, fun noop/1),
+  OnError = maps:get(on_error, Config, fun noop/1),
   notify_begin(Token, Title, Total, ProgressEnabled),
   self() ! exec,
-  {ok, #{ config => Config
+  {ok, #{ config => Config#{ on_complete => OnComplete
+                           , on_error => OnError
+                           }
         , progress_enabled => ProgressEnabled
         , token => Token
         , current => 0
         , step => Step
         , total => Total
+        , internal_state => maps:get(initial_state, Config, undefined)
         }}.
 
 -spec handle_call(any(), {pid(), any()}, state()) ->
@@ -120,32 +127,37 @@ handle_info(exec, State) ->
    , current := Current
    , step := Step
    , total := Total
+   , internal_state := InternalState
    } = State,
   case Entries of
     [] ->
       notify_end(Token, Total, ProgressEnabled),
       {stop, normal, State};
     [Entry|Rest] ->
-      Task(Entry),
+      NewInternalState = Task(Entry, InternalState),
       notify_report(Token, Current, Step, Total, ProgressEnabled),
       self() ! exec,
       {noreply, State#{ config => Config#{ entries => Rest }
-                      , current => Current + 1}}
+                      , current => Current + 1
+                      , internal_state => NewInternalState
+                      }}
   end;
 handle_info(_Request, State) ->
   {noreply, State}.
 
 -spec terminate(any(), state()) -> ok.
-terminate(normal, #{config := Config}) ->
+terminate(normal, #{ config := #{on_complete := OnComplete}
+                   , internal_state := InternalState
+                   }) ->
   lager:info("Background job completed. [pid=~p]", [self()]),
-  OnComplete = maps:get(on_complete, Config, noop()),
-  OnComplete(),
+  OnComplete(InternalState),
   ok;
-terminate(Reason, #{config := Config}) ->
+terminate(Reason, #{ config := #{on_error := OnError}
+                   , internal_state := InternalState
+                   }) ->
   lager:warning( "Background job aborted. [reason=~p] [pid=~p]"
                , [Reason, self()]),
-  OnError = maps:get(on_error, Config, noop()),
-  OnError(),
+  OnError(InternalState),
   ok.
 
 %%==============================================================================
@@ -159,8 +171,9 @@ step(N) -> 100 / N.
 progress_msg(Current, Total) ->
   list_to_binary(io_lib:format("~p / ~p", [Current, Total])).
 
--spec noop() -> fun().
-noop() -> fun() -> ok end.
+-spec noop(any()) -> ok.
+noop(_) ->
+  ok.
 
 -spec notify_begin(els_progress:token(), binary(), pos_integer(), boolean()) ->
         ok.

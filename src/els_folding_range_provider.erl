@@ -13,6 +13,7 @@
 %%==============================================================================
 
 -type folding_range_result() :: [folding_range()] | null.
+-type state() :: any().
 
 %%==============================================================================
 %% els_provider functions
@@ -22,8 +23,7 @@
 is_enabled() ->
   true.
 
--spec handle_request(tuple(), els_provider:state()) ->
-   {folding_range_result(), els_provider:state()}.
+-spec handle_request(tuple(), state()) -> {folding_range_result(), state()}.
 handle_request({document_foldingrange, Params}, State) ->
   #{ <<"textDocument">> := #{<<"uri">> := Uri} } = Params,
   {ok, [Document]} = els_dt_document:lookup(Uri),
