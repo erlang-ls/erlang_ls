@@ -108,4 +108,4 @@ run_diagnostic(Uri, Id) ->
 %% @doc Return the callback module for a given Diagnostic Identifier
 -spec cb_module(els_diagnostics:diagnostic_id()) -> module().
 cb_module(Id) ->
-  binary_to_atom(<<"els_", Id/binary, "_diagnostics">>, utf8).
+  binary_to_existing_atom(<<"els_", Id/binary, "_diagnostics">>, utf8).
