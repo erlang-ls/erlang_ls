@@ -69,7 +69,7 @@ handle_info(_Request, State) ->
 -spec handle_request(any(), state()) -> {any(), state()}.
 handle_request({run_diagnostics, Params}, State) ->
   #{in_progress := InProgress} = State,
-  #{ <<"textDocument">> := #{ <<"uri">> := Uri}} = Params,
+  #{<<"textDocument">> := #{<<"uri">> := Uri}} = Params,
   lager:debug("Starting diagnostics jobs [uri=~p]", [Uri]),
   Jobs = els_diagnostics:run_diagnostics(Uri),
   Entry = #{uri => Uri, pending => Jobs, diagnostics => []},
