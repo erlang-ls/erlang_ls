@@ -59,6 +59,7 @@ available_diagnostics() ->
   [ <<"compiler">>
   , <<"dialyzer">>
   , <<"elvis">>
+  , <<"xref">>
   ].
 
 -spec default_diagnostics() -> [diagnostic_id()].

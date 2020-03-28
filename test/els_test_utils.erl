@@ -149,6 +149,7 @@ sources() ->
   , diagnostics_parse_transform
   , diagnostics_parse_transform_usage
   , diagnostics_parse_transform_usage_included
+  , diagnostics_xref
   , elvis_diagnostics
   , format_input
   , my_gen_server
