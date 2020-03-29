@@ -47,8 +47,14 @@ source() ->
 %% Internal Functions
 %%==============================================================================
 -spec make_diagnostic(poi()) -> els_diagnostics:diagnostic().
-make_diagnostic(#{range := Range}) ->
-  Message = <<"Cannot find definition for this function">>,
+make_diagnostic(#{range := Range, id := Id}) ->
+  Function = case Id of
+               {F, A} -> lists:flatten(io_lib:format("~p/~p", [F, A]));
+               {M, F, A} -> lists:flatten(io_lib:format("~p:~p/~p", [M, F, A]))
+             end,
+  Message = els_utils:to_binary(
+              io_lib:format( "Cannot find definition for function ~s"
+                           , [Function])),
   Severity = ?DIAGNOSTIC_ERROR,
   els_diagnostics:make_diagnostic( els_protocol:range(Range)
                                  , Message

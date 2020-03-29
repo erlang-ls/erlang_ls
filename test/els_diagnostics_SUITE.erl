@@ -286,19 +286,22 @@ xref(Config) ->
   els_mock_diagnostics:subscribe(),
   ok = els_client:did_save(Uri),
   Diagnostics = els_mock_diagnostics:wait_until_complete(),
-  Expected = [ #{ message => <<"Cannot find definition for this function">>
+  Expected = [ #{ message =>
+                    <<"Cannot find definition for function lists:map/3">>
+                , range =>
+                    #{ 'end' => #{character => 11, line => 5}
+                     , start => #{character => 2, line => 5}}
+                , severity => 1, source => <<"XRef">>}
+             , #{ message =>
+                    <<"Cannot find definition for function non_existing/0">>
                 , range =>
                     #{ 'end' => #{character => 14, line => 6}
                      , start => #{character => 2, line => 6}}
                 , severity => 1
                 , source => <<"XRef">>
                 }
-             , #{ message => <<"Cannot find definition for this function">>
-                , range =>
-                    #{ 'end' => #{character => 11, line => 5}
-                     , start => #{character => 2, line => 5}}
-                , severity => 1, source => <<"XRef">>},
-               #{ message => <<"function non_existing/0 undefined">>
+             , #{ message =>
+                    <<"function non_existing/0 undefined">>
                 , range =>
                     #{ 'end' => #{character => 0, line => 7}
                      , start => #{character => 0, line => 6}}
@@ -306,7 +309,8 @@ xref(Config) ->
                 , source => <<"Compiler">>
                 }
              ],
-  ?assertEqual(Expected, Diagnostics),
+  F = fun(#{message := M1}, #{message := M2}) -> M1 =< M2 end,
+  ?assertEqual(Expected, lists:sort(F, Diagnostics)),
   ok.
 
 %%==============================================================================
