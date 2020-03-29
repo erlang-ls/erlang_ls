@@ -286,10 +286,26 @@ xref(Config) ->
   els_mock_diagnostics:subscribe(),
   ok = els_client:did_save(Uri),
   Diagnostics = els_mock_diagnostics:wait_until_complete(),
-  Expected = [#{ message => <<"Cannot find definition for this function">>
-               , range => #{ 'end' => #{character => 11, line => 5}
-                           , start => #{character => 2, line => 5}}
-               , severity => 1, source => <<"XRef">>}],
+  Expected = [ #{ message => <<"Cannot find definition for this function">>
+                , range =>
+                    #{ 'end' => #{character => 14, line => 6}
+                     , start => #{character => 2, line => 6}}
+                , severity => 1
+                , source => <<"XRef">>
+                }
+             , #{ message => <<"Cannot find definition for this function">>
+                , range =>
+                    #{ 'end' => #{character => 11, line => 5}
+                     , start => #{character => 2, line => 5}}
+                , severity => 1, source => <<"XRef">>},
+               #{ message => <<"function non_existing/0 undefined">>
+                , range =>
+                    #{ 'end' => #{character => 0, line => 7}
+                     , start => #{character => 0, line => 6}}
+                , severity => 1
+                , source => <<"Compiler">>
+                }
+             ],
   ?assertEqual(Expected, Diagnostics),
   ok.
 
