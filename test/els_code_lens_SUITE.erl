@@ -14,6 +14,7 @@
 -export([ default_lenses/1
         , server_info/1
         , ct_run_test/1
+        , show_behaviour_usages/1
         ]).
 
 %%==============================================================================
@@ -118,5 +119,23 @@ ct_run_test(Config) ->
                             , start => #{ character => 0
                                         , line => 57
                                         }}}],
+  ?assertEqual(Expected, Result),
+  ok.
+
+-spec show_behaviour_usages(config()) -> ok.
+show_behaviour_usages(Config) ->
+  Uri = ?config(behaviour_a_uri, Config),
+  PrefixedCommand = els_command:with_prefix(<<"show-behaviour-usages">>),
+  #{result := Result} = els_client:document_codelens(Uri),
+  Expected = [#{ command =>
+                   #{ arguments => []
+                    , command => PrefixedCommand
+                    , title => <<"Behaviour used in 1 place(s)">>
+                    }
+               , data => []
+               , range =>
+                   #{ 'end' => #{character => 19, line => 0}
+                    , start => #{character => 8, line => 0}
+                    }}],
   ?assertEqual(Expected, Result),
   ok.

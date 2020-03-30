@@ -65,6 +65,10 @@ range({Line, Column}, behaviour, Behaviour, _Data) ->
   From = {Line, Column - 1},
   To = {Line, Column + length("behaviour") + length(atom_to_list(Behaviour))},
   #{ from => From, to => To };
+range({Line, Column}, callback, {F, _A}, _Data) ->
+  From = {Line, Column},
+  To = plus(From, atom_to_list(F)),
+  #{ from => From, to => To };
 range({Line, Column}, function, {F, _A}, _Data) ->
   From = {Line, Column},
   To = plus(From, atom_to_list(F)),

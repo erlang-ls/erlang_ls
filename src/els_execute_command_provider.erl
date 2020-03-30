@@ -23,6 +23,7 @@ options() ->
   #{ commands => [ els_command:with_prefix(<<"replace-lines">>)
                  , els_command:with_prefix(<<"server-info">>)
                  , els_command:with_prefix(<<"ct-run-test">>)
+                 , els_command:with_prefix(<<"show-behaviour-usages">>)
                  ] }.
 
 -spec handle_request(any(), state()) -> {any(), state()}.
@@ -69,6 +70,8 @@ execute_command(<<"server-info">>, _Arguments) ->
   [];
 execute_command(<<"ct-run-test">>, [Params]) ->
   els_command_ct_run_test:execute(Params),
+  [];
+execute_command(<<"show-behaviour-usages">>, [_Params]) ->
   [];
 execute_command(Command, Arguments) ->
   lager:info("Unsupported command: [Command=~p] [Arguments=~p]"
