@@ -37,28 +37,43 @@ path(Uri) ->
    , scheme := <<"file">>
   } = uri_string:parse(Uri1),
 
-  case {is_windows(), is_local(Host)} of
-    {_, true} ->
-      Path;
-    {true, false} ->
+  case {is_windows(), Host} of
+    {true, <<>>} ->
+      case re:run("^/[a-zA-Z]:", Path) of
+        {match, _} ->
+          % Windows drive letter, have to strip the initial slash
+          string:slice(Path, 1);
+        nomatch ->
+          Path
+      end;
+    {true, _} ->
       <<"//", Host/binary, Path/binary>>;
-    {false, false} ->
+    {false, <<>>} ->
+      Path;
+    {false, _} ->
       error(badarg)
   end.
 
 -spec uri(path()) -> uri().
 uri(Path) ->
-  Path1 = case is_windows() of
-           true -> els_utils:to_binary(string:replace(Path, "\\", "/"));
-           false -> Path
-         end,
-  <<"file://", Path1/binary>>.
+  [Head | Tail] = filename:split(Path),
+  {Host, Path1} = case {is_windows(), Head} of
+                   {false, <<"/">>} ->
+                     {<<>>, lists:join(<<"/">>, Tail)};
+                   {true, X} when X =:= <<"//">> orelse X =:= <<"\\\\">> ->
+                     [H | T] = Tail,
+                     {H, lists:join(<<"/">>, T)};
+                   {true, _} ->
+                     {<<>>, lists:join(<<"/">>, [Head | Tail])}
+                 end,
+
+  els_utils:to_binary(
+    uri_string:recompose(#{
+      scheme => <<"file">>, host => Host, path => [<<"/">>, Path1]
+    })
+  ).
 
 -spec is_windows() -> boolean().
 is_windows() ->
   {OS, _} = os:type(),
   OS =:= win32.
-
--spec is_local(binary()) -> boolean().
-is_local(Host) ->
-  Host =:= <<>> orelse Host =:= <<"localhost">>.
