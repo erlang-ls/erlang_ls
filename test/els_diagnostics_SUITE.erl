@@ -13,6 +13,7 @@
 %% Test cases
 -export([ compiler/1
         , compiler_with_behaviour/1
+        , compiler_with_broken_behaviour/1
         , compiler_with_custom_macros/1
         , compiler_with_parse_transform/1
         , compiler_with_parse_transform_list/1
@@ -128,6 +129,30 @@ compiler_with_behaviour(Config) ->
                            , start => #{character => 0, line => 2}}
                         ],
   ?assertEqual(ExpectedErrorRanges, ErrorRanges),
+  ok.
+
+%% Testing #614
+-spec compiler_with_broken_behaviour(config()) -> ok.
+compiler_with_broken_behaviour(Config) ->
+  Uri = ?config(code_navigation_uri, Config),
+  els_mock_diagnostics:subscribe(),
+  ok = els_client:did_save(Uri),
+  Diagnostics = els_mock_diagnostics:wait_until_complete(),
+  ?assertEqual(18, length(Diagnostics)),
+  Warnings = [D || #{severity := ?DIAGNOSTIC_WARNING} = D <- Diagnostics],
+  ?assertEqual(12, length(Warnings)),
+  Errors = [D || #{severity := ?DIAGNOSTIC_ERROR} = D <- Diagnostics],
+  ?assertEqual(6, length(Errors)),
+  [BehaviourError | _ ] = Errors,
+  ExpectedError =
+    #{message =>
+        <<"Issue in included file (5): [\"syntax error before: \",[]]">>,
+      range =>
+        #{'end' => #{character => 21, line => 2},
+          start => #{character => 0, line => 2}},
+      severity => 1,
+      source => <<"Compiler">>},
+  ?assertEqual(ExpectedError, BehaviourError),
   ok.
 
 -spec compiler_with_custom_macros(config()) -> ok.
