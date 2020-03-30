@@ -33,6 +33,6 @@ start_link(#{io_device := IoDevice}) ->
   _Pid = proc_lib:spawn_link(els_stdio, loop, Args),
   {ok, IoDevice}.
 
--spec send(pid(), iolist()) -> ok.
+-spec send(pid(), binary()) -> ok.
 send(Server, Payload) ->
-  io:format(Server, els_utils:to_binary(Payload), []).
+  io:format(Server, Payload, []).
