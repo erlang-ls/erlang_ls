@@ -32,10 +32,11 @@
 %% Initial State
 %%==============================================================================
 initial_state() ->
-  #{ connected   => false
-   , initialized => false
-   , shutdown    => false
-   , documents   => []
+  #{ connected        => false
+   , initialized      => false
+   , initialized_sent => false
+   , shutdown         => false
+   , documents        => []
    }.
 
 %%==============================================================================
@@ -96,6 +97,32 @@ initialize_post(#{shutdown := true}, _Args, Res) ->
 initialize_post(_S, _Args, Res) ->
   Expected = els_general_provider:server_capabilities(),
   ?assertEqual(Expected, maps:get(result, Res)),
+  true.
+
+%%------------------------------------------------------------------------------
+%% Initialized
+%%------------------------------------------------------------------------------
+initialized() ->
+  els_client:initialized().
+
+initialized_args(_S) ->
+  [].
+
+initialized_pre(#{ initialized := Initialized
+                 , initialized_sent := InitializedSent
+                 } = _S) ->
+  Initialized andalso not InitializedSent.
+
+initialized_next(#{shutdown := true} = S, _R, _Args) ->
+  S;
+initialized_next(S, _R, _Args) ->
+  S#{initialized_sent => true}.
+
+initialized_post(#{shutdown := true}, _Args, Res) ->
+  assert_invalid_request(Res),
+  true;
+initialized_post(_S, _Args, Res) ->
+  ?assertEqual(#{}, Res),
   true.
 
 %%------------------------------------------------------------------------------

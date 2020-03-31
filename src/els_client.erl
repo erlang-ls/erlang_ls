@@ -35,6 +35,7 @@
         , implementation/3
         , initialize/1
         , initialize/2
+        , initialized/0
         , references/3
         , document_highlight/3
         , document_codeaction/3
@@ -186,6 +187,10 @@ initialize(RootUri) ->
 initialize(RootUri, InitOptions) ->
   gen_server:call(?SERVER, {initialize, {RootUri, InitOptions}}, ?TIMEOUT).
 
+-spec initialized() -> map().
+initialized() ->
+  gen_server:call(?SERVER, {initialized, {}}).
+
 -spec shutdown() -> map().
 shutdown() ->
   gen_server:call(?SERVER, {shutdown}).
@@ -233,7 +238,8 @@ init({Transport, Args}) ->
 -spec handle_call(any(), any(), state()) -> {reply, any(), state()}.
 handle_call({Action, Opts}, _From, State) when Action =:= did_save
                                                orelse Action =:= did_close
-                                               orelse Action =:= did_open ->
+                                               orelse Action =:= did_open
+                                               orelse Action =:= initialized ->
   #state{transport_cb = Cb, transport_server = Server} = State,
   Method = method_lookup(Action),
   Params = notification_params(Opts),
@@ -357,7 +363,8 @@ method_lookup(implementation)           -> <<"textDocument/implementation">>;
 method_lookup(workspace_symbol)         -> <<"workspace/symbol">>;
 method_lookup(workspace_executecommand) -> <<"workspace/executeCommand">>;
 method_lookup(folding_range)            -> <<"textDocument/foldingRange">>;
-method_lookup(initialize)               -> <<"initialize">>.
+method_lookup(initialize)               -> <<"initialize">>;
+method_lookup(initialized)              -> <<"initialized">>.
 
 -spec request_params(tuple()) -> any().
 request_params({document_symbol, {Uri}}) ->
@@ -423,7 +430,9 @@ notification_params({Uri, LanguageId, Version, Text}) ->
                   , version    => Version
                   , text       => Text
                   },
-  #{textDocument => TextDocument}.
+  #{textDocument => TextDocument};
+notification_params({}) ->
+  #{}.
 
 -spec transport_cb(transport()) -> transport_cb().
 transport_cb(stdio)             -> els_stdio_client;
