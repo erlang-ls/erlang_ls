@@ -49,7 +49,7 @@ init(#{host := Host, port := Port}) ->
   {ok, Socket} = gen_tcp:connect(Host, Port, default_tcp_opts()),
   {ok, #{socket => Socket, buffer => <<>>}}.
 
--spec send(pid(), iolist()) -> ok.
+-spec send(pid(), binary()) -> ok.
 send(Server, Payload) ->
   gen_server:call(Server, {send, Payload}).
 

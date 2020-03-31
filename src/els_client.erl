@@ -4,7 +4,7 @@
 -module(els_client).
 
 -callback start_link(any())     -> {ok, pid()}.
--callback send(pid(), iolist()) -> ok.
+-callback send(pid(), binary()) -> ok.
 
 %%==============================================================================
 %% Behaviours

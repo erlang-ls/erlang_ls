@@ -180,6 +180,6 @@ do_send_request(Method, Params, #state{request_id = RequestId0} = State0) ->
   send(Request, State0),
   State0#state{request_id = RequestId}.
 
--spec send(iolist(), state()) -> ok.
+-spec send(binary(), state()) -> ok.
 send(Payload, #state{transport = T, connection = C}) ->
   T:send(C, Payload).

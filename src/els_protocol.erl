@@ -25,7 +25,7 @@
 %%==============================================================================
 %% Messaging API
 %%==============================================================================
--spec notification(binary(), any()) -> iolist().
+-spec notification(binary(), any()) -> binary().
 notification(Method, Params) ->
   Message = #{ jsonrpc => ?JSONRPC_VSN
              , method  => Method
@@ -33,7 +33,7 @@ notification(Method, Params) ->
              },
   content(jsx:encode(Message)).
 
--spec request(number(), binary(), any()) -> iolist().
+-spec request(number(), binary(), any()) -> binary().
 request(RequestId, Method, Params) ->
   Message = #{ jsonrpc => ?JSONRPC_VSN
              , method  => Method
@@ -42,7 +42,7 @@ request(RequestId, Method, Params) ->
              },
   content(jsx:encode(Message)).
 
--spec response(number(), any()) -> iolist().
+-spec response(number(), any()) -> binary().
 response(RequestId, Result) ->
   Message = #{ jsonrpc => ?JSONRPC_VSN
              , id      => RequestId
@@ -51,7 +51,7 @@ response(RequestId, Result) ->
   lager:debug("[Response] [message=~p]", [Message]),
   content(jsx:encode(Message)).
 
--spec error(number(), any()) -> iolist().
+-spec error(number(), any()) -> binary().
 error(RequestId, Error) ->
   Message = #{ jsonrpc => ?JSONRPC_VSN
              , id      => RequestId
@@ -72,9 +72,9 @@ range(#{ from := {FromL, FromC}, to := {ToL, ToC} }) ->
 %%==============================================================================
 %% Internal Functions
 %%==============================================================================
--spec content(binary()) -> iolist().
+-spec content(binary()) -> binary().
 content(Body) ->
-  [headers(Body), "\r\n", Body].
+els_utils:to_binary([headers(Body), "\r\n", Body]).
 
 -spec headers(binary()) -> iolist().
 headers(Body) ->
