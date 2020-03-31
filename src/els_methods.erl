@@ -5,11 +5,12 @@
 -export([ dispatch/4
         ]).
 
--export([ exit/2
-        , initialize/2
-        , initialized/2
+-export([ initialized/2
         , shutdown/2
-        , textdocument_completion/2
+        , exit/2
+        ]).
+
+-export([ textdocument_completion/2
         , textdocument_didopen/2
         , textdocument_didchange/2
         , textdocument_didsave/2
@@ -84,7 +85,10 @@ do_dispatch(_Function, _Params, #{status := shutdown} = State) ->
              },
   {error, Result, State};
 do_dispatch(initialize, Params, State) ->
-  els_methods:initialize(Params, State);
+  Provider = els_general_provider,
+  Request  = {initialize, Params},
+  Response = els_provider:handle_request(Provider, Request),
+  {response, Response, State#{status => initialized}};
 do_dispatch(Function, Params, #{status := initialized} = State) ->
   els_methods:Function(Params, State);
 do_dispatch(_Function, _Params, State) ->
@@ -114,25 +118,11 @@ method_to_function_name(Method) ->
   binary_to_atom(Binary, utf8).
 
 %%==============================================================================
-%% Initialize
-%%==============================================================================
-
--spec initialize(params(), state()) -> result().
-initialize(Params, State) ->
-  Provider = els_general_provider,
-  Request  = {initialize, Params},
-  Response = els_provider:handle_request(Provider, Request),
-  {response, Response, State#{status => initialized}}.
-
-%%==============================================================================
 %% Initialized
 %%==============================================================================
 
 -spec initialized(params(), state()) -> result().
-initialized(Params, State) ->
-  Provider = els_general_provider,
-  Request  = {initialized, Params},
-  _Response = els_provider:handle_request(Provider, Request),
+initialized(_Params, State) ->
   %% Report to the user the server version
   {ok, Version} = application:get_key(?APP, vsn),
   lager:info("initialized: [App=~p] [Version=~p]", [?APP, Version]),
@@ -151,11 +141,8 @@ initialized(Params, State) ->
 %%==============================================================================
 
 -spec shutdown(params(), state()) -> result().
-shutdown(Params, State) ->
-  Provider = els_general_provider,
-  Request  = {shutdown, Params},
-  Response = els_provider:handle_request(Provider, Request),
-  {response, Response, State#{status => shutdown}}.
+shutdown(_Params, State) ->
+  {response, null, State#{status => shutdown}}.
 
 %%==============================================================================
 %% exit
@@ -163,9 +150,12 @@ shutdown(Params, State) ->
 
 -spec exit(params(), state()) -> no_return().
 exit(_Params, State) ->
-  Provider = els_general_provider,
-  Request  = {exit, #{status => maps:get(status, State, undefined)}},
-  _Response = els_provider:handle_request(Provider, Request),
+  lager:info("Language server stopping..."),
+  ExitCode = case maps:get(status, State, undefined) of
+               shutdown -> 0;
+               _        -> 1
+             end,
+  els_utils:halt(ExitCode),
   {noresponse, #{}}.
 
 %%==============================================================================
