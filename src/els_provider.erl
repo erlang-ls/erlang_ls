@@ -56,7 +56,7 @@ start_link(Provider) ->
 
 -spec handle_request(provider(), request()) -> any().
 handle_request(Provider, Request) ->
-  gen_server:call(Provider, {handle_request, Provider, Request}).
+  gen_server:call(Provider, {handle_request, Provider, Request}, infinity).
 
 %%==============================================================================
 %% gen_server callbacks

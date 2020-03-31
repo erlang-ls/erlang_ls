@@ -50,10 +50,9 @@ handle_request({initialize, Params}, State) ->
               _ -> RootUri0
             end,
   InitOptions = case maps:get(<<"initializationOptions">>, Params, #{}) of
-                  null ->
-                    #{};
-                  InitOptions0 ->
-                    InitOptions0
+                  InitOptions0 when is_map(InitOptions0) ->
+                    InitOptions0;
+                  _ -> #{}
                 end,
   ok = els_config:initialize(RootUri, Capabilities, InitOptions),
   DbDir = application:get_env(erlang_ls, db_dir, default_db_dir()),
