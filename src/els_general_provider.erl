@@ -28,6 +28,15 @@
                                                        | null
                               }.
 -type initialize_result() :: #{ capabilities => server_capabilities() }.
+-type initialized_request() :: {initialized, initialized_params()}.
+-type initialized_params() :: #{}.
+-type initialized_result() :: null.
+-type shutdown_request() :: {shutdown, shutdown_params()}.
+-type shutdown_params() :: #{}.
+-type shutdown_result() :: null.
+-type exit_request() :: {exit, exit_params()}.
+-type exit_params() :: #{status => atom()}.
+-type exit_result() :: null.
 -type state() :: any().
 
 %%==============================================================================
@@ -37,8 +46,17 @@
 -spec is_enabled() -> boolean().
 is_enabled() -> true.
 
--spec handle_request(initialize_request(), state()) ->
-        {initialize_result(), state()}.
+-spec handle_request( initialize_request()
+                    | initialized_request()
+                    | shutdown_request()
+                    | exit_request()
+                    , state()) ->
+        { initialize_result()
+        | initialized_result()
+        | shutdown_result()
+        | exit_result()
+        , state()
+        }.
 handle_request({initialize, Params}, State) ->
   #{ <<"rootUri">> := RootUri0
    , <<"capabilities">> := Capabilities
@@ -64,7 +82,19 @@ handle_request({initialize, Params}, State) ->
     true  -> els_indexing:start();
     false -> lager:info("Skipping Indexing (disabled via InitOptions)")
   end,
-  {server_capabilities(), State}.
+  {server_capabilities(), State};
+handle_request({initialized, _Params}, State) ->
+  {null, State};
+handle_request({shutdown, _Params}, State) ->
+  {null, State};
+handle_request({exit, #{status := Status}}, State) ->
+  lager:info("Language server stopping..."),
+  ExitCode = case Status of
+               shutdown -> 0;
+               _        -> 1
+             end,
+  els_utils:halt(ExitCode),
+  {null, State}.
 
 %%==============================================================================
 %% API
