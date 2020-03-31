@@ -151,8 +151,10 @@ sources() ->
   , diagnostics_behaviour_impl
   , diagnostics_macros
   , diagnostics_parse_transform
+  , diagnostics_parse_transform_broken
   , diagnostics_parse_transform_usage
   , diagnostics_parse_transform_usage_list
+  , diagnostics_parse_transform_usage_broken
   , diagnostics_parse_transform_usage_included
   , diagnostics_xref
   , elvis_diagnostics

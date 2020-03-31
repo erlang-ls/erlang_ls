@@ -171,14 +171,16 @@ range(none) ->
 -spec inclusion_range(string(), els_dt_document:item()) -> poi_range().
 inclusion_range(IncludePath, Document) ->
   [Range|_] =
-    inclusion_range(IncludePath, Document, behaviour) ++
     inclusion_range(IncludePath, Document, include) ++
-    inclusion_range(IncludePath, Document, include_lib),
+    inclusion_range(IncludePath, Document, include_lib) ++
+    inclusion_range(IncludePath, Document, behaviour) ++
+    inclusion_range(IncludePath, Document, parse_transform),
   Range.
 
 -spec inclusion_range( string()
                      , els_dt_document:item()
-                     , include | include_lib | behaviour) -> [poi_range()].
+                     , include | include_lib | behaviour | parse_transform)
+                     -> [poi_range()].
 inclusion_range(IncludePath, Document, include) ->
   POIs       = els_dt_document:pois(Document, [include]),
   IncludeId  = include_id(IncludePath),
@@ -189,6 +191,11 @@ inclusion_range(IncludePath, Document, include_lib) ->
   [Range || #{id := Id, range := Range} <- POIs, Id =:= IncludeId];
 inclusion_range(IncludePath, Document, behaviour) ->
   POIs       = els_dt_document:pois(Document, [behaviour]),
+  %% IncludeId  = include_id(IncludePath),
+  IncludeId  = els_uri:module(els_uri:uri(els_utils:to_binary(IncludePath))),
+  [Range || #{id := Id, range := Range} <- POIs, Id =:= IncludeId];
+inclusion_range(IncludePath, Document, parse_transform) ->
+  POIs       = els_dt_document:pois(Document, [parse_transform]),
   %% IncludeId  = include_id(IncludePath),
   IncludeId  = els_uri:module(els_uri:uri(els_utils:to_binary(IncludePath))),
   [Range || #{id := Id, range := Range} <- POIs, Id =:= IncludeId].
