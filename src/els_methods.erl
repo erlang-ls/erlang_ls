@@ -140,11 +140,11 @@ initialized(Params, State) ->
   Root = filename:basename(els_uri:path(els_config:get(root_uri))),
   Message = <<"Erlang LS (in ", Root/binary, "), version: "
              , BinVersion/binary>>,
-  Method  = <<"window/showMessage">>,
-  Params  = #{ type    => ?MESSAGE_TYPE_INFO
-             , message => Message
+  NMethod  = <<"window/showMessage">>,
+  NParams  = #{ type    => ?MESSAGE_TYPE_INFO
+              , message => Message
              },
-  {notification, Method, Params, State#{status => initialized}}.
+  {notification, NMethod, NParams, State}.
 
 %%==============================================================================
 %% shutdown
