@@ -72,6 +72,8 @@ has_definition(#{ kind := application
                 , id := {erlang, module_info, 1} }, _) -> true;
 has_definition(#{ kind := application
                 , id := {record_info, 2} }, _) -> true;
+has_definition(#{ kind := application
+                , id := {behaviour_info, 1} }, _) -> true;
 has_definition(POI, #{uri := Uri}) ->
   case els_code_navigation:goto_definition(Uri, POI) of
     {ok, _Uri, _POI} ->

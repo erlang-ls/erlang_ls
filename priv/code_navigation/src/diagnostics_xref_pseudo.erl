@@ -8,4 +8,5 @@ main() ->
   record_info(fields, person),
   module_info(),
   module_info(module),
+  ?MODULE:behaviour_info(callbacks),
   ok.
