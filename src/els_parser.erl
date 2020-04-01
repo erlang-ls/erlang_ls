@@ -247,6 +247,8 @@ attribute(Tree) ->
       [poi(Pos, behaviour, Behaviour)];
     {behaviour, {behaviour, Behaviour}} ->
       [poi(Pos, behaviour, Behaviour)];
+    {callback, {callback, {{F, A}, _}}} ->
+      [poi(Pos, callback, {F, A})];
     {compile, {compile, {parse_transform, ParseTransform}}} ->
       [poi(Pos, parse_transform, ParseTransform)];
     {module, {Module, _Args}} ->

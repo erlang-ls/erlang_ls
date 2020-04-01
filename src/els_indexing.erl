@@ -87,6 +87,7 @@ index_signatures(#{id := Id} = Document) ->
 index_references(#{uri := Uri} = Document, 'deep') ->
   %% References
   POIs  = els_dt_document:pois(Document, [ application
+                                         , behaviour
                                          , implicit_fun
                                          , macro
                                          , record_access
@@ -155,7 +156,9 @@ register_reference(Uri, #{kind := Kind, id := Id, range := Range})
        Kind =:= application;
        Kind =:= implicit_fun;
        %% Type
-       Kind =:= type_application ->
+       Kind =:= type_application;
+       %% Behaviour
+       Kind =:= behaviour ->
   els_dt_references:insert( Kind
                           , #{id => Id, uri => Uri, range => Range}
                           ).

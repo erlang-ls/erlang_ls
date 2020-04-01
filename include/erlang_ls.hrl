@@ -565,6 +565,7 @@
 -type poi_kind()  :: application
                    | atom
                    | behaviour
+                   | callback
                    | define
                    | export
                    | export_entry

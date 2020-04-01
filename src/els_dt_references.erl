@@ -124,4 +124,6 @@ kind_to_category(Kind) when Kind =:= macro;
 kind_to_category(Kind) when Kind =:= record_expr;
                             Kind =:= record;
                             Kind =:= record_access ->
-  record.
+  record;
+kind_to_category(Kind) when Kind =:= behaviour ->
+  behaviour.

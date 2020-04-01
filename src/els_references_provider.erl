@@ -83,6 +83,9 @@ find_references(Uri, #{kind := module}) ->
       Refs = lists:flatmap(fun(E) -> find_references(Uri, E) end, Exports),
       lists:filter(ExcludeLocalRefs, Refs)
   end;
+find_references(_Uri, #{kind := Kind, id := Name})
+  when Kind =:= behaviour ->
+  find_references_for_id(Kind, Name);
 find_references(_Uri, _POI) ->
   [].
 
