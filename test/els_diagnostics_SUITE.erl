@@ -27,6 +27,7 @@
         , escript_warnings/1
         , escript_errors/1
         , xref/1
+        , xref_pseudo_functions/1
         ]).
 
 %%==============================================================================
@@ -412,6 +413,18 @@ xref(Config) ->
                 , source => <<"Compiler">>
                 }
              ],
+  F = fun(#{message := M1}, #{message := M2}) -> M1 =< M2 end,
+  ?assertEqual(Expected, lists:sort(F, Diagnostics)),
+  ok.
+
+%% #641
+-spec xref_pseudo_functions(config()) -> ok.
+xref_pseudo_functions(Config) ->
+  Uri = ?config(diagnostics_xref_pseudo_uri, Config),
+  els_mock_diagnostics:subscribe(),
+  ok = els_client:did_save(Uri),
+  Diagnostics = els_mock_diagnostics:wait_until_complete(),
+  Expected = [],
   F = fun(#{message := M1}, #{message := M2}) -> M1 =< M2 end,
   ?assertEqual(Expected, lists:sort(F, Diagnostics)),
   ok.
