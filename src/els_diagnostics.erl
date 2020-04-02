@@ -68,7 +68,24 @@ default_diagnostics() ->
 
 -spec enabled_diagnostics() -> [diagnostic_id()].
 enabled_diagnostics() ->
-  els_config:get(diagnostics).
+  Diagnostics = els_config:get(diagnostics),
+  BadFun  = fun(D) -> not lists:member(D, available_diagnostics()) end,
+  GoodFun = fun(D) -> lists:member(D, available_diagnostics()) end,
+  case lists:filter(BadFun, Diagnostics) of
+    [] -> ok;
+    BadDiagnostics ->
+      lager:info("[enabled_diagnostics]"
+                 " trying to enable non-existent diagnostic provider(s) ~p",
+                 [BadDiagnostics]),
+      Msg = io_lib:format
+              ("trying to enable non-existent diagnostic provider(s): ~p",
+               [BadDiagnostics]),
+      els_server:send_notification(<<"window/showMessage">>,
+                                   #{ type => ?MESSAGE_TYPE_ERROR,
+                                      message => els_utils:to_binary(Msg)
+                                    })
+  end,
+  lists:filter(GoodFun, Diagnostics).
 
 -spec make_diagnostic(range(), binary(), severity(), binary()) -> diagnostic().
 make_diagnostic(Range, Message, Severity, Source) ->
