@@ -184,7 +184,7 @@ application(Tree) ->
     undefined -> [];
     {F, A} ->
       Pos = erl_syntax:get_pos(Tree),
-      case is_erlang_bif(F, A) of
+      case erl_internal:bif(F, A) of
         %% Call to a function from the `erlang` module
         true -> [poi(Pos, application, {erlang, F, A}, #{imported => true})];
         %% Local call
@@ -193,10 +193,6 @@ application(Tree) ->
     MFA ->
       [poi(erl_syntax:get_pos(Tree), application, MFA)]
   end.
-
--spec is_erlang_bif(atom(), arity()) -> boolean().
-is_erlang_bif(F, A) ->
-  lists:member({F, A}, erlang:module_info(exports)).
 
 -spec application_mfa(tree()) ->
   {module(), atom(), arity()} | {atom(), arity()} | undefined.
