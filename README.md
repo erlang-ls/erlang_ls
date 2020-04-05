@@ -25,7 +25,7 @@ These are the command-line arguments that can be provided to the
 
 ``` shell
 Usage: Erlang LS [-v] [-t [<transport>]] [-p [<port>]] [-d [<log_dir>]]
-                 [-l [<log_level>]] [<port_old>]
+                 [-l [<log_level>]]
 
   -v, --version    Print the current version of Erlang LS
   -t, --transport  Specifies the transport the server will use for the

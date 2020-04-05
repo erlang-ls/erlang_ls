@@ -40,14 +40,7 @@ parse_args(Args) ->
       print_version(),
       halt(1);
     {ok, {ParsedArgs, _BadArgs}} ->
-      %% Handle backwards compatibility of clients that do not provide args but
-      %% only supply an integer. Assume it to be the port and remove the default
-      %% that we pick for the port.
-      ValidArgs = case lists:keyfind(port_old, 1, ParsedArgs) of
-                    false -> ParsedArgs;
-                    {port_old, _} -> lists:keydelete(port, 1, ParsedArgs)
-                  end,
-      set_args(ValidArgs);
+      set_args(ParsedArgs);
     {error, {invalid_option, _}} ->
       getopt:usage(opt_spec_list(), "Erlang LS"),
       halt(1)
@@ -86,12 +79,6 @@ opt_spec_list() ->
     , {string, ?DEFAULT_LOGGING_LEVEL}
     , "The log level that should be used."
     }
- ,  { port_old
-    , undefined
-    , undefined
-    , integer
-    , "Port provided as integer for backwards compatibility reasons"
-    }
   ].
 
 -spec set_args([] | [getopt:compound_option()]) -> ok.
@@ -120,7 +107,6 @@ set(port_old, Port) ->
 %%==============================================================================
 %% Lager configuration
 %%==============================================================================
-
 
 -spec lager_config() -> ok.
 lager_config() ->
