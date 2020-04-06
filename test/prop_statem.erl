@@ -108,21 +108,19 @@ initialized() ->
 initialized_args(_S) ->
   [].
 
-initialized_pre(#{ initialized := Initialized
+initialized_pre(#{ connected := Connected
+                 , initialized := Initialized
                  , initialized_sent := InitializedSent
                  } = _S) ->
-  Initialized andalso not InitializedSent.
+  Connected andalso Initialized andalso not InitializedSent.
 
 initialized_next(#{shutdown := true} = S, _R, _Args) ->
   S;
 initialized_next(S, _R, _Args) ->
   S#{initialized_sent => true}.
 
-initialized_post(#{shutdown := true}, _Args, Res) ->
-  assert_invalid_request(Res),
-  true;
 initialized_post(_S, _Args, Res) ->
-  ?assertEqual(#{}, Res),
+  ?assertEqual(ok, Res),
   true.
 
 %%------------------------------------------------------------------------------
