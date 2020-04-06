@@ -16,6 +16,8 @@
 -export([ initialize_default/1
         , initialize_custom_relative/1
         , initialize_custom_absolute/1
+        , initialize_enable_diagnostics_normal/1
+        , initialize_enable_diagnostics_custom/1
         ]).
 
 %%==============================================================================
@@ -99,4 +101,32 @@ initialize_custom_absolute(Config) ->
   Result = els_config:get(macros),
   Expected = [#{"name" => "DEFINED_FOR_RELATIVE_TEST"}],
   ?assertEqual(Expected, Result),
+  ok.
+
+-spec initialize_enable_diagnostics_normal(config()) -> ok.
+initialize_enable_diagnostics_normal(Config) ->
+  RootUri  = ?config(root_uri, Config),
+  els_client:initialize(RootUri),
+  Result = els_config:get(diagnostics),
+  Expected = els_diagnostics:available_diagnostics(),
+  ?assertEqual(Expected, Result),
+  Result2 = els_diagnostics:enabled_diagnostics(),
+  Expected2 = [<<"compiler">>, <<"dialyzer">>, <<"elvis">>, <<"xref">>],
+  ?assertEqual(Expected2, Result2),
+  ok.
+
+-spec initialize_enable_diagnostics_custom(config()) -> ok.
+initialize_enable_diagnostics_custom(Config) ->
+  RootUri  = ?config(root_uri, Config),
+  ConfigPath = filename:join( els_uri:path(RootUri)
+                            , "erlang_ls_diagnostic.config"),
+  InitOpts = #{ <<"erlang">>
+              => #{ <<"config_path">> => ConfigPath }},
+  els_client:initialize(RootUri, InitOpts),
+  Result = els_config:get(diagnostics),
+  Expected = [<<"compiler">>, <<"dialyzer">>, <<"elvis">>, <<"nonexist">>],
+  ?assertEqual(Expected, Result),
+  Result2 = els_diagnostics:enabled_diagnostics(),
+  Expected2 = [<<"compiler">>, <<"dialyzer">>, <<"elvis">>],
+  ?assertEqual(Expected2, Result2),
   ok.
