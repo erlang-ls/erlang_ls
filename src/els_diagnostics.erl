@@ -68,24 +68,11 @@ default_diagnostics() ->
 
 -spec enabled_diagnostics() -> [diagnostic_id()].
 enabled_diagnostics() ->
-  Diagnostics = els_config:get(diagnostics),
-  BadFun  = fun(D) -> not lists:member(D, available_diagnostics()) end,
-  GoodFun = fun(D) -> lists:member(D, available_diagnostics()) end,
-  case lists:filter(BadFun, Diagnostics) of
-    [] -> ok;
-    BadDiagnostics ->
-      lager:info("[enabled_diagnostics]"
-                 " trying to enable non-existent diagnostic provider(s) ~p",
-                 [BadDiagnostics]),
-      Msg = io_lib:format
-              ("trying to enable non-existent diagnostic provider(s): ~p",
-               [BadDiagnostics]),
-      els_server:send_notification(<<"window/showMessage">>,
-                                   #{ type => ?MESSAGE_TYPE_ERROR,
-                                      message => els_utils:to_binary(Msg)
-                                    })
-  end,
-  lists:filter(GoodFun, Diagnostics).
+  Config = els_config:get(diagnostics),
+  Default = default_diagnostics(),
+  Enabled = maps:get("enabled", Config, []),
+  Disabled = maps:get("disabled", Config, []),
+  lists:usort((Default ++ valid(Enabled)) -- valid(Disabled)).
 
 -spec make_diagnostic(range(), binary(), severity(), binary()) -> diagnostic().
 make_diagnostic(Range, Message, Severity, Source) ->
@@ -124,6 +111,29 @@ run_diagnostic(Uri, Id) ->
   Pid.
 
 %% @doc Return the callback module for a given Diagnostic Identifier
--spec cb_module(els_diagnostics:diagnostic_id()) -> module().
+-spec cb_module(diagnostic_id()) -> module().
 cb_module(Id) ->
   binary_to_existing_atom(<<"els_", Id/binary, "_diagnostics">>, utf8).
+
+-spec is_valid(diagnostic_id()) -> boolean().
+is_valid(Id) ->
+  lists:member(Id, available_diagnostics()).
+
+-spec valid([string()]) -> [diagnostic_id()].
+valid(Ids0) ->
+  Ids = [els_utils:to_binary(Id) || Id <- Ids0],
+  {Valid, Invalid} = lists:partition(fun is_valid/1, Ids),
+  case Invalid of
+    [] ->
+      ok;
+    _ ->
+      Fmt = "Skipping invalid diagnostics in config file: ~p",
+      Args = [Invalid],
+      Msg = lists:flatten(io_lib:format(Fmt, Args)),
+      lager:warning(Msg),
+      els_server:send_notification(<<"window/showMessage">>,
+                                   #{ type => ?MESSAGE_TYPE_WARNING,
+                                      message => els_utils:to_binary(Msg)
+                                    })
+  end,
+  Valid.
