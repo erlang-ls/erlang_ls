@@ -31,13 +31,17 @@ is_default() ->
 
 -spec run(uri()) -> [els_diagnostics:diagnostic()].
 run(Uri) ->
-  {ok, [Document]} = els_dt_document:lookup(Uri),
-  POIs = els_dt_document:pois(Document, [ application
-                                        , implicit_fun
-                                        , import_entry
-                                        , export_entry
-                                        ]),
-  [make_diagnostic(POI) || POI <- POIs, not has_definition(POI, Document)].
+  case els_dt_document:lookup(Uri) of
+    {ok, []} ->
+      [];
+    {ok, [Document|_]} ->
+      POIs = els_dt_document:pois(Document, [ application
+                                            , implicit_fun
+                                            , import_entry
+                                            , export_entry
+                                            ]),
+      [make_diagnostic(POI) || POI <- POIs, not has_definition(POI, Document)]
+  end.
 
 -spec source() -> binary().
 source() ->
