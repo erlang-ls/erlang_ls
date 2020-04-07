@@ -73,6 +73,7 @@
                , request_id       = 1 :: request_id()
                , pending          = []
                , notifications    = []
+               , requests         = []
                }).
 
 %%==============================================================================
@@ -300,10 +301,16 @@ handle_call(Input = {Action, _}, From, State) ->
 
 -spec handle_cast(any(), state()) -> {noreply, state()}.
 handle_cast({handle_responses, Responses}, State) ->
-  #state{pending = Pending0, notifications = Notifications0} = State,
-  {Pending, Notifications}
-    = do_handle_responses(Responses, Pending0, Notifications0),
-  {noreply, State#state{pending = Pending, notifications = Notifications}};
+  #state{ pending = Pending0
+        , notifications = Notifications0
+        , requests = Requests0
+        } = State,
+  {Pending, Notifications, Requests}
+    = do_handle_messages(Responses, Pending0, Notifications0, Requests0),
+  {noreply, State#state{ pending = Pending
+                       , notifications = Notifications
+                       , requests = Requests
+                       }};
 handle_cast(_Request, State) ->
   {noreply, State}.
 
@@ -316,26 +323,43 @@ code_change(_OldVsn, State, _Extra) ->
 %%==============================================================================
 
 %% @doc handle messages received from the transport layer
--spec do_handle_responses([map()], [any()], [any()]) -> {[any()], [any()]}.
-do_handle_responses([], Pending, Notifications) ->
-  {Pending, Notifications};
-do_handle_responses([Response|Responses], Pending, Notifications) ->
-  case maps:find(id, Response) of
-    {ok, RequestId} ->
-      lager:debug("[CLIENT] Handling Response [response=~p]", [Response]),
+-spec do_handle_messages([map()], [any()], [any()], [any()]) ->
+        {[any()], [any()], [any()]}.
+do_handle_messages([], Pending, Notifications, Requests) ->
+  {Pending, Notifications, Requests};
+do_handle_messages([Message|Messages], Pending, Notifications, Requests) ->
+  case is_response(Message) of
+    true ->
+      RequestId = maps:get(id, Message),
+      lager:debug("[CLIENT] Handling Response [response=~p]", [Message]),
       case lists:keyfind(RequestId, 1, Pending) of
         {RequestId, From} ->
-          gen_server:reply(From, Response),
-          do_handle_responses( Responses
-                          , lists:keydelete(RequestId, 1, Pending)
-                          , Notifications);
+          gen_server:reply(From, Message),
+          do_handle_messages( Messages
+                            , lists:keydelete(RequestId, 1, Pending)
+                            , Notifications
+                            , Requests
+                            );
         false ->
-          do_handle_responses(Responses, Pending, Notifications)
+          do_handle_messages(Messages, Pending, Notifications, Requests)
       end;
-    error ->
-      lager:debug( "[CLIENT] Handling Notification [notification=~p]"
-                 , [Response]),
-      do_handle_responses(Responses, Pending, [Response|Notifications])
+    false ->
+      case is_notification(Message) of
+        true ->
+          lager:debug( "[CLIENT] Discarding Notification [message=~p]"
+                     , [Message]),
+          do_handle_messages( Messages
+                            , Pending
+                            , [Message|Notifications]
+                            , Requests);
+        false ->
+          lager:debug( "[CLIENT] Discarding Server Request [message=~p]"
+                     , [Message]),
+          do_handle_messages( Messages
+                            , Pending
+                            , Notifications
+                            , [Message|Requests])
+      end
   end.
 
 -spec method_lookup(atom()) -> binary().
@@ -428,3 +452,15 @@ notification_params({Uri, LanguageId, Version, Text}) ->
 -spec transport_cb(transport()) -> transport_cb().
 transport_cb(stdio)             -> els_stdio_client;
 transport_cb(tcp)               -> els_tcp_client.
+
+-spec is_notification(map()) -> boolean().
+is_notification(#{id := _Id}) ->
+  false;
+is_notification(_) ->
+  true.
+
+-spec is_response(map()) -> boolean().
+is_response(#{method := _Method}) ->
+  false;
+is_response(_) ->
+  true.
