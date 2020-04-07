@@ -61,7 +61,11 @@ default_lenses() ->
 
 -spec enabled_lenses() -> [lens_id()].
 enabled_lenses() ->
-  els_config:get(code_lenses).
+  Config = els_config:get(lenses),
+  Default = default_lenses(),
+  Enabled = maps:get("enabled", Config, []),
+  Disabled = maps:get("disabled", Config, []),
+  lists:usort((Default ++ valid(Enabled)) -- valid(Disabled)).
 
 -spec lenses(lens_id(), els_dt_document:item()) -> [lens()].
 lenses(Id, Document) ->
@@ -88,7 +92,34 @@ make_lens(CbModule, Document, #{range := Range} = POI) ->
    }.
 
 %% @doc Return the callback module for a given Code Lens Identifier
--spec cb_module(els_code_lens:lens_id()) -> module().
+-spec cb_module(lens_id()) -> module().
 cb_module(Id0) ->
   Id = re:replace(Id0, "-", "_", [global, {return, binary}]),
   binary_to_atom(<<"els_code_lens_", Id/binary>>, utf8).
+
+%%==============================================================================
+%% Internal Functions
+%%==============================================================================
+
+-spec is_valid(lens_id()) -> boolean().
+is_valid(Id) ->
+  lists:member(Id, available_lenses()).
+
+-spec valid([string()]) -> [lens_id()].
+valid(Ids0) ->
+  Ids = [els_utils:to_binary(Id) || Id <- Ids0],
+  {Valid, Invalid} = lists:partition(fun is_valid/1, Ids),
+  case Invalid of
+    [] ->
+      ok;
+    _ ->
+      Fmt = "Skipping invalid lenses in config file: ~p",
+      Args = [Invalid],
+      Msg = lists:flatten(io_lib:format(Fmt, Args)),
+      lager:warning(Msg),
+      els_server:send_notification(<<"window/showMessage">>,
+                                   #{ type => ?MESSAGE_TYPE_WARNING,
+                                      message => els_utils:to_binary(Msg)
+                                    })
+  end,
+  Valid.

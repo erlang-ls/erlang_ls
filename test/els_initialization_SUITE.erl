@@ -19,6 +19,9 @@
         , initialize_diagnostics_default/1
         , initialize_diagnostics_custom/1
         , initialize_diagnostics_invalid/1
+        , initialize_lenses_default/1
+        , initialize_lenses_custom/1
+        , initialize_lenses_invalid/1
         ]).
 
 %%==============================================================================
@@ -137,5 +140,43 @@ initialize_diagnostics_invalid(Config) ->
   els_client:initialize(RootUri, InitOpts),
   Result = els_diagnostics:enabled_diagnostics(),
   Expected = [<<"compiler">>, <<"dialyzer">>, <<"elvis">>, <<"xref">>],
+  ?assertEqual(Expected, Result),
+  ok.
+
+-spec initialize_lenses_default(config()) -> ok.
+initialize_lenses_default(Config) ->
+  RootUri = ?config(root_uri, Config),
+  DataDir = ?config(data_dir, Config),
+  ConfigPath = filename:join(DataDir, "lenses_default.config"),
+  InitOpts = #{ <<"erlang">> => #{ <<"config_path">> => ConfigPath }},
+  els_client:initialize(RootUri, InitOpts),
+  Expected = els_code_lens:default_lenses(),
+  Result = els_code_lens:enabled_lenses(),
+  ?assertEqual(Expected, Result),
+  ok.
+
+-spec initialize_lenses_custom(config()) -> ok.
+initialize_lenses_custom(Config) ->
+  RootUri = ?config(root_uri, Config),
+  DataDir = ?config(data_dir, Config),
+  ConfigPath = filename:join(DataDir, "lenses_custom.config"),
+  InitOpts = #{ <<"erlang">> => #{ <<"config_path">> => ConfigPath }},
+  els_client:initialize(RootUri, InitOpts),
+  Expected = [<<"ct-run-test">>, <<"server-info">>],
+  Result = els_code_lens:enabled_lenses(),
+  ?assertEqual(Expected, Result),
+  ok.
+
+-spec initialize_lenses_invalid(config()) -> ok.
+initialize_lenses_invalid(Config) ->
+  RootUri = ?config(root_uri, Config),
+  DataDir = ?config(data_dir, Config),
+  ConfigPath = filename:join(DataDir, "lenses_invalid.config"),
+  InitOpts = #{ <<"erlang">> => #{ <<"config_path">> => ConfigPath }},
+  els_client:initialize(RootUri, InitOpts),
+  Result = els_code_lens:enabled_lenses(),
+  Expected = [ <<"ct-run-test">>
+             , <<"server-info">>
+             , <<"show-behaviour-usages">>],
   ?assertEqual(Expected, Result),
   ok.
