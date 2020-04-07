@@ -121,10 +121,10 @@ A good commit may look like this:
   without further explanation.
 * PR Conversations can be marked as _resolved_ by the PR author, but
   only if at least one of the following conditions holds:
-    * The issue is addressed via a code change;
+    * the issue is addressed via a code change;
     * the issue will be tackled in a follow up Pull Request (a
       follow-up ticket should be created and linked in this case);
-    * The issue is marked as a _won't fix_ and an explanation is
+    * the issue is marked as a _won't fix_ and an explanation is
       provided.
 * Once a PR conversion is marked as _resolved_, it is the
   responsibility of both the Pull Request author and the reviewer to
@@ -145,7 +145,7 @@ A good commit may look like this:
 * It is acceptable to open a Pull Request to get some early feedback
   from other team members, even if the changes included in the Pull
   Request are not in a _reviewable_ state, yet. In this case, though,
-  the Pull Request title _must_ be prefixed with `[WIP]`.
+  a [Draft Pull Request][github-draft] should be used.
 
 ### Final Note
 
@@ -159,3 +159,4 @@ projects.
 [atom-contributing]:https://github.com/atom/atom/blob/master/CONTRIBUTING.md
 [rails-contributing]:https://github.com/rails/rails/blob/master/CONTRIBUTING.md
 [github-suggest]:https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/commenting-on-a-pull-request
+[github-draft]:https://github.blog/2019-02-14-introducing-draft-pull-requests/
