@@ -56,6 +56,10 @@ init_per_testcase(server_info, Config) ->
   meck:new(els_code_lens_server_info, [passthrough, no_link]),
   meck:expect(els_code_lens_server_info, is_default, 0, true),
   els_test_utils:init_per_testcase(server_info, Config);
+init_per_testcase(ct_run_test, Config) ->
+  meck:new(els_code_lens_ct_run_test, [passthrough, no_link]),
+  meck:expect(els_code_lens_ct_run_test, is_default, 0, true),
+  els_test_utils:init_per_testcase(server_info, Config);
 init_per_testcase(TestCase, Config) ->
   els_test_utils:init_per_testcase(TestCase, Config).
 
@@ -63,6 +67,10 @@ init_per_testcase(TestCase, Config) ->
 end_per_testcase(server_info, Config) ->
   els_test_utils:end_per_testcase(server_info, Config),
   meck:unload(els_code_lens_server_info),
+  ok;
+end_per_testcase(ct_run_test, Config) ->
+  els_test_utils:end_per_testcase(ct_run_test, Config),
+  meck:unload(els_code_lens_ct_run_test),
   ok;
 end_per_testcase(TestCase, Config) ->
   els_test_utils:end_per_testcase(TestCase, Config).

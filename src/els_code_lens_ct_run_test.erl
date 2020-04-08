@@ -31,7 +31,7 @@ command_args( #{uri := Uri} = _Document
 
 -spec is_default() -> boolean().
 is_default() ->
-  true.
+  false.
 
 -spec pois(els_dt_document:item()) -> [poi()].
 pois(Document) ->
