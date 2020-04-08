@@ -39,13 +39,10 @@ path(Uri) ->
 
   case {is_windows(), Host} of
     {true, <<>>} ->
-      case re:run("^/[a-zA-Z]:", Path) of
-        {match, _} ->
-          % Windows drive letter, have to strip the initial slash
-          string:slice(Path, 1);
-        nomatch ->
-          Path
-      end;
+      % Windows drive letter, have to strip the initial slash
+      re:replace(
+        Path, "^/([a-zA-Z]:)(.*)", "\\1\\2", [{return, binary}]
+      );
     {true, _} ->
       <<"//", Host/binary, Path/binary>>;
     {false, <<>>} ->
