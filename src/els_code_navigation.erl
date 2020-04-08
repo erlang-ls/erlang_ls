@@ -76,18 +76,28 @@ find([], _Kind, _Data) ->
 find([Uri|Uris0], Kind, Data) ->
   case els_dt_document:lookup(Uri) of
     {ok, [Document]} ->
-      POIs = els_dt_document:pois(Document, [Kind]),
-      case [POI || #{id := Id} = POI <- POIs, Id =:= Data] of
-        [] ->
-          find(lists:usort(include_uris(Document) ++ Uris0), Kind, Data);
-        Definitions ->
-          {ok, Uri, hd(els_poi:sort(Definitions))}
-      end;
+      find_in_document([Uri|Uris0], Document, Kind, Data);
     {ok, []} ->
       find(Uris0, Kind, Data)
   end;
 find(Uri, Kind, Data) ->
   find([Uri], Kind, Data).
+
+-spec find_in_document(uri() | [uri()], els_dt_document:item(), poi_kind()
+                      , any()) ->
+        {ok, uri(), poi()} | {error, any()}.
+find_in_document([Uri|Uris0], Document, Kind, Data) ->
+  POIs = els_dt_document:pois(Document, [Kind]),
+  case [POI || #{id := Id} = POI <- POIs, Id =:= Data] of
+    [] ->
+      case maybe_imported(Uri, Document, Kind, Data) of
+        {ok, U, P} -> {ok, U, P};
+        {error, not_found} ->
+          find(lists:usort(include_uris(Document) ++ Uris0), Kind, Data)
+      end;
+    Definitions ->
+      {ok, Uri, hd(els_poi:sort(Definitions))}
+  end.
 
 -spec include_uris(els_dt_document:item()) -> [uri()].
 include_uris(Document) ->
@@ -104,3 +114,18 @@ add_include_uri(#{ id := Id }, Acc) ->
 -spec beginning() -> #{range => #{from => {1, 1}, to => {1, 1}}}.
 beginning() ->
   #{range => #{from => {1, 1}, to => {1, 1}}}.
+
+%% @doc check for a match in any of the module imported functions.
+-spec maybe_imported(uri(), els_dt_document:item(), poi_kind(), any()) ->
+        {ok, uri(), poi()} | {error, not_found}.
+maybe_imported(Uri, Document, function, {F, A}) ->
+  POIs = els_dt_document:pois(Document, [import_entry]),
+  case [{M, F, A} || #{id := {M, FP, AP}} <- POIs, FP =:= F, AP =:= A] of
+    [] -> {error, not_found};
+    [Id|_] ->
+      goto_definition(Uri, #{ kind => application, id => Id
+                            , data => undefined
+                            , range => #{ from => {0, 0}, to => {0, 0}}})
+  end;
+maybe_imported(_Uri, _Document, _Kind, _Data) ->
+  {error, not_found}.

@@ -24,6 +24,7 @@
         , fun_local/1
         , fun_remote/1
         , import_entry/1
+        , module_import_entry/1
         , include/1
         , include_lib/1
         , macro/1
@@ -198,6 +199,16 @@ fun_remote(Config) ->
 import_entry(Config) ->
   Uri = ?config(code_navigation_uri, Config),
   Def = els_client:definition(Uri, 10, 34),
+  #{result := #{range := Range, uri := DefUri}} = Def,
+  ?assertEqual(?config(code_navigation_extra_uri, Config), DefUri),
+  ?assertEqual( els_protocol:range(#{from => {5, 1}, to => {5, 3}})
+              , Range),
+  ok.
+
+-spec module_import_entry(config()) -> ok.
+module_import_entry(Config) ->
+  Uri = ?config(code_navigation_uri, Config),
+  Def = els_client:definition(Uri, 90, 3),
   #{result := #{range := Range, uri := DefUri}} = Def,
   ?assertEqual(?config(code_navigation_extra_uri, Config), DefUri),
   ?assertEqual( els_protocol:range(#{from => {5, 1}, to => {5, 3}})
