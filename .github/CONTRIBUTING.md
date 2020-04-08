@@ -114,7 +114,13 @@ A good commit may look like this:
   reviews.
 * Every review should be completed via either an _Approve_ or a
   _Request Changes_ action. Not selecting either option should be
-  considered as a _review in progress_.
+  considered as a _review in progress_. While it is possible to simply
+  add a _comment_ without expressing a general opinion on the Pull
+  Request, this option should be used with care, since it does not
+  give a clear indication about the review. This applies to project
+  maintainers and reviewers whose opinion has been explicitly
+  _requested_ in the PR. It is ok (and encouraged) for extra reviewers
+  or other contributors to leave comments on a PR.
 * Code reviews should be completed within a reasonable time
   window. Leaving comments in time-separated _bulks_ is discouraged.
 * It is not acceptable to mark a Pull Request via a _needs work_
