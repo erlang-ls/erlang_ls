@@ -101,6 +101,58 @@ A good commit may look like this:
 
     [#42] Discover the meaning of life.
 
+### Code Reviews
+
+* Always be constructive when providing feedback (e.g. be explicit on
+  what could be improved and how)
+* Use [GitHub suggestion blocks][github-suggest] for fixing typos and
+  small mistakes
+* Positive feedback is as important as negative feedback
+* Only the Pull Request author(s) should push changes to the branch
+  under review
+* Reviewers should be as responsive as possible in providing their
+  reviews.
+* Every review should be completed via either an _Approve_ or a
+  _Request Changes_ action. Not selecting either option should be
+  considered as a _review in progress_. While it is possible to simply
+  add a _comment_ without expressing a general opinion on the Pull
+  Request, this option should be used with care, since it does not
+  give a clear indication about the review. This applies to project
+  maintainers and reviewers whose opinion has been explicitly
+  _requested_ in the PR. It is ok (and encouraged) for extra reviewers
+  or other contributors to leave comments on a PR.
+* Code reviews should be completed within a reasonable time
+  window. Leaving comments in time-separated _bulks_ is discouraged.
+* It is not acceptable to mark a Pull Request via a _needs work_
+  without further explanation.
+* PR Conversations can be marked as _resolved_ by the PR author, but
+  only if at least one of the following conditions holds:
+    * the issue is addressed via a code change;
+    * the issue will be tackled in a follow up Pull Request (a
+      follow-up ticket should be created and linked in this case);
+    * the issue is marked as a _won't fix_ and an explanation is
+      provided.
+* Once a PR conversion is marked as _resolved_, it is the
+  responsibility of both the Pull Request author and the reviewer to
+  verify that the original issue has been properly addressed (either
+  via a code change or a clear explanation or follow-up ticket).
+* When a trivial task (e.g. fixing a typo) is marked as _done_ via a
+  code change, no further explanation is required. A _Fixed_ comment
+  can be added by the author of the Pull Request, but it is not
+  mandatory.
+* Nit-picking comments must be prefixed by the `Nit:` prefix. If
+  possible, they should be addressed via a _code suggestion
+  block_. The Pull Request author is encouraged to fix nit-picking
+  comments, but they should not be considered as blockers.
+* It is not acceptable to mark a Pull Request as a _Request Changes_
+  in case only nit-picking comments are present.
+* In case of post-merge comments, the original author of the Pull
+  Request must be pinged directly via a `@` mention.
+* It is acceptable to open a Pull Request to get some early feedback
+  from other team members, even if the changes included in the Pull
+  Request are not in a _reviewable_ state, yet. In this case, though,
+  a [Draft Pull Request][github-draft] should be used.
+
 ### Final Note
 
 These CONTRIBUTING notes are partially inspired by the awesome ones of
@@ -112,3 +164,5 @@ projects.
 [wiki]:https://github.com/erlang-ls/erlang_ls/wiki
 [atom-contributing]:https://github.com/atom/atom/blob/master/CONTRIBUTING.md
 [rails-contributing]:https://github.com/rails/rails/blob/master/CONTRIBUTING.md
+[github-suggest]:https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/commenting-on-a-pull-request
+[github-draft]:https://github.blog/2019-02-14-introducing-draft-pull-requests/
