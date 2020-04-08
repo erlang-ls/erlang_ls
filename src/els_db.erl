@@ -26,10 +26,7 @@
 
 -spec install(atom(), string()) -> ok.
 install(NodeName, BaseDir) ->
-  lager:info("Switching to distribute mode", []),
-  ok = start_epmd(),
-  net_kernel:start([NodeName, shortnames]),
-  lager:info("Distributed mode enabled [node=~p]", [NodeName]),
+  els_distribution:start(NodeName),
   DbDir = filename:join([BaseDir, atom_to_list(NodeName)]),
   lager:info("Configuring DB [dir=~s]", [DbDir]),
   ok = filelib:ensure_dir(filename:join([DbDir, "dummy"])),
@@ -128,31 +125,6 @@ transaction(F) ->
     {aborted, Reason} -> {error, {aborted, Reason}};
     {atomic, ok}      -> ok;
     {atomic, Result}  -> {ok, Result}
-  end.
-
-%%==============================================================================
-%% Internal functions
-%%==============================================================================
-
--spec start_epmd() -> ok.
-start_epmd() ->
-  0 = els_utils:cmd(epmd_path(), ["-daemon"]),
-  ok.
-
--spec epmd_path() -> string().
-epmd_path() ->
-  ErtsBinDir = filename:dirname(escript:script_name()),
-  Name = "epmd",
-  case os:find_executable(Name, ErtsBinDir) of
-    false ->
-      case os:find_executable(Name) of
-        false ->
-          error("Could not find epmd.");
-        GlobalEpmd ->
-          GlobalEpmd
-      end;
-    Epmd ->
-      Epmd
   end.
 
 -spec maybe_delete_db_schema(string()) -> ok.

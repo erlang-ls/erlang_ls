@@ -75,9 +75,10 @@ handle_request({initialize, Params}, State) ->
   ok = els_config:initialize(RootUri, Capabilities, InitOptions),
   DbDir = application:get_env(erlang_ls, db_dir, default_db_dir()),
   OtpPath = els_config:get(otp_path),
-  els_db:install( node_name(RootUri, els_utils:to_binary(OtpPath))
-                , DbDir
-                ),
+  NodeName = node_name(RootUri, els_utils:to_binary(OtpPath)),
+  els_db:install(NodeName, DbDir),
+  ProjectNodeName = els_config_runtime:get_node_name(),
+  els_distribution:ensure_node(ProjectNodeName),
   case maps:get(<<"indexingEnabled">>, InitOptions, true) of
     true  -> els_indexing:start();
     false -> lager:info("Skipping Indexing (disabled via InitOptions)")
