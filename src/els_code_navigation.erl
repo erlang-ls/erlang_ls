@@ -90,7 +90,7 @@ find_in_document([Uri|Uris0], Document, Kind, Data) ->
   POIs = els_dt_document:pois(Document, [Kind]),
   case [POI || #{id := Id} = POI <- POIs, Id =:= Data] of
     [] ->
-      case maybe_imported(Uri, Document, Kind, Data) of
+      case maybe_imported(Document, Kind, Data) of
         {ok, U, P} -> {ok, U, P};
         {error, not_found} ->
           find(lists:usort(include_uris(Document) ++ Uris0), Kind, Data)
@@ -116,16 +116,17 @@ beginning() ->
   #{range => #{from => {1, 1}, to => {1, 1}}}.
 
 %% @doc check for a match in any of the module imported functions.
--spec maybe_imported(uri(), els_dt_document:item(), poi_kind(), any()) ->
+-spec maybe_imported(els_dt_document:item(), poi_kind(), any()) ->
         {ok, uri(), poi()} | {error, not_found}.
-maybe_imported(Uri, Document, function, {F, A}) ->
+maybe_imported(Document, function, {F, A}) ->
   POIs = els_dt_document:pois(Document, [import_entry]),
   case [{M, F, A} || #{id := {M, FP, AP}} <- POIs, FP =:= F, AP =:= A] of
     [] -> {error, not_found};
-    [Id|_] ->
-      goto_definition(Uri, #{ kind => application, id => Id
-                            , data => undefined
-                            , range => #{ from => {0, 0}, to => {0, 0}}})
+    [{M, F, A}|_] ->
+      case els_utils:find_module(M) of
+        {ok, Uri0}      -> find(Uri0, function, {F, A});
+        {error, Error} -> {error, Error}
+      end
   end;
-maybe_imported(_Uri, _Document, _Kind, _Data) ->
+maybe_imported(_Document, _Kind, _Data) ->
   {error, not_found}.
