@@ -12,7 +12,8 @@
       , lager
       , yamerl
       , docsh
-      , elvis
+      , elvis_core
+      , redbug
       , ephemeral
       , rebar3_format
       , tdiff
