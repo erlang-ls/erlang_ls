@@ -228,6 +228,7 @@ functions_arity(Config) ->
                       , <<"function_k/0">>
                       , <<"function_l/2">>
                       , <<"function_m/1">>
+                      , <<"function_n/0">>
                       ],
   ExpectedCompletion = [ #{ label            => FunName
                           , kind             => ?COMPLETION_ITEM_KIND_FUNCTION

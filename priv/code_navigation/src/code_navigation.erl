@@ -84,3 +84,7 @@ function_l(X, Y) ->
 function_m(code_navigation_types) ->
   code_navigation_extra,
   function_m(code_navigation_extra).
+
+%% [#386] got to definition of import by module
+function_n() ->
+  do(4).
