@@ -51,12 +51,10 @@ default_node_name() ->
 default_otp_path() ->
   filename:dirname(filename:dirname(code:root_dir())).
 
-%% TODO: Move to els_rebar3
 -spec default_start_cmd() -> string().
 default_start_cmd() ->
   "rebar3".
 
-%% TODO: Rename plugin
 -spec default_start_args() -> string().
 default_start_args() ->
-  "rebar3_erlang_ls".
+  "erlang_ls".
