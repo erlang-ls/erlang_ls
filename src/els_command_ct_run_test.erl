@@ -48,7 +48,6 @@ publish_result(Uri, Line, Severity, Message) ->
 
 -spec run_test(atom(), atom()) -> any().
 run_test(Suite, Case) ->
-  Node = els_config_runtime:get_node_name(),
   Module = els_config_ct_run_test:get_module(),
   Function = els_config_ct_run_test:get_function(),
-  rpc:call(Node, Module, Function, [Suite, Case]).
+  els_distribution:rpc_call(Module, Function, [Suite, Case]).

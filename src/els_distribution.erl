@@ -2,6 +2,7 @@
 
 -export([ ensure_epmd/0
         , ensure_node/1
+        , rpc_call/3
         , start/1
         ]).
 
@@ -25,6 +26,12 @@ ensure_node(Name) ->
       %% TODO: Do not just spawn
       spawn(fun() -> els_utils:cmd(Cmd, Args, Path) end)
   end.
+
+%% @doc Make a RPC call towards the runtime node.
+-spec rpc_call(atom(), atom(), [any()]) -> any().
+rpc_call(Module, Function, Args) ->
+  Node = els_config_runtime:get_node_name(),
+  rpc:call(Node, Module, Function, Args).
 
 %% @doc Turns a non-distributed node into a distributed one
 -spec start(atom()) -> ok.
