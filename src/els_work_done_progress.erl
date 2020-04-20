@@ -42,6 +42,7 @@
 
 -export([ is_supported/0
         , send_create_request/0
+        , value_begin/2
         , value_begin/3
         , value_report/2
         , value_end/1
@@ -68,6 +69,14 @@ send_create_request() ->
   Params = #{token => Token},
   ok = els_server:send_request(Method, Params),
   Token.
+
+-spec value_begin(binary(), binary()) -> value_begin().
+value_begin(Title, Message) ->
+  #{ kind        => 'begin'
+   , title       => Title
+   , cancellable => false
+   , message     => Message
+   }.
 
 -spec value_begin(binary(), binary(), percentage()) -> value_begin().
 value_begin(Title, Message, Percentage) ->
