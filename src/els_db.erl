@@ -104,7 +104,9 @@ wait_for_tables() ->
 
 -spec wait_for_tables(timeout()) -> ok.
 wait_for_tables(Timeout) ->
-  ok = mnesia:wait_for_tables(tables(), Timeout).
+  Token = maybe_report_progress_begin(),
+  ok = mnesia:wait_for_tables(tables(), Timeout),
+  maybe_report_progress_end(Token).
 
 -spec clear_table(atom()) -> ok.
 clear_table(Table) ->
@@ -188,3 +190,30 @@ del_all_files([Dir | T], EmptyDirs) ->
                     ok = file:delete(F)
                 end, Files),
   del_all_files(T ++ Dirs, [Dir | EmptyDirs]).
+
+-spec maybe_report_progress_begin() ->
+        els_progress:token() | undefined.
+maybe_report_progress_begin() ->
+  case els_work_done_progress:is_supported() of
+    true ->
+      Title = <<"Initializing DB...">>,
+      Msg = <<"Loading tables...">>,
+      Token = els_work_done_progress:send_create_request(),
+      Begin = els_work_done_progress:value_begin(Title, Msg),
+      els_progress:send_notification(Token, Begin),
+      Token;
+    false ->
+      undefined
+  end.
+
+-spec maybe_report_progress_end(els_progress:token()) -> ok.
+maybe_report_progress_end(Token) ->
+  case els_work_done_progress:is_supported() of
+    true ->
+      Msg = <<"Tables loaded.">>,
+      End = els_work_done_progress:value_end(Msg),
+      els_progress:send_notification(Token, End),
+      ok;
+    false ->
+      ok
+  end.
