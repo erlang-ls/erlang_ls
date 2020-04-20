@@ -71,6 +71,7 @@ init_per_testcase(_TestCase, Config) ->
   RootPath  = ?config(root_path, Config),
   RootUri   = ?config(root_uri, Config),
   els_client:initialize(RootUri, #{indexingEnabled => false}),
+  els_client:initialized(),
   SrcConfig = lists:flatten(
                 [index_file(RootPath, src, S) || S <- sources()]),
   TestConfig = lists:flatten(
