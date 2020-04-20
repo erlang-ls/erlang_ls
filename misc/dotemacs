@@ -50,7 +50,7 @@
 
 ;; Enable and configure the LSP UI Package
 (package-require 'lsp-ui)
-(setq lsp-ui-sideline-enable nil)
+(setq lsp-ui-sideline-enable t)
 (setq lsp-ui-doc-enable t)
 (setq lsp-ui-doc-position 'bottom)
 
