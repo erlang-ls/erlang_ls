@@ -97,6 +97,8 @@ do_initialize(RootUri, Capabilities, {ConfigPath, Config}) ->
   ExcludePaths = els_utils:resolve_paths(ExcludePathsSpecs, RootPath, true),
   lager:info("Excluded OTP Applications: ~p", [OtpAppsExclude]),
   CodeReload = maps:get("code_reload", Config, disabled),
+  Runtime = maps:get("runtime", Config, #{}),
+  CtRunTest = maps:get("ct-run-test", Config, #{}),
 
   %% Passed by the LSP client
   ok = set(root_uri       , RootUri),
@@ -109,6 +111,10 @@ do_initialize(RootUri, Capabilities, {ConfigPath, Config}) ->
   ok = set(macros         , Macros),
   ok = set(plt_path       , DialyzerPltPath),
   ok = set(code_reload    , CodeReload),
+  ok = set(runtime, maps:merge( els_config_runtime:default_config()
+                              , Runtime)),
+  ok = set('ct-run-test', maps:merge( els_config_ct_run_test:default_config()
+                                    , CtRunTest)),
   %% Calculated from the above
   ok = set(apps_paths     , project_paths(RootPath, AppsDirs, false)),
   ok = set(deps_paths     , project_paths(RootPath, DepsDirs, false)),

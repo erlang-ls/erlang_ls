@@ -104,7 +104,7 @@ ct_run_test(Config) ->
   Expected = [],
   ?assertEqual(Expected, Result),
   wait_until_mock_called(els_protocol, notification),
-  ?assertEqual(1, meck:num_calls(els_command_ct_run_test, ct_run_test, '_')),
+  ?assertEqual(1, meck:num_calls(els_distribution, rpc_call, '_')),
   Notifications = [{Method, Args} ||
                     { _Pid
                     , {els_protocol, notification, [Method, Args]}
@@ -141,12 +141,10 @@ strip_server_prefix(_Config) ->
 
 -spec setup_mocks() -> ok.
 setup_mocks() ->
-  meck:new(els_command_ct_run_test, [passthrough, no_link, non_strict]),
+  meck:new(els_distribution, [passthrough, no_link, non_strict]),
   meck:new(els_protocol, [passthrough, no_link]),
-  meck:expect( els_command_ct_run_test, ct_run_test, 1
-             , fun(_) ->
-                   {1, 0, {0, 0}}
-               end),
+  meck:expect( els_distribution, rpc_call, 3
+             , fun(_, _, _) -> ok end),
   meck:expect( els_protocol, notification, 2
              , fun(Method, Params) ->
                    meck:passthrough([Method, Params])
@@ -155,7 +153,7 @@ setup_mocks() ->
 
 -spec teardown_mocks() -> ok.
 teardown_mocks() ->
-  meck:unload(els_command_ct_run_test),
+  meck:unload(els_distribution),
   meck:unload(els_protocol),
   ok.
 

@@ -333,10 +333,12 @@ prop_main() ->
 %% Setup
 %%==============================================================================
 setup() ->
+  meck:new(els_distribution, [no_link, passthrough]),
   meck:new(els_compiler_diagnostics, [no_link, passthrough]),
   meck:new(els_dialyzer_diagnostics, [no_link, passthrough]),
   meck:new(els_elvis_diagnostics, [no_link, passthrough]),
   meck:new(els_utils, [no_link, passthrough]),
+  meck:expect(els_distribution, ensure_node, 1, ok),
   meck:expect(els_compiler_diagnostics, run, 1, []),
   meck:expect(els_dialyzer_diagnostics, run, 1, []),
   meck:expect(els_elvis_diagnostics, run, 1, []),
@@ -352,6 +354,7 @@ setup() ->
 %% Teardown
 %%==============================================================================
 teardown(_) ->
+  meck:unload(els_distribution),
   meck:unload(els_compiler_diagnostics),
   meck:unload(els_dialyzer_diagnostics),
   meck:unload(els_elvis_diagnostics),

@@ -1,6 +1,7 @@
 -module(els_utils).
 
 -export([ cmd/2
+        , cmd/3
         , filename_to_atom/1
         , find_header/1
         , find_module/1
@@ -21,22 +22,63 @@
 %% File and module functions
 %%==============================================================================
 
-% @doc Replacement for os:cmd that allows for spaces in args and paths
 -spec cmd(string(), [string()]) -> integer().
 cmd(Cmd, Args) ->
+  cmd(Cmd, Args, []).
+
+% @doc Replacement for os:cmd that allows for spaces in args and paths
+-spec cmd(string(), [string()], string()) -> integer().
+cmd(Cmd, Args, Path) ->
+  lager:info("Running OS command [command=~p] [args=~p]", [Cmd, Args]),
+  Executable = case filename:basename(Cmd) of
+                 Cmd ->
+                   cmd_path(Cmd);
+                 _ ->
+                   %% The command already contains a path
+                   Cmd
+               end,
   Tag = make_ref(),
-  {Pid, Ref} = erlang:spawn_monitor(fun() ->
-    P = open_port(
-      {spawn_executable, Cmd},
-      [binary, use_stdio, stream, exit_status, hide, {args, Args}]
-    ),
-    exit({Tag, cmd_receive(P)})
-  end),
+  F =
+    fun() ->
+        P = open_port(
+              {spawn_executable, Executable},
+              [ binary
+              , use_stdio
+              , stream
+              , exit_status
+              , hide
+              , {args, Args}
+                %% TODO: Windows-friendly version?
+              , {env, [{"PATH", Path ++ ":" ++ os:getenv("PATH")}]}
+              ]
+             ),
+        exit({Tag, cmd_receive(P)})
+    end,
+  {Pid, Ref} = erlang:spawn_monitor(F),
   receive
     {'DOWN', Ref, process, Pid, {Tag, Data}} ->
       Data;
     {'DOWN', Ref, process, Pid, Reason} ->
       exit(Reason)
+  end.
+
+%% @doc Return the path for a command
+-spec cmd_path(string()) -> string().
+cmd_path(Cmd) ->
+  ErtsBinDir = filename:dirname(escript:script_name()),
+  case os:find_executable(Cmd, ErtsBinDir) of
+    false ->
+      case os:find_executable(Cmd) of
+        false ->
+          Fmt = "Could not find command ~p",
+          Args = [Cmd],
+          Msg = lists:flatten(io_lib:format(Fmt, Args)),
+          error(Msg);
+        GlobalEpmd ->
+          GlobalEpmd
+      end;
+    Epmd ->
+      Epmd
   end.
 
 -spec filename_to_atom(els_dt_document:id()) -> atom().

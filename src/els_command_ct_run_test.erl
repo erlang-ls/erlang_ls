@@ -1,9 +1,6 @@
 -module(els_command_ct_run_test).
 
--export([ execute/1 ]).
-
-%% Invoked from the Common Test Hook
--export([ publish_result/4, run_test/2, ct_run_test/1 ]).
+-export([ execute/1, task/2 ]).
 
 -include("erlang_ls.hrl").
 
@@ -17,30 +14,25 @@ execute(#{ <<"module">>   := M
   Msg = io_lib:format("Running Common Test [mfa=~s:~s/~p]", [M, F, A]),
   lager:info(Msg, []),
   Title = unicode:characters_to_binary(Msg),
-  Config = #{ task        => fun ?MODULE:run_test/2
-            , entries     => [{Uri, Line, F}]
-            , title       => Title
+  Suite = els_uri:module(Uri),
+  Case = binary_to_atom(F, utf8),
+  Config = #{ task    => fun ?MODULE:task/2
+            , entries => [{Uri, Line, Suite, Case}]
+            , title   => Title
             },
   {ok, _Pid} = els_background_job:new(Config),
   ok.
 
--spec run_test({uri(), pos_integer(), binary()}, any()) -> ok.
-run_test({Uri, Line, TestCase}, _State) ->
-  Opts = [ {suite,        [binary_to_list(els_uri:path(Uri))]}
-         , {testcase,     [binary_to_atom(TestCase, utf8)]}
-         , {include,      els_config:get(include_paths)}
-         , {auto_compile, true}
-         , {ct_hooks,     [{els_cth, #{uri => Uri, line => Line}}]}
-         ],
-  Result = ?MODULE:ct_run_test(Opts),
-  lager:info("CT Result: ~p", [Result]),
-  case Result of
-    {N, 0, {0, 0}} when N > 0 ->
+-spec task({uri(), pos_integer(), atom(), atom()}, any()) -> ok.
+task({Uri, Line, Suite, Case}, _State) ->
+  case run_test(Suite, Case) of
+    ok ->
+      lager:info("CT Test passed", []),
       publish_result(Uri, Line, ?DIAGNOSTIC_INFO, <<"Test passed!">>);
-    _ ->
-      %% In case of skipped or failed tests, the result is published
-      %% by the Common Test hook, so nothing to do here.
-      ok
+    Error ->
+      Message = els_utils:to_binary(io_lib:format("~p", [Error])),
+      lager:info("CT Test failed [error=~p]", [Error]),
+      publish_result(Uri, Line, ?DIAGNOSTIC_ERROR, Message)
   end.
 
 -spec publish_result( uri()
@@ -54,6 +46,8 @@ publish_result(Uri, Line, Severity, Message) ->
   els_diagnostics_provider:publish(Uri, [D]),
   ok.
 
--spec ct_run_test([any()]) -> any().
-ct_run_test(Opts) ->
-  ct:run_test(Opts).
+-spec run_test(atom(), atom()) -> any().
+run_test(Suite, Case) ->
+  Module = els_config_ct_run_test:get_module(),
+  Function = els_config_ct_run_test:get_function(),
+  els_distribution:rpc_call(Module, Function, [Suite, Case]).
