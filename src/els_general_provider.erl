@@ -73,6 +73,10 @@ handle_request({initialize, Params}, State) ->
                   _ -> #{}
                 end,
   ok = els_config:initialize(RootUri, Capabilities, InitOptions),
+  NewState = State#{ root_uri => RootUri, init_options => InitOptions},
+  {server_capabilities(), NewState};
+handle_request({initialized, _Params}, State) ->
+  #{root_uri := RootUri, init_options := InitOptions} = State,
   DbDir = application:get_env(erlang_ls, db_dir, default_db_dir()),
   OtpPath = els_config:get(otp_path),
   NodeName = node_name(RootUri, els_utils:to_binary(OtpPath)),
@@ -83,8 +87,6 @@ handle_request({initialize, Params}, State) ->
     true  -> els_indexing:start();
     false -> lager:info("Skipping Indexing (disabled via InitOptions)")
   end,
-  {server_capabilities(), State};
-handle_request({initialized, _Params}, State) ->
   {null, State};
 handle_request({shutdown, _Params}, State) ->
   {null, State};
