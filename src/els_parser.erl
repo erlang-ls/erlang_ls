@@ -245,7 +245,9 @@ attribute(Tree) ->
       [poi(Pos, behaviour, Behaviour)];
     {callback, {callback, {{F, A}, _}}} ->
       [poi(Pos, callback, {F, A})];
-    {compile, {compile, CompileOpts}} ->
+    {compile, {compile, {parse_transform, ParseTransform}}} ->
+      [poi(Pos, parse_transform, ParseTransform)];
+    {compile, {compile, CompileOpts}} when is_list(CompileOpts) ->
       [poi(Pos, parse_transform, PT) || {parse_transform, PT} <- CompileOpts];
     {module, {Module, _Args}} ->
       [poi(Pos, module, Module)];
