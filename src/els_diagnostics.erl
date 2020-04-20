@@ -93,9 +93,12 @@ run_diagnostics(Uri) ->
 -spec run_diagnostic(uri(), diagnostic_id()) -> pid().
 run_diagnostic(Uri, Id) ->
   CbModule = cb_module(Id),
+  Source = CbModule:source(),
+  Module = atom_to_binary(els_uri:module(Uri), utf8),
+  Title = <<Source/binary, " (", Module/binary, ")">>,
   Config = #{ task => fun(U, _) -> CbModule:run(U) end
             , entries => [Uri]
-            , title => CbModule:source()
+            , title => Title
             , on_complete =>
                 fun(Diagnostics) ->
                     case erlang:function_exported(CbModule, on_complete, 2) of
