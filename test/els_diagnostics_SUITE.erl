@@ -15,6 +15,7 @@
         , compiler_with_behaviour/1
         , compiler_with_custom_macros/1
         , compiler_with_parse_transform/1
+        , compiler_with_parse_transform_list/1
         , compiler_with_parse_transform_included/1
         , code_reload/1
         , code_reload_sticky_mod/1
@@ -148,6 +149,22 @@ compiler_with_custom_macros(Config) ->
 -spec compiler_with_parse_transform(config()) -> ok.
 compiler_with_parse_transform(Config) ->
   Uri = ?config(diagnostics_parse_transform_usage_uri, Config),
+  els_mock_diagnostics:subscribe(),
+  ok = els_client:did_save(Uri),
+  Diagnostics = els_mock_diagnostics:wait_until_complete(),
+  ?assertEqual(1, length(Diagnostics)),
+  Warnings = [D || #{severity := ?DIAGNOSTIC_WARNING} = D <- Diagnostics],
+  ?assertEqual(1, length(Warnings)),
+  WarningRanges = [ Range || #{range := Range} <- Warnings],
+  ExpectedWarningsRanges = [ #{ 'end' => #{character => 0, line => 7}
+                              , start => #{character => 0, line => 6}}
+                           ],
+  ?assertEqual(ExpectedWarningsRanges, WarningRanges),
+  ok.
+
+-spec compiler_with_parse_transform_list(config()) -> ok.
+compiler_with_parse_transform_list(Config) ->
+  Uri = ?config(diagnostics_parse_transform_usage_list_uri, Config),
   els_mock_diagnostics:subscribe(),
   ok = els_client:did_save(Uri),
   Diagnostics = els_mock_diagnostics:wait_until_complete(),

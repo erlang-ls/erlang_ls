@@ -148,6 +148,7 @@ sources() ->
   , diagnostics_macros
   , diagnostics_parse_transform
   , diagnostics_parse_transform_usage
+  , diagnostics_parse_transform_usage_list
   , diagnostics_parse_transform_usage_included
   , diagnostics_xref
   , elvis_diagnostics
