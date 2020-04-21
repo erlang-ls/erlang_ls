@@ -16,9 +16,10 @@ execute(#{ <<"module">>   := M
   Title = unicode:characters_to_binary(Msg),
   Suite = els_uri:module(Uri),
   Case = binary_to_atom(F, utf8),
-  Config = #{ task    => fun ?MODULE:task/2
+  Config = #{ task => fun ?MODULE:task/2
             , entries => [{Uri, Line, Suite, Case}]
-            , title   => Title
+            , title => Title
+            , show_percentages => false
             },
   {ok, _Pid} = els_background_job:new(Config),
   ok.
