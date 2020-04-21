@@ -148,6 +148,8 @@ compiler_with_custom_macros(Config) ->
 
 -spec compiler_with_parse_transform(config()) -> ok.
 compiler_with_parse_transform(Config) ->
+  _ = code:delete(diagnostics_parse_transform),
+  _ = code:purge(diagnostics_parse_transform),
   Uri = ?config(diagnostics_parse_transform_usage_uri, Config),
   els_mock_diagnostics:subscribe(),
   ok = els_client:did_save(Uri),
@@ -164,6 +166,8 @@ compiler_with_parse_transform(Config) ->
 
 -spec compiler_with_parse_transform_list(config()) -> ok.
 compiler_with_parse_transform_list(Config) ->
+  _ = code:delete(diagnostics_parse_transform),
+  _ = code:purge(diagnostics_parse_transform),
   Uri = ?config(diagnostics_parse_transform_usage_list_uri, Config),
   els_mock_diagnostics:subscribe(),
   ok = els_client:did_save(Uri),
@@ -180,6 +184,8 @@ compiler_with_parse_transform_list(Config) ->
 
 -spec compiler_with_parse_transform_included(config()) -> ok.
 compiler_with_parse_transform_included(Config) ->
+  _ = code:delete(diagnostics_parse_transform),
+  _ = code:purge(diagnostics_parse_transform),
   Uri = ?config(diagnostics_parse_transform_usage_included_uri, Config),
   els_mock_diagnostics:subscribe(),
   ok = els_client:did_save(Uri),
