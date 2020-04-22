@@ -208,7 +208,8 @@ notify_report(Token, Current, Step, Total, true, true) ->
   ReportMsg = progress_msg(Current, Total),
   Report = els_work_done_progress:value_report(ReportMsg, Percentage),
   els_progress:send_notification(Token, Report);
-notify_report(_Token, _Current, _Step, _Total, false, _ShowPercentages) ->
+notify_report( _Token, _Current, _Step
+             , _Total, _ProgressEnabled, _ShowPercentages) ->
   ok.
 
 -spec notify_end(els_progress:token(), pos_integer(), boolean()) -> ok.
