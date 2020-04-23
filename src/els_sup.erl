@@ -35,7 +35,7 @@ start_link() ->
 %%==============================================================================
 -spec init([]) -> {ok, {supervisor:sup_flags(), [supervisor:child_spec()]}}.
 init([]) ->
-  SupFlags = #{ strategy  =>rest_for_one
+  SupFlags = #{ strategy  => rest_for_one
               , intensity => 5
               , period    => 60
               },
@@ -52,6 +52,10 @@ init([]) ->
                   }
                , #{ id    => els_background_job_sup
                   , start => {els_background_job_sup, start_link, []}
+                  , type  => supervisor
+                  }
+               , #{ id    => els_distribution_sup
+                  , start => {els_distribution_sup, start_link, []}
                   , type  => supervisor
                   }
                , #{ id       => els_server
