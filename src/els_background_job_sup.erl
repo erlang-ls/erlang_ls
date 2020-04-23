@@ -36,8 +36,8 @@ start_link() ->
 -spec init([]) -> {ok, {supervisor:sup_flags(), [supervisor:child_spec()]}}.
 init([]) ->
   SupFlags = #{ strategy  => simple_one_for_one
-              , intensity => 0
-              , period    => 1
+              , intensity => 5
+              , period    => 60
               },
   ChildSpecs = [#{ id       => els_background_job
                  , start    => {els_background_job, start_link, []}
