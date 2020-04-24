@@ -1,5 +1,5 @@
 %%==============================================================================
-%% Supervisor for Group Leader Processes
+%% Supervisor for RPC towards the runtime node
 %%==============================================================================
 -module(els_group_leader_sup).
 
@@ -36,11 +36,11 @@ start_link() ->
 -spec init([]) -> {ok, {supervisor:sup_flags(), [supervisor:child_spec()]}}.
 init([]) ->
   SupFlags = #{ strategy  => simple_one_for_one
-              , intensity => 0
-              , period    => 1
+              , intensity => 5
+              , period    => 60
               },
-  ChildSpecs = [#{ id       => els_group_leader
-                 , start    => {els_group_leader_job, start_link, []}
+  ChildSpecs = [#{ id       => els_group_leader_server
+                 , start    => {els_group_leader_server, start_link, []}
                  , restart  => temporary
                  , shutdown => 5000
                  }],

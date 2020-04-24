@@ -1,13 +1,21 @@
 %%==============================================================================
-%% A gen_server for interacting with the runtime node
-%% It implements the I/O protocol for capturing standard output.
+%% A gen_server implementing the Erlang I/O protocol.
+%% Used for capturing standard output during RPC calls towards the runtime node.
 %%==============================================================================
--module(els_rpc_server).
+-module(els_group_leader_server).
 
 %%==============================================================================
 %% API
 %%==============================================================================
--export([ start_link/0 ]).
+-export([ new/0
+        , flush/1
+        , stop/1
+        ]).
+
+%%==============================================================================
+%% Supervisor API
+%%==============================================================================
+-export([ start_link/1 ]).
 
 %%==============================================================================
 %% Callbacks for gen_server
@@ -17,6 +25,7 @@
         , handle_call/3
         , handle_cast/2
         , handle_info/2
+        , terminate/2
         ]).
 
 %%==============================================================================
@@ -27,26 +36,57 @@
 %%==============================================================================
 %% Type Definitions
 %%==============================================================================
--type state() :: #{acc := [any()]}.
+-type config() :: #{ caller := pid()
+                   , gl := pid()
+                   }.
+-type state() :: #{ acc := [any()]
+                  , caller := pid()
+                  , gl := pid()
+                  }.
 
 %%==============================================================================
-%% External functions
+%% API
 %%==============================================================================
 
--spec start_link() -> {ok, pid()}.
-start_link() ->
-  gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
+%% @doc Create a new server
+-spec new() -> {ok, pid()}.
+new() ->
+  Caller = self(),
+  GL = group_leader(),
+  supervisor:start_child(els_group_leader_sup, [#{caller => Caller, gl => GL}]).
+
+-spec flush(pid()) -> binary().
+flush(Server) ->
+  gen_server:call(Server, {flush}).
+
+-spec stop(pid()) -> ok.
+stop(Server) ->
+  gen_server:call(Server, {stop}).
+
+%%==============================================================================
+%% Supervisor API
+%%==============================================================================
+-spec start_link(config()) -> {ok, pid()}.
+start_link(Config) ->
+  gen_server:start_link(?MODULE, Config, []).
 
 %%==============================================================================
 %% gen_server callbacks
 %%==============================================================================
 
--spec init([]) -> {ok, state()}.
-init(From) ->
-  lager:info("[Group Leader] Starting for ~p", [From]),
-  {ok, #{acc => []}}.
+-spec init(config()) -> {ok, state()}.
+init(#{caller := Caller, gl := GL}) ->
+  process_flag(trap_exit, true),
+  lager:info("Starting group leader server [caller=~p] [gl=~p]", [Caller, GL]),
+  group_leader(self(), Caller),
+  {ok, #{acc => [], caller => Caller, gl => GL}}.
 
 -spec handle_call(any(), {pid(), any()}, state()) -> {noreply, state()}.
+handle_call({flush}, _From, #{acc := Acc} = State) ->
+  Res = els_utils:to_binary(lists:flatten(lists:reverse(Acc))),
+  {reply, Res, State};
+handle_call({stop}, _From, State) ->
+  {stop, normal, ok, State};
 handle_call(_Request, _From, State) ->
   {noreply, State}.
 
@@ -55,9 +95,6 @@ handle_cast(_Request, State) ->
   {noreply, State}.
 
 -spec handle_info(any(), state()) -> {noreply, state()}.
-handle_info({flush_request, From}, #{acc := Acc} = State) ->
-  From ! {flush_response, lists:flatten(lists:reverse(Acc))},
-  {noreply, State};
 handle_info({io_request, From, ReplyAs, Request}, State) ->
   #{acc := Acc} = State,
   case Request of
@@ -82,3 +119,7 @@ handle_info({io_request, From, ReplyAs, Request}, State) ->
 handle_info(Request, State) ->
   lager:warning("[Group Leader] Unexpected request", [Request]),
   {noreply, State}.
+
+-spec terminate(any(), state()) -> ok.
+terminate(_Reason, #{caller := Caller, gl := GL} = _State) ->
+  group_leader(GL, Caller).

@@ -88,3 +88,5 @@ add_underscore_to_unused_var(Config) ->
     ],
   ?assertEqual(Expected, Result),
   ok.
+
+%% TODO: Send progress reports every X, to get the spinning wheel

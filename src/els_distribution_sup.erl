@@ -41,11 +41,11 @@ init([]) ->
               , intensity => 5
               , period    => 60
               },
-  ChildSpecs = [ #{ id    => els_distribution
-                  , start => {els_distribution, start_link, []}
+  ChildSpecs = [ #{ id    => els_distribution_server
+                  , start => {els_distribution_server, start_link, []}
                   }
-               , #{ id    => els_rpc_sup
-                  , start => {els_rpc_sup, start_link, []}
+               , #{ id    => els_group_leader_sup
+                  , start => {els_group_leader_sup, start_link, []}
                   , type  => supervisor
                   }
                ],
