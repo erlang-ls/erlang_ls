@@ -43,8 +43,12 @@ start_link() ->
 -spec start_distribution(atom()) -> ok.
 start_distribution(Name) ->
   lager:info("Enable distribution [name=~p]", [Name]),
-  {ok, _Pid} = net_kernel:start([Name, shortnames]),
-  lager:info("Distribution enabled [name=~p]", [Name]).
+  case net_kernel:start([Name, shortnames]) of
+    {ok, _Pid} ->
+      lager:info("Distribution enabled [name=~p]", [Name]);
+    {error, {already_started, _Pid}} ->
+      lager:info("Distribution already enabled [name=~p]", [Name])
+  end.
 
 %% @doc Connect to an existing runtime node, if available, or start one.
 -spec connect() -> ok.
