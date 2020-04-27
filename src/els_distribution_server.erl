@@ -30,7 +30,9 @@
 %% Macro Definitions
 %%==============================================================================
 -define(SERVER, ?MODULE).
--define(TIMEOUT, 5000).
+-define(RPC_TIMEOUT, 5000).
+-define(WAIT_ATTEMPTS, 30).
+-define(WAIT_INTERVAL, 1000).
 
 %%==============================================================================
 %% API
@@ -58,7 +60,7 @@ connect() ->
 %% @doc Make a RPC call towards the runtime node.
 -spec rpc_call(atom(), atom(), [any()]) -> {any(), binary()}.
 rpc_call(M, F, A) ->
-  rpc_call(M, F, A, ?TIMEOUT).
+  rpc_call(M, F, A, ?RPC_TIMEOUT).
 
 %% @doc Make a RPC call towards the runtime node.
 -spec rpc_call(atom(), atom(), [any()], timeout()) -> {any(), binary()}.
@@ -83,7 +85,6 @@ handle_call({connect}, _From, State) ->
       ok;
     error ->
       ok = start(Node)
-      %% TODO: Wait and connect here
   end,
   {reply, ok, State};
 handle_call({rpc_call, M, F, A, Timeout}, _From, State) ->
@@ -132,7 +133,28 @@ start(Node) ->
             , [Node, Cmd, Args, Path]
             ),
   spawn_link(fun() -> els_utils:cmd(Cmd, Args, Path) end),
+  wait_connect_and_monitor(Node),
   ok.
+
+-spec wait_connect_and_monitor(atom()) -> ok.
+wait_connect_and_monitor(Node) ->
+  wait_connect_and_monitor(Node, ?WAIT_ATTEMPTS).
+
+-spec wait_connect_and_monitor(atom(), pos_integer()) -> ok.
+wait_connect_and_monitor(Node, 0) ->
+  lager:error( "Failed to connect to node ~p after ~p attempts"
+             , [Node, ?WAIT_ATTEMPTS]),
+  ok;
+wait_connect_and_monitor(Node, Attempts) ->
+  timer:sleep(?WAIT_INTERVAL),
+  case connect_and_monitor(Node) of
+    ok ->
+      ok;
+    error ->
+      lager:warning( "Trying to connect to node ~p (~p/~p)"
+                   , [Node, ?WAIT_ATTEMPTS - Attempts + 1, ?WAIT_ATTEMPTS]),
+      wait_connect_and_monitor(Node, Attempts - 1)
+  end.
 
 %% @doc Ensure the Erlang Port Mapper Daemon (EPMD) is up and running
 -spec ensure_epmd() -> ok.
