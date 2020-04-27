@@ -198,8 +198,10 @@ did_open(Uri, LanguageId, Version, Text) ->
 did_open_args(_S) ->
   [els_proper_gen:uri(), <<"erlang">>, 0, els_proper_gen:tokens()].
 
-did_open_pre(#{connected := Connected} = _S) ->
-  Connected.
+did_open_pre(#{ connected := Connected
+              , initialized_sent := InitializedSent
+              } = _S) ->
+  Connected andalso InitializedSent.
 
 did_open_next(#{documents := Documents0} = S, _R, [Uri, _, _, _]) ->
   S#{ documents => Documents0 ++ [Uri]}.
@@ -217,8 +219,10 @@ did_save(Uri) ->
 did_save_args(_S) ->
   [els_proper_gen:uri()].
 
-did_save_pre(#{connected := Connected} = _S) ->
-  Connected.
+did_save_pre(#{ connected := Connected
+              , initialized_sent := InitializedSent
+              } = _S) ->
+  Connected andalso InitializedSent.
 
 did_save_next(S, _R, _Args) ->
   S.
@@ -236,8 +240,10 @@ did_close(Uri) ->
 did_close_args(_S) ->
   [els_proper_gen:uri()].
 
-did_close_pre(#{connected := Connected} = _S) ->
-  Connected.
+did_close_pre(#{ connected := Connected
+              , initialized_sent := InitializedSent
+              } = _S) ->
+  Connected andalso InitializedSent.
 
 did_close_next(S, _R, _Args) ->
   S.
@@ -333,12 +339,13 @@ prop_main() ->
 %% Setup
 %%==============================================================================
 setup() ->
-  meck:new(els_distribution, [no_link, passthrough]),
+  meck:new(els_distribution_server, [no_link, passthrough]),
   meck:new(els_compiler_diagnostics, [no_link, passthrough]),
   meck:new(els_dialyzer_diagnostics, [no_link, passthrough]),
   meck:new(els_elvis_diagnostics, [no_link, passthrough]),
   meck:new(els_utils, [no_link, passthrough]),
-  meck:expect(els_distribution, ensure_node, 1, ok),
+  meck:expect(els_distribution_server, start_distribution, 1, ok),
+  meck:expect(els_distribution_server, connect, 0, ok),
   meck:expect(els_compiler_diagnostics, run, 1, []),
   meck:expect(els_dialyzer_diagnostics, run, 1, []),
   meck:expect(els_elvis_diagnostics, run, 1, []),
@@ -354,7 +361,7 @@ setup() ->
 %% Teardown
 %%==============================================================================
 teardown(_) ->
-  meck:unload(els_distribution),
+  meck:unload(els_distribution_server),
   meck:unload(els_compiler_diagnostics),
   meck:unload(els_dialyzer_diagnostics),
   meck:unload(els_elvis_diagnostics),
