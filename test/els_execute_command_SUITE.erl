@@ -101,10 +101,12 @@ ct_run_test(Config) ->
   Expected = [],
   ?assertEqual(Expected, Result),
   wait_until_mock_called(els_protocol, notification),
-  ?assertEqual(1, meck:num_calls(els_distribution, rpc_call, '_')),
+  ?assertEqual(1, meck:num_calls(els_distribution_server, rpc_call, '_')),
   Notifications = [{Method, Args} ||
                     { _Pid
-                    , {els_protocol, notification, [Method, Args]}
+                    , { els_protocol
+                      , notification
+                      , [<<"textDocument/publishDiagnostics">> = Method, Args]}
                     , _Result
                     } <- meck:history(els_protocol)],
   ?assertEqual([{ <<"textDocument/publishDiagnostics">>
@@ -138,10 +140,10 @@ strip_server_prefix(_Config) ->
 
 -spec setup_mocks() -> ok.
 setup_mocks() ->
-  meck:new(els_distribution, [passthrough, no_link, non_strict]),
+  meck:new(els_distribution_server, [passthrough, no_link, non_strict]),
   meck:new(els_protocol, [passthrough, no_link]),
-  meck:expect( els_distribution, rpc_call, 3
-             , fun(_, _, _) -> ok end),
+  meck:expect( els_distribution_server, rpc_call, 4
+             , fun(_, _, _, _) -> {ok, <<"Test passed!">>} end),
   meck:expect( els_protocol, notification, 2
              , fun(Method, Params) ->
                    meck:passthrough([Method, Params])
@@ -150,7 +152,7 @@ setup_mocks() ->
 
 -spec teardown_mocks() -> ok.
 teardown_mocks() ->
-  meck:unload(els_distribution),
+  meck:unload(els_distribution_server),
   meck:unload(els_protocol),
   ok.
 
