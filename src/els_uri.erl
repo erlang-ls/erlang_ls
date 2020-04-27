@@ -56,19 +56,32 @@ uri(Path) ->
   [Head | Tail] = filename:split(Path),
   {Host, Path1} = case {is_windows(), Head} of
                    {false, <<"/">>} ->
-                     {<<>>, lists:join(<<"/">>, Tail)};
+                     {<<>>, uri_join(Tail)};
                    {true, X} when X =:= <<"//">> orelse X =:= <<"\\\\">> ->
                      [H | T] = Tail,
-                     {H, lists:join(<<"/">>, T)};
+                     {H, uri_join(T)};
                    {true, _} ->
-                     {<<>>, lists:join(<<"/">>, [Head | Tail])}
+                     % Strip the trailing slash from the first component
+                     H1 = string:slice(Head, 0, 2),
+                     {<<>>, uri_join([H1|Tail])}
                  end,
 
+  Res =
   els_utils:to_binary(
     uri_string:recompose(#{
-      scheme => <<"file">>, host => Host, path => [<<"/">>, Path1]
+      scheme => <<"file">>,
+      host => http_uri:encode(Host),
+      path => [<<"/">>, Path1]
     })
-  ).
+  ),
+  % lager:debug("Parsed ~s as ~s (host=~s, path=~s)", [Path, Res, Host, Path1]),
+  Res.
+
+
+-spec uri_join([path()]) -> iolist().
+uri_join(List) ->
+  lists:join(<<"/">>, lists:map(fun http_uri:encode/1, List)).
+
 
 -spec is_windows() -> boolean().
 is_windows() ->
