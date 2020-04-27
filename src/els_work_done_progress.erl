@@ -44,6 +44,7 @@
         , send_create_request/0
         , value_begin/2
         , value_begin/3
+        , value_report/1
         , value_report/2
         , value_end/1
         ]).
@@ -85,6 +86,13 @@ value_begin(Title, Message, Percentage) ->
    , cancellable => false
    , message     => Message
    , percentage  => Percentage
+   }.
+
+-spec value_report(binary()) -> value_report().
+value_report(Message) ->
+  #{ kind        => 'report'
+   , cancellable => false
+   , message     => Message
    }.
 
 -spec value_report(binary(), percentage()) -> value_report().

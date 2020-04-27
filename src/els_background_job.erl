@@ -27,6 +27,11 @@
         ]).
 
 %%==============================================================================
+%% Macro Definitions
+%%==============================================================================
+-define(SPINNING_WHEEL_INTERVAL, 100). %% ms
+
+%%==============================================================================
 %% Types
 %%==============================================================================
 -type entry() :: any().
@@ -46,6 +51,7 @@
                   , step := pos_integer()
                   , total := non_neg_integer()
                   , internal_state := any()
+                  , spinning_wheel := pid() | undefined
                   }.
 
 %%==============================================================================
@@ -99,6 +105,12 @@ init(#{entries := Entries, title := Title} = Config) ->
   OnError = maps:get(on_error, Config, fun noop/1),
   ShowPercentages = maps:get(show_percentages, Config, true),
   notify_begin(Token, Title, Total, ProgressEnabled, ShowPercentages),
+  SpinningWheel = case {ProgressEnabled, ShowPercentages} of
+                    {true, false} ->
+                      spawn_link(fun() -> spinning_wheel(Token) end);
+                    {_, _} ->
+                      undefined
+                  end,
   self() ! exec,
   {ok, #{ config => Config#{ on_complete => OnComplete
                            , on_error => OnError
@@ -110,6 +122,7 @@ init(#{entries := Entries, title := Title} = Config) ->
         , step => Step
         , total => Total
         , internal_state => maps:get(initial_state, Config, undefined)
+        , spinning_wheel => SpinningWheel
         }}.
 
 -spec handle_call(any(), {pid(), any()}, state()) ->
@@ -158,7 +171,14 @@ handle_info(_Request, State) ->
 -spec terminate(any(), state()) -> ok.
 terminate(normal, #{ config := #{on_complete := OnComplete}
                    , internal_state := InternalState
+                   , spinning_wheel := SpinningWheel
                    }) ->
+  case SpinningWheel of
+    undefined ->
+      ok;
+    Pid ->
+      exit(Pid, kill)
+  end,
   lager:info("Background job completed. [pid=~p]", [self()]),
   OnComplete(InternalState),
   ok;
@@ -219,3 +239,10 @@ notify_end(Token, Total, true) ->
   els_progress:send_notification(Token, End);
 notify_end(_Token, _Total, false) ->
   ok.
+
+-spec spinning_wheel(els_progress:token()) -> no_return().
+spinning_wheel(Token) ->
+  Report = els_work_done_progress:value_report(<<>>),
+  els_progress:send_notification(Token, Report),
+  timer:sleep(?SPINNING_WHEEL_INTERVAL),
+  spinning_wheel(Token).
