@@ -97,8 +97,7 @@ handle_call({rpc_call, M, F, A, Timeout}, _From, State) ->
 handle_call(_Request, _From, State) ->
   {noreply, State}.
 
--spec handle_cast(any(), state()) ->
-        {reply, any(), state()} | {noreply, state()}.
+-spec handle_cast(any(), state()) -> {noreply, state()}.
 handle_cast(_Request, State) ->
   {noreply, State}.
 

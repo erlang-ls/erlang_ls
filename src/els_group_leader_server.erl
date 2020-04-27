@@ -122,4 +122,5 @@ handle_info(Request, State) ->
 
 -spec terminate(any(), state()) -> ok.
 terminate(_Reason, #{caller := Caller, gl := GL} = _State) ->
-  group_leader(GL, Caller).
+  group_leader(GL, Caller),
+  ok.
