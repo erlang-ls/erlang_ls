@@ -140,7 +140,6 @@ strip_server_prefix(_Config) ->
 
 -spec setup_mocks() -> ok.
 setup_mocks() ->
-  meck:new(els_distribution_server, [passthrough, no_link, non_strict]),
   meck:new(els_protocol, [passthrough, no_link]),
   meck:expect( els_distribution_server, rpc_call, 4
              , fun(_, _, _, _) -> {ok, <<"Test passed!">>} end),
@@ -152,7 +151,6 @@ setup_mocks() ->
 
 -spec teardown_mocks() -> ok.
 teardown_mocks() ->
-  meck:unload(els_distribution_server),
   meck:unload(els_protocol),
   ok.
 
