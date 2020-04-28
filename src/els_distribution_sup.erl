@@ -1,7 +1,9 @@
 %%==============================================================================
-%% Supervisor for Background Jobs
+%% Distribution Supervisor
+%% It supervises the communication via Erlang distribution between the
+%% Language Server Node and the Runtime Node.
 %%==============================================================================
--module(els_background_job_sup).
+-module(els_distribution_sup).
 
 %%==============================================================================
 %% Behaviours
@@ -31,17 +33,20 @@ start_link() ->
   supervisor:start_link({local, ?SERVER}, ?MODULE, []).
 
 %%==============================================================================
-%% Supervisor callbacks
+%% supervisors callbacks
 %%==============================================================================
 -spec init([]) -> {ok, {supervisor:sup_flags(), [supervisor:child_spec()]}}.
 init([]) ->
-  SupFlags = #{ strategy  => simple_one_for_one
+  SupFlags = #{ strategy  => one_for_one
               , intensity => 5
               , period    => 60
               },
-  ChildSpecs = [#{ id       => els_background_job
-                 , start    => {els_background_job, start_link, []}
-                 , restart  => temporary
-                 , shutdown => 5000
-                 }],
+  ChildSpecs = [ #{ id    => els_distribution_server
+                  , start => {els_distribution_server, start_link, []}
+                  }
+               , #{ id    => els_group_leader_sup
+                  , start => {els_group_leader_sup, start_link, []}
+                  , type  => supervisor
+                  }
+               ],
   {ok, {SupFlags, ChildSpecs}}.

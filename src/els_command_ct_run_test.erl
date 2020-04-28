@@ -16,9 +16,10 @@ execute(#{ <<"module">>   := M
   Title = unicode:characters_to_binary(Msg),
   Suite = els_uri:module(Uri),
   Case = binary_to_atom(F, utf8),
-  Config = #{ task    => fun ?MODULE:task/2
+  Config = #{ task => fun ?MODULE:task/2
             , entries => [{Uri, Line, Suite, Case}]
-            , title   => Title
+            , title => Title
+            , show_percentages => false
             },
   {ok, _Pid} = els_background_job:new(Config),
   ok.
@@ -26,12 +27,12 @@ execute(#{ <<"module">>   := M
 -spec task({uri(), pos_integer(), atom(), atom()}, any()) -> ok.
 task({Uri, Line, Suite, Case}, _State) ->
   case run_test(Suite, Case) of
-    ok ->
+    {ok, IO} ->
       lager:info("CT Test passed", []),
-      publish_result(Uri, Line, ?DIAGNOSTIC_INFO, <<"Test passed!">>);
-    Error ->
+      publish_result(Uri, Line, ?DIAGNOSTIC_INFO, IO);
+    {Error, IO} ->
       Message = els_utils:to_binary(io_lib:format("~p", [Error])),
-      lager:info("CT Test failed [error=~p]", [Error]),
+      lager:info("CT Test failed [error=~p] [io=~p]", [Error, IO]),
       publish_result(Uri, Line, ?DIAGNOSTIC_ERROR, Message)
   end.
 
@@ -46,8 +47,8 @@ publish_result(Uri, Line, Severity, Message) ->
   els_diagnostics_provider:publish(Uri, [D]),
   ok.
 
--spec run_test(atom(), atom()) -> any().
+-spec run_test(atom(), atom()) -> {ok, binary()} | {error, any()}.
 run_test(Suite, Case) ->
   Module = els_config_ct_run_test:get_module(),
   Function = els_config_ct_run_test:get_function(),
-  els_distribution:rpc_call(Module, Function, [Suite, Case]).
+  els_distribution_server:rpc_call(Module, Function, [Suite, Case], infinity).

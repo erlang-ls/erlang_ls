@@ -1,7 +1,7 @@
 %%==============================================================================
-%% Supervisor for Background Jobs
+%% Supervisor for RPC towards the runtime node
 %%==============================================================================
--module(els_background_job_sup).
+-module(els_group_leader_sup).
 
 %%==============================================================================
 %% Behaviours
@@ -39,8 +39,8 @@ init([]) ->
               , intensity => 5
               , period    => 60
               },
-  ChildSpecs = [#{ id       => els_background_job
-                 , start    => {els_background_job, start_link, []}
+  ChildSpecs = [#{ id       => els_group_leader_server
+                 , start    => {els_group_leader_server, start_link, []}
                  , restart  => temporary
                  , shutdown => 5000
                  }],

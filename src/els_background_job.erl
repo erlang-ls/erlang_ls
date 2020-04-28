@@ -27,6 +27,11 @@
         ]).
 
 %%==============================================================================
+%% Macro Definitions
+%%==============================================================================
+-define(SPINNING_WHEEL_INTERVAL, 100). %% ms
+
+%%==============================================================================
 %% Types
 %%==============================================================================
 -type entry() :: any().
@@ -35,15 +40,18 @@
                    , on_complete => fun()
                    , on_error => fun()
                    , title := binary()
+                   , show_percentages => boolean()
                    , initial_state => any()
                    }.
 -type state() :: #{ config := config()
                   , progress_enabled := boolean()
+                  , show_percentages := boolean()
                   , token := els_progress:token()
                   , current := non_neg_integer()
                   , step := pos_integer()
                   , total := non_neg_integer()
                   , internal_state := any()
+                  , spinning_wheel := pid() | undefined
                   }.
 
 %%==============================================================================
@@ -95,17 +103,26 @@ init(#{entries := Entries, title := Title} = Config) ->
   Token = els_work_done_progress:send_create_request(),
   OnComplete = maps:get(on_complete, Config, fun noop/1),
   OnError = maps:get(on_error, Config, fun noop/1),
-  notify_begin(Token, Title, Total, ProgressEnabled),
+  ShowPercentages = maps:get(show_percentages, Config, true),
+  notify_begin(Token, Title, Total, ProgressEnabled, ShowPercentages),
+  SpinningWheel = case {ProgressEnabled, ShowPercentages} of
+                    {true, false} ->
+                      spawn_link(fun() -> spinning_wheel(Token) end);
+                    {_, _} ->
+                      undefined
+                  end,
   self() ! exec,
   {ok, #{ config => Config#{ on_complete => OnComplete
                            , on_error => OnError
                            }
         , progress_enabled => ProgressEnabled
+        , show_percentages => ShowPercentages
         , token => Token
         , current => 0
         , step => Step
         , total => Total
         , internal_state => maps:get(initial_state, Config, undefined)
+        , spinning_wheel => SpinningWheel
         }}.
 
 -spec handle_call(any(), {pid(), any()}, state()) ->
@@ -123,6 +140,7 @@ handle_cast(_Request, State) ->
 handle_info(exec, State) ->
   #{ config := #{ entries := Entries, task := Task} = Config
    , progress_enabled := ProgressEnabled
+   , show_percentages := ShowPercentages
    , token := Token
    , current := Current
    , step := Step
@@ -135,7 +153,12 @@ handle_info(exec, State) ->
       {stop, normal, State};
     [Entry|Rest] ->
       NewInternalState = Task(Entry, InternalState),
-      notify_report(Token, Current, Step, Total, ProgressEnabled),
+      notify_report( Token
+                   , Current
+                   , Step
+                   , Total
+                   , ProgressEnabled
+                   , ShowPercentages),
       self() ! exec,
       {noreply, State#{ config => Config#{ entries => Rest }
                       , current => Current + 1
@@ -148,7 +171,14 @@ handle_info(_Request, State) ->
 -spec terminate(any(), state()) -> ok.
 terminate(normal, #{ config := #{on_complete := OnComplete}
                    , internal_state := InternalState
+                   , spinning_wheel := SpinningWheel
                    }) ->
+  case SpinningWheel of
+    undefined ->
+      ok;
+    Pid ->
+      exit(Pid, kill)
+  end,
   lager:info("Background job completed. [pid=~p]", [self()]),
   OnComplete(InternalState),
   ok;
@@ -175,23 +205,31 @@ progress_msg(Current, Total) ->
 noop(_) ->
   ok.
 
--spec notify_begin(els_progress:token(), binary(), pos_integer(), boolean()) ->
+-spec notify_begin( els_progress:token()
+                  , binary()
+                  , pos_integer()
+                  , boolean()
+                  , boolean()) ->
         ok.
-notify_begin(Token, Title, Total, true) ->
+notify_begin(Token, Title, Total, true, ShowPercentages) ->
   BeginMsg = progress_msg(0, Total),
-  Begin = els_work_done_progress:value_begin(Title, BeginMsg, 0),
+  Begin = case ShowPercentages of
+            true -> els_work_done_progress:value_begin(Title, BeginMsg, 0);
+            false -> els_work_done_progress:value_begin(Title, BeginMsg)
+          end,
   els_progress:send_notification(Token, Begin);
-notify_begin(_Token, _Title, _Total, false) ->
+notify_begin(_Token, _Title, _Total, false, _ShowPercentages) ->
   ok.
 
 -spec notify_report( els_progress:token(), pos_integer(), pos_integer()
-                   , pos_integer(), boolean()) -> ok.
-notify_report(Token, Current, Step, Total, true) ->
+                   , pos_integer(), boolean(), boolean()) -> ok.
+notify_report(Token, Current, Step, Total, true, true) ->
   Percentage = floor(Current * Step),
   ReportMsg = progress_msg(Current, Total),
   Report = els_work_done_progress:value_report(ReportMsg, Percentage),
   els_progress:send_notification(Token, Report);
-notify_report(_Token, _Current, _Step, _Total, false) ->
+notify_report( _Token, _Current, _Step
+             , _Total, _ProgressEnabled, _ShowPercentages) ->
   ok.
 
 -spec notify_end(els_progress:token(), pos_integer(), boolean()) -> ok.
@@ -201,3 +239,10 @@ notify_end(Token, Total, true) ->
   els_progress:send_notification(Token, End);
 notify_end(_Token, _Total, false) ->
   ok.
+
+-spec spinning_wheel(els_progress:token()) -> no_return().
+spinning_wheel(Token) ->
+  Report = els_work_done_progress:value_report(<<>>),
+  els_progress:send_notification(Token, Report),
+  timer:sleep(?SPINNING_WHEEL_INTERVAL),
+  spinning_wheel(Token).
