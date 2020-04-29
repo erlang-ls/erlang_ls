@@ -24,10 +24,16 @@ dependencies(Uri) ->
 dependencies([], Acc) ->
   Acc;
 dependencies([Uri|Uris], Acc) ->
-  {ok, [Document]} = els_dt_document:lookup(Uri),
-  Deps = els_dt_document:pois(Document, [behaviour, parse_transform]),
-  IncludedUris = included_uris(Document),
-  dependencies(Uris ++ IncludedUris, Acc ++ [Id || #{id := Id} <- Deps]).
+  case els_dt_document:lookup(Uri) of
+    {ok, [Document]} ->
+      els_dt_document:lookup(Uri),
+      Deps = els_dt_document:pois(Document, [behaviour, parse_transform]),
+      IncludedUris = included_uris(Document),
+      dependencies(Uris ++ IncludedUris, Acc ++ [Id || #{id := Id} <- Deps]);
+    Error ->
+      lager:info("els_diagnostics_utils:dependencies [Error=~p]", [Error]), %%AZ
+      []
+  end.
 
 -spec included_uris(els_dt_document:item()) -> [uri()].
 included_uris(Document) ->

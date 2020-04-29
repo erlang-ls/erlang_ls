@@ -117,16 +117,21 @@ parse_escript(Uri) ->
         [els_diagnostics:diagnostic()].
 diagnostics(Path, List, Severity) ->
   Uri = els_uri:uri(els_utils:to_binary(Path)),
-  {ok, [Document]} = els_dt_document:lookup(Uri),
-  lists:flatten([[ diagnostic( Path
-                             , MessagePath
-                             , range(Line)
-                             , Document
-                             , Module
-                             , Desc
-                             , Severity)
-                   || {Line, Module, Desc} <- Info]
-                 || {MessagePath, Info} <- List]).
+  case els_dt_document:lookup(Uri) of
+    {ok, [Document]} ->
+      lists:flatten([[ diagnostic( Path
+                                 , MessagePath
+                                 , range(Line)
+                                 , Document
+                                 , Module
+                                 , Desc
+                                 , Severity)
+                       || {Line, Module, Desc} <- Info]
+                     || {MessagePath, Info} <- List]);
+    Error ->
+      lager:info("diagnostics doc lookup failed [Error=~p]", [Error]),
+      []
+  end.
 
 -spec diagnostic( string()
                 , string()
@@ -190,15 +195,14 @@ inclusion_range(IncludePath, Document, include_lib) ->
   IncludeId  = include_lib_id(IncludePath),
   [Range || #{id := Id, range := Range} <- POIs, Id =:= IncludeId];
 inclusion_range(IncludePath, Document, behaviour) ->
-  POIs       = els_dt_document:pois(Document, [behaviour]),
-  %% IncludeId  = include_id(IncludePath),
-  IncludeId  = els_uri:module(els_uri:uri(els_utils:to_binary(IncludePath))),
-  [Range || #{id := Id, range := Range} <- POIs, Id =:= IncludeId];
+  POIs        = els_dt_document:pois(Document, [behaviour]),
+  BehaviourId = els_uri:module(els_uri:uri(els_utils:to_binary(IncludePath))),
+  [Range || #{id := Id, range := Range} <- POIs, Id =:= BehaviourId];
 inclusion_range(IncludePath, Document, parse_transform) ->
   POIs       = els_dt_document:pois(Document, [parse_transform]),
-  %% IncludeId  = include_id(IncludePath),
-  IncludeId  = els_uri:module(els_uri:uri(els_utils:to_binary(IncludePath))),
-  [Range || #{id := Id, range := Range} <- POIs, Id =:= IncludeId].
+  ParseTransformId
+    = els_uri:module(els_uri:uri(els_utils:to_binary(IncludePath))),
+  [Range || #{id := Id, range := Range} <- POIs, Id =:= ParseTransformId].
 
 -spec include_id(string()) -> string().
 include_id(Path) ->
@@ -230,11 +234,22 @@ include_options() ->
 
 -spec diagnostics_options() -> [any()].
 diagnostics_options() ->
+  lists:append([ diagnostics_options_bare()
+               , [basic_validation]
+               ]).
+
+-spec diagnostics_options_load_code() -> [any()].
+diagnostics_options_load_code() ->
+  lists:append([ diagnostics_options_bare()
+               , [binary]
+               ]).
+
+-spec diagnostics_options_bare() -> [any()].
+diagnostics_options_bare() ->
   lists:append([macro_options()
                , include_options()
                , [ return_warnings
                  , return_errors
-                 , basic_validation
                  ]]).
 
 
@@ -279,36 +294,25 @@ load_dependency(Module, IncludingPath) ->
     case els_utils:find_module(Module) of
       {ok, Uri} ->
         Path = els_utils:to_list(els_uri:path(Uri)),
-        Opts = lists:append([macro_options(), include_options(), [binary]]),
-        case compile:file(Path, Opts) of
+        case compile:file(Path, diagnostics_options_load_code()) of
+          {ok, [], []} ->
+            lager:warning("AZ:WTF finding dependency, {ok, [], []}"),
+            [];
           {ok, Module, Binary} ->
             code:load_binary(Module, atom_to_list(Module), Binary),
             [];
-          Error ->
-            lager:warning("Error compiling dependency [error=~w]", [Error]),
-            %% Compile again to generate diagnostics
-            get_dependency_diagnostics(Uri, IncludingPath)
+          {ok, Module, Binary, WS} ->
+            code:load_binary(Module, atom_to_list(Module), Binary),
+            diagnostics(IncludingPath, WS, ?DIAGNOSTIC_WARNING);
+          {error, ES, WS} ->
+            diagnostics(IncludingPath, WS, ?DIAGNOSTIC_WARNING) ++
+              diagnostics(IncludingPath, ES, ?DIAGNOSTIC_ERROR)
         end;
       {error, Error} ->
         lager:warning("Error finding dependency [error=~w]", [Error]),
         []
     end,
   {Old, Diagnostics}.
-
-%% @doc Where loading a dependency has failed, compile it for diagnostics and
-%% publish them.
--spec get_dependency_diagnostics(uri(), string())
-                                -> [els_diagnostics:diagnostic()].
-get_dependency_diagnostics(Uri, IncludingPath) ->
-  Path = els_utils:to_list(els_uri:path(Uri)),
-  Diagnostics = case compile:file(Path, diagnostics_options()) of
-                  {ok, _, WS} ->
-                    diagnostics(IncludingPath, WS, ?DIAGNOSTIC_WARNING);
-                  {error, ES, WS} ->
-                    diagnostics(IncludingPath, WS, ?DIAGNOSTIC_WARNING) ++
-                      diagnostics(IncludingPath, ES, ?DIAGNOSTIC_ERROR)
-                end,
-  Diagnostics.
 
 -spec maybe_compile_and_load(uri(), [els_diagnostics:diagnostic()]) -> ok.
 maybe_compile_and_load(Uri, [] = _CDiagnostics) ->
