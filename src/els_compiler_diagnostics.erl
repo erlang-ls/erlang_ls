@@ -234,19 +234,15 @@ include_options() ->
 
 -spec diagnostics_options() -> [any()].
 diagnostics_options() ->
-  lists:append([ diagnostics_options_bare()
-               , [basic_validation]
-               ]).
+  [basic_validation|diagnostics_options_bare()].
 
 -spec diagnostics_options_load_code() -> [any()].
 diagnostics_options_load_code() ->
-  lists:append([ diagnostics_options_bare()
-               , [binary]
-               ]).
+  [binary|diagnostics_options_bare()].
 
 -spec diagnostics_options_bare() -> [any()].
 diagnostics_options_bare() ->
-  lists:append([macro_options()
+  lists:append([ macro_options()
                , include_options()
                , [ return_warnings
                  , return_errors

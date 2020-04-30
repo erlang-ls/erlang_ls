@@ -31,7 +31,7 @@ dependencies([Uri|Uris], Acc) ->
       IncludedUris = included_uris(Document),
       dependencies(Uris ++ IncludedUris, Acc ++ [Id || #{id := Id} <- Deps]);
     Error ->
-      lager:info("els_diagnostics_utils:dependencies [Error=~p]", [Error]), %%AZ
+      lager:info("Lookup failed [Error=~p]", [Error]),
       []
   end.
 
