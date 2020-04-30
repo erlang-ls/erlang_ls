@@ -26,6 +26,9 @@
 ;; Include the Language Server Protocol Clients
 (package-require 'lsp-mode)
 
+;; Customize prefix for key-bindings
+(setq lsp-keymap-prefix "C-l")
+
 ;; Enable LSP for Erlang files
 (add-hook 'erlang-mode-hook #'lsp)
 
@@ -63,3 +66,9 @@
 ;; - helm-lsp-workspace-symbol
 ;; - helm-lsp-global-workspace-symbol
 (package-install 'helm-lsp)
+
+;; Which-key integration
+(package-require 'which-key)
+(add-hook 'erlang-mode-hook 'which-key-mode)
+(with-eval-after-load 'lsp-mode
+  (add-hook 'lsp-mode-hook #'lsp-enable-which-key-integration))
