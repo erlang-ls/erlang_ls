@@ -81,7 +81,7 @@ handle_request({initialized, _Params}, State) ->
   OtpPath = els_config:get(otp_path),
   NodeName = node_name(RootUri, els_utils:to_binary(OtpPath)),
   els_db:install(NodeName, DbDir),
-  els_distribution_server:connect(),
+  els_build_server:connect(),
   case maps:get(<<"indexingEnabled">>, InitOptions, true) of
     true  -> els_indexing:start();
     false -> lager:info("Skipping Indexing (disabled via InitOptions)")

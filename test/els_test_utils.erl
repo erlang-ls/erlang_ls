@@ -66,8 +66,8 @@ end_per_suite(_Config) ->
 
 -spec init_per_testcase(atom(), config()) -> config().
 init_per_testcase(_TestCase, Config) ->
-  meck:new(els_distribution_server, [no_link, passthrough]),
-  meck:expect(els_distribution_server, connect, 0, ok),
+  meck:new(els_build_server, [no_link, passthrough]),
+  meck:expect(els_build_server, connect, 0, ok),
   Transport = get_group(Config),
   Started   = start(Transport),
   RootPath  = ?config(root_path, Config),
@@ -92,7 +92,7 @@ init_per_testcase(_TestCase, Config) ->
 
 -spec end_per_testcase(atom(), config()) -> ok.
 end_per_testcase(_TestCase, Config) ->
-  meck:unload(els_distribution_server),
+  meck:unload(els_build_server),
   [application:stop(App) || App <- ?config(started, Config)],
   ok.
 

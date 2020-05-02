@@ -26,7 +26,7 @@
 
 -spec install(atom(), string()) -> ok.
 install(NodeName, BaseDir) ->
-  els_distribution_server:start_distribution(NodeName),
+  els_build_server:start_distribution(NodeName),
   DbDir = filename:join([BaseDir, atom_to_list(NodeName)]),
   lager:info("Configuring DB [dir=~s]", [DbDir]),
   ok = filelib:ensure_dir(filename:join([DbDir, "dummy"])),

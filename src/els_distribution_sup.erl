@@ -41,8 +41,8 @@ init([]) ->
               , intensity => 5
               , period    => 60
               },
-  ChildSpecs = [ #{ id    => els_distribution_server
-                  , start => {els_distribution_server, start_link, []}
+  ChildSpecs = [ #{ id    => els_build_server
+                  , start => {els_build_server, start_link, []}
                   }
                , #{ id    => els_group_leader_sup
                   , start => {els_group_leader_sup, start_link, []}

@@ -51,4 +51,4 @@ publish_result(Uri, Line, Severity, Message) ->
 run_test(Suite, Case) ->
   Module = els_config_ct_run_test:get_module(),
   Function = els_config_ct_run_test:get_function(),
-  els_distribution_server:rpc_call(Module, Function, [Suite, Case], infinity).
+  els_build_server:rpc_call(Module, Function, [Suite, Case], infinity).

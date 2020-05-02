@@ -101,7 +101,7 @@ ct_run_test(Config) ->
   Expected = [],
   ?assertEqual(Expected, Result),
   wait_until_mock_called(els_protocol, notification),
-  ?assertEqual(1, meck:num_calls(els_distribution_server, rpc_call, '_')),
+  ?assertEqual(1, meck:num_calls(els_build_server, rpc_call, '_')),
   Notifications = [{Method, Args} ||
                     { _Pid
                     , { els_protocol
@@ -141,7 +141,7 @@ strip_server_prefix(_Config) ->
 -spec setup_mocks() -> ok.
 setup_mocks() ->
   meck:new(els_protocol, [passthrough, no_link]),
-  meck:expect( els_distribution_server, rpc_call, 4
+  meck:expect( els_build_server, rpc_call, 4
              , fun(_, _, _, _) -> {ok, <<"Test passed!">>} end),
   meck:expect( els_protocol, notification, 2
              , fun(Method, Params) ->
