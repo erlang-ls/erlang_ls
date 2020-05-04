@@ -74,10 +74,12 @@ compile(Uri) ->
   Dependencies = els_diagnostics_utils:dependencies(Uri),
   Path = els_utils:to_list(els_uri:path(Uri)),
   case compile_file(Path, Dependencies) of
-    {ok, _, WS} ->
-      diagnostics(Path, WS, ?DIAGNOSTIC_WARNING);
-    {error, ES, WS} ->
-      diagnostics(Path, WS, ?DIAGNOSTIC_WARNING) ++
+    {{ok, _, WS}, Diagnostics} ->
+      Diagnostics ++
+        diagnostics(Path, WS, ?DIAGNOSTIC_WARNING);
+    {{error, ES, WS}, Diagnostics} ->
+      Diagnostics ++
+        diagnostics(Path, WS, ?DIAGNOSTIC_WARNING) ++
         diagnostics(Path, ES, ?DIAGNOSTIC_ERROR)
   end.
 
@@ -115,16 +117,21 @@ parse_escript(Uri) ->
         [els_diagnostics:diagnostic()].
 diagnostics(Path, List, Severity) ->
   Uri = els_uri:uri(els_utils:to_binary(Path)),
-  {ok, [Document]} = els_dt_document:lookup(Uri),
-  lists:flatten([[ diagnostic( Path
-                             , MessagePath
-                             , range(Line)
-                             , Document
-                             , Module
-                             , Desc
-                             , Severity)
-                   || {Line, Module, Desc} <- Info]
-                 || {MessagePath, Info} <- List]).
+  case els_dt_document:lookup(Uri) of
+    {ok, [Document]} ->
+      lists:flatten([[ diagnostic( Path
+                                 , MessagePath
+                                 , range(Line)
+                                 , Document
+                                 , Module
+                                 , Desc
+                                 , Severity)
+                       || {Line, Module, Desc} <- Info]
+                     || {MessagePath, Info} <- List]);
+    Error ->
+      lager:info("diagnostics doc lookup failed [Error=~p]", [Error]),
+      []
+  end.
 
 -spec diagnostic( string()
                 , string()
@@ -170,12 +177,15 @@ range(none) ->
 inclusion_range(IncludePath, Document) ->
   [Range|_] =
     inclusion_range(IncludePath, Document, include) ++
-    inclusion_range(IncludePath, Document, include_lib),
+    inclusion_range(IncludePath, Document, include_lib) ++
+    inclusion_range(IncludePath, Document, behaviour) ++
+    inclusion_range(IncludePath, Document, parse_transform),
   Range.
 
 -spec inclusion_range( string()
                      , els_dt_document:item()
-                     , include | include_lib) -> [poi_range()].
+                     , include | include_lib | behaviour | parse_transform)
+                     -> [poi_range()].
 inclusion_range(IncludePath, Document, include) ->
   POIs       = els_dt_document:pois(Document, [include]),
   IncludeId  = include_id(IncludePath),
@@ -183,7 +193,16 @@ inclusion_range(IncludePath, Document, include) ->
 inclusion_range(IncludePath, Document, include_lib) ->
   POIs       = els_dt_document:pois(Document, [include_lib]),
   IncludeId  = include_lib_id(IncludePath),
-  [Range || #{id := Id, range := Range} <- POIs, Id =:= IncludeId].
+  [Range || #{id := Id, range := Range} <- POIs, Id =:= IncludeId];
+inclusion_range(IncludePath, Document, behaviour) ->
+  POIs        = els_dt_document:pois(Document, [behaviour]),
+  BehaviourId = els_uri:module(els_uri:uri(els_utils:to_binary(IncludePath))),
+  [Range || #{id := Id, range := Range} <- POIs, Id =:= BehaviourId];
+inclusion_range(IncludePath, Document, parse_transform) ->
+  POIs       = els_dt_document:pois(Document, [parse_transform]),
+  ParseTransformId
+    = els_uri:module(els_uri:uri(els_utils:to_binary(IncludePath))),
+  [Range || #{id := Id, range := Range} <- POIs, Id =:= ParseTransformId].
 
 -spec include_id(string()) -> string().
 include_id(Path) ->
@@ -213,6 +232,23 @@ include_options() ->
   Paths = els_config:get(include_paths),
   [ {i, Path} || Path <- Paths ].
 
+-spec diagnostics_options() -> [any()].
+diagnostics_options() ->
+  [basic_validation|diagnostics_options_bare()].
+
+-spec diagnostics_options_load_code() -> [any()].
+diagnostics_options_load_code() ->
+  [binary|diagnostics_options_bare()].
+
+-spec diagnostics_options_bare() -> [any()].
+diagnostics_options_bare() ->
+  lists:append([ macro_options()
+               , include_options()
+               , [ return_warnings
+                 , return_errors
+                 ]]).
+
+
 -spec string_to_term(list()) -> any().
 string_to_term(Value) ->
   try
@@ -231,42 +267,48 @@ string_to_term(Value) ->
   end.
 
 -spec compile_file(string(), [atom()]) ->
-        {ok | error, [compiler_msg()], [compiler_msg()]}.
+        {{ok | error, [compiler_msg()], [compiler_msg()]}
+        , [els_diagnostics:diagnostic()]}.
 compile_file(Path, Dependencies) ->
   %% Load dependencies required for the compilation
-  Olds = [load_dependency(Dependency) || Dependency <- Dependencies],
-  Opts = lists:append([ macro_options()
-                      , include_options()
-                      , [ return_warnings
-                        , return_errors
-                        , basic_validation
-                        ]
-                      ]),
-  Res = compile:file(Path, Opts),
+  Olds = [load_dependency(Dependency, Path) || Dependency <- Dependencies],
+  Res = compile:file(Path, diagnostics_options()),
   %% Restore things after compilation
   [code:load_binary(Dependency, Filename, Binary)
-   || {Dependency, Binary, Filename} <- Olds],
-  Res.
+   || {{Dependency, Binary, Filename}, _} <- Olds],
+  Diagnostics = lists:flatten([ Diags || {_, Diags} <- Olds ]),
+  {Res, Diagnostics}.
 
 %% @doc Load a dependency, return the old version of the code (if any),
 %% so it can be restored.
--spec load_dependency(atom()) -> {atom(), binary(), file:filename()} | error.
-load_dependency(Module) ->
+-spec load_dependency(atom(), string()) ->
+        {{atom(), binary(), file:filename()}, [els_diagnostics:diagnostic()]}
+          | error.
+load_dependency(Module, IncludingPath) ->
   Old = code:get_object_code(Module),
-  case els_utils:find_module(Module) of
-    {ok, Uri} ->
-      Path = els_utils:to_list(els_uri:path(Uri)),
-      Opts = lists:append([macro_options(), include_options(), [binary]]),
-      case compile:file(Path, Opts) of
-        {ok, Module, Binary} ->
-          code:load_binary(Module, atom_to_list(Module), Binary);
-        Error ->
-          lager:warning("Error compiling dependency [error=~w]", [Error])
-      end;
-    {error, Error} ->
-      lager:warning("Error finding dependency [error=~w]", [Error])
-  end,
-  Old.
+  Diagnostics =
+    case els_utils:find_module(Module) of
+      {ok, Uri} ->
+        Path = els_utils:to_list(els_uri:path(Uri)),
+        case compile:file(Path, diagnostics_options_load_code()) of
+          {ok, [], []} ->
+            lager:warning("AZ:WTF finding dependency, {ok, [], []}"),
+            [];
+          {ok, Module, Binary} ->
+            code:load_binary(Module, atom_to_list(Module), Binary),
+            [];
+          {ok, Module, Binary, WS} ->
+            code:load_binary(Module, atom_to_list(Module), Binary),
+            diagnostics(IncludingPath, WS, ?DIAGNOSTIC_WARNING);
+          {error, ES, WS} ->
+            diagnostics(IncludingPath, WS, ?DIAGNOSTIC_WARNING) ++
+              diagnostics(IncludingPath, ES, ?DIAGNOSTIC_ERROR)
+        end;
+      {error, Error} ->
+        lager:warning("Error finding dependency [error=~w]", [Error]),
+        []
+    end,
+  {Old, Diagnostics}.
 
 -spec maybe_compile_and_load(uri(), [els_diagnostics:diagnostic()]) -> ok.
 maybe_compile_and_load(Uri, [] = _CDiagnostics) ->
