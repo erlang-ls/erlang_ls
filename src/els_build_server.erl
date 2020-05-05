@@ -16,6 +16,12 @@
         ]).
 
 %%==============================================================================
+%% Build Server Protocol API
+%%==============================================================================
+-export([ request/2
+        ]).
+
+%%==============================================================================
 %% Callbacks for the gen_server behaviour
 %%==============================================================================
 -behaviour(gen_server).
@@ -65,6 +71,21 @@ rpc_call(M, F, A) ->
 %% @doc Make a RPC call towards the runtime node.
 -spec rpc_call(atom(), atom(), [any()], timeout()) -> {any(), binary()}.
 rpc_call(M, F, A, Timeout) ->
+  gen_server:call(?SERVER, {rpc_call, M, F, A, Timeout}, Timeout).
+
+%%==============================================================================
+%% Build Server Protocol API
+%%==============================================================================
+-spec request(binary(), map()) -> {ok, map()} | {error, any()}.
+request(Method, Params) ->
+  request(Method, Params, ?RPC_TIMEOUT).
+
+-spec request(binary(), map(), timeout()) -> {ok, map()} | {error, any()}.
+request(Method, Params, Timeout) ->
+  %% TODO: Hardcoded
+  M = rebar3_erlang_ls_agent,
+  F = handle_request,
+  A = [Method, Params],
   gen_server:call(?SERVER, {rpc_call, M, F, A, Timeout}, Timeout).
 
 %%==============================================================================

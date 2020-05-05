@@ -32,10 +32,7 @@
        ).
 -define(SERVER, ?MODULE).
 
-%% TODO: Refine names to avoid confusion
--type key()   :: apps_dirs
-               | apps_paths
-               | capabilities
+-type key()   :: capabilities
                | diagnostics
                | deps_dirs
                | deps_paths
@@ -46,14 +43,13 @@
                | otp_paths
                | otp_apps_exclude
                | plt_path
+               | build_server
                | root_uri
                | search_paths
                | code_reload.
 
 -type path()  :: file:filename().
--type state() :: #{ apps_dirs        => [path()]
-                  , apps_paths       => [path()]
-                  , lenses           => [els_code_lens:lens_id()]
+-type state() :: #{ lenses           => [els_code_lens:lens_id()]
                   , diagnostics      => [els_diagnostics:diagnostic_id()]
                   , deps_dirs        => [path()]
                   , deps_paths       => [path()]
@@ -63,6 +59,7 @@
                   , otp_paths        => [path()]
                   , otp_apps_exclude => [string()]
                   , plt_path         => path()
+                  , build_server     => binary()
                   , root_uri         => uri()
                   , search_paths     => [path()]
                   , code_reload      => map() | 'disabled'
@@ -83,10 +80,10 @@ do_initialize(RootUri, Capabilities, {ConfigPath, Config}) ->
   RootPath        = els_utils:to_list(els_uri:path(RootUri)),
   OtpPath         = maps:get("otp_path", Config, code:root_dir()),
   DepsDirs        = maps:get("deps_dirs", Config, []),
-  AppsDirs        = maps:get("apps_dirs", Config, ["."]),
   IncludeDirs     = maps:get("include_dirs", Config, ["include"]),
   Macros          = maps:get("macros", Config, []),
   DialyzerPltPath = maps:get("plt_path", Config, undefined),
+  BuildServer     = maps:get("build_server", Config, "none"),
   OtpAppsExclude  = maps:get( "otp_apps_exclude"
                             , Config
                             , ?DEFAULT_EXCLUDED_OTP_APPS
@@ -106,17 +103,16 @@ do_initialize(RootUri, Capabilities, {ConfigPath, Config}) ->
   ok = set(config_path    , ConfigPath),
   ok = set(otp_path       , OtpPath),
   ok = set(deps_dirs      , DepsDirs),
-  ok = set(apps_dirs      , AppsDirs),
   ok = set(include_dirs   , IncludeDirs),
   ok = set(macros         , Macros),
   ok = set(plt_path       , DialyzerPltPath),
+  ok = set(build_server   , BuildServer),
   ok = set(code_reload    , CodeReload),
   ok = set(runtime, maps:merge( els_config_runtime:default_config()
                               , Runtime)),
   ok = set('ct-run-test', maps:merge( els_config_ct_run_test:default_config()
                                     , CtRunTest)),
   %% Calculated from the above
-  ok = set(apps_paths     , project_paths(RootPath, AppsDirs, false)),
   ok = set(deps_paths     , project_paths(RootPath, DepsDirs, false)),
   ok = set(include_paths  , include_paths(RootPath, IncludeDirs, false)),
   ok = set(otp_paths      , otp_paths(OtpPath, false) -- ExcludePaths),

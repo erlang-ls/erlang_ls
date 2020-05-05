@@ -15,6 +15,7 @@
 %%==============================================================================
 -include("erlang_ls.hrl").
 -include_lib("stdlib/include/ms_transform.hrl").
+-include_lib("erlang_bs/include/erlang_bs.hrl").
 
 %%==============================================================================
 %% Types
@@ -102,8 +103,10 @@ index_references(_Document, 'shallow') ->
 
 -spec start() -> ok.
 start() ->
+  #{targets := Targets} = els_build_server:request( <<"workspace/targets">>
+                                                  , #{}),
   start(<<"OTP">>, entries_otp()),
-  start(<<"Applications">>, entries_apps()),
+  start(<<"Applications">>, entries_apps(Targets)),
   start(<<"Dependencies">>, entries_deps()).
 
 -spec start(binary(), [{string(), 'deep' | 'shallow'}]) -> ok.
@@ -190,9 +193,14 @@ index_dir(Dir, Mode) ->
              "[failed=~p]", [Dir, Mode, Time/1000/1000, Succeeded, Failed]),
   {Succeeded, Failed}.
 
--spec entries_apps() -> [{string(), 'deep' | 'shallow'}].
-entries_apps() ->
-  [{Dir, 'deep'} || Dir <- els_config:get(apps_paths)].
+-spec entries_apps([els_build_server:target_id()]) ->
+        [{string(), 'deep' | 'shallow'}].
+entries_apps(Targets) ->
+  {ok, #{items := Items}} = els_build_server:request( <<"buildTarget/sources">>
+                                                    , #{targets => Targets}
+                                                    ),
+  Sources = lists:flatten([S || #{sources := S} <- Items]),
+  [{Uri, 'deep'} || #{uri := Uri, kind := ?SOURCE_ITEM_KIND_DIR} <- Sources].
 
 -spec entries_deps() -> [{string(), 'deep' | 'shallow'}].
 entries_deps() ->
