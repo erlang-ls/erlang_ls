@@ -12,12 +12,34 @@ jobs:
   build_windows:
     runs-on: windows-latest
 
+    strategy:
+      matrix:
+        otp-version: [21.3, 22.3]
+
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
+      - id: cache-erlang
+        uses: actions/cache@v1
+        with:
+          path: otp_win64_${{ matrix.otp-version }}.exe
+          key: ${{ runner.os }}-otp-win64-${{ matrix.otp-version }}
+      
+      - name: Fetch Erlang
+        uses: carlosperate/download-file-action@v1.0.3
+        if: steps.cache-erlang.outputs.cache-hit != 'true'
+        with:
+          file-url: http://erlang.org/download/otp_win64_${{ matrix.otp-version }}.exe
+      
+      - name: Install Erlang
+        run: otp_win64_${{ matrix.otp-version }}.exe 
+
+
+
 
       - name: Install Erlang
         run: choco install erlang
+
+      - name: Checkout
+        uses: actions/checkout@v2
 
       - name: Compile
         run: escript rebar3 compile
