@@ -66,8 +66,7 @@ end_per_suite(_Config) ->
 
 -spec init_per_testcase(atom(), config()) -> config().
 init_per_testcase(_TestCase, Config) ->
-  meck:new(els_build_server, [no_link, passthrough]),
-  meck:expect(els_build_server, connect, 0, ok),
+  els_mock_build_server:setup(),
   Transport = get_group(Config),
   Started   = start(Transport),
   RootPath  = ?config(root_path, Config),
@@ -92,7 +91,7 @@ init_per_testcase(_TestCase, Config) ->
 
 -spec end_per_testcase(atom(), config()) -> ok.
 end_per_testcase(_TestCase, Config) ->
-  meck:unload(els_build_server),
+  els_mock_build_server:teardown(),
   [application:stop(App) || App <- ?config(started, Config)],
   ok.
 
@@ -179,23 +178,24 @@ includes() ->
   , diagnostics
   ].
 
-%% @doc Index a file and produce the respective config entries
+%% @doc Produce the config entries for a given file
 %%
 %%      Given an identifier representing a source or include file,
 %%      index it and produce a config containing the respective path,
 %%      uri and text to simplify accessing this information from test
 %%      cases.
+
+%% TODO: Rename, since this is not indexing anymore
 -spec index_file(binary(), file_type(), atom()) -> [{atom(), any()}].
 index_file(RootPath, Type, Id) ->
   BinaryId = atom_to_binary(Id, utf8),
   Ext = extension(Type),
   Dir = directory(Type),
   Path = filename:join([RootPath, Dir, <<BinaryId/binary, Ext/binary>>]),
-  {ok, Uri} = els_indexing:index_file(Path),
   {ok, Text} = file:read_file(Path),
   ConfigId = config_id(Id, Type),
   [ {atoms_append(ConfigId, '_path'), Path}
-  , {atoms_append(ConfigId, '_uri'), Uri}
+  , {atoms_append(ConfigId, '_uri'), els_uri:uri(Path)}
   , {atoms_append(ConfigId, '_text'), Text}
   ].
 
