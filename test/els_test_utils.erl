@@ -71,8 +71,11 @@ init_per_testcase(_TestCase, Config) ->
   Started   = start(Transport),
   RootPath  = ?config(root_path, Config),
   RootUri   = ?config(root_uri, Config),
-  els_client:initialize(RootUri, #{indexingEnabled => false}),
+  els_client:initialize(RootUri),
   els_client:initialized(),
+  %% TODO: Wait for indexing to be completed (no bg jobs)
+  timer:sleep(1000),
+  %% TODO: This should not be necessary any longer
   SrcConfig = lists:flatten(
                 [index_file(RootPath, src, S) || S <- sources()]),
   TestConfig = lists:flatten(

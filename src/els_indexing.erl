@@ -196,9 +196,9 @@ index_dir(Dir, Mode) ->
 -spec entries_apps([els_build_server:target_id()]) ->
         [{string(), 'deep' | 'shallow'}].
 entries_apps(Targets) ->
-  {ok, #{items := Items}} = els_build_server:request( <<"buildTarget/sources">>
-                                                    , #{targets => Targets}
-                                                    ),
+  #{items := Items} = els_build_server:request( <<"buildTarget/sources">>
+                                              , #{targets => Targets}
+                                              ),
   Sources = lists:flatten([S || #{sources := S} <- Items]),
   [{Uri, 'deep'} || #{uri := Uri, kind := ?SOURCE_ITEM_KIND_DIR} <- Sources].
 
