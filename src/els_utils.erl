@@ -229,16 +229,24 @@ is_symlink(Path) ->
 
 -spec resolve_path([path()], path(), boolean()) -> [path()].
 resolve_path(PathSpec, RootPath, Recursive) ->
-  Path  = filename:join(PathSpec),
-  Paths = filelib:wildcard(Path),
-
+  RPath = filename:join(PathSpec),
+  Paths = filelib:wildcard(RPath),
+  RecAdd = fun(Path) ->
+               SubDirs = [P || P <- subdirs(Paths),
+                               contains_src_files(P)],
+               case contains_src_files(Path) of
+                 true  -> [make_normalized_path(Path) | SubDirs];
+                 false -> SubDirs
+               end
+             end,
   case Recursive of
     true  ->
-      lists:append([ [make_normalized_path(P) | subdirs(P)]
-                     || P <- Paths, not contains_symlink(P, RootPath)
-                   ]);
+      lists:append([ RecAdd(P) || P <- Paths,
+                                  not contains_symlink(P, RootPath)]);
     false ->
-      [make_normalized_path(P) || P <- Paths, not contains_symlink(P, RootPath)]
+      [make_normalized_path(P) || P <- Paths,
+                                  not contains_symlink(P, RootPath),
+                                  contains_src_files(P)]
   end.
 
 %% Returns all subdirectories for the provided path
@@ -266,6 +274,10 @@ subdirs_(Path, Files, Subdirs) ->
              end
          end,
   lists:foldl(Fold, Subdirs, Files).
+
+-spec contains_src_files(path()) -> boolean().
+contains_src_files(P) ->
+  [] /= filelib:wildcard(filename:join(P, "*.?rl")).
 
 -spec contains_symlink(path(), path()) -> boolean().
 contains_symlink(RootPath, RootPath) ->
