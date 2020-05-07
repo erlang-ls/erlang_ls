@@ -34,8 +34,6 @@
 
 -type key()   :: capabilities
                | diagnostics
-               | deps_dirs
-               | deps_paths
                | include_dirs
                | include_paths
                | lenses
@@ -51,8 +49,6 @@
 -type path()  :: file:filename().
 -type state() :: #{ lenses           => [els_code_lens:lens_id()]
                   , diagnostics      => [els_diagnostics:diagnostic_id()]
-                  , deps_dirs        => [path()]
-                  , deps_paths       => [path()]
                   , include_dirs     => [path()]
                   , include_paths    => [path()]
                   , otp_path         => path()
@@ -79,7 +75,6 @@ initialize(RootUri, Capabilities, InitOptions) ->
 do_initialize(RootUri, Capabilities, {ConfigPath, Config}) ->
   RootPath        = els_utils:to_list(els_uri:path(RootUri)),
   OtpPath         = maps:get("otp_path", Config, code:root_dir()),
-  DepsDirs        = maps:get("deps_dirs", Config, []),
   IncludeDirs     = maps:get("include_dirs", Config, ["include"]),
   Macros          = maps:get("macros", Config, []),
   DialyzerPltPath = maps:get("plt_path", Config, undefined),
@@ -102,7 +97,6 @@ do_initialize(RootUri, Capabilities, {ConfigPath, Config}) ->
   %% Read from the erlang_ls.config file
   ok = set(config_path    , ConfigPath),
   ok = set(otp_path       , OtpPath),
-  ok = set(deps_dirs      , DepsDirs),
   ok = set(include_dirs   , IncludeDirs),
   ok = set(macros         , Macros),
   ok = set(plt_path       , DialyzerPltPath),
@@ -113,7 +107,6 @@ do_initialize(RootUri, Capabilities, {ConfigPath, Config}) ->
   ok = set('ct-run-test', maps:merge( els_config_ct_run_test:default_config()
                                     , CtRunTest)),
   %% Calculated from the above
-  ok = set(deps_paths     , project_paths(RootPath, DepsDirs, false)),
   ok = set(include_paths  , include_paths(RootPath, IncludeDirs, false)),
   ok = set(otp_paths      , otp_paths(OtpPath, false) -- ExcludePaths),
   ok = set(lenses         , Lenses),
@@ -207,19 +200,6 @@ consult_config([Path | Paths]) ->
 include_paths(RootPath, IncludeDirs, Recursive) ->
   Paths = [ els_utils:resolve_paths([[RootPath, Dir]], RootPath, Recursive)
             || Dir <- IncludeDirs
-          ],
-  lists:append(Paths).
-
--spec project_paths(path(), [string()], boolean()) -> [string()].
-project_paths(RootPath, Dirs, Recursive) ->
-  Paths = [ els_utils:resolve_paths( [ [RootPath, Dir, "src"]
-                                     , [RootPath, Dir, "test"]
-                                     , [RootPath, Dir, "include"]
-                                     ]
-                                   , RootPath
-                                   , Recursive
-                                   )
-            || Dir <- Dirs
           ],
   lists:append(Paths).
 
