@@ -200,7 +200,8 @@ entries_apps(Targets) ->
                                               , #{targets => Targets}
                                               ),
   Sources = lists:flatten([S || #{sources := S} <- Items]),
-  [{Uri, 'deep'} || #{uri := Uri, kind := ?SOURCE_ITEM_KIND_DIR} <- Sources].
+  [{els_utils:to_list(els_uri:path(Uri)), 'deep'}
+   || #{uri := Uri, kind := ?SOURCE_ITEM_KIND_DIR} <- Sources].
 
 -spec entries_deps() -> [{string(), 'deep' | 'shallow'}].
 entries_deps() ->
