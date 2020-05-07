@@ -27,6 +27,8 @@ request(Method, Params) ->
 -spec request(binary(), map(), timeout()) -> map().
 request(<<"workspace/targets">>, _Params, _Timeout) ->
   #{targets => [default]};
+request(<<"buildTarget/dependencySources">>, _Params, _Timeout) ->
+  #{items => []};
 request(<<"buildTarget/sources">>, _Params, _Timeout) ->
   Path = filename:join([code:priv_dir(erlang_ls), "code_navigation"]),
   Item = #{ target => default

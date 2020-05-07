@@ -107,7 +107,7 @@ start() ->
                                                   , #{}),
   start(<<"OTP">>, entries_otp()),
   start(<<"Applications">>, entries_apps(Targets)),
-  start(<<"Dependencies">>, entries_deps()).
+  start(<<"Dependencies">>, entries_deps(Targets)).
 
 -spec start(binary(), [{string(), 'deep' | 'shallow'}]) -> ok.
 start(Group, Entries) ->
@@ -196,16 +196,23 @@ index_dir(Dir, Mode) ->
 -spec entries_apps([els_build_server:target_id()]) ->
         [{string(), 'deep' | 'shallow'}].
 entries_apps(Targets) ->
-  #{items := Items} = els_build_server:request( <<"buildTarget/sources">>
-                                              , #{targets => Targets}
-                                              ),
+  #{items := Items} =
+    els_build_server:request( <<"buildTarget/sources">>
+                            , #{targets => Targets}
+                            ),
   Sources = lists:flatten([S || #{sources := S} <- Items]),
   [{els_utils:to_list(els_uri:path(Uri)), 'deep'}
    || #{uri := Uri, kind := ?SOURCE_ITEM_KIND_DIR} <- Sources].
 
--spec entries_deps() -> [{string(), 'deep' | 'shallow'}].
-entries_deps() ->
-  [{Dir, 'deep'} || Dir <- els_config:get(deps_paths)].
+-spec entries_deps([els_build_server:target_id()]) ->
+        [{string(), 'deep' | 'shallow'}].
+entries_deps(Targets) ->
+  #{items := Items} =
+    els_build_server:request( <<"buildTarget/dependencySources">>
+                            , #{targets => Targets}
+                            ),
+  Uris = lists:flatten([Sources || #{sources := Sources} <- Items]),
+  [{els_utils:to_list(els_uri:path(Uri)), 'deep'} || Uri <- Uris].
 
 -spec entries_otp() -> [{string(), 'deep' | 'shallow'}].
 entries_otp() ->
