@@ -9,6 +9,7 @@
 %% Test cases
 -export([ specs_location/1
         , parse_invalid_code/1
+        , underscore_macro/1
         ]).
 
 %%==============================================================================
@@ -51,4 +52,16 @@ specs_location(_Config) ->
 parse_invalid_code(_Config) ->
   Text = "foo(X) -> 16#.",
   {ok, _POIs} = els_parser:parse(Text),
+  ok.
+
+-spec underscore_macro(config()) -> ok.
+underscore_macro(_Config) ->
+  ?assertMatch({ok, [#{id := '_'} | _]},
+               els_parser:parse("-define(_(Text), gettexter:gettext(Text)).")),
+  ?assertMatch({ok, [#{id := '_'} | _]},
+               els_parser:parse("-define(_, smth).")),
+  ?assertMatch({ok, []},
+               els_parser:parse("?_.")),
+  ?assertMatch({ok, []},
+               els_parser:parse("?_(ok).")),
   ok.

@@ -387,7 +387,9 @@ define_name(Tree) ->
     variable ->
       erl_syntax:variable_name(Tree);
     atom ->
-      erl_syntax:atom_value(Tree)
+      erl_syntax:atom_value(Tree);
+    underscore ->
+      '_'
   end.
 
 -spec node_name(tree()) -> atom().
@@ -398,7 +400,9 @@ node_name(Tree) ->
     variable ->
       erl_syntax:variable_name(Tree);
     macro ->
-      node_name(erl_syntax:macro_name(Tree))
+      node_name(erl_syntax:macro_name(Tree));
+    underscore ->
+      '_'
   end.
 
 -spec is_type_application(tree()) -> boolean().
