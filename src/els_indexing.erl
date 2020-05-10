@@ -130,15 +130,15 @@ start(Group, Entries) ->
 %% @doc Try indexing a file.
 -spec try_index_file(binary(), mode()) -> ok | {error, any()}.
 try_index_file(FullName, Mode) ->
+  Uri = els_uri:uri(FullName),
   try
-    Uri = els_uri:uri(FullName),
-    lager:debug("Indexing file. [filename=~s]", [FullName]),
+    lager:debug("Indexing file. [filename=~s, uri=~s]", [FullName, Uri]),
     {ok, Text} = file:read_file(FullName),
     ok         = index(Uri, Text, Mode)
   catch Type:Reason:St ->
       lager:error("Error indexing file "
-                  "[filename=~s] "
-                  "~p:~p:~p", [FullName, Type, Reason, St]),
+                  "[filename=~s, uri=~s] "
+                  "~p:~p:~p", [FullName, Uri, Type, Reason, St]),
       {error, {Type, Reason}}
   end.
 
