@@ -102,7 +102,10 @@ find_header(Id) ->
 find_module(Id) ->
   {ok, Candidates} = els_dt_document_index:lookup(Id),
   case [Uri || #{kind := module, uri := Uri} <- Candidates] of
-    [Uri | _] ->
+    [Uri] ->
+      {ok, Uri};
+    [_|_] = Uris ->
+      [Uri|_] = prioritize_uris(Uris),
       {ok, Uri};
     [] ->
       FileName = atom_to_list(Id) ++ ".erl",
@@ -302,6 +305,21 @@ cmd_receive(Port) ->
     {Port, _} ->
       cmd_receive(Port)
   end.
+
+%% @doc Prioritize files
+%% Prefer files below root and prefer files in src dir.
+-spec prioritize_uris([uri()]) -> [uri()].
+prioritize_uris(Uris) ->
+  Root = els_config:get(root_uri),
+  Order = fun(nomatch) -> 3;
+             (Cont) ->
+              case string:find(Cont, "/src/") of
+                nomatch -> 1;
+                _ -> 0
+              end
+          end,
+  Prio = [{Order(string:prefix(Uri, Root)), Uri} || Uri <- Uris],
+  [Uri || {_, Uri} <- lists:sort(Prio)].
 
 %%==============================================================================
 %% This section excerpted from the rebar3 sources, rebar_dir.erl
