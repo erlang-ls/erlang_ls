@@ -22,7 +22,8 @@
         ]).
 
 %% API
--export([ process_requests/1
+-export([ indexing_started/0
+        , process_requests/1
         , set_connection/1
         , send_notification/2
         , send_request/2
@@ -68,6 +69,10 @@ start_link(Transport) ->
   {ok, _} = Transport:start_listener(Cb),
   {ok, Pid}.
 
+-spec indexing_started() -> boolean().
+indexing_started() ->
+  gen_server:call(?SERVER, {indexing_started}).
+
 -spec process_requests([any()]) -> ok.
 process_requests(Requests) ->
   gen_server:cast(?SERVER, {process_requests, Requests}).
@@ -104,6 +109,9 @@ init(Transport) ->
   {ok, State}.
 
 -spec handle_call(any(), any(), state()) -> {reply, any(), state()}.
+handle_call({indexing_started}, _From, State) ->
+  #state{internal_state = InternalState} = State,
+  {reply, maps:get(indexing_started, InternalState, false), State};
 handle_call({set_connection, Connection}, _From, State) ->
   {reply, ok, State#state{connection = Connection}};
 handle_call({reset_internal_state}, _From, State) ->

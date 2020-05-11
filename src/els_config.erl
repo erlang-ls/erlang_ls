@@ -38,12 +38,10 @@
                | include_paths
                | lenses
                | otp_path
-               | otp_paths
                | otp_apps_exclude
                | plt_path
                | build_server
                | root_uri
-               | search_paths
                | code_reload.
 
 -type path()  :: file:filename().
@@ -52,12 +50,10 @@
                   , include_dirs     => [path()]
                   , include_paths    => [path()]
                   , otp_path         => path()
-                  , otp_paths        => [path()]
                   , otp_apps_exclude => [string()]
                   , plt_path         => path()
                   , build_server     => binary()
                   , root_uri         => uri()
-                  , search_paths     => [path()]
                   , code_reload      => map() | 'disabled'
                   }.
 
@@ -79,15 +75,16 @@ do_initialize(RootUri, Capabilities, {ConfigPath, Config}) ->
   Macros          = maps:get("macros", Config, []),
   DialyzerPltPath = maps:get("plt_path", Config, undefined),
   BuildServer     = maps:get("build_server", Config, "none"),
-  OtpAppsExclude  = maps:get( "otp_apps_exclude"
+  _OtpAppsExclude  = maps:get( "otp_apps_exclude"
                             , Config
                             , ?DEFAULT_EXCLUDED_OTP_APPS
                             ),
   Lenses = maps:get("lenses", Config, #{}),
   Diagnostics = maps:get("diagnostics", Config, #{}),
-  ExcludePathsSpecs = [[OtpPath, "lib", P ++ "*"] || P <- OtpAppsExclude],
-  ExcludePaths = els_utils:resolve_paths(ExcludePathsSpecs, RootPath, true),
-  lager:info("Excluded OTP Applications: ~p", [OtpAppsExclude]),
+  %% TODO
+  %% ExcludePathsSpecs = [[OtpPath, "lib", P ++ "*"] || P <- OtpAppsExclude],
+  %% ExcludePaths = els_utils:resolve_paths(ExcludePathsSpecs, RootPath, true),
+  %% lager:info("Excluded OTP Applications: ~p", [OtpAppsExclude]),
   CodeReload = maps:get("code_reload", Config, disabled),
   Runtime = maps:get("runtime", Config, #{}),
   CtRunTest = maps:get("ct-run-test", Config, #{}),
@@ -108,17 +105,8 @@ do_initialize(RootUri, Capabilities, {ConfigPath, Config}) ->
                                     , CtRunTest)),
   %% Calculated from the above
   ok = set(include_paths  , include_paths(RootPath, IncludeDirs, false)),
-  ok = set(otp_paths      , otp_paths(OtpPath, false) -- ExcludePaths),
   ok = set(lenses         , Lenses),
   ok = set(diagnostics    , Diagnostics),
-  %% All (including subdirs) paths used to search files with file:path_open/3
-  ProjectDirs = els_utils:resolve_paths( [[ RootPath ]], RootPath, true),
-
-  ok = set( search_paths
-          , lists:append([ ProjectDirs
-                         , otp_paths(OtpPath, true)
-                         ])
-          ),
   %% Init Options
   ok = set(capabilities  , Capabilities),
   ok.
@@ -202,12 +190,3 @@ include_paths(RootPath, IncludeDirs, Recursive) ->
             || Dir <- IncludeDirs
           ],
   lists:append(Paths).
-
--spec otp_paths(path(), boolean()) -> [string()].
-otp_paths(OtpPath, Recursive) ->
-  els_utils:resolve_paths( [ [OtpPath, "lib", "*", "src"]
-                           , [OtpPath, "lib", "*", "include"]
-                           ]
-                         , OtpPath
-                         , Recursive
-                         ).

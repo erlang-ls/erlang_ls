@@ -144,7 +144,7 @@ initialized(Params, State) ->
   NParams  = #{ type    => ?MESSAGE_TYPE_INFO
               , message => Message
              },
-  {notification, NMethod, NParams, State}.
+  {notification, NMethod, NParams, State#{indexing_started => true}}.
 
 %%==============================================================================
 %% shutdown

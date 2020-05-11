@@ -74,7 +74,7 @@ range(#{ from := {FromL, FromC}, to := {ToL, ToC} }) ->
 %%==============================================================================
 -spec content(binary()) -> binary().
 content(Body) ->
-els_utils:to_binary([headers(Body), "\r\n", Body]).
+  els_utils:to_binary([headers(Body), "\r\n", Body]).
 
 -spec headers(binary()) -> iolist().
 headers(Body) ->

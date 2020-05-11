@@ -28,7 +28,9 @@ request(Method, Params) ->
 request(<<"workspace/targets">>, _Params, _Timeout) ->
   #{targets => [default]};
 request(<<"buildTarget/dependencySources">>, _Params, _Timeout) ->
-  #{items => []};
+  Apps = [kernel, stdlib],
+  Sources = [els_uri:uri(els_utils:to_binary(code:lib_dir(A))) || A <- Apps],
+  #{items => [#{sources => Sources}]};
 request(<<"buildTarget/sources">>, _Params, _Timeout) ->
   Path = filename:join([code:priv_dir(erlang_ls), "code_navigation"]),
   Item = #{ target => default

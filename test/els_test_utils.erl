@@ -73,9 +73,7 @@ init_per_testcase(_TestCase, Config) ->
   RootUri   = ?config(root_uri, Config),
   els_client:initialize(RootUri),
   els_client:initialized(),
-  %% TODO: Wait for indexing to be completed (no bg jobs)
-  timer:sleep(1000),
-  %% TODO: This should not be necessary any longer
+  wait_for_fun(fun els_indexing:is_completed/0, 1000, 5),
   SrcConfig = lists:flatten(
                 [index_file(RootPath, src, S) || S <- sources()]),
   TestConfig = lists:flatten(
@@ -124,11 +122,13 @@ wait_for(Message, Timeout) ->
   end.
 
 -spec wait_for_fun(fun(), non_neg_integer(), non_neg_integer())
-                  -> {ok, any()} | timeout.
+                  -> ok | {ok, any()} | timeout.
 wait_for_fun(_CheckFun, _WaitTime, 0) ->
   timeout;
 wait_for_fun(CheckFun, WaitTime, Retries) ->
   case CheckFun() of
+    true ->
+      ok;
     {true, Value} ->
       {ok, Value};
     false ->

@@ -3,10 +3,10 @@
 -callback index(els_dt_document:item()) -> ok.
 
 %% API
--export([ find_and_index_file/1
-        , index_file/1
+-export([ index_file/1
         , index/3
         , index_dir/2
+        , is_completed/0
         , start/0
         ]).
 
@@ -30,24 +30,6 @@
 %%==============================================================================
 %% Exported functions
 %%==============================================================================
-
--spec find_and_index_file(string()) ->
-   {ok, uri()} | {error, any()}.
-find_and_index_file(FileName) ->
-  SearchPaths = els_config:get(search_paths),
-  case file:path_open( SearchPaths
-                     , els_utils:to_binary(FileName)
-                     , [read]
-                     )
-  of
-    {ok, IoDevice, FullName} ->
-      %% TODO: Avoid opening file twice
-      file:close(IoDevice),
-      index_file(FullName);
-    {error, Error} ->
-      {error, Error}
-  end.
-
 -spec index_file(binary()) -> {ok, uri()}.
 index_file(Path) ->
   try_index_file(Path, 'deep'),
@@ -105,7 +87,7 @@ index_references(_Document, 'shallow') ->
 start() ->
   #{targets := Targets} = els_build_server:request( <<"workspace/targets">>
                                                   , #{}),
-  start(<<"OTP">>, entries_otp()),
+  %% TODO: Parallelize OTP
   start(<<"Applications">>, entries_apps(Targets)),
   start(<<"Dependencies">>, entries_deps(Targets)).
 
@@ -188,10 +170,14 @@ index_dir(Dir, Mode) ->
                                           , {0, 0}
                                           ]
                                         ),
-  lager:debug("Finished indexing directory. [dir=~s] [mode=~s] [time=~p] "
+  lager:info("Finished indexing directory. [dir=~s] [mode=~s] [time=~p] "
              "[succeeded=~p] "
              "[failed=~p]", [Dir, Mode, Time/1000/1000, Succeeded, Failed]),
   {Succeeded, Failed}.
+
+-spec is_completed() -> boolean().
+is_completed() ->
+  els_server:indexing_started() andalso (els_background_job:list() =:= []).
 
 -spec entries_apps([els_build_server:target_id()]) ->
         [{string(), 'deep' | 'shallow'}].
@@ -212,8 +198,4 @@ entries_deps(Targets) ->
                             , #{targets => Targets}
                             ),
   Uris = lists:flatten([Sources || #{sources := Sources} <- Items]),
-  [{els_utils:to_list(els_uri:path(Uri)), 'deep'} || Uri <- Uris].
-
--spec entries_otp() -> [{string(), 'deep' | 'shallow'}].
-entries_otp() ->
-  [{Dir, 'shallow'} || Dir <- els_config:get(otp_paths)].
+  [{els_utils:to_list(els_uri:path(Uri)), 'shallow'} || Uri <- Uris].

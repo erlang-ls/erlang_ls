@@ -93,8 +93,7 @@ find_header(Id) ->
     [Uri | _] ->
       {ok, Uri};
     [] ->
-      FileName = atom_to_list(Id) ++ ".hrl",
-      els_indexing:find_and_index_file(FileName)
+      {error, not_found}
   end.
 
 %% @doc Look for a module in the DB
@@ -105,8 +104,7 @@ find_module(Id) ->
     [Uri | _] ->
       {ok, Uri};
     [] ->
-      FileName = atom_to_list(Id) ++ ".erl",
-      els_indexing:find_and_index_file(FileName)
+      {error, not_found}
   end.
 
 %% @doc Look for a document in the DB.
