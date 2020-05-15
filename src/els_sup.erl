@@ -40,6 +40,8 @@ init([]) ->
               , period    => 60
               },
   {ok, Transport} = application:get_env(erlang_ls, transport),
+  {ok, Vsn} = application:get_key(vsn),
+  lager:info("Starting session (version ~p)", [Vsn]),
   %% Restrict access to stdio when using that transport
   restrict_stdio_access(Transport),
   ChildSpecs = [ #{ id       => els_config
