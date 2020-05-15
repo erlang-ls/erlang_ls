@@ -26,7 +26,7 @@ init({Cb, IoDevice}) ->
 
 -spec send(any(), binary()) -> ok.
 send(Connection, Payload) ->
-  io:format(Connection, Payload, []).
+  io:format(Connection, "~s", [Payload]).
 
 %%==============================================================================
 %% Listener loop function
