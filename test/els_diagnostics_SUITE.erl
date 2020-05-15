@@ -69,6 +69,11 @@ init_per_testcase(TestCase, Config) when TestCase =:= code_reload orelse
   mock_rpc(),
   mock_code_reload_enabled(),
   els_test_utils:init_per_testcase(TestCase, Config);
+init_per_testcase(xref, Config) ->
+  meck:new(els_xref_diagnostics, [passthrough, no_link]),
+  meck:expect(els_xref_diagnostics, is_default, 0, true),
+  els_mock_diagnostics:setup(),
+  els_test_utils:init_per_testcase(xref, Config);
 init_per_testcase(TestCase, Config) ->
   els_mock_diagnostics:setup(),
   els_test_utils:init_per_testcase(TestCase, Config).
@@ -79,6 +84,11 @@ end_per_testcase(TestCase, Config) when TestCase =:= code_reload orelse
   unmock_rpc(),
   unmock_code_reload_enabled(),
   els_test_utils:end_per_testcase(TestCase, Config);
+end_per_testcase(xref, Config) ->
+  meck:unload(els_xref_diagnostics),
+  els_test_utils:end_per_testcase(xref, Config),
+  els_mock_diagnostics:teardown(),
+  ok;
 end_per_testcase(TestCase, Config) ->
   els_test_utils:end_per_testcase(TestCase, Config),
   els_mock_diagnostics:teardown(),
