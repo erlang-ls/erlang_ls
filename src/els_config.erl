@@ -123,10 +123,10 @@ do_initialize(RootUri, Capabilities, {ConfigPath, Config}) ->
   ok = set(lenses         , Lenses),
   ok = set(diagnostics    , Diagnostics),
   %% All (including subdirs) paths used to search files with file:path_open/3
-  ProjectDirs = els_utils:resolve_paths( [[ RootPath ]], RootPath, true),
-
   ok = set( search_paths
-          , lists:append([ ProjectDirs
+          , lists:append([ project_paths(RootPath, AppsDirs, true)
+                         , project_paths(RootPath, DepsDirs, true)
+                         , include_paths(RootPath, IncludeDirs, false)
                          , otp_paths(OtpPath, true)
                          ])
           ),
