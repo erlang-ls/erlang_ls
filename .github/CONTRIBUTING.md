@@ -87,7 +87,12 @@ Over:
     Second = {second, 2},
     TwentyFour = {twentyfour, 24}
 
-Whenever possible, we will try to enforce these conventions via linters.
+Whenever possible, we will try to enforce these conventions via
+linters. We also maintain [a list of rebar3
+templates](https://github.com/erlang-ls/rebar3_templates) that you can
+use when creating new Erlang LS modules. Please refer to [the official
+rebar3 documentation](https://www.rebar3.org/docs/using-templates) for
+more information on how to use a _rebar3_ template.
 
 ### Commit Messages
 
