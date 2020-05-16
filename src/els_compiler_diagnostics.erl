@@ -155,7 +155,17 @@ diagnostic(_Path, MessagePath, Range, Document, Module, Desc0, Severity) ->
 -spec diagnostic(poi_range(), module(), string(), integer()) ->
         els_diagnostics:diagnostic().
 diagnostic(Range, Module, Desc, Severity) ->
-  Message0 = lists:flatten(Module:format_error(Desc)),
+  Message0 = try lists:flatten(Module:format_error(Desc))
+             catch % In some cases, Desc is already formatted.
+               error:function_clause when is_list(Desc) ->
+                 lists:flatten(Desc);
+               error:function_clause when is_binary(Desc) ->
+                 Desc;
+               error:function_clause when is_atom(Desc) ->
+                 erlang:atom_to_binary(Desc, utf8);
+               _:_ ->
+                 lists:flatten(io_lib:format("~p", [Desc]))
+             end,
   Message  = els_utils:to_binary(Message0),
   #{ range    => els_protocol:range(Range)
    , message  => Message
