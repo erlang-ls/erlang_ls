@@ -31,11 +31,10 @@ module(Uri) ->
 
 -spec path(uri()) -> path().
 path(Uri) ->
-  Uri1 = http_uri:decode(Uri),
   #{ host := Host
    , path := Path
    , scheme := <<"file">>
-  } = uri_string:parse(Uri1),
+   } = uri_string:normalize(Uri, [return_map]),
 
   case {is_windows(), Host} of
     {true, <<>>} ->
