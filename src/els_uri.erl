@@ -69,7 +69,7 @@ uri(Path) ->
   els_utils:to_binary(
     uri_string:recompose(#{
       scheme => <<"file">>,
-      host => http_uri:encode(Host),
+      host => Host,
       path => [<<"/">>, Path1]
     })
   ),

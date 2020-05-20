@@ -74,23 +74,30 @@ documentation(_M, _POI) ->
 %% Future work: shell_docs:render/4 should probably be copied and
 %% modified to render markdown, or make an PR to OTP with an option
 %% in erlang's shell_docs to render markdown instead of ANSI-codes.
--spec get_docs(atom(), atom(), byte()) -> binary().
+%% -spec get_docs(atom(), atom(), byte()) -> binary().
+%% -spec get_docs(module(), function(), arity()) -> any().
+-spec get_docs(module(), function(), arity()) -> byte().
 -ifdef(OTP_RELEASE).
 -if(?OTP_RELEASE >= 23).
 get_docs(M, F, A) ->
-  case code:get_doc(M) of
-    {ok, #docs_v1{ format = ?NATIVE_FORMAT
-                 , module_doc = MDoc
-                 } = DocChunk} when MDoc =/= none ->
-      case shell_docs:render(M, F, A, DocChunk) of
-        {error, _R0} ->
-          docs_from_src(M, F, A);
-        FuncDoc ->
-          #{ kind => content_kind()
-           , value => els_utils:to_binary(FuncDoc)
-           }
-      end;
-    _R1 ->
+  try
+    case code:get_doc(M) of
+      {ok, #docs_v1{ format = ?NATIVE_FORMAT
+                   , module_doc = MDoc
+                   } = DocChunk} when MDoc =/= none ->
+        case shell_docs:render(M, F, A, DocChunk) of
+          {error, _R0} ->
+            docs_from_src(M, F, A);
+          FuncDoc ->
+            #{ kind => content_kind()
+             , value => els_utils:to_binary(FuncDoc)
+             }
+        end;
+      _R1 ->
+        docs_from_src(M, F, A)
+    end
+  catch C:E ->
+      lager:error("[hover] Error fetching EEP48 docs [error=~p]", [{C, E}]),
       docs_from_src(M, F, A)
   end.
 -else.
@@ -103,7 +110,8 @@ get_docs(M, F, A) ->
 %% Internal functions
 %%==============================================================================
 
--spec docs_from_src(atom(), atom(), byte()) -> binary().
+%% -spec docs_from_src(atom(), atom(), byte()) -> binary().
+-spec docs_from_src(module(), atom(), byte()) -> binary().
 docs_from_src(M, F, A) ->
   case {specs(M, F, A), edoc(M, F, A)} of
     {<<>>, <<>>} ->
@@ -116,7 +124,7 @@ docs_from_src(M, F, A) ->
        }
   end.
 
--spec specs(atom(), atom(), non_neg_integer()) -> binary().
+-spec specs(module(), atom(), non_neg_integer()) -> binary().
 specs(M, F, A) ->
   case els_dt_signatures:lookup({M, F, A}) of
     {ok, [#{spec := Spec}]} ->
