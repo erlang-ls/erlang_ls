@@ -76,11 +76,9 @@ uri(Path) ->
   % lager:debug("Parsed ~s as ~s (host=~s, path=~s)", [Path, Res, Host, Path1]),
   Res.
 
-
 -spec uri_join([path()]) -> iolist().
 uri_join(List) ->
-  lists:join(<<"/">>, lists:map(fun http_uri:encode/1, List)).
-
+  lists:join(<<"/">>, List).
 
 -spec is_windows() -> boolean().
 is_windows() ->
