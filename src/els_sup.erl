@@ -101,6 +101,8 @@ noop_group_leader() ->
     Message ->
       lager:info("noop_group_leader got [message=~p]", [Message]),
       case Message of
+        {io_request, From, ReplyAs, getopts} ->
+          From ! {io_reply, ReplyAs, []};
         {io_request, From, ReplyAs, _} ->
           From ! {io_reply, ReplyAs, ok};
         _ ->
