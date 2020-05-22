@@ -65,16 +65,13 @@ uri(Path) ->
                      {<<>>, uri_join([H1|Tail])}
                  end,
 
-  Res =
   els_utils:to_binary(
     uri_string:recompose(#{
       scheme => <<"file">>,
       host => Host,
       path => [<<"/">>, Path1]
     })
-  ),
-  % lager:debug("Parsed ~s as ~s (host=~s, path=~s)", [Path, Res, Host, Path1]),
-  Res.
+  ).
 
 -spec uri_join([path()]) -> iolist().
 uri_join(List) ->
