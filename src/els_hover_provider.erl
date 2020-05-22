@@ -78,7 +78,7 @@ documentation(_M, _POI) ->
 -ifdef(OTP_RELEASE).
 -if(?OTP_RELEASE >= 23).
 get_docs(M, F, A) ->
-  case code:get_doc(M) of
+  try code:get_doc(M) of
     {ok, #docs_v1{ format = ?NATIVE_FORMAT
                  , module_doc = MDoc
                  } = DocChunk} when MDoc =/= none ->
@@ -91,6 +91,13 @@ get_docs(M, F, A) ->
            }
       end;
     _R1 ->
+      docs_from_src(M, F, A)
+  catch C:E ->
+      %% code:get_doc/1 fails for escriptized modules, so fall back
+      %% reading docs from source. See #751 for details
+      Fmt = "Error fetching docs, falling back to src. module=~p error=~p:~p",
+      Args = [M, C, E],
+      lager:warning(Fmt, Args),
       docs_from_src(M, F, A)
   end.
 -else.
