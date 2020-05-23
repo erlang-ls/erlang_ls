@@ -290,9 +290,9 @@ load_dependency(Module, IncludingPath) ->
     case els_utils:find_module(Module) of
       {ok, Uri} ->
         Path = els_utils:to_list(els_uri:path(Uri)),
-        case compile:file(Path, diagnostics_options_load_code()) of
+        Opts = compile_options(Module),
+        case compile:file(Path, diagnostics_options_load_code() ++ Opts) of
           {ok, [], []} ->
-            lager:warning("AZ:WTF finding dependency, {ok, [], []}"),
             [];
           {ok, Module, Binary} ->
             code:load_binary(Module, atom_to_list(Module), Binary),
@@ -305,7 +305,8 @@ load_dependency(Module, IncludingPath) ->
               diagnostics(IncludingPath, ES, ?DIAGNOSTIC_ERROR)
         end;
       {error, Error} ->
-        lager:warning("Error finding dependency [error=~w]", [Error]),
+        lager:warning( "Error finding dependency [module=~p] [error=~p]"
+                     , [Module, Error]),
         []
     end,
   {Old, Diagnostics}.
@@ -342,3 +343,22 @@ handle_rpc_result(Err, Module) ->
                                #{ type => ?MESSAGE_TYPE_ERROR,
                                   message => els_utils:to_binary(Msg)
                                 }).
+
+%% @doc Return the compile options from the compile_info chunk
+-spec compile_options(atom()) -> [any()].
+compile_options(Module) ->
+  case code:which(Module) of
+    non_existing ->
+      lager:info("Could not find compile options. [module=~p]", Module),
+      [];
+    Beam ->
+      case beam_lib:chunks(Beam, [compile_info]) of
+        {ok, {_, Chunks}} ->
+          Info = proplists:get_value(compile_info, Chunks),
+          proplists:get_value(options, Info);
+        Error ->
+          lager:info( "Error extracting compile_info. [module=~p] [error=~p]"
+                    , [Module, Error]),
+          []
+      end
+  end.
