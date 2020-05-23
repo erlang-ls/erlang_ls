@@ -11,48 +11,18 @@ jobs:
     strategy:
       matrix:
         platform: [ubuntu-latest]
-        otp-version: [21.3, 22.2, 23.0]
+        otp-version: [21.3]
     runs-on: ${{ matrix.platform }}
     container:
       image: erlang:${{ matrix.otp-version }}
     steps:
     - name: Checkout
       uses: actions/checkout@v2
-    - name: Cache Hex packages
-      uses: actions/cache@v1
-      with:
-        path: ~/.cache/rebar3/hex/hexpm/packages
-        key: ${{ runner.os }}-hex-${{ hashFiles(format('{0}{1}', github.workspace, '/rebar.lock')) }}
-        restore-keys: |
-          ${{ runner.os }}-hex-
-    - name: Cache Dialyzer PLTs
-      uses: actions/cache@v1
-      with:
-        path: ~/.cache/rebar3/rebar3_*.plt
-        key: ${{ runner.os }}-dialyzer-${{ hashFiles(format('{0}{1}', github.workspace, '/rebar.config')) }}
-        restore-keys: |
-          ${{ runner.os }}-dialyzer-
     - name: Compile
       run: rebar3 compile
     - name: Run CT Tests
-      run: rebar3 ct
-    - name: Store CT Logs
-      uses: actions/upload-artifact@v1
-      with:
-        name: ct-logs
-        path: _build/test/logs
-    - name: Run PropEr Tests
-      run: rebar3 proper --cover --constraint_tries 100
-    - name: Run Checks
-      run: rebar3 do dialyzer, xref
+      run: rebar3 ct --suite els_parser_SUITE
     - name: Create Cover Reports
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: rebar3 do cover, coveralls send
-    - name: Produce Documentation
-      run: rebar3 edoc
-    - name: Publish Documentation
-      uses: actions/upload-artifact@v1
-      with:
-        name: edoc
-        path: doc
