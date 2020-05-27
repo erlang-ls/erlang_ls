@@ -153,9 +153,8 @@ diagnostic(_Path, MessagePath, Range, Document, Module, Desc0, Severity) ->
   %% The compiler message is related to an included file. Replace the
   %% original location with the location of the file inclusion.
   %% And re-route the format_error call to this module as a no-op
-  Desc1 = lists:flatten(Module:format_error(Desc0)),
-  Desc = lists:flatten(io_lib:format("Issue in included file (~p): ~s",
-                                     [Line, Desc1])),
+  Desc1 = Module:format_error(Desc0),
+  Desc = io_lib:format("Issue in included file (~p): ~s", [Line, Desc1]),
   diagnostic(InclusionRange, ?MODULE, Desc, Severity).
 
 -spec diagnostic(poi_range(), module(), string(), integer()) ->
