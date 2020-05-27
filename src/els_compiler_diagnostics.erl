@@ -363,7 +363,7 @@ handle_rpc_result(Err, Module) ->
 compile_options(Module) ->
   case code:which(Module) of
     non_existing ->
-      lager:info("Could not find compile options. [module=~p]", Module),
+      lager:info("Could not find compile options. [module=~p]", [Module]),
       [];
     Beam ->
       case beam_lib:chunks(Beam, [compile_info]) of
