@@ -13,6 +13,9 @@
         , on_complete/2
         ]).
 
+%% identity function for our own diagnostics
+-export([ format_error/1 ]).
+
 %%==============================================================================
 %% Includes
 %%==============================================================================
@@ -149,8 +152,10 @@ diagnostic(_Path, MessagePath, Range, Document, Module, Desc0, Severity) ->
   InclusionRange = inclusion_range(MessagePath, Document),
   %% The compiler message is related to an included file. Replace the
   %% original location with the location of the file inclusion.
-  Desc = io_lib:format("Issue in included file (~p): ~p", [Line, Desc0]),
-  diagnostic(InclusionRange, Module, Desc, Severity).
+  %% And re-route the format_error call to this module as a no-op
+  Desc1 = Module:format_error(Desc0),
+  Desc = io_lib:format("Issue in included file (~p): ~s", [Line, Desc1]),
+  diagnostic(InclusionRange, ?MODULE, Desc, Severity).
 
 -spec diagnostic(poi_range(), module(), string(), integer()) ->
         els_diagnostics:diagnostic().
@@ -162,6 +167,12 @@ diagnostic(Range, Module, Desc, Severity) ->
    , severity => Severity
    , source   => source()
    }.
+
+%% @doc NOP function for the call to 'Module:format_error/1' in diagnostic/4
+%% above.
+-spec format_error(string()) -> [string()].
+format_error(Str) ->
+  Str.
 
 -spec range(erl_anno:line() | none) -> poi_range().
 range(Line) when is_integer(Line) ->
@@ -175,12 +186,15 @@ range(none) ->
 %%      a given document.
 -spec inclusion_range(string(), els_dt_document:item()) -> poi_range().
 inclusion_range(IncludePath, Document) ->
-  [Range|_] =
+  case
     inclusion_range(IncludePath, Document, include) ++
     inclusion_range(IncludePath, Document, include_lib) ++
     inclusion_range(IncludePath, Document, behaviour) ++
-    inclusion_range(IncludePath, Document, parse_transform),
-  Range.
+    inclusion_range(IncludePath, Document, parse_transform)
+  of
+    [Range|_] -> Range;
+    _ -> range(1)
+  end.
 
 -spec inclusion_range( string()
                      , els_dt_document:item()
@@ -349,7 +363,7 @@ handle_rpc_result(Err, Module) ->
 compile_options(Module) ->
   case code:which(Module) of
     non_existing ->
-      lager:info("Could not find compile options. [module=~p]", Module),
+      lager:info("Could not find compile options. [module=~p]", [Module]),
       [];
     Beam ->
       case beam_lib:chunks(Beam, [compile_info]) of

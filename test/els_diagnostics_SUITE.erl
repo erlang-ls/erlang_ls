@@ -157,7 +157,7 @@ compiler_with_broken_behaviour(Config) ->
   [BehaviourError | _ ] = Errors,
   ExpectedError =
     #{message =>
-        <<"Issue in included file (5): [\"syntax error before: \",[]]">>,
+        <<"Issue in included file (5): syntax error before: ">>,
       range =>
         #{'end' => #{character => 21, line => 2},
           start => #{character => 0, line => 2}},
