@@ -186,12 +186,15 @@ range(none) ->
 %%      a given document.
 -spec inclusion_range(string(), els_dt_document:item()) -> poi_range().
 inclusion_range(IncludePath, Document) ->
-  [Range|_] =
+  case
     inclusion_range(IncludePath, Document, include) ++
     inclusion_range(IncludePath, Document, include_lib) ++
     inclusion_range(IncludePath, Document, behaviour) ++
-    inclusion_range(IncludePath, Document, parse_transform),
-  Range.
+    inclusion_range(IncludePath, Document, parse_transform)
+  of
+    [Range|_] -> Range;
+    _ -> range(1)
+  end.
 
 -spec inclusion_range( string()
                      , els_dt_document:item()
