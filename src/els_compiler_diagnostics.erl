@@ -285,7 +285,9 @@ string_to_term(Value) ->
         , [els_diagnostics:diagnostic()]}.
 compile_file(Path, Dependencies) ->
   %% Load dependencies required for the compilation
-  Olds = [load_dependency(Dependency, Path) || Dependency <- Dependencies],
+  Olds = [load_dependency(Dependency, Path)
+          || Dependency <- Dependencies
+               , not code:is_sticky(Dependency) ],
   Res = compile:file(Path, diagnostics_options()),
   %% Restore things after compilation
   [code:load_binary(Dependency, Filename, Binary)
