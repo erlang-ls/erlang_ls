@@ -47,6 +47,8 @@ handle_request({completion, Params}, State) ->
                  ?COMPLETION_TRIGGER_KIND_CHARACTER ->
                    els_text:line(Text, Line, Character - Length);
                  ?COMPLETION_TRIGGER_KIND_INVOKED ->
+                   els_text:line(Text, Line, Character);
+                 ?COMPLETION_TRIGGER_KIND_FOR_INCOMPLETE_COMPLETIONS ->
                    els_text:line(Text, Line, Character)
                end,
       Opts   = #{ trigger  => TriggerCharacter
