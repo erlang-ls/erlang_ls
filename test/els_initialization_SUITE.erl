@@ -22,6 +22,7 @@
         , initialize_lenses_default/1
         , initialize_lenses_custom/1
         , initialize_lenses_invalid/1
+        , initialize_invalid_config_location/1
         ]).
 
 %%==============================================================================
@@ -179,4 +180,20 @@ initialize_lenses_invalid(Config) ->
   Result = els_code_lens:enabled_lenses(),
   Expected = [<<"ct-run-test">>, <<"show-behaviour-usages">>],
   ?assertEqual(Expected, Result),
+  ok.
+
+-spec initialize_invalid_config_location(config()) -> ok.
+initialize_invalid_config_location(Config) ->
+  RootUri = ?config(root_uri, Config),
+  DataDir = ?config(data_dir, Config),
+  ConfigPath = filename:join(DataDir, "nonexistent_file_name"),
+  InitOpts = #{ <<"erlang">> => #{ <<"config_path">> => ConfigPath }},
+  els_client:initialize(RootUri, InitOpts),
+  Notifications = els_test_utils:wait_for_notifications(1),
+  ?assertEqual(1, length(Notifications)),
+  [N1] = Notifications,
+  ?assertEqual(maps:get(method, N1), <<"window/showMessage">>),
+  Params1 = maps:get(params, N1),
+  ?assertEqual(<<"Could not find specified config ">>
+              , binary:part(maps:get(message, Params1), 0, 32)),
   ok.

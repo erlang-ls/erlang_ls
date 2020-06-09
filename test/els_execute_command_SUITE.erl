@@ -77,7 +77,8 @@ erlang_ls_info(Config) ->
     = els_client:workspace_executecommand(PrefixedCommand, [#{uri => Uri}]),
   Expected = [],
   ?assertEqual(Expected, Result),
-  Notifications = wait_for_notifications(2),
+  Notifications = els_test_utils:wait_for_notifications(2),
+  ?assertEqual(2, length(Notifications)),
   [ begin
       ?assertEqual(maps:get(method, Notification), <<"window/showMessage">>),
       Params = maps:get(params, Notification),
@@ -163,19 +164,3 @@ wait_until_mock_called(M, F) ->
     _ ->
       ok
   end.
-
--spec wait_for_notifications(pos_integer()) -> [map()].
-wait_for_notifications(Num) ->
-  wait_for_notifications(Num, []).
-
--spec wait_for_notifications(integer(), [map()]) -> [map()].
-wait_for_notifications(Num, Acc) when Num =< 0 ->
-  Acc;
-wait_for_notifications(Num, Acc) ->
-  CheckFun = fun() -> case els_client:get_notifications() of
-                        [] -> false;
-                        Notifications -> {true, Notifications}
-                      end
-             end,
-  {ok, Notifications} = els_test_utils:wait_for_fun(CheckFun, 10, 3),
-  wait_for_notifications(Num - length(Notifications), Acc).

@@ -174,11 +174,21 @@ handle_cast(_Msg, State) -> {noreply, State}.
 config_paths( RootPath
             , #{<<"erlang">> := #{<<"config_path">> := ConfigPath0}}) ->
   ConfigPath = els_utils:to_list(ConfigPath0),
-  lists:append([ possible_config_paths(ConfigPath)
-               , possible_config_paths(filename:join([RootPath, ConfigPath]))
-               , default_config_paths(RootPath)]);
+  PossibleConfigPaths
+    = lists:append([ possible_config_paths(ConfigPath)
+                   , possible_config_paths(
+                       filename:join([RootPath, ConfigPath]))]),
+  case lists:filter(fun filelib:is_regular/1, PossibleConfigPaths) of
+    [] ->
+      report_config_error(
+             "Could not find specified config file: root path=~p config path=~p"
+            , [RootPath, ConfigPath]),
+      [];
+    Paths ->
+      Paths
+  end;
 config_paths(RootPath, _Config) ->
-  default_config_paths(RootPath).
+  lists:filter(fun filelib:is_regular/1, default_config_paths(RootPath)).
 
 -spec default_config_paths(path()) -> [path()].
 default_config_paths(RootPath) ->
@@ -202,8 +212,9 @@ consult_config([Path | Paths]) ->
       [Config] -> {Path, Config}
   catch
     Class:Error ->
-      lager:warning( "Could not read config file: path=~p class=~p error=~p"
-                   , [Path, Class, Error]),
+      report_config_error(
+              "Could not read config file: path=~p class=~p error=~p"
+              , [Path, Class, Error]),
       consult_config(Paths)
   end.
 
@@ -235,3 +246,15 @@ otp_paths(OtpPath, Recursive) ->
                          , OtpPath
                          , Recursive
                          ).
+
+%% @doc Report any errors found during configuration, before diagnostics are
+%% allowed to be sent.
+-spec report_config_error(io:format(), [term()]) -> ok.
+report_config_error(Template, Params) ->
+  Msg = io_lib:format(Template, Params),
+  lager:warning(Msg),
+  els_server:send_notification(<<"window/showMessage">>,
+                               #{ type => ?MESSAGE_TYPE_ERROR,
+                                  message => els_utils:to_binary(Msg)
+                                }),
+  ok.

@@ -11,6 +11,7 @@
         , start/1
         , wait_for/2
         , wait_for_fun/3
+        , wait_for_notifications/1
         ]).
 
 -include_lib("common_test/include/ct.hrl").
@@ -133,6 +134,26 @@ wait_for_fun(CheckFun, WaitTime, Retries) ->
       timer:sleep(WaitTime),
       wait_for_fun(CheckFun, WaitTime, Retries - 1)
   end.
+
+
+-spec wait_for_notifications(pos_integer()) -> [map()].
+wait_for_notifications(Num) ->
+  wait_for_notifications(Num, []).
+
+-spec wait_for_notifications(integer(), [map()]) -> [map()].
+wait_for_notifications(Num, Acc) when Num =< 0 ->
+  Acc;
+wait_for_notifications(Num, Acc) ->
+  CheckFun = fun() -> case els_client:get_notifications() of
+                        [] -> false;
+                        Notifications -> {true, Notifications}
+                      end
+             end,
+  {ok, Notifications} = wait_for_fun(CheckFun, 10, 3),
+  wait_for_notifications(Num - length(Notifications),
+                         lists:append(Notifications, Acc)).
+
+
 
 -spec get_group(config()) -> atom().
 get_group(Config) ->
