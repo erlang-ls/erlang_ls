@@ -288,7 +288,8 @@ compile_file(Path, Dependencies) ->
   Olds = [load_dependency(Dependency, Path)
           || Dependency <- Dependencies
                , not code:is_sticky(Dependency) ],
-  Res = compile:file(Path, diagnostics_options()),
+  IncludeDirs = [{i, D} || D <- els_config:get(deps_dirs)],
+  Res = compile:file(Path, diagnostics_options() ++ IncludeDirs),
   %% Restore things after compilation
   [code:load_binary(Dependency, Filename, Binary)
    || {{Dependency, Binary, Filename}, _} <- Olds],
