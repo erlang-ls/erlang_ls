@@ -1,0 +1,15 @@
+# [#NNN] (If applied, this commit will...) <subject> (Max 72 char)
+# |<----   Preferably using up to 50 chars   --->|<------------------->|
+# Example:
+# [#765] Add commit message template.
+
+# Explain why this change is being made
+# |<----   Try To Limit Each Line to a Maximum Of 72 Characters   ---->|
+
+# From https://github.com/erlang-ls/erlang_ls/blob/master/.github/CONTRIBUTING.md#commit-messages
+#
+# - Use descriptive commit messages.
+# - Prefix every commit message with the issue number in the form [#NNN].
+# - Use imperative form (prefer Move function... over Moves function).
+# - Avoid past tense.
+#  -Use a final dot.
