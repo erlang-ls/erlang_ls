@@ -19,6 +19,7 @@
         , compiler_with_parse_transform_list/1
         , compiler_with_parse_transform_included/1
         , compiler_with_parse_transform_broken/1
+        , compiler_with_include_of_third_party_dep_header/1
         , code_reload/1
         , code_reload_sticky_mod/1
         , elvis/1
@@ -74,6 +75,12 @@ init_per_testcase(xref, Config) ->
   meck:expect(els_xref_diagnostics, is_default, 0, true),
   els_mock_diagnostics:setup(),
   els_test_utils:init_per_testcase(xref, Config);
+init_per_testcase(TestCase, Config)
+  when TestCase =:= compiler_with_include_of_third_party_dep_header ->
+    RootPath = ?config(root_path, Config),
+    mock_deps_dirs([binary_to_list(<<RootPath/binary, "/deps">>)]),
+    els_mock_diagnostics:setup(),
+    els_test_utils:init_per_testcase(TestCase, Config);
 init_per_testcase(TestCase, Config) ->
   els_mock_diagnostics:setup(),
   els_test_utils:init_per_testcase(TestCase, Config).
@@ -89,6 +96,12 @@ end_per_testcase(xref, Config) ->
   els_test_utils:end_per_testcase(xref, Config),
   els_mock_diagnostics:teardown(),
   ok;
+end_per_testcase(TestCase, Config)
+  when TestCase =:= compiler_with_include_of_third_party_dep_header ->
+    unmock_deps_dirs(),
+    els_test_utils:end_per_testcase(TestCase, Config),
+    els_mock_diagnostics:teardown(),
+    ok;
 end_per_testcase(TestCase, Config) ->
   els_test_utils:end_per_testcase(TestCase, Config),
   els_mock_diagnostics:teardown(),
@@ -253,6 +266,16 @@ compiler_with_parse_transform_broken(Config) ->
                           #{'end' => #{character => 0, line => 1},
                             start => #{character => 0, line => 0}}],
   ?assertEqual(ExpectedErrorsRanges, ErrorsRanges),
+  ok.
+
+-spec compiler_with_include_of_third_party_dep_header(config()) -> ok.
+compiler_with_include_of_third_party_dep_header(Config) ->
+  FilePathKey = diagnostics_compiler_with_include_of_third_party_dep_header_uri,
+  Uri = ?config(FilePathKey, Config),
+  els_mock_diagnostics:subscribe(),
+  ok = els_client:did_save(Uri),
+  Diagnostics = els_mock_diagnostics:wait_until_complete(),
+  ?assertEqual([], Diagnostics),
   ok.
 
 -spec elvis(config()) -> ok.
@@ -421,4 +444,18 @@ mock_code_reload_enabled() ->
              ).
 
 unmock_code_reload_enabled() ->
+  meck:unload(els_config).
+
+mock_deps_dirs(Dirs) ->
+  meck:new(els_config, [passthrough, no_link]),
+  meck:expect( els_config
+             , get
+             , fun(deps_dirs) ->
+                   Dirs;
+                  (Key) ->
+                   meck:passthrough([Key])
+               end
+             ).
+
+unmock_deps_dirs() ->
   meck:unload(els_config).

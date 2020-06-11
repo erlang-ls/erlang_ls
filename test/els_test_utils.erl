@@ -156,6 +156,7 @@ sources() ->
   , diagnostics_parse_transform_usage_list
   , diagnostics_parse_transform_usage_broken
   , diagnostics_parse_transform_usage_included
+  , diagnostics_compiler_with_include_of_third_party_dep_header
   , diagnostics_xref
   , elvis_diagnostics
   , format_input
