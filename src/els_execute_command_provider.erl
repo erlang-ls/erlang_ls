@@ -58,10 +58,23 @@ execute_command(<<"server-info">>, _Arguments) ->
                  undefined -> <<"undefined">>;
                  Path -> list_to_binary(Path)
                end,
+
+  OtpPathConfig = list_to_binary(els_config:get(otp_path)),
+  OtpRootDir = list_to_binary(code:root_dir()),
+  OtpMessage = case OtpRootDir == OtpPathConfig of
+                 true ->
+                   <<", OTP root ", OtpRootDir/binary>>;
+                 false ->
+                   <<", OTP root(code):"
+                    , OtpRootDir/binary
+                   , ", OTP root(config):"
+                    , OtpPathConfig/binary>>
+               end,
   Message = <<"Erlang LS (in ", Root/binary, "), version: "
              , BinVersion/binary
              , ", config from "
              , ConfigPath/binary
+             , OtpMessage/binary
             >>,
   els_server:send_notification(<<"window/showMessage">>,
                                #{ type => ?MESSAGE_TYPE_INFO,
