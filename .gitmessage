@@ -12,4 +12,4 @@
 # - Prefix every commit message with the issue number in the form [#NNN].
 # - Use imperative form (prefer Move function... over Moves function).
 # - Avoid past tense.
-#  -Use a final dot.
+# - Use a final dot.
