@@ -103,6 +103,7 @@ handle_request({exit, #{status := Status}}, State) ->
 
 -spec server_capabilities() -> server_capabilities().
 server_capabilities() ->
+  {ok, Version} = application:get_key(?APP, vsn),
   #{ capabilities =>
        #{ textDocumentSync =>
             #{ openClose => true
@@ -139,6 +140,10 @@ server_capabilities() ->
             els_execute_command_provider:options()
         , codeLensProvider =>
             els_code_lens_provider:options()
+        },
+     serverInfo =>
+       #{ name    => <<"Erlang LS">>
+        , version => els_utils:to_binary(Version)
         }
    }.
 
