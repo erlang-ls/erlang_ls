@@ -26,7 +26,6 @@ dependencies([], Acc) ->
 dependencies([Uri|Uris], Acc) ->
   case els_dt_document:lookup(Uri) of
     {ok, [Document]} ->
-      els_dt_document:lookup(Uri),
       Deps = els_dt_document:pois(Document, [behaviour, parse_transform]),
       IncludedUris = included_uris(Document),
       dependencies(Uris ++ IncludedUris, Acc ++ [Id || #{id := Id} <- Deps]);
