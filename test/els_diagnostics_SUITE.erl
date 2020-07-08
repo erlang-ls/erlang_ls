@@ -272,9 +272,9 @@ epp_with_nonexistent_macro(Config) ->
   ?assertEqual(2, length(Errors)),
   ErrorsRanges = [ Range || #{range := Range} <- Errors],
   ExpectedErrorsRanges = [#{'end' => #{character => 0, line => 4},
-                            start => #{character => 0, line => 4}},
-                          #{'end' => #{character => 0, line => 1},
-                            start => #{character => 0, line => 0}}],
+                            start => #{character => 0, line => 3}},
+                          #{'end' => #{character => 0, line => 6},
+                            start => #{character => 0, line => 5}}],
   ?assertEqual(ExpectedErrorsRanges, ErrorsRanges),
   ok.
 

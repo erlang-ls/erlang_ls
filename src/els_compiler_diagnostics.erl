@@ -92,10 +92,23 @@ parse(Uri) ->
   {ok, Epp} = epp:open([ {name, FileName}
                        , {includes, els_config:get(include_paths)}
                        ]),
-  Res = [diagnostic(range(Line), Module, Desc, ?DIAGNOSTIC_ERROR)
+  Res = [epp_diagnostic(Line, Module, Desc)
          || {error, {Line, Module, Desc}} <- epp:parse_file(Epp)],
   epp:close(Epp),
   Res.
+
+%% Possible cases to handle
+%% ,{error,{19,erl_parse,["syntax error before: ","'-'"]}}
+%% ,{error,{1,epp,{error,1,{undefined,'MODULE',none}}}}
+%% ,{error,{3,epp,{error,"including nonexistent_macro.hrl is not allowed"}}}
+-spec epp_diagnostic(integer(), module(), any()) ->
+        els_diagnostics:diagnostic().
+epp_diagnostic(Line, epp, {error, Desc}) ->
+  diagnostic(range(Line), epp, Desc, ?DIAGNOSTIC_ERROR);
+epp_diagnostic(Line, epp, {error, Line, Desc}) ->
+  diagnostic(range(Line), epp, Desc, ?DIAGNOSTIC_ERROR);
+epp_diagnostic(Line, erl_parse, Desc) ->
+  diagnostic(range(Line), erl_parse, Desc, ?DIAGNOSTIC_ERROR).
 
 -spec parse_escript(uri()) -> [els_diagnostics:diagnostic()].
 parse_escript(Uri) ->
