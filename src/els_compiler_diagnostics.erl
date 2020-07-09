@@ -101,11 +101,14 @@ parse(Uri) ->
 %% ,{error,{19,erl_parse,["syntax error before: ","'-'"]}}
 %% ,{error,{1,epp,{error,1,{undefined,'MODULE',none}}}}
 %% ,{error,{3,epp,{error,"including nonexistent_macro.hrl is not allowed"}}}
+%% ,{error,{3,epp,{include,file,"yaws.hrl"}}}
 -spec epp_diagnostic(integer(), module(), any()) ->
         els_diagnostics:diagnostic().
 epp_diagnostic(Line, epp, {error, Desc}) ->
   diagnostic(range(Line), epp, Desc, ?DIAGNOSTIC_ERROR);
 epp_diagnostic(Line, epp, {error, Line, Desc}) ->
+  diagnostic(range(Line), epp, Desc, ?DIAGNOSTIC_ERROR);
+epp_diagnostic(Line, epp, Desc) ->
   diagnostic(range(Line), epp, Desc, ?DIAGNOSTIC_ERROR);
 epp_diagnostic(Line, erl_parse, Desc) ->
   diagnostic(range(Line), erl_parse, Desc, ?DIAGNOSTIC_ERROR).

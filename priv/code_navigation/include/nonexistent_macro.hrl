@@ -1,5 +1,6 @@
 
 %% blah blah
+-include("nonexisten-file.hrl").
 
 -if(?MODULE == module_foo).  % TODO get rid of
 -else.
