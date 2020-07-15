@@ -104,14 +104,11 @@ parse(Uri) ->
 %% ,{error,{3,epp,{include,file,"yaws.hrl"}}}
 -spec epp_diagnostic(integer(), module(), any()) ->
         els_diagnostics:diagnostic().
-epp_diagnostic(Line, epp, {error, Desc}) ->
-  diagnostic(range(Line), epp, Desc, ?DIAGNOSTIC_ERROR);
-epp_diagnostic(Line, epp, {error, Line, Desc}) ->
-  diagnostic(range(Line), epp, Desc, ?DIAGNOSTIC_ERROR);
-epp_diagnostic(Line, epp, Desc) ->
-  diagnostic(range(Line), epp, Desc, ?DIAGNOSTIC_ERROR);
-epp_diagnostic(Line, erl_parse, Desc) ->
-  diagnostic(range(Line), erl_parse, Desc, ?DIAGNOSTIC_ERROR).
+epp_diagnostic(Line, epp, {error, Line, Reason}) ->
+    %% Workaround for https://bugs.erlang.org/browse/ERL-1310
+    epp_diagnostic(Line, epp, Reason);
+epp_diagnostic(Line, Module, Desc) ->
+    diagnostic(range(Line), Module, Desc, ?DIAGNOSTIC_ERROR).
 
 -spec parse_escript(uri()) -> [els_diagnostics:diagnostic()].
 parse_escript(Uri) ->
