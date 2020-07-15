@@ -19,6 +19,7 @@
         , compiler_with_parse_transform_list/1
         , compiler_with_parse_transform_included/1
         , compiler_with_parse_transform_broken/1
+        , epp_with_nonexistent_macro/1
         , code_reload/1
         , code_reload_sticky_mod/1
         , elvis/1
@@ -252,6 +253,30 @@ compiler_with_parse_transform_broken(Config) ->
                             start => #{character => 0, line => 4}},
                           #{'end' => #{character => 0, line => 1},
                             start => #{character => 0, line => 0}}],
+  ?assertEqual(ExpectedErrorsRanges, ErrorsRanges),
+  ok.
+
+
+-spec epp_with_nonexistent_macro(config()) -> ok.
+epp_with_nonexistent_macro(Config) ->
+  RootPath = ?config(root_path, Config),
+  Path = filename:join([RootPath, <<"include">>, <<"nonexistent_macro.hrl">>]),
+  Uri = els_uri:uri(Path),
+  els_mock_diagnostics:subscribe(),
+  ok = els_client:did_save(Uri),
+  Diagnostics = els_mock_diagnostics:wait_until_complete(),
+  ?assertEqual(3, length(Diagnostics)),
+  Warnings = [D || #{severity := ?DIAGNOSTIC_WARNING} = D <- Diagnostics],
+  ?assertEqual(0, length(Warnings)),
+  Errors = [D || #{severity := ?DIAGNOSTIC_ERROR} = D <- Diagnostics],
+  ?assertEqual(3, length(Errors)),
+  ErrorsRanges = [ Range || #{range := Range} <- Errors],
+  ExpectedErrorsRanges = [#{'end' => #{character => 0, line => 3},
+                            start => #{character => 0, line => 2}},
+                          #{'end' => #{character => 0, line => 5},
+                            start => #{character => 0, line => 4}},
+                          #{'end' => #{character => 0, line => 7},
+                            start => #{character => 0, line => 6}}],
   ?assertEqual(ExpectedErrorsRanges, ErrorsRanges),
   ok.
 
