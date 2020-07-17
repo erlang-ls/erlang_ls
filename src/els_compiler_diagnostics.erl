@@ -298,47 +298,59 @@ string_to_term(Value) ->
         , [els_diagnostics:diagnostic()]}.
 compile_file(Path, Dependencies) ->
   %% Load dependencies required for the compilation
-  Olds = [load_dependency(Dependency, Path)
-          || Dependency <- Dependencies
-               , not code:is_sticky(Dependency) ],
+  Olds = load_dependencies(Path, Dependencies),
   Res = compile:file(Path, diagnostics_options()),
   %% Restore things after compilation
+  Olds1 = lists:flatten([ Old || {Old, _} <- Olds ]),
   [code:load_binary(Dependency, Filename, Binary)
-   || {{Dependency, Binary, Filename}, _} <- Olds],
+   || {{Dependency, Binary, Filename}, _} <- Olds1],
   Diagnostics = lists:flatten([ Diags || {_, Diags} <- Olds ]),
   {Res, Diagnostics}.
+
+-spec load_dependencies(string(), [atom()]) ->
+        [{[{atom(), binary(), file:filename()}]
+         , [els_diagnostics:diagnostic()]}].
+load_dependencies(Path, Dependencies) ->
+  [load_dependency(Dependency, Path)
+   || Dependency <- Dependencies
+        , not code:is_sticky(Dependency) ].
 
 %% @doc Load a dependency, return the old version of the code (if any),
 %% so it can be restored.
 -spec load_dependency(atom(), string()) ->
-        {{atom(), binary(), file:filename()}, [els_diagnostics:diagnostic()]}
-          | error.
+        {[ error | {atom(), binary(), file:filename()}],
+         [els_diagnostics:diagnostic()]}.
 load_dependency(Module, IncludingPath) ->
   Old = code:get_object_code(Module),
-  Diagnostics =
+  {Olds1, Diagnostics} =
     case els_utils:find_module(Module) of
       {ok, Uri} ->
+        %% First load any recursive dependencies of this module
+        Dependencies = els_diagnostics_utils:dependencies(Uri),
+        Olds = load_dependencies(IncludingPath, Dependencies),
+
         Path = els_utils:to_list(els_uri:path(Uri)),
         Opts = compile_options(Module),
         case compile:file(Path, diagnostics_options_load_code() ++ Opts) of
           {ok, [], []} ->
-            [];
+            {Olds, []};
           {ok, Module, Binary} ->
             code:load_binary(Module, atom_to_list(Module), Binary),
-            [];
+            {Olds, []};
           {ok, Module, Binary, WS} ->
             code:load_binary(Module, atom_to_list(Module), Binary),
-            diagnostics(IncludingPath, WS, ?DIAGNOSTIC_WARNING);
+            {Olds, diagnostics(IncludingPath, WS, ?DIAGNOSTIC_WARNING)};
           {error, ES, WS} ->
+            {Olds,
             diagnostics(IncludingPath, WS, ?DIAGNOSTIC_WARNING) ++
-              diagnostics(IncludingPath, ES, ?DIAGNOSTIC_ERROR)
+              diagnostics(IncludingPath, ES, ?DIAGNOSTIC_ERROR)}
         end;
       {error, Error} ->
         lager:warning( "Error finding dependency [module=~p] [error=~p]"
                      , [Module, Error]),
-        []
+        {[], []}
     end,
-  {Old, Diagnostics}.
+  {[Old | Olds1], Diagnostics}.
 
 -spec maybe_compile_and_load(uri(), [els_diagnostics:diagnostic()]) -> ok.
 maybe_compile_and_load(Uri, [] = _CDiagnostics) ->

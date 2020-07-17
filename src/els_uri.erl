@@ -56,6 +56,8 @@ uri(Path) ->
   {Host, Path1} = case {is_windows(), Head} of
                    {false, <<"/">>} ->
                      {<<>>, uri_join(Tail)};
+                   {false, _} ->
+                     {<<>>, uri_join([Head|Tail])};
                    {true, X} when X =:= <<"//">> orelse X =:= <<"\\\\">> ->
                      [H | T] = Tail,
                      {H, uri_join(T)};
