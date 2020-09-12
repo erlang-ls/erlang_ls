@@ -2,11 +2,15 @@
 
 -behaviour(els_provider).
 -export([ handle_request/2
+        , handle_info/2
         , is_enabled/0
+        , init/0
         ]).
 
 -export([ capabilities/0
         ]).
+
+-export([ send_int_cb/2 ]).
 
 -include("erlang_ls.hrl").
 
@@ -46,6 +50,10 @@
 -spec is_enabled() -> boolean().
 is_enabled() -> true.
 
+-spec init() -> #{}.
+init() ->
+  #{threads => []}.
+
 -spec handle_request( initialize_request()
                     | initialized_request()
                     | shutdown_request()
@@ -76,7 +84,29 @@ handle_request({launch, _Params}, State) ->
   spawn(fun() -> els_dap_server:send_event(<<"initialized">>, #{}) end),
   {#{}, State};
 handle_request({configuration_done, _Params}, State) ->
+  int:auto_attach([break], {?MODULE, send_int_cb, [self()]}),
+  spawn(fun() -> timer:sleep(500), daptoy_fact:fact(5) end),
   {#{}, State};
+handle_request({set_breakpoints, Params}, State) ->
+  #{<<"source">> := #{<<"path">> := Path}} = Params,
+  %% TODO: Do not hard-code
+  code:add_patha("/Users/robert.aloi/git/github/erlang-ls/daptoy/_build/default/lib/daptoy/ebin"),
+  SourceBreakpoints = maps:get(<<"breakpoints">>, Params, []),
+  _SourceModified = maps:get(<<"sourceModified">>, Params, false),
+  Module = els_uri:module(els_uri:uri(Path)),
+  %% TODO: Keep a list of interpreted modules, not to re-interpret them
+  int:i(Module),
+  [int:break(Module, Line) || #{<<"line">> := Line} <- SourceBreakpoints],
+  Breakpoints = [#{<<"verified">> => true, <<"line">> => Line} ||
+                  #{<<"line">> := Line} <- SourceBreakpoints],
+  {#{<<"breakpoints">> => Breakpoints}, State};
+handle_request({set_exception_breakpoints, _Params}, State) ->
+  {#{}, State};
+handle_request({threads, _Params}, #{threads := Threads0} = State) ->
+  Threads = [#{ <<"id">> => erlang:phash2(Pid)
+              , <<"name">> => unicode:characters_to_binary(lists:flatten(io_lib:format("~p", [Pid])))
+              } || Pid <- Threads0],
+  {#{<<"threads">> => Threads}, State};
 handle_request({initialized, _Params}, State) ->
   #{root_uri := RootUri, init_options := InitOptions} = State,
   DbDir = application:get_env(erlang_ls, db_dir, default_db_dir()),
@@ -99,6 +129,11 @@ handle_request({exit, #{status := Status}}, State) ->
   els_utils:halt(ExitCode),
   {null, State}.
 
+-spec handle_info(any(), state()) -> state().
+handle_info({int_cb, Thread}, #{threads := Threads} = State) ->
+  lager:debug("Int CB called. thread=~p", [Thread]),
+  State#{threads => [Thread|Threads]}.
+
 %%==============================================================================
 %% API
 %%==============================================================================
@@ -106,6 +141,14 @@ handle_request({exit, #{status := Status}}, State) ->
 -spec capabilities() -> capabilities().
 capabilities() ->
   #{}.
+
+%%==============================================================================
+%% Callbacks
+%%==============================================================================
+
+-spec send_int_cb(pid(), pid()) -> ok.
+send_int_cb(Thread, ProviderPid) ->
+  ProviderPid ! {int_cb, Thread}.
 
 %%==============================================================================
 %% Internal Functions

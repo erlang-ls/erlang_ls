@@ -8,6 +8,9 @@
 -export([ exit/2
         , initialize/2
         , configuration_done/2
+        , set_breakpoints/2
+        , set_exception_breakpoints/2
+        , threads/2
 
         , initialized/2
         , shutdown/2
@@ -67,8 +70,14 @@ do_dispatch(<<"initialize">>, Params, State) ->
   initialize(Params, State);
 do_dispatch(<<"launch">>, Params, State) ->
   launch(Params, State);
+do_dispatch(<<"setBreakpoints">>, Params, State) ->
+  set_breakpoints(Params, State);
+do_dispatch(<<"setExceptionBreakpoints">>, Params, State) ->
+  set_exception_breakpoints(Params, State);
 do_dispatch(<<"configurationDone">>, Params, State) ->
   configuration_done(Params, State);
+do_dispatch(<<"threads">>, Params, State) ->
+  threads(Params, State);
 do_dispatch(Function, Params, #{status := initialized} = State) ->
   els_methods:Function(Params, State);
 do_dispatch(_Function, _Params, State) ->
@@ -118,6 +127,39 @@ launch(Params, State) ->
 configuration_done(Params, State) ->
   Provider = els_dap_general_provider,
   Request  = {configuration_done, Params},
+  Response = els_provider:handle_request(Provider, Request),
+  {response, Response, State}.
+
+%%==============================================================================
+%% setBreakpoints
+%%==============================================================================
+
+-spec set_breakpoints(params(), state()) -> result().
+set_breakpoints(Params, State) ->
+  Provider = els_dap_general_provider,
+  Request  = {set_breakpoints, Params},
+  Response = els_provider:handle_request(Provider, Request),
+  {response, Response, State}.
+
+%%==============================================================================
+%% setExceptionBreakpoints
+%%==============================================================================
+
+-spec set_exception_breakpoints(params(), state()) -> result().
+set_exception_breakpoints(Params, State) ->
+  Provider = els_dap_general_provider,
+  Request  = {set_exception_breakpoints, Params},
+  Response = els_provider:handle_request(Provider, Request),
+  {response, Response, State}.
+
+%%==============================================================================
+%% threads
+%%==============================================================================
+
+-spec threads(params(), state()) -> result().
+threads(Params, State) ->
+  Provider = els_dap_general_provider,
+  Request  = {threads, Params},
   Response = els_provider:handle_request(Provider, Request),
   {response, Response, State}.
 
