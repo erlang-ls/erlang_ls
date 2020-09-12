@@ -7,7 +7,7 @@
 %% Exports
 %%==============================================================================
 %% Messaging API
--export([ notification/2
+-export([ event/3
         , request/3
         , response/3
         , error/2
@@ -25,11 +25,13 @@
 %%==============================================================================
 %% Messaging API
 %%==============================================================================
--spec notification(binary(), any()) -> binary().
-notification(Method, Params) ->
-  Message = #{ jsonrpc => ?JSONRPC_VSN
-             , method  => Method
-             , params  => Params
+-spec event(number(), binary(), any()) -> binary().
+%% TODO: Body is optional
+event(Seq, EventType, Body) ->
+  Message = #{ seq => Seq
+             , type => <<"event">>
+             , event => EventType
+             , body => Body
              },
   content(jsx:encode(Message)).
 

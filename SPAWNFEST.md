@@ -8,3 +8,5 @@
 
 * DAP logs should end up in separate buffers as for LSP mode
 * vscode hard-coded in initialize message
+* Add Erlang to list of available Debug Adapters
+* ConfigurationDone request does not respect capabilities

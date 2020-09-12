@@ -7,6 +7,8 @@
 
 -export([ exit/2
         , initialize/2
+        , configuration_done/2
+
         , initialized/2
         , shutdown/2
         , textdocument_completion/2
@@ -63,6 +65,10 @@ dispatch(Command, Args, _Type, State) ->
 -spec do_dispatch(atom(), params(), state()) -> result().
 do_dispatch(<<"initialize">>, Params, State) ->
   initialize(Params, State);
+do_dispatch(<<"launch">>, Params, State) ->
+  launch(Params, State);
+do_dispatch(<<"configurationDone">>, Params, State) ->
+  configuration_done(Params, State);
 do_dispatch(Function, Params, #{status := initialized} = State) ->
   els_methods:Function(Params, State);
 do_dispatch(_Function, _Params, State) ->
@@ -91,7 +97,29 @@ initialize(Params, State) ->
   Provider = els_dap_general_provider,
   Request  = {initialize, Params},
   Response = els_provider:handle_request(Provider, Request),
+  {response, Response, State}.
+
+%%==============================================================================
+%% Launch
+%%==============================================================================
+
+-spec launch(params(), state()) -> result().
+launch(Params, State) ->
+  Provider = els_dap_general_provider,
+  Request  = {launch, Params},
+  Response = els_provider:handle_request(Provider, Request),
   {response, Response, State#{status => initialized}}.
+
+%%==============================================================================
+%% configurationDone
+%%==============================================================================
+
+-spec configuration_done(params(), state()) -> result().
+configuration_done(Params, State) ->
+  Provider = els_dap_general_provider,
+  Request  = {configuration_done, Params},
+  Response = els_provider:handle_request(Provider, Request),
+  {response, Response, State}.
 
 %%==============================================================================
 %% Initialized

@@ -72,6 +72,11 @@ handle_request({initialize, _Params}, State) ->
   %% ok = els_config:initialize(RootUri, Capabilities, InitOptions),
   %% NewState = State#{ root_uri => RootUri, init_options => InitOptions},
   {capabilities(), State};
+handle_request({launch, _Params}, State) ->
+  spawn(fun() -> els_dap_server:send_event(<<"initialized">>, #{}) end),
+  {#{}, State};
+handle_request({configuration_done, _Params}, State) ->
+  {#{}, State};
 handle_request({initialized, _Params}, State) ->
   #{root_uri := RootUri, init_options := InitOptions} = State,
   DbDir = application:get_env(erlang_ls, db_dir, default_db_dir()),

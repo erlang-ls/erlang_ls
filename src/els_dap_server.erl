@@ -24,7 +24,7 @@
 %% API
 -export([ process_requests/1
         , set_connection/1
-        , send_notification/2
+        , send_event/2
         , send_request/2
         ]).
 
@@ -47,7 +47,7 @@
 %%==============================================================================
 -record(state, { transport      :: module()
                , connection     :: any()
-               , request_id     :: number()
+               , seq            :: number()
                , internal_state :: map()
                }).
 
@@ -76,9 +76,9 @@ process_requests(Requests) ->
 set_connection(Connection) ->
   gen_server:call(?SERVER, {set_connection, Connection}).
 
--spec send_notification(binary(), map()) -> ok.
-send_notification(Method, Params) ->
-  gen_server:cast(?SERVER, {notification, Method, Params}).
+-spec send_event(binary(), map()) -> ok.
+send_event(EventType, Body) ->
+  gen_server:cast(?SERVER, {event, EventType, Body}).
 
 -spec send_request(binary(), map()) -> ok.
 send_request(Method, Params) ->
@@ -98,7 +98,7 @@ reset_internal_state() ->
 init(Transport) ->
   lager:info("Starting els_server..."),
   State = #state{ transport      = Transport
-                , request_id     = 0
+                , seq            = 0
                 , internal_state = #{}
                 },
   {ok, State}.
@@ -113,8 +113,8 @@ handle_call({reset_internal_state}, _From, State) ->
 handle_cast({process_requests, Requests}, State0) ->
   State = lists:foldl(fun handle_request/2, State0, Requests),
   {noreply, State};
-handle_cast({notification, Method, Params}, State) ->
-  do_send_notification(Method, Params, State),
+handle_cast({event, EventType, Body}, State0) ->
+  State = do_send_event(EventType, Body, State0),
   {noreply, State};
 handle_cast({request, Method, Params}, State0) ->
   State = do_send_request(Method, Params, State0),
@@ -144,23 +144,23 @@ handle_request(Response, State0) ->
              ),
   State0.
 
--spec do_send_notification(binary(), map(), state()) -> ok.
-do_send_notification(Method, Params, State) ->
-  Notification = els_protocol:notification(Method, Params),
-  lager:debug( "[SERVER] Sending notification [notification=~s]"
-             , [Notification]
-             ),
-  send(Notification, State).
+-spec do_send_event(binary(), map(), state()) -> state().
+do_send_event(EventType, Body, #state{seq = Seq0} = State0) ->
+  Seq = Seq0 + 1,
+  Event = els_dap_protocol:event(Seq, EventType, Body),
+  lager:debug( "[SERVER] Sending event [type=~s]", [EventType]),
+  send(Event, State0),
+  State0#state{seq = Seq}.
 
 -spec do_send_request(binary(), map(), state()) -> state().
-do_send_request(Method, Params, #state{request_id = RequestId0} = State0) ->
+do_send_request(Method, Params, #state{seq = RequestId0} = State0) ->
   RequestId = RequestId0 + 1,
   Request = els_protocol:request(RequestId, Method, Params),
   lager:debug( "[SERVER] Sending request [request=~p]"
              , [Request]
              ),
   send(Request, State0),
-  State0#state{request_id = RequestId}.
+  State0#state{seq = RequestId}.
 
 -spec send(binary(), state()) -> ok.
 send(Payload, #state{transport = T, connection = C}) ->
