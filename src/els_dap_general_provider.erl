@@ -108,16 +108,7 @@ handle_request({<<"threads">>, _Params}, #{threads := Threads0} = State) ->
 handle_request({<<"stackTrace">>, Params}, #{threads := Threads} = State) ->
   #{<<"threadId">> := ThreadId} = Params,
   Pid = maps:get(ThreadId, Threads),
-  %% TODO: Abstract RPC into a function
-  {ok, Meta} =  rpc:call(project_node(), dbg_iserver, safe_call, [{get_meta, Pid}]),
-  %% TODO: Also examine rest of list
-  [{_Level, {M, F, A}}|_] = rpc:call(project_node(), int, meta, [Meta, backtrace, all]),
-  StackFrame = #{ <<"id">> => erlang:unique_integer([positive])
-                , <<"name">> => unicode:characters_to_binary(io_lib:format("~p:~p/~p", [M, F, length(A)]))
-                , <<"line">> => 0
-                , <<"column">> => 0
-                },
-  {#{<<"stackFrames">> => [StackFrame]}, State};
+  {#{<<"stackFrames">> => stack_frames(Pid)}, State};
 handle_request({<<"scopes">>, Params}, State) ->
   #{<<"frameId">> := _FrameId} = Params,
   {#{<<"scopes">> => []}, State};
@@ -174,3 +165,29 @@ local_node() ->
 -spec id(pid()) -> integer().
 id(Pid) ->
   erlang:phash2(Pid).
+
+-spec stack_frames(pid()) -> [map()].
+stack_frames(Pid) ->
+  %% TODO: Abstract RPC into a function
+  {ok, Meta} =  rpc:call(project_node(), dbg_iserver, safe_call, [{get_meta, Pid}]),
+  %% TODO: Also examine rest of list
+  [{_Level, {M, F, A}}|_] = rpc:call(project_node(), int, meta, [Meta, backtrace, all]),
+  StackFrame = #{ <<"id">> => erlang:unique_integer([positive])
+                , <<"name">> => unicode:characters_to_binary(io_lib:format("~p:~p/~p", [M, F, length(A)]))
+                , <<"source">> => #{<<"path">> => path(M)}
+                , <<"line">> => break_line(Pid)
+                , <<"column">> => 0
+                },
+  [StackFrame].
+
+-spec break_line(pid()) -> integer().
+break_line(Pid) ->
+  Snapshots = rpc:call(project_node(), int, snapshot, []),
+  {Pid, _Function, break, {_Module, Line}} = lists:keyfind(Pid, 1, Snapshots),
+  Line.
+
+-spec path(atom()) -> binary().
+path(M) ->
+  CompileOpts = rpc:call(project_node(), M, module_info, [compile]),
+  Source = proplists:get_value(source, CompileOpts),
+  unicode:characters_to_binary(Source).
