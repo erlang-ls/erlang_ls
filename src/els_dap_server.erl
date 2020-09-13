@@ -1,5 +1,5 @@
 %%==============================================================================
-%% The Erlang Language Server
+%% The Erlang DAP Server
 %%==============================================================================
 -module(els_dap_server).
 
@@ -96,7 +96,7 @@ reset_internal_state() ->
 %%==============================================================================
 -spec init(module()) -> {ok, state()}.
 init(Transport) ->
-  lager:info("Starting els_server..."),
+  lager:info("Starting els_dap_server..."),
   State = #state{ transport      = Transport
                 , seq            = 0
                 , internal_state = #{}
