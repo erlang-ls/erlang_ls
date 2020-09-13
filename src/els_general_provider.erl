@@ -108,7 +108,7 @@ server_capabilities() ->
        #{ textDocumentSync =>
             #{ openClose => true
              , change    => ?TEXT_DOCUMENT_SYNC_KIND_FULL
-             , save      => #{includeText => true}
+             , save      => #{includeText => false}
              }
         , hoverProvider =>
             els_hover_provider:is_enabled()
