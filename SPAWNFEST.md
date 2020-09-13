@@ -62,13 +62,16 @@ During the weekend, we will try to:
 * Add and document dap-erlang (including IO tweaks)
 * Evaluate the "Run in terminal" in addition to "Launch"
 * Cleanup duplication in els\_dap\_methods
+* Ony considering the "happy path" for now (eg regarding Erlang distribution)
+* Tests
 
-# Upstream contributions
+# Future upstream contributions
 
 * DAP logs should end up in separate buffers as for LSP mode
 * vscode hard-coded in initialize message
 * Add Erlang to list of available Debug Adapters
 * ConfigurationDone request does not respect capabilities
+* The API of the _int_ meta process is internal and not well documented
 
 ## Emacs Config
 
