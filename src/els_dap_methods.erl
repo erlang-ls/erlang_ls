@@ -22,7 +22,7 @@ dispatch(Command, Args, Type, State) ->
   lager:debug("Dispatching request [command=~p] [args=~p]", [Command, Args]),
   try do_dispatch(Command, Args, State)
   catch
-    error:undef ->
+    error:function_clause ->
       not_implemented_method(Command, Type, State);
     Type:Reason:Stack ->
       lager:error( "Unexpected error [type=~p] [error=~p] [stack=~p]"

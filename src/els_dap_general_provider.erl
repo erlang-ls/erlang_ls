@@ -81,6 +81,8 @@ handle_request({<<"configurationDone">>, _Params}, State) ->
   inject_dap_agent(project_node()),
   Args = [[break], {els_dap_agent, int_cb, [self()]}],
   rpc:call(project_node(), int, auto_attach, Args),
+  %% TODO: Potentially fetch this from the Launch config
+  rpc:cast(project_node(), daptoy_fact, fact, [5]),
   {#{}, State};
 handle_request({<<"setBreakpoints">>, Params}, State) ->
   #{<<"source">> := #{<<"path">> := Path}} = Params,
@@ -116,12 +118,26 @@ handle_request({<<"stackTrace">>, Params}, #{threads := Threads} = State) ->
   {#{<<"stackFrames">> => [StackFrame]}, State};
 handle_request({<<"scopes">>, Params}, State) ->
   #{<<"frameId">> := _FrameId} = Params,
-  {#{<<"scopes">> => []}, State}.
+  {#{<<"scopes">> => []}, State};
+handle_request({<<"next">>, Params}, #{threads := Threads} = State) ->
+  #{<<"threadId">> := ThreadId} = Params,
+  Pid = maps:get(ThreadId, Threads),
+  ok = rpc:call(project_node(), int, next, [Pid]),
+  {#{}, State};
+handle_request({<<"continue">>, Params}, #{threads := Threads} = State) ->
+  #{<<"threadId">> := ThreadId} = Params,
+  Pid = maps:get(ThreadId, Threads),
+  ok = rpc:call(project_node(), int, continue, [Pid]),
+  {#{}, State}.
 
 -spec handle_info(any(), state()) -> state().
 handle_info({int_cb, Thread}, #{threads := Threads} = State) ->
   lager:debug("Int CB called. thread=~p", [Thread]),
-  State#{threads => maps:put(id(Thread), Thread, Threads)}.
+  ThreadId = id(Thread),
+  els_dap_server:send_event(<<"stopped">>, #{ <<"reason">> => <<"breakpoint">>
+                                            , <<"threadId">> => ThreadId
+                                            }),
+  State#{threads => maps:put(ThreadId, Thread, Threads)}.
 
 %%==============================================================================
 %% API

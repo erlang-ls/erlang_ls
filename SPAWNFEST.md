@@ -47,7 +47,8 @@ tools such as the OTP
 [cedb](https://github.com/hachreak/cedb).
 
 The same approach has been followed by the Elixir Community as part of
-the [Elixir LS](https://github.com/elixir-lsp/elixir-ls) project.
+the [Elixir LS](https://github.com/elixir-lsp/elixir-ls) project. That
+approach has been used as a reference to implement our solution.
 
 During the weekend, we will try to:
 
