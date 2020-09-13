@@ -113,7 +113,7 @@ handle_request({<<"stackTrace">>, Params}, #{threads := Threads} = State) ->
   Frames = maps:get(frames, Thread),
   StackFrames =
     [ #{ <<"id">> => Id
-       , <<"name">> => els_utils:to_binary(io_lib:format("~p:~p/~p", [M, F, length(A)]))
+       , <<"name">> => format_mfa(M, F, length(A))
        , <<"source">> => #{<<"path">> => Source}
        , <<"line">> => Line
        , <<"column">> => 0
@@ -261,3 +261,7 @@ frame_by_id(FrameId, Threads) ->
               ||  #{frames := Frames} <- Threads, maps:is_key(FrameId, Frames)
             ],
   Frame.
+
+-spec format_mfa(module(), atom(), integer()) -> binary().
+format_mfa(M, F, A) ->
+  els_utils:to_binary(io_lib:format("~p:~p/~p", [M, F, A])).
