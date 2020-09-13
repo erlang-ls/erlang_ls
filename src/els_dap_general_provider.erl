@@ -79,6 +79,8 @@ handle_request({<<"launch">>, Params}, State) ->
   {#{}, State};
 handle_request({<<"configurationDone">>, _Params}, State) ->
   inject_dap_agent(project_node()),
+  %% TODO: Fetch stack_trace mode from Launch Config
+  rpc:call(project_node(), int, stack_trace, [all]),
   Args = [[break], {els_dap_agent, int_cb, [self()]}],
   rpc:call(project_node(), int, auto_attach, Args),
   %% TODO: Potentially fetch this from the Launch config
