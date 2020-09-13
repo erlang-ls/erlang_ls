@@ -49,6 +49,15 @@ start_link(Provider) ->
 handle_request(Provider, Request) ->
   gen_server:call(Provider, {handle_request, Provider, Request}, infinity).
 
+-spec available_providers() -> [provider()].
+available_providers() ->
+  [ els_dap_general_provider
+  ].
+
+-spec enabled_providers() -> [provider()].
+enabled_providers() ->
+  [Provider || Provider <- available_providers(), Provider:is_enabled()].
+
 %%==============================================================================
 %% gen_server callbacks
 %%==============================================================================
@@ -87,12 +96,3 @@ handle_info(Request, State) ->
     false ->
       {noreply, State}
   end.
-
--spec available_providers() -> [provider()].
-available_providers() ->
-  [ els_dap_general_provider
-  ].
-
--spec enabled_providers() -> [provider()].
-enabled_providers() ->
-  [Provider || Provider <- available_providers(), Provider:is_enabled()].
