@@ -59,7 +59,7 @@ is possible, with a relatively small effort, to raise the usability standards fo
 Specifically, we aim at creating a step-by-step debugger based on the [Erlang
 Interpreter](http://erlang.org/doc/man/int.html), a not very well
 known module in Erlang/OTP, which is used as a low-level API to build
-tools such as 
+tools such as
 [debugger](http://erlang.org/doc/man/debugger.html) and the
 [cedb](https://github.com/hachreak/cedb) debugger.
 
@@ -122,3 +122,46 @@ While working on the project, we noticed a few issues with third-party projects 
 ## Quickstart
 
 TODO
+
+## Emacs Config
+
+```
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Erlang DAP                                               ;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(require 'dap-mode)
+
+(setq dap-inhibit-io nil)
+(setq dap-print-io t)
+
+(defun dap-erlang--populate-start-file-args (conf)
+  "Populate CONF with the required arguments."
+  (-> conf
+      (dap--put-if-absent :dap-server-path '("els_dap"))
+      (dap--put-if-absent :type "rebar3 shell")
+      (dap--put-if-absent :request "launch")
+      (dap--put-if-absent :task "test")
+      (dap--put-if-absent :taskArgs (list "--trace"))
+      (dap--put-if-absent :projectDir (lsp-find-session-folder (lsp-session) (buffer-file-name)))
+      (dap--put-if-absent :cwd (lsp-find-session-folder (lsp-session) (buffer-file-name)))
+      ))
+
+(dap-register-debug-provider "Erlang" 'dap-erlang--populate-start-file-args)
+(dap-register-debug-template "Erlang rebar3 shell"
+                             (list :type "Erlang"
+                                   :program "rebar3"
+                                   :args "shell"
+                                   :name "Erlang::Run"))
+
+(dap-register-debug-template "Erlang MFA"
+                             (list :type "Erlang"
+                                   :module "daptoy_fact"
+                                   :function "fact"
+                                   :args "[5]"
+                                   :name "Erlang::Run"))
+```
+
+## daptoy
+
+https://github.com/erlang-ls/daptoy

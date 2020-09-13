@@ -42,6 +42,7 @@
 -type thread_id()    :: integer().
 -type state()        :: #{ threads => #{thread_id() => thread()}
                          , project_node => atom()
+                         , launch_params => #{}
                          }.
 
 %%==============================================================================
@@ -53,7 +54,8 @@ is_enabled() -> true.
 
 -spec init() -> state().
 init() ->
-  #{threads => #{}}.
+  #{ threads => #{}
+   , launch_params => #{} }.
 
 -spec handle_request(request(), state()) -> {result(), state()}.
 handle_request({<<"initialize">>, _Params}, State) ->
@@ -72,9 +74,10 @@ handle_request({<<"launch">>, Params}, State) ->
 
   els_dap_server:send_event(<<"initialized">>, #{}),
 
-  {#{}, State#{project_node => ProjectNode}};
+  {#{}, State#{project_node => ProjectNode, launch_params => Params}};
 handle_request( {<<"configurationDone">>, _Params}
-              , #{project_node := ProjectNode} = State
+              , #{ project_node := ProjectNode
+                 , launch_params := LaunchParams} = State
               ) ->
   inject_dap_agent(ProjectNode),
 
@@ -84,8 +87,18 @@ handle_request( {<<"configurationDone">>, _Params}
   els_dap_rpc:auto_attach(ProjectNode, [break], MFA),
 
   %% TODO: Potentially fetch this from the Launch config
-  rpc:cast(ProjectNode, daptoy_fact, fact, [5]),
-
+  case (    maps:is_key(<<"module">>, LaunchParams)
+        and maps:is_key(<<"function">>, LaunchParams)
+        and maps:is_key(<<"args">>, LaunchParams)) of
+    true ->
+      M = binary_to_atom(maps:get(<<"module">>, LaunchParams), utf8),
+      F = binary_to_atom(maps:get(<<"function">>, LaunchParams), utf8),
+      AStr = maps:get(<<"args">>, LaunchParams),
+      A = els_dap_rpc:eval(ProjectNode, AStr, []),
+      lager:info("LAUNCHING MFA: [~p]", [{M, F, A}]),
+      rpc:cast(ProjectNode, M, F, A);
+    false -> ok
+  end,
   {#{}, State};
 handle_request( {<<"setBreakpoints">>, Params}
               , #{project_node := ProjectNode} = State
