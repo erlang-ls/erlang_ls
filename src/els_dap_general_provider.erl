@@ -77,12 +77,15 @@ handle_request( {<<"configurationDone">>, _Params}
               , #{project_node := ProjectNode} = State
               ) ->
   inject_dap_agent(ProjectNode),
+
   %% TODO: Fetch stack_trace mode from Launch Config
-  rpc:call(ProjectNode, int, stack_trace, [all]),
-  Args = [[break], {els_dap_agent, int_cb, [self()]}],
-  rpc:call(ProjectNode, int, auto_attach, Args),
+  els_dap_rpc:stack_trace(ProjectNode, all),
+  MFA = {els_dap_agent, int_cb, [self()]},
+  els_dap_rpc:auto_attach(ProjectNode, [break], MFA),
+
   %% TODO: Potentially fetch this from the Launch config
   rpc:cast(ProjectNode, daptoy_fact, fact, [5]),
+
   {#{}, State};
 handle_request( {<<"setBreakpoints">>, Params}
               , #{project_node := ProjectNode} = State
@@ -91,9 +94,10 @@ handle_request( {<<"setBreakpoints">>, Params}
   SourceBreakpoints = maps:get(<<"breakpoints">>, Params, []),
   _SourceModified = maps:get(<<"sourceModified">>, Params, false),
   Module = els_uri:module(els_uri:uri(Path)),
+
   %% TODO: Keep a list of interpreted modules, not to re-interpret them
-  rpc:call(ProjectNode, int, i, [Module]),
-  [rpc:call(ProjectNode, int, break, [Module, Line]) ||
+  els_dap_rpc:i(ProjectNode, Module),
+  [els_dap_rpc:break(ProjectNode, Module, Line) ||
     #{<<"line">> := Line} <- SourceBreakpoints],
   Breakpoints = [#{<<"verified">> => true, <<"line">> => Line} ||
                   #{<<"line">> := Line} <- SourceBreakpoints],
@@ -138,7 +142,7 @@ handle_request( {<<"next">>, Params}
               ) ->
   #{<<"threadId">> := ThreadId} = Params,
   Pid = to_pid(ThreadId, Threads),
-  ok = rpc:call(ProjectNode, int, next, [Pid]),
+  ok = els_dap_rpc:next(ProjectNode, Pid),
   {#{}, State};
 handle_request( {<<"continue">>, Params}
               , #{ threads := Threads
@@ -147,7 +151,7 @@ handle_request( {<<"continue">>, Params}
               ) ->
   #{<<"threadId">> := ThreadId} = Params,
   Pid = to_pid(ThreadId, Threads),
-  ok = rpc:call(ProjectNode, int, continue, [Pid]),
+  ok = els_dap_rpc:continue(ProjectNode, Pid),
   {#{}, State};
 handle_request( {<<"stepIn">>, Params}
               , #{ threads := Threads
@@ -156,11 +160,11 @@ handle_request( {<<"stepIn">>, Params}
               ) ->
   #{<<"threadId">> := ThreadId} = Params,
   Pid = to_pid(ThreadId, Threads),
-  ok = rpc:call(ProjectNode, int, step, [Pid]),
+  ok = els_dap_rpc:step(ProjectNode, Pid),
   {#{}, State};
 handle_request({<<"evaluate">>, #{ <<"context">> := <<"hover">>
                                  , <<"frameId">> := FrameId
-                                 , <<"expression">> := Expr
+                                 , <<"expression">> := Input
                                  } = _Params}
               , #{ threads := Threads
                  , project_node := ProjectNode
@@ -168,14 +172,7 @@ handle_request({<<"evaluate">>, #{ <<"context">> := <<"hover">>
               ) ->
   Frame = frame_by_id(FrameId, maps:values(Threads)),
   Bindings = maps:get(bindings, Frame),
-
-  {ok, Tokens, _} = erl_scan:string(unicode:characters_to_list(Expr) ++ "."),
-  {ok, Exprs} = erl_parse:parse_exprs(Tokens),
-
-  Return = case rpc:call(ProjectNode, erl_eval, exprs, [Exprs, Bindings]) of
-             {value, Value, _NewBindings} -> Value;
-             {badrpc, Error} -> Error
-           end,
+  Return = els_dap_rpc:eval(ProjectNode, Input, Bindings),
   Result = els_utils:to_binary(io_lib:format("~p", [Return])),
   {#{<<"result">> => Result}, State};
 handle_request({<<"variables">>, _Params}, State) ->
@@ -213,7 +210,7 @@ capabilities() ->
 inject_dap_agent(Node) ->
   Module = els_dap_agent,
   {Module, Bin, File} = code:get_object_code(Module),
-  {_Replies, _} = rpc:call(Node, code, load_binary, [Module, File, Bin]),
+  {_Replies, _} = els_dap_rpc:load_binary(Node, Module, File, Bin),
   ok.
 
 -spec node_name(string(), binary()) -> atom().
@@ -228,33 +225,31 @@ id(Pid) ->
   erlang:phash2(Pid).
 
 -spec stack_frames(pid(), atom()) -> #{frame_id() => frame()}.
-stack_frames(Pid, ProjectNode) ->
-  %% TODO: Abstract RPC into a function
-  {ok, Meta} =
-    rpc:call(ProjectNode, dbg_iserver, safe_call, [{get_meta, Pid}]),
+stack_frames(Pid, Node) ->
+  {ok, Meta} = els_dap_rpc:get_meta(Node, Pid),
   %% TODO: Also examine rest of list
-  [{_Level, {M, F, A}}|_] =
-    rpc:call(ProjectNode, int, meta, [Meta, backtrace, all]),
-  Bindings = rpc:call(ProjectNode, int, meta, [Meta, bindings, nostack]),
+  [{_Level, {M, F, A}} | _] =
+    els_dap_rpc:meta(Node, Meta, backtrace, all),
+  Bindings = els_dap_rpc:meta(Node, Meta, bindings, nostack),
   StackFrameId = erlang:unique_integer([positive]),
   StackFrame = #{ module    => M
                 , function  => F
                 , arguments => A
-                , source    => source(M, ProjectNode)
-                , line      => break_line(Pid, ProjectNode)
+                , source    => source(M, Node)
+                , line      => break_line(Pid, Node)
                 , bindings  => Bindings
                 },
   #{StackFrameId => StackFrame}.
 
 -spec break_line(pid(), atom()) -> integer().
-break_line(Pid, ProjectNode) ->
-  Snapshots = rpc:call(ProjectNode, int, snapshot, []),
+break_line(Pid, Node) ->
+  Snapshots = els_dap_rpc:snapshot(Node),
   {Pid, _Function, break, {_Module, Line}} = lists:keyfind(Pid, 1, Snapshots),
   Line.
 
 -spec source(atom(), atom()) -> binary().
-source(M, ProjectNode) ->
-  CompileOpts = rpc:call(ProjectNode, M, module_info, [compile]),
+source(Module, Node) ->
+  CompileOpts = els_dap_rpc:module_info(Node, Module, compile),
   Source = proplists:get_value(source, CompileOpts),
   unicode:characters_to_binary(Source).
 
