@@ -10,8 +10,6 @@
 -export([ capabilities/0
         ]).
 
--export([ send_int_cb/2 ]).
-
 -include("erlang_ls.hrl").
 
 %%==============================================================================
@@ -69,23 +67,20 @@ handle_request({initialize, _Params}, State) ->
   {capabilities(), State};
 handle_request({launch, Params}, State) ->
   #{<<"cwd">> := Cwd} = Params,
-  %% TODO: Launch a rocket
   ok = file:set_cwd(Cwd),
   %% TODO: Do not hard-code sname
   spawn(fun() -> els_utils:cmd("rebar3", ["shell", "--sname", "daptoy"]) end),
-  {ok, Hostname} = inet:gethostname(),
-  ProjectNode = list_to_atom("daptoy@" ++ Hostname),
-  LocalNode = list_to_atom("dap@" ++ Hostname),
   %% TODO: Wait until rebar3 node is started
   timer:sleep(3000),
-  els_distribution_server:start_distribution(LocalNode),
-  net_kernel:connect_node(ProjectNode),
+  els_distribution_server:start_distribution(local_node()),
+  net_kernel:connect_node(project_node()),
   %% TODO: Spawn could be un-necessary
   spawn(fun() -> els_dap_server:send_event(<<"initialized">>, #{}) end),
   {#{}, State};
 handle_request({configuration_done, _Params}, State) ->
-  int:auto_attach([break], {?MODULE, send_int_cb, [self()]}),
-  %% spawn(fun() -> timer:sleep(500), daptoy_fact:fact(5) end),
+  inject_dap_agent(project_node()),
+  Args = [[break], {els_dap_agent, int_cb, [self()]}],
+  rpc:call(project_node(), int, auto_attach, Args),
   {#{}, State};
 handle_request({set_breakpoints, Params}, State) ->
   #{<<"source">> := #{<<"path">> := Path}} = Params,
@@ -93,8 +88,9 @@ handle_request({set_breakpoints, Params}, State) ->
   _SourceModified = maps:get(<<"sourceModified">>, Params, false),
   Module = els_uri:module(els_uri:uri(Path)),
   %% TODO: Keep a list of interpreted modules, not to re-interpret them
-  int:ni(Module),
-  [int:break(Module, Line) || #{<<"line">> := Line} <- SourceBreakpoints],
+  rpc:call(project_node(), int, i, [Module]),
+  [rpc:call(project_node(), int, break, [Module, Line]) ||
+    #{<<"line">> := Line} <- SourceBreakpoints],
   Breakpoints = [#{<<"verified">> => true, <<"line">> => Line} ||
                   #{<<"line">> := Line} <- SourceBreakpoints],
   {#{<<"breakpoints">> => Breakpoints}, State};
@@ -141,14 +137,6 @@ capabilities() ->
   #{}.
 
 %%==============================================================================
-%% Callbacks
-%%==============================================================================
-
--spec send_int_cb(pid(), pid()) -> ok.
-send_int_cb(Thread, ProviderPid) ->
-  ProviderPid ! {int_cb, Thread}.
-
-%%==============================================================================
 %% Internal Functions
 %%==============================================================================
 -spec node_name(uri(), binary()) -> atom().
@@ -159,3 +147,22 @@ node_name(RootUri, OtpPath) ->
 -spec default_db_dir() -> string().
 default_db_dir() ->
   filename:basedir(user_cache, "erlang_ls").
+
+-spec inject_dap_agent(atom()) -> ok.
+inject_dap_agent(Node) ->
+  Module = els_dap_agent,
+  {Module, Bin, File} = code:get_object_code(Module),
+  {_Replies, _} = rpc:call(Node, code, load_binary, [Module, File, Bin]),
+  ok.
+
+-spec project_node() -> atom().
+project_node() ->
+  %% TODO: Do not hard-code node name
+  {ok, Hostname} = inet:gethostname(),
+  list_to_atom("daptoy@" ++ Hostname).
+
+-spec local_node() -> atom().
+local_node() ->
+  %% TODO: Do not hard-code node name
+  {ok, Hostname} = inet:gethostname(),
+  list_to_atom("dap@" ++ Hostname).
