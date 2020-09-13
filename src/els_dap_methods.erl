@@ -1,3 +1,9 @@
+%%=============================================================================
+%% @doc DAP Methods Dispatcher
+%%
+%% Dispatches the handling of a command to the corresponding provider.
+%% @end
+%%=============================================================================
 -module(els_dap_methods).
 
 -include("erlang_ls.hrl").

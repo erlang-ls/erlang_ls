@@ -1,5 +1,10 @@
 %%==============================================================================
-%% The Erlang DAP Server
+%% @doc Erlang DAP Server
+%%
+%% This process is the middleware that receives the protocol messages,
+%% forwards them to the dispatcher and sends the result back to the
+%% client using the configured transport.
+%% @end
 %%==============================================================================
 -module(els_dap_server).
 

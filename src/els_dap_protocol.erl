@@ -1,5 +1,9 @@
 %%==============================================================================
-%% The Debug Adapter Protocol
+%% @doc Debug Adapter Protocol
+%%
+%% Handles the building and encoding of the messages supported by the
+%% protocol.
+%% @end
 %%==============================================================================
 -module(els_dap_protocol).
 
