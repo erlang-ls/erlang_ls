@@ -14,54 +14,26 @@ Alan Zimmermann (WhatsApp - London, UK)
 
 ## Terminology
 
-[Erlang LS](http://erlang-ls.github.io/) is an editor-agnostic
-[language server](erlang-ls.github.io) which provides language
-features for the Erlang programming language using the [Language
-Server
-Protocol](https://microsoft.github.io/language-server-protocol/), or
-_LSP_ in short.
+[Erlang LS](http://erlang-ls.github.io/) is an editor-agnostic [language server](erlang-ls.github.io) which provides language features for the Erlang programming language using the [Language Server Protocol](https://microsoft.github.io/language-server-protocol/), or _LSP_ in short.
 
-The [Debug Adapter
-Protocol](https://microsoft.github.io/debug-adapter-protocol/), or
-_DAP_ in short, is a similar protocol for communication between a
-client (a text editor or an IDE) and a _Debug Server_. The protocol is
-designed to allow the creation of step-by-step
-debuggers directly in the editor.
+The [Debug Adapter Protocol](https://microsoft.github.io/debug-adapter-protocol/), or _DAP_ in short, is a similar protocol for communication between a client (a text editor or an IDE) and a _Debug Server_. The protocol is designed to allow the creation of step-by-step debuggers directly in the editor.
 
 ## Rationale
 
-One of the strengths of the Erlang programming language is the ability
-to seemlessly _debug_ and _trace_ Erlang code. Many tools and libraries exist,
-but they are sometimes under-utilized by the Community, either because
-their API is not intuitive (think to the
-[dbg](https://erlang.org/doc/man/dbg.html) Erlang module), or because
-they offer a limited, obsolete, UI (think the
-[debugger](http://erlang.org/doc/apps/debugger/debugger_chapter.html)
-application).
+One of the strengths of the Erlang programming language is the ability to seemlessly _debug_ and _trace_ Erlang code. Many tools and libraries exist, but they are sometimes under-utilized by the Community, either because their API is not intuitive (think to the [dbg](https://erlang.org/doc/man/dbg.html) Erlang module), or because they offer a limited, obsolete, UI (think the [debugger](http://erlang.org/doc/apps/debugger/debugger_chapter.html) application).
 
-We want to solve this problem by leveraging some of the existing debugging and tracing facilities provided
-by Erlang/OTP and bringing the debugging experience directly in the text-editor,
-next to the code, improving the user experience when using such
+We want to solve this problem by leveraging some of the existing debugging and tracing facilities provided by Erlang/OTP and bringing the debugging experience directly in the text-editor, next to the code, improving the user experience when using such
 tools.
 
-[This video](https://www.youtube.com/watch?v=ydcrdwQKqI8&t=3s) shows what debugging Erlang code is like via the _debugger_ application.
-
-[This other video](https://www.youtube.com/watch?v=ydcrdwQKqI8) shows what the same experience looks like from Emacs.
+[This video](https://www.youtube.com/watch?v=ydcrdwQKqI8&t=3s) shows what debugging Erlang code is like via the _debugger_ application. [This other video](https://www.youtube.com/watch?v=ydcrdwQKqI8) shows what the same experience looks like from Emacs.
 
 Due to the editor-agnostic nature of the _DAP_ protocol, a very similar experience is delivered to users of a different developement tool, be it _Vim_, _VS Code_ or _Sublime Text 3_.
 
 ## Project Goal
 
-We would like to use the opportunity provided by the _Spawnfest 2020_
-to implement a _Proof of Concept_. In the _POC_ we demonstrate that it
-is possible, with a relatively small effort, to raise the usability standards for an Erlang user with regards to debugging and tracing.
+We would like to use the opportunity provided by the _Spawnfest 2020_ to implement a _Proof of Concept_. In the _POC_ we demonstrate that it is possible, with a relatively small effort, to raise the usability standards for an Erlang user with regards to debugging and tracing.
 
-Specifically, we aim at creating a step-by-step debugger based on the [Erlang
-Interpreter](http://erlang.org/doc/man/int.html), a not very well
-known module in Erlang/OTP, which is used as a low-level API to build
-tools such as
-[debugger](http://erlang.org/doc/man/debugger.html) and the
-[cedb](https://github.com/hachreak/cedb) debugger.
+Specifically, we aim at creating a step-by-step debugger based on the [Erlang Interpreter](http://erlang.org/doc/man/int.html), a not very well known module in Erlang/OTP, which is used as a low-level API to build tools such as [debugger](http://erlang.org/doc/man/debugger.html) and the [cedb](https://github.com/hachreak/cedb) debugger.
 
 We will inspire our work to the implementation from the [Elixir LS](https://github.com/elixir-lsp/elixir-ls) language server, which already uses this approach.
 
