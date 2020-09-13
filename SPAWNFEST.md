@@ -4,6 +4,8 @@
 
 Debug your Erlang code directly in your favourite text-editor.
 
+![erlang-ls-meets-dap](images/erlang-ls-meets-dap.png?raw=true "Erlang LS Meets DAP")
+
 ## Authors
 
 Roberto Aloi (Klarna -Stockholm, Sweden)
