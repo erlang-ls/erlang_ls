@@ -60,6 +60,7 @@ During the weekend, we will try to:
 * Do not start dispatchers in DAP mode
 * Pass DAP Methods Handler as a parameter
 * Add and document dap-erlang (including IO tweaks)
+* Evaluate the "Run in terminal" in addition to "Launch"
 
 # Upstream contributions
 

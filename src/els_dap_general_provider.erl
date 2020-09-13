@@ -66,36 +66,34 @@ init() ->
         , state()
         }.
 handle_request({initialize, _Params}, State) ->
-  %% RootUri = case RootUri0 of
-  %%             null ->
-  %%               {ok, Cwd} = file:get_cwd(),
-  %%               els_uri:uri(els_utils:to_binary(Cwd));
-  %%             _ -> RootUri0
-  %%           end,
-  %% InitOptions = case maps:get(<<"initializationOptions">>, Params, #{}) of
-  %%                 InitOptions0 when is_map(InitOptions0) ->
-  %%                   InitOptions0;
-  %%                 _ -> #{}
-  %%               end,
-  %% ok = els_config:initialize(RootUri, Capabilities, InitOptions),
-  %% NewState = State#{ root_uri => RootUri, init_options => InitOptions},
   {capabilities(), State};
-handle_request({launch, _Params}, State) ->
+handle_request({launch, Params}, State) ->
+  #{<<"cwd">> := Cwd} = Params,
+  %% TODO: Launch a rocket
+  ok = file:set_cwd(Cwd),
+  %% TODO: Do not hard-code sname
+  spawn(fun() -> els_utils:cmd("rebar3", ["shell", "--sname", "daptoy"]) end),
+  {ok, Hostname} = inet:gethostname(),
+  ProjectNode = list_to_atom("daptoy@" ++ Hostname),
+  LocalNode = list_to_atom("dap@" ++ Hostname),
+  %% TODO: Wait until rebar3 node is started
+  timer:sleep(3000),
+  els_distribution_server:start_distribution(LocalNode),
+  net_kernel:connect_node(ProjectNode),
+  %% TODO: Spawn could be un-necessary
   spawn(fun() -> els_dap_server:send_event(<<"initialized">>, #{}) end),
   {#{}, State};
 handle_request({configuration_done, _Params}, State) ->
   int:auto_attach([break], {?MODULE, send_int_cb, [self()]}),
-  spawn(fun() -> timer:sleep(500), daptoy_fact:fact(5) end),
+  %% spawn(fun() -> timer:sleep(500), daptoy_fact:fact(5) end),
   {#{}, State};
 handle_request({set_breakpoints, Params}, State) ->
   #{<<"source">> := #{<<"path">> := Path}} = Params,
-  %% TODO: Do not hard-code
-  code:add_patha("/Users/robert.aloi/git/github/erlang-ls/daptoy/_build/default/lib/daptoy/ebin"),
   SourceBreakpoints = maps:get(<<"breakpoints">>, Params, []),
   _SourceModified = maps:get(<<"sourceModified">>, Params, false),
   Module = els_uri:module(els_uri:uri(Path)),
   %% TODO: Keep a list of interpreted modules, not to re-interpret them
-  int:i(Module),
+  int:ni(Module),
   [int:break(Module, Line) || #{<<"line">> := Line} <- SourceBreakpoints],
   Breakpoints = [#{<<"verified">> => true, <<"line">> => Line} ||
                   #{<<"line">> := Line} <- SourceBreakpoints],
