@@ -161,14 +161,22 @@ handle_request( {<<"stepIn">>, Params}
 handle_request({<<"evaluate">>, #{ <<"context">> := <<"hover">>
                                  , <<"frameId">> := FrameId
                                  , <<"expression">> := Expr
-                                 } = _Params}, #{threads := Threads} = State) ->
+                                 } = _Params}
+              , #{ threads := Threads
+                 , project_node := ProjectNode
+                 } = State
+              ) ->
   Frame = frame_by_id(FrameId, maps:values(Threads)),
   Bindings = maps:get(bindings, Frame),
+
   {ok, Tokens, _} = erl_scan:string(unicode:characters_to_list(Expr) ++ "."),
   {ok, Exprs} = erl_parse:parse_exprs(Tokens),
-  %% TODO: Evaluate the expressions on the project node
-  {value, Value, _NewBindings} = erl_eval:exprs(Exprs, Bindings),
-  Result = unicode:characters_to_binary(io_lib:format("~p", [Value])),
+
+  Return = case rpc:call(ProjectNode, erl_eval, exprs, [Exprs, Bindings]) of
+             {value, Value, _NewBindings} -> Value;
+             {badrpc, Error} -> Error
+           end,
+  Result = els_utils:to_binary(io_lib:format("~p", [Return])),
   {#{<<"result">> => Result}, State};
 handle_request({<<"variables">>, _Params}, State) ->
   %% TODO: Return variables
