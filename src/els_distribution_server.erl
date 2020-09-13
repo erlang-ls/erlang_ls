@@ -11,6 +11,8 @@
 -export([ start_link/0
         , start_distribution/1
         , connect/0
+        , wait_connect_and_monitor/1
+        , wait_connect_and_monitor/2
         , rpc_call/3
         , rpc_call/4
         ]).
@@ -140,7 +142,7 @@ start(Node) ->
 wait_connect_and_monitor(Node) ->
   wait_connect_and_monitor(Node, ?WAIT_ATTEMPTS).
 
--spec wait_connect_and_monitor(atom(), pos_integer()) -> ok.
+-spec wait_connect_and_monitor(Node :: atom(), Attempts :: pos_integer()) -> ok.
 wait_connect_and_monitor(Node, 0) ->
   lager:error( "Failed to connect to node ~p after ~p attempts"
              , [Node, ?WAIT_ATTEMPTS]),

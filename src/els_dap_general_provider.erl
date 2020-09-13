@@ -65,11 +65,10 @@ handle_request({<<"launch">>, Params}, State) ->
   ProjectNode = node_name("dap_project_", Cwd),
   spawn(fun() -> els_utils:cmd("rebar3", ["shell", "--name", ProjectNode]) end),
 
-  %% TODO: Wait until rebar3 node is started
-  timer:sleep(3000),
   LocalNode = node_name("dap_", Cwd),
   els_distribution_server:start_distribution(LocalNode),
-  net_kernel:connect_node(ProjectNode),
+
+  els_distribution_server:wait_connect_and_monitor(ProjectNode, 5),
 
   els_dap_server:send_event(<<"initialized">>, #{}),
 
