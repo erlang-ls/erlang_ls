@@ -91,11 +91,20 @@ While working on the project, we noticed a few issues with third-party projects 
   * The callback function could be extended to accept a `fun` instead of a `MFA`
   * The _attached process_ concept could be extended into a proper Erlang behaviour
 
-## Quickstart
+## Spawnfest Instructions for Judges (Emacs)
 
-TODO
+### Requirements
 
-## Emacs Config
+* Erlang LS: https://erlang-ls.github.io/editors/emacs/
+* DAP mode for Emacs: https://emacs-lsp.github.io/dap-mode/
+
+### Build
+
+* Checkout the `dap` branch from the https://github.com/spawnfest/frj repository
+* Run `rebar3 as dap escriptize`
+* Ensure the `_build/dap/bin/els_dap` escript is in your `PATH`
+
+### Customize your Emacs
 
 ```
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -104,6 +113,7 @@ TODO
 
 (require 'dap-mode)
 
+;; Show debug logs
 (setq dap-inhibit-io nil)
 (setq dap-print-io t)
 
@@ -114,6 +124,7 @@ TODO
       (dap--put-if-absent :request "launch")
       (dap--put-if-absent :cwd (lsp-find-session-folder (lsp-session) (buffer-file-name)))))
 
+;; Add a Run Configuration for running 'rebar3 shell'
 (dap-register-debug-provider "Erlang" 'dap-erlang--populate-start-file-args)
 (dap-register-debug-template "Erlang rebar3 shell"
                              (list :type "Erlang"
@@ -121,6 +132,7 @@ TODO
                                    :args "shell"
                                    :name "Erlang::Run"))
 
+;; Add a Run Configuration for executing a given MFA
 (dap-register-debug-template "Erlang MFA"
                              (list :type "Erlang"
                                    :module "daptoy_fact"
@@ -129,6 +141,24 @@ TODO
                                    :name "Erlang::Run"))
 ```
 
-## daptoy
+### Clone the DAP Toy Project
 
-https://github.com/erlang-ls/daptoy
+* `git clone https://github.com/erlang-ls/daptoy`
+* `cd daptoy`
+
+### Run the Debugger
+
+* Open the `src/daptoy_fact.erl` file in Emacs
+* Add a breakpoint at a given line using `dap-breakpoints-add` on that line
+* Run `dap-debug`
+* Select the `Erlang MFA` Run Configuration (that will run the `daptoy_fact:fact(5)` by default)
+* Step through code via `dap-next`
+
+You can also select the `Erlang rebar3 shell` configuration as an alternative.
+You can then attach to the spawned node and run custom MFAs to see the debugger in action.
+See `epmd -names` for details about the node name.
+
+Since the setup for the project can be time-consuming, you can also
+enjoy the video to get the _Quickstart_ experience:
+
+https://www.youtube.com/watch?v=ydcrdwQKqI8
