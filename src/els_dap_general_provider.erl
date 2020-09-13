@@ -86,18 +86,17 @@ handle_request( {<<"configurationDone">>, _Params}
   MFA = {els_dap_agent, int_cb, [self()]},
   els_dap_rpc:auto_attach(ProjectNode, [break], MFA),
 
-  %% TODO: Potentially fetch this from the Launch config
-  case (    maps:is_key(<<"module">>, LaunchParams)
-        and maps:is_key(<<"function">>, LaunchParams)
-        and maps:is_key(<<"args">>, LaunchParams)) of
-    true ->
-      M = binary_to_atom(maps:get(<<"module">>, LaunchParams), utf8),
-      F = binary_to_atom(maps:get(<<"function">>, LaunchParams), utf8),
-      AStr = maps:get(<<"args">>, LaunchParams),
-      A = els_dap_rpc:eval(ProjectNode, AStr, []),
-      lager:info("LAUNCHING MFA: [~p]", [{M, F, A}]),
+  case LaunchParams of
+    #{ <<"module">> := Module
+     , <<"function">> := Function
+     , <<"args">> := Args
+     } ->
+      M = binary_to_atom(Module, utf8),
+      F = binary_to_atom(Function, utf8),
+      A = els_dap_rpc:eval(ProjectNode, Args, []),
+      lager:info("Launching MFA: [~p]", [{M, F, A}]),
       rpc:cast(ProjectNode, M, F, A);
-    false -> ok
+    _ -> ok
   end,
   {#{}, State};
 handle_request( {<<"setBreakpoints">>, Params}
