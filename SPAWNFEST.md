@@ -139,13 +139,8 @@ TODO
   "Populate CONF with the required arguments."
   (-> conf
       (dap--put-if-absent :dap-server-path '("els_dap"))
-      (dap--put-if-absent :type "rebar3 shell")
       (dap--put-if-absent :request "launch")
-      (dap--put-if-absent :task "test")
-      (dap--put-if-absent :taskArgs (list "--trace"))
-      (dap--put-if-absent :projectDir (lsp-find-session-folder (lsp-session) (buffer-file-name)))
-      (dap--put-if-absent :cwd (lsp-find-session-folder (lsp-session) (buffer-file-name)))
-      ))
+      (dap--put-if-absent :cwd (lsp-find-session-folder (lsp-session) (buffer-file-name)))))
 
 (dap-register-debug-provider "Erlang" 'dap-erlang--populate-start-file-args)
 (dap-register-debug-template "Erlang rebar3 shell"
