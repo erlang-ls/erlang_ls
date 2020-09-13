@@ -10,7 +10,7 @@
 -export([ event/3
         , request/3
         , response/3
-        , error/2
+        , error_response/3
         ]).
 
 %% Data Structures
@@ -55,11 +55,14 @@ response(Seq, Command, Result) ->
   lager:debug("[Response] [message=~p]", [Message]),
   content(jsx:encode(Message)).
 
--spec error(number(), any()) -> binary().
-error(RequestId, Error) ->
-  Message = #{ jsonrpc => ?JSONRPC_VSN
-             , id      => RequestId
-             , error   => Error
+-spec error_response(number(), any(), any()) -> binary().
+error_response(Seq, Command, Error) ->
+  Message = #{ type  => <<"response">>
+             , request_seq => Seq
+             , success => false
+             , command => Command
+             , body  => #{ error => Error
+                         }
              },
   lager:debug("[Response] [message=~p]", [Message]),
   content(jsx:encode(Message)).

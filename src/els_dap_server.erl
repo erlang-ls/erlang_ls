@@ -136,6 +136,11 @@ handle_request(#{ <<"seq">> := Seq
       Response = els_dap_protocol:response(Seq, Command, Result),
       lager:debug("[SERVER] Sending response [response=~s]", [Response]),
       send(Response, State0),
+      State0#state{internal_state = NewInternalState};
+    {error_response, Error, NewInternalState} ->
+      Response = els_dap_protocol:error_response(Seq, Command, Error),
+      lager:debug("[SERVER] Sending error response [response=~s]", [Response]),
+      send(Response, State0),
       State0#state{internal_state = NewInternalState}
   end;
 handle_request(Response, State0) ->
