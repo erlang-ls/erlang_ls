@@ -53,6 +53,10 @@ do_dispatch(<<"configurationDone">>, Args, State) ->
   configuration_done(Args, State);
 do_dispatch(<<"threads">>, Args, State) ->
   threads(Args, State);
+do_dispatch(<<"stackTrace">>, Args, State) ->
+  stack_trace(Args, State);
+do_dispatch(<<"scopes">>, Args, State) ->
+  scopes(Args, State);
 do_dispatch(Command, Args, #{status := initialized} = State) ->
   Function = binary_to_atom(Command, utf8),
   els_dap_methods:Function(Args, State);
@@ -132,5 +136,27 @@ set_exception_breakpoints(Params, State) ->
 threads(Params, State) ->
   Provider = els_dap_general_provider,
   Request  = {threads, Params},
+  Response = els_provider:handle_request(Provider, Request),
+  {response, Response, State}.
+
+%%==============================================================================
+%% stackTrace
+%%==============================================================================
+
+-spec stack_trace(params(), state()) -> result().
+stack_trace(Params, State) ->
+  Provider = els_dap_general_provider,
+  Request  = {stack_trace, Params},
+  Response = els_provider:handle_request(Provider, Request),
+  {response, Response, State}.
+
+%%==============================================================================
+%% scopes
+%%==============================================================================
+
+-spec scopes(params(), state()) -> result().
+scopes(Params, State) ->
+  Provider = els_dap_general_provider,
+  Request  = {scopes, Params},
   Response = els_provider:handle_request(Provider, Request),
   {response, Response, State}.

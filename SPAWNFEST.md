@@ -61,6 +61,7 @@ During the weekend, we will try to:
 * Pass DAP Methods Handler as a parameter
 * Add and document dap-erlang (including IO tweaks)
 * Evaluate the "Run in terminal" in addition to "Launch"
+* Cleanup duplication in els\_dap\_methods
 
 # Upstream contributions
 

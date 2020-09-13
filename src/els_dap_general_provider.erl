@@ -50,7 +50,7 @@ is_enabled() -> true.
 
 -spec init() -> #{}.
 init() ->
-  #{threads => []}.
+  #{threads => #{}}.
 
 -spec handle_request( initialize_request()
                     | initialized_request()
@@ -97,36 +97,31 @@ handle_request({set_breakpoints, Params}, State) ->
 handle_request({set_exception_breakpoints, _Params}, State) ->
   {#{}, State};
 handle_request({threads, _Params}, #{threads := Threads0} = State) ->
-  Threads = [#{ <<"id">> => erlang:phash2(Pid)
+  Threads = [#{ <<"id">> => Id
               , <<"name">> => unicode:characters_to_binary(lists:flatten(io_lib:format("~p", [Pid])))
-              } || Pid <- Threads0],
+              } || {Id, Pid} <- maps:to_list(Threads0)],
   {#{<<"threads">> => Threads}, State};
-handle_request({initialized, _Params}, State) ->
-  #{root_uri := RootUri, init_options := InitOptions} = State,
-  DbDir = application:get_env(erlang_ls, db_dir, default_db_dir()),
-  OtpPath = els_config:get(otp_path),
-  NodeName = node_name(RootUri, els_utils:to_binary(OtpPath)),
-  els_db:install(NodeName, DbDir),
-  case maps:get(<<"indexingEnabled">>, InitOptions, true) of
-    true  -> els_indexing:start();
-    false -> lager:info("Skipping Indexing (disabled via InitOptions)")
-  end,
-  {null, State};
-handle_request({shutdown, _Params}, State) ->
-  {null, State};
-handle_request({exit, #{status := Status}}, State) ->
-  lager:info("Language server stopping..."),
-  ExitCode = case Status of
-               shutdown -> 0;
-               _        -> 1
-             end,
-  els_utils:halt(ExitCode),
-  {null, State}.
+handle_request({stack_trace, Params}, #{threads := Threads} = State) ->
+  #{<<"threadId">> := ThreadId} = Params,
+  Pid = maps:get(ThreadId, Threads),
+  %% TODO: Abstract RPC into a function
+  {ok, Meta} =  rpc:call(project_node(), dbg_iserver, safe_call, [{get_meta, Pid}]),
+  %% TODO: Also examine rest of list
+  [{_Level, {M, F, A}}|_] = rpc:call(project_node(), int, meta, [Meta, backtrace, all]),
+  StackFrame = #{ <<"id">> => erlang:unique_integer([positive])
+                , <<"name">> => unicode:characters_to_binary(io_lib:format("~p:~p/~p", [M, F, length(A)]))
+                , <<"line">> => 0
+                , <<"column">> => 0
+                },
+  {#{<<"stackFrames">> => [StackFrame]}, State};
+handle_request({scopes, Params}, State) ->
+  #{<<"frameId">> := _FrameId} = Params,
+  {#{<<"scopes">> => []}, State}.
 
 -spec handle_info(any(), state()) -> state().
 handle_info({int_cb, Thread}, #{threads := Threads} = State) ->
   lager:debug("Int CB called. thread=~p", [Thread]),
-  State#{threads => [Thread|Threads]}.
+  State#{threads => maps:put(id(Thread), Thread, Threads)}.
 
 %%==============================================================================
 %% API
@@ -139,15 +134,6 @@ capabilities() ->
 %%==============================================================================
 %% Internal Functions
 %%==============================================================================
--spec node_name(uri(), binary()) -> atom().
-node_name(RootUri, OtpPath) ->
-  <<SHA:160/integer>> = crypto:hash(sha, <<RootUri/binary, OtpPath/binary>>),
-  list_to_atom(lists:flatten(io_lib:format("erlang_ls_~40.16.0b", [SHA]))).
-
--spec default_db_dir() -> string().
-default_db_dir() ->
-  filename:basedir(user_cache, "erlang_ls").
-
 -spec inject_dap_agent(atom()) -> ok.
 inject_dap_agent(Node) ->
   Module = els_dap_agent,
@@ -166,3 +152,7 @@ local_node() ->
   %% TODO: Do not hard-code node name
   {ok, Hostname} = inet:gethostname(),
   list_to_atom("dap@" ++ Hostname).
+
+-spec id(pid()) -> integer().
+id(Pid) ->
+  erlang:phash2(Pid).
