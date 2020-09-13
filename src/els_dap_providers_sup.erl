@@ -29,7 +29,10 @@
 %%==============================================================================
 -type provider_spec() ::
         #{ id := els_dap_provider:provider()
-         , start := {els_dap_provider, start_link, [els_dap_provider:provider()]}
+         , start := { els_dap_provider
+                    , start_link
+                    , [els_dap_provider:provider()]
+                    }
          , shutdown := brutal_kill
          }.
 
