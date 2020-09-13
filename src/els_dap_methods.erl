@@ -5,13 +5,6 @@
 -export([ dispatch/4
         ]).
 
--export([ initialize/2
-        , configuration_done/2
-        , set_breakpoints/2
-        , set_exception_breakpoints/2
-        , threads/2
-        ]).
-
 -type method_name()  :: binary().
 -type state()        :: map().
 -type params()       :: map().
@@ -41,25 +34,14 @@ dispatch(Command, Args, Type, State) ->
   end.
 
 -spec do_dispatch(atom(), params(), state()) -> result().
-do_dispatch(<<"initialize">>, Args, State) ->
-  initialize(Args, State);
-do_dispatch(<<"launch">>, Args, State) ->
-  launch(Args, State);
-do_dispatch(<<"setBreakpoints">>, Args, State) ->
-  set_breakpoints(Args, State);
-do_dispatch(<<"setExceptionBreakpoints">>, Args, State) ->
-  set_exception_breakpoints(Args, State);
-do_dispatch(<<"configurationDone">>, Args, State) ->
-  configuration_done(Args, State);
-do_dispatch(<<"threads">>, Args, State) ->
-  threads(Args, State);
-do_dispatch(<<"stackTrace">>, Args, State) ->
-  stack_trace(Args, State);
-do_dispatch(<<"scopes">>, Args, State) ->
-  scopes(Args, State);
 do_dispatch(Command, Args, #{status := initialized} = State) ->
-  Function = binary_to_atom(Command, utf8),
-  els_dap_methods:Function(Args, State);
+  Request = {Command, Args},
+  Result = els_provider:handle_request(els_dap_general_provider, Request),
+  {response, Result, State};
+do_dispatch(<<"initialize">>, Args, State) ->
+  Request = {<<"initialize">>, Args},
+  Result = els_provider:handle_request(els_dap_general_provider, Request),
+  {response, Result, State#{status => initialized}};
 do_dispatch(_Command, _Args, State) ->
   Message = <<"The server is not fully initialized yet, please wait.">>,
   Result  = #{ code    => ?ERR_SERVER_NOT_INITIALIZED
@@ -72,91 +54,3 @@ not_implemented_method(Command, _Type, State) ->
   lager:warning("[Command not implemented] [command=~s]", [Command]),
   Error = <<"Command not implemented: ", Command/binary>>,
   {error_response, Error, State}.
-
-%%==============================================================================
-%% Initialize
-%%==============================================================================
-
--spec initialize(params(), state()) -> result().
-initialize(Params, State) ->
-  Provider = els_dap_general_provider,
-  Request  = {initialize, Params},
-  Response = els_provider:handle_request(Provider, Request),
-  {response, Response, State}.
-
-%%==============================================================================
-%% Launch
-%%==============================================================================
-
--spec launch(params(), state()) -> result().
-launch(Params, State) ->
-  Provider = els_dap_general_provider,
-  Request  = {launch, Params},
-  Response = els_provider:handle_request(Provider, Request),
-  {response, Response, State#{status => initialized}}.
-
-%%==============================================================================
-%% configurationDone
-%%==============================================================================
-
--spec configuration_done(params(), state()) -> result().
-configuration_done(Params, State) ->
-  Provider = els_dap_general_provider,
-  Request  = {configuration_done, Params},
-  Response = els_provider:handle_request(Provider, Request),
-  {response, Response, State}.
-
-%%==============================================================================
-%% setBreakpoints
-%%==============================================================================
-
--spec set_breakpoints(params(), state()) -> result().
-set_breakpoints(Params, State) ->
-  Provider = els_dap_general_provider,
-  Request  = {set_breakpoints, Params},
-  Response = els_provider:handle_request(Provider, Request),
-  {response, Response, State}.
-
-%%==============================================================================
-%% setExceptionBreakpoints
-%%==============================================================================
-
--spec set_exception_breakpoints(params(), state()) -> result().
-set_exception_breakpoints(Params, State) ->
-  Provider = els_dap_general_provider,
-  Request  = {set_exception_breakpoints, Params},
-  Response = els_provider:handle_request(Provider, Request),
-  {response, Response, State}.
-
-%%==============================================================================
-%% threads
-%%==============================================================================
-
--spec threads(params(), state()) -> result().
-threads(Params, State) ->
-  Provider = els_dap_general_provider,
-  Request  = {threads, Params},
-  Response = els_provider:handle_request(Provider, Request),
-  {response, Response, State}.
-
-%%==============================================================================
-%% stackTrace
-%%==============================================================================
-
--spec stack_trace(params(), state()) -> result().
-stack_trace(Params, State) ->
-  Provider = els_dap_general_provider,
-  Request  = {stack_trace, Params},
-  Response = els_provider:handle_request(Provider, Request),
-  {response, Response, State}.
-
-%%==============================================================================
-%% scopes
-%%==============================================================================
-
--spec scopes(params(), state()) -> result().
-scopes(Params, State) ->
-  Provider = els_dap_general_provider,
-  Request  = {scopes, Params},
-  Response = els_provider:handle_request(Provider, Request),
-  {response, Response, State}.

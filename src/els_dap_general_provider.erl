@@ -63,9 +63,9 @@ init() ->
         | exit_result()
         , state()
         }.
-handle_request({initialize, _Params}, State) ->
+handle_request({<<"initialize">>, _Params}, State) ->
   {capabilities(), State};
-handle_request({launch, Params}, State) ->
+handle_request({<<"launch">>, Params}, State) ->
   #{<<"cwd">> := Cwd} = Params,
   ok = file:set_cwd(Cwd),
   %% TODO: Do not hard-code sname
@@ -77,12 +77,12 @@ handle_request({launch, Params}, State) ->
   %% TODO: Spawn could be un-necessary
   spawn(fun() -> els_dap_server:send_event(<<"initialized">>, #{}) end),
   {#{}, State};
-handle_request({configuration_done, _Params}, State) ->
+handle_request({<<"configurationDone">>, _Params}, State) ->
   inject_dap_agent(project_node()),
   Args = [[break], {els_dap_agent, int_cb, [self()]}],
   rpc:call(project_node(), int, auto_attach, Args),
   {#{}, State};
-handle_request({set_breakpoints, Params}, State) ->
+handle_request({<<"setBreakpoints">>, Params}, State) ->
   #{<<"source">> := #{<<"path">> := Path}} = Params,
   SourceBreakpoints = maps:get(<<"breakpoints">>, Params, []),
   _SourceModified = maps:get(<<"sourceModified">>, Params, false),
@@ -94,14 +94,14 @@ handle_request({set_breakpoints, Params}, State) ->
   Breakpoints = [#{<<"verified">> => true, <<"line">> => Line} ||
                   #{<<"line">> := Line} <- SourceBreakpoints],
   {#{<<"breakpoints">> => Breakpoints}, State};
-handle_request({set_exception_breakpoints, _Params}, State) ->
+handle_request({<<"setExceptionBreakpoints">>, _Params}, State) ->
   {#{}, State};
-handle_request({threads, _Params}, #{threads := Threads0} = State) ->
+handle_request({<<"threads">>, _Params}, #{threads := Threads0} = State) ->
   Threads = [#{ <<"id">> => Id
               , <<"name">> => unicode:characters_to_binary(lists:flatten(io_lib:format("~p", [Pid])))
               } || {Id, Pid} <- maps:to_list(Threads0)],
   {#{<<"threads">> => Threads}, State};
-handle_request({stack_trace, Params}, #{threads := Threads} = State) ->
+handle_request({<<"stackTrace">>, Params}, #{threads := Threads} = State) ->
   #{<<"threadId">> := ThreadId} = Params,
   Pid = maps:get(ThreadId, Threads),
   %% TODO: Abstract RPC into a function
@@ -114,7 +114,7 @@ handle_request({stack_trace, Params}, #{threads := Threads} = State) ->
                 , <<"column">> => 0
                 },
   {#{<<"stackFrames">> => [StackFrame]}, State};
-handle_request({scopes, Params}, State) ->
+handle_request({<<"scopes">>, Params}, State) ->
   #{<<"frameId">> := _FrameId} = Params,
   {#{<<"scopes">> => []}, State}.
 
