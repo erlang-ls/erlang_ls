@@ -105,3 +105,7 @@ During the weekend, we will try to:
                                    :args "shell"
                                    :name "Erlang::Run"))
 ```
+
+## daptoy
+
+https://github.com/erlang-ls/daptoy
