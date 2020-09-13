@@ -35,7 +35,7 @@
                   | els_general_provider
                   | els_code_lens_provider
                   | els_execute_command_provider.
--type request()  :: {atom(), map()}.
+-type request()  :: {atom() | binary(), map()}.
 -type state()    :: #{ provider := provider()
                      , internal_state := any()
                      }.

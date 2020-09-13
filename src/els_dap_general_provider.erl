@@ -19,45 +19,28 @@
 -export([ capabilities/0
         ]).
 
--include("erlang_ls.hrl").
-
 %%==============================================================================
 %% Types
 %%==============================================================================
 
+%% Protocol
 -type capabilities() :: #{}.
--type initialize_request() :: {initialize, initialize_params()}.
--type initialize_params() :: #{ processId             := number() | null
-                              , rootPath              => binary() | null
-                              , rootUri               := uri() | null
-                              , initializationOptions => any()
-                              , capabilities          := client_capabilities()
-                              , trace                 => off
-                                                       | messages
-                                                       | verbose
-                              , workspaceFolders      => [workspace_folder()]
-                                                       | null
-                              }.
--type initialize_result() :: capabilities().
--type initialized_request() :: {initialized, initialized_params()}.
--type initialized_params() :: #{}.
--type initialized_result() :: null.
--type shutdown_request() :: {shutdown, shutdown_params()}.
--type shutdown_params() :: #{}.
--type shutdown_result() :: null.
--type exit_request() :: {exit, exit_params()}.
--type exit_params() :: #{status => atom()}.
--type exit_result() :: null.
+-type request()      :: {Command :: binary(), Params :: map()}.
+-type result()       :: #{}.
 
-
-%% Based on Elixir LS' PausedProcess
--type frame_id() :: pos_integer().
--type frame() :: #{}.
--type thread() :: #{ pid := pid()
-                   , frames := #{frame_id() => frame()}
-                   }.
--type thread_id() :: integer().
--type state() :: #{threads => #{thread_id() => thread()}}.
+%% Internal
+-type frame_id()     :: pos_integer().
+-type frame()        :: #{ module    := module()
+                         , function  := atom()
+                         , arguments := [any()]
+                         , source    := binary()
+                         , line      := integer()
+                         , bindings  := any()}.
+-type thread()       :: #{ pid := pid()
+                         , frames := #{frame_id() => frame()}
+                         }.
+-type thread_id()    :: integer().
+-type state()        :: #{threads => #{thread_id() => thread()}}.
 
 %%==============================================================================
 %% els_provider functions
@@ -66,21 +49,11 @@
 -spec is_enabled() -> boolean().
 is_enabled() -> true.
 
--spec init() -> #{}.
+-spec init() -> state().
 init() ->
   #{threads => #{}}.
 
--spec handle_request( initialize_request()
-                    | initialized_request()
-                    | shutdown_request()
-                    | exit_request()
-                    , state()) ->
-        { initialize_result()
-        | initialized_result()
-        | shutdown_result()
-        | exit_result()
-        , state()
-        }.
+-spec handle_request(request(), state()) -> {result(), state()}.
 handle_request({<<"initialize">>, _Params}, State) ->
   {capabilities(), State};
 handle_request({<<"launch">>, Params}, State) ->

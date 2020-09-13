@@ -10,4 +10,5 @@
 
 -spec int_cb(pid(), pid()) -> ok.
 int_cb(Thread, ProviderPid) ->
-  ProviderPid ! {int_cb, Thread}.
+  ProviderPid ! {int_cb, Thread},
+  ok.

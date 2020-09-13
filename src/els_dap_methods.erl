@@ -15,7 +15,7 @@
 -type state()        :: map().
 -type params()       :: map().
 -type result()       :: {response, params() | null, state()}
-                      | {error, params(), state()}
+                      | {error_response, binary(), state()}
                       | {noresponse, state()}
                       | {notification, binary(), params(), state()}.
 -type request_type() :: notification | request.
@@ -29,7 +29,7 @@ dispatch(Command, Args, Type, State) ->
   try do_dispatch(Command, Args, State)
   catch
     error:function_clause ->
-      not_implemented_method(Command, Type, State);
+      not_implemented_method(Command, State);
     Type:Reason:Stack ->
       lager:error( "Unexpected error [type=~p] [error=~p] [stack=~p]"
                  , [Type, Reason, Stack]),
@@ -55,8 +55,8 @@ do_dispatch(_Command, _Args, State) ->
              },
   {error, Result, State}.
 
--spec not_implemented_method(method_name(), atom(), state()) -> result().
-not_implemented_method(Command, _Type, State) ->
+-spec not_implemented_method(method_name(), state()) -> result().
+not_implemented_method(Command, State) ->
   lager:warning("[Command not implemented] [command=~s]", [Command]),
   Error = <<"Command not implemented: ", Command/binary>>,
   {error_response, Error, State}.
