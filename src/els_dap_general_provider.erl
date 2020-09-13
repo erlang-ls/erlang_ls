@@ -40,7 +40,9 @@
                          , frames := #{frame_id() => frame()}
                          }.
 -type thread_id()    :: integer().
--type state()        :: #{threads => #{thread_id() => thread()}}.
+-type state()        :: #{ threads => #{thread_id() => thread()}
+                         , project_node => atom()
+                         }.
 
 %%==============================================================================
 %% els_provider functions
@@ -59,32 +61,40 @@ handle_request({<<"initialize">>, _Params}, State) ->
 handle_request({<<"launch">>, Params}, State) ->
   #{<<"cwd">> := Cwd} = Params,
   ok = file:set_cwd(Cwd),
-  %% TODO: Do not hard-code sname
-  spawn(fun() -> els_utils:cmd("rebar3", ["shell", "--sname", "daptoy"]) end),
+
+  ProjectNode = node_name("dap_project_", Cwd),
+  spawn(fun() -> els_utils:cmd("rebar3", ["shell", "--name", ProjectNode]) end),
+
   %% TODO: Wait until rebar3 node is started
   timer:sleep(3000),
-  els_distribution_server:start_distribution(local_node()),
-  net_kernel:connect_node(project_node()),
-  %% TODO: Spawn could be un-necessary
-  spawn(fun() -> els_dap_server:send_event(<<"initialized">>, #{}) end),
-  {#{}, State};
-handle_request({<<"configurationDone">>, _Params}, State) ->
-  inject_dap_agent(project_node()),
+  LocalNode = node_name("dap_", Cwd),
+  els_distribution_server:start_distribution(LocalNode),
+  net_kernel:connect_node(ProjectNode),
+
+  els_dap_server:send_event(<<"initialized">>, #{}),
+
+  {#{}, State#{project_node => ProjectNode}};
+handle_request( {<<"configurationDone">>, _Params}
+              , #{project_node := ProjectNode} = State
+              ) ->
+  inject_dap_agent(ProjectNode),
   %% TODO: Fetch stack_trace mode from Launch Config
-  rpc:call(project_node(), int, stack_trace, [all]),
+  rpc:call(ProjectNode, int, stack_trace, [all]),
   Args = [[break], {els_dap_agent, int_cb, [self()]}],
-  rpc:call(project_node(), int, auto_attach, Args),
+  rpc:call(ProjectNode, int, auto_attach, Args),
   %% TODO: Potentially fetch this from the Launch config
-  rpc:cast(project_node(), daptoy_fact, fact, [5]),
+  rpc:cast(ProjectNode, daptoy_fact, fact, [5]),
   {#{}, State};
-handle_request({<<"setBreakpoints">>, Params}, State) ->
+handle_request( {<<"setBreakpoints">>, Params}
+              , #{project_node := ProjectNode} = State
+              ) ->
   #{<<"source">> := #{<<"path">> := Path}} = Params,
   SourceBreakpoints = maps:get(<<"breakpoints">>, Params, []),
   _SourceModified = maps:get(<<"sourceModified">>, Params, false),
   Module = els_uri:module(els_uri:uri(Path)),
   %% TODO: Keep a list of interpreted modules, not to re-interpret them
-  rpc:call(project_node(), int, i, [Module]),
-  [rpc:call(project_node(), int, break, [Module, Line]) ||
+  rpc:call(ProjectNode, int, i, [Module]),
+  [rpc:call(ProjectNode, int, break, [Module, Line]) ||
     #{<<"line">> := Line} <- SourceBreakpoints],
   Breakpoints = [#{<<"verified">> => true, <<"line">> => Line} ||
                   #{<<"line">> := Line} <- SourceBreakpoints],
@@ -94,8 +104,8 @@ handle_request({<<"setExceptionBreakpoints">>, _Params}, State) ->
 handle_request({<<"threads">>, _Params}, #{threads := Threads0} = State) ->
   Threads =
     [ #{ <<"id">> => Id
-       , <<"name">> => els_utils:to_binary(io_lib:format("~p", [maps:get(pid, Thread)]))
-       } || {Id, Thread} <- maps:to_list(Threads0)
+       , <<"name">> => els_utils:to_binary(io_lib:format("~p", [Pid]))
+       } || {Id, #{pid := Pid} = _Thread} <- maps:to_list(Threads0)
     ],
   {#{<<"threads">> => Threads}, State};
 handle_request({<<"stackTrace">>, Params}, #{threads := Threads} = State) ->
@@ -122,20 +132,32 @@ handle_request({<<"stackTrace">>, Params}, #{threads := Threads} = State) ->
 handle_request({<<"scopes">>, Params}, State) ->
   #{<<"frameId">> := _FrameId} = Params,
   {#{<<"scopes">> => []}, State};
-handle_request({<<"next">>, Params}, #{threads := Threads} = State) ->
+handle_request( {<<"next">>, Params}
+              , #{ threads := Threads
+                 , project_node := ProjectNode
+                 } = State
+              ) ->
   #{<<"threadId">> := ThreadId} = Params,
   Pid = to_pid(ThreadId, Threads),
-  ok = rpc:call(project_node(), int, next, [Pid]),
+  ok = rpc:call(ProjectNode, int, next, [Pid]),
   {#{}, State};
-handle_request({<<"continue">>, Params}, #{threads := Threads} = State) ->
+handle_request( {<<"continue">>, Params}
+              , #{ threads := Threads
+                 , project_node := ProjectNode
+                 } = State
+              ) ->
   #{<<"threadId">> := ThreadId} = Params,
   Pid = to_pid(ThreadId, Threads),
-  ok = rpc:call(project_node(), int, continue, [Pid]),
+  ok = rpc:call(ProjectNode, int, continue, [Pid]),
   {#{}, State};
-handle_request({<<"stepIn">>, Params}, #{threads := Threads} = State) ->
+handle_request( {<<"stepIn">>, Params}
+              , #{ threads := Threads
+                 , project_node := ProjectNode
+                 } = State
+              ) ->
   #{<<"threadId">> := ThreadId} = Params,
   Pid = to_pid(ThreadId, Threads),
-  ok = rpc:call(project_node(), int, step, [Pid]),
+  ok = rpc:call(ProjectNode, int, step, [Pid]),
   {#{}, State};
 handle_request({<<"evaluate">>, #{ <<"context">> := <<"hover">>
                                  , <<"frameId">> := FrameId
@@ -154,11 +176,15 @@ handle_request({<<"variables">>, _Params}, State) ->
   {#{<<"variables">> => []}, State}.
 
 -spec handle_info(any(), state()) -> state().
-handle_info({int_cb, ThreadPid}, #{threads := Threads} = State) ->
+handle_info( {int_cb, ThreadPid}
+           , #{ threads := Threads
+              , project_node := ProjectNode
+              } = State
+           ) ->
   lager:debug("Int CB called. thread=~p", [ThreadPid]),
   ThreadId = id(ThreadPid),
   Thread = #{ pid    => ThreadPid
-            , frames => stack_frames(ThreadPid)
+            , frames => stack_frames(ThreadPid, ProjectNode)
             },
   els_dap_server:send_event(<<"stopped">>, #{ <<"reason">> => <<"breakpoint">>
                                             , <<"threadId">> => ThreadId
@@ -183,50 +209,45 @@ inject_dap_agent(Node) ->
   {_Replies, _} = rpc:call(Node, code, load_binary, [Module, File, Bin]),
   ok.
 
--spec project_node() -> atom().
-project_node() ->
-  %% TODO: Do not hard-code node name
+-spec node_name(string(), binary()) -> atom().
+node_name(Prefix, Binary) ->
+  <<SHA:160/integer>> = crypto:hash(sha, Binary),
+  Id = lists:flatten(io_lib:format("~40.16.0b", [SHA])),
   {ok, Hostname} = inet:gethostname(),
-  list_to_atom("daptoy@" ++ Hostname).
-
--spec local_node() -> atom().
-local_node() ->
-  %% TODO: Do not hard-code node name
-  {ok, Hostname} = inet:gethostname(),
-  list_to_atom("dap@" ++ Hostname).
+  list_to_atom(Prefix ++ Id ++ "@" ++ Hostname).
 
 -spec id(pid()) -> integer().
 id(Pid) ->
   erlang:phash2(Pid).
 
--spec stack_frames(pid()) -> #{frame_id() => frame()}.
-stack_frames(Pid) ->
+-spec stack_frames(pid(), atom()) -> #{frame_id() => frame()}.
+stack_frames(Pid, ProjectNode) ->
   %% TODO: Abstract RPC into a function
   {ok, Meta} =
-    rpc:call(project_node(), dbg_iserver, safe_call, [{get_meta, Pid}]),
+    rpc:call(ProjectNode, dbg_iserver, safe_call, [{get_meta, Pid}]),
   %% TODO: Also examine rest of list
   [{_Level, {M, F, A}}|_] =
-    rpc:call(project_node(), int, meta, [Meta, backtrace, all]),
-  Bindings = rpc:call(project_node(), int, meta, [Meta, bindings, nostack]),
+    rpc:call(ProjectNode, int, meta, [Meta, backtrace, all]),
+  Bindings = rpc:call(ProjectNode, int, meta, [Meta, bindings, nostack]),
   StackFrameId = erlang:unique_integer([positive]),
   StackFrame = #{ module    => M
                 , function  => F
                 , arguments => A
-                , source    => source(M)
-                , line      => break_line(Pid)
+                , source    => source(M, ProjectNode)
+                , line      => break_line(Pid, ProjectNode)
                 , bindings  => Bindings
                 },
   #{StackFrameId => StackFrame}.
 
--spec break_line(pid()) -> integer().
-break_line(Pid) ->
-  Snapshots = rpc:call(project_node(), int, snapshot, []),
+-spec break_line(pid(), atom()) -> integer().
+break_line(Pid, ProjectNode) ->
+  Snapshots = rpc:call(ProjectNode, int, snapshot, []),
   {Pid, _Function, break, {_Module, Line}} = lists:keyfind(Pid, 1, Snapshots),
   Line.
 
--spec source(atom()) -> binary().
-source(M) ->
-  CompileOpts = rpc:call(project_node(), M, module_info, [compile]),
+-spec source(atom(), atom()) -> binary().
+source(M, ProjectNode) ->
+  CompileOpts = rpc:call(ProjectNode, M, module_info, [compile]),
   Source = proplists:get_value(source, CompileOpts),
   unicode:characters_to_binary(Source).
 
