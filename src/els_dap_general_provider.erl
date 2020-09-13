@@ -39,7 +39,16 @@
 -type exit_request() :: {exit, exit_params()}.
 -type exit_params() :: #{status => atom()}.
 -type exit_result() :: null.
--type state() :: any().
+
+
+%% Based on Elixir LS' PausedProcess
+-type frame_id() :: pos_integer().
+-type frame() :: #{}.
+-type thread() :: #{ pid := pid()
+                   , frames := #{frame_id() => frame()}
+                   }.
+-type thread_id() :: integer().
+-type state() :: #{threads => #{thread_id() => thread()}}.
 
 %%==============================================================================
 %% els_provider functions
@@ -101,32 +110,74 @@ handle_request({<<"setBreakpoints">>, Params}, State) ->
 handle_request({<<"setExceptionBreakpoints">>, _Params}, State) ->
   {#{}, State};
 handle_request({<<"threads">>, _Params}, #{threads := Threads0} = State) ->
-  Threads = [#{ <<"id">> => Id
-              , <<"name">> => unicode:characters_to_binary(lists:flatten(io_lib:format("~p", [Pid])))
-              } || {Id, Pid} <- maps:to_list(Threads0)],
+  Threads =
+    [ #{ <<"id">> => Id
+       , <<"name">> => els_utils:to_binary(io_lib:format("~p", [maps:get(pid, Thread)]))
+       } || {Id, Thread} <- maps:to_list(Threads0)
+    ],
   {#{<<"threads">> => Threads}, State};
 handle_request({<<"stackTrace">>, Params}, #{threads := Threads} = State) ->
   #{<<"threadId">> := ThreadId} = Params,
-  Pid = maps:get(ThreadId, Threads),
-  {#{<<"stackFrames">> => stack_frames(Pid)}, State};
+  Thread = maps:get(ThreadId, Threads),
+  Frames = maps:get(frames, Thread),
+  StackFrames =
+    [ #{ <<"id">> => Id
+       , <<"name">> => els_utils:to_binary(io_lib:format("~p:~p/~p", [M, F, length(A)]))
+       , <<"source">> => #{<<"path">> => Source}
+       , <<"line">> => Line
+       , <<"column">> => 0
+       }
+      || { Id
+         , #{ module := M
+            , function := F
+            , arguments := A
+            , line := Line
+            , source := Source
+            }
+         } <- maps:to_list(Frames)
+    ],
+  {#{<<"stackFrames">> => StackFrames}, State};
 handle_request({<<"scopes">>, Params}, State) ->
   #{<<"frameId">> := _FrameId} = Params,
   {#{<<"scopes">> => []}, State};
 handle_request({<<"next">>, Params}, #{threads := Threads} = State) ->
   #{<<"threadId">> := ThreadId} = Params,
-  Pid = maps:get(ThreadId, Threads),
+  Pid = to_pid(ThreadId, Threads),
   ok = rpc:call(project_node(), int, next, [Pid]),
   {#{}, State};
 handle_request({<<"continue">>, Params}, #{threads := Threads} = State) ->
   #{<<"threadId">> := ThreadId} = Params,
-  Pid = maps:get(ThreadId, Threads),
+  Pid = to_pid(ThreadId, Threads),
   ok = rpc:call(project_node(), int, continue, [Pid]),
-  {#{}, State}.
+  {#{}, State};
+handle_request({<<"stepIn">>, Params}, #{threads := Threads} = State) ->
+  #{<<"threadId">> := ThreadId} = Params,
+  Pid = to_pid(ThreadId, Threads),
+  ok = rpc:call(project_node(), int, step, [Pid]),
+  {#{}, State};
+handle_request({<<"evaluate">>, #{ <<"context">> := <<"hover">>
+                                 , <<"frameId">> := FrameId
+                                 , <<"expression">> := Expr
+                                 } = _Params}, #{threads := Threads} = State) ->
+  Frame = frame_by_id(FrameId, maps:values(Threads)),
+  Bindings = maps:get(bindings, Frame),
+  {ok, Tokens, _} = erl_scan:string(unicode:characters_to_list(Expr) ++ "."),
+  {ok, Exprs} = erl_parse:parse_exprs(Tokens),
+  %% TODO: Evaluate the expressions on the project node
+  {value, Value, _NewBindings} = erl_eval:exprs(Exprs, Bindings),
+  Result = unicode:characters_to_binary(io_lib:format("~p", [Value])),
+  {#{<<"result">> => Result}, State};
+handle_request({<<"variables">>, _Params}, State) ->
+  %% TODO: Return variables
+  {#{<<"variables">> => []}, State}.
 
 -spec handle_info(any(), state()) -> state().
-handle_info({int_cb, Thread}, #{threads := Threads} = State) ->
-  lager:debug("Int CB called. thread=~p", [Thread]),
-  ThreadId = id(Thread),
+handle_info({int_cb, ThreadPid}, #{threads := Threads} = State) ->
+  lager:debug("Int CB called. thread=~p", [ThreadPid]),
+  ThreadId = id(ThreadPid),
+  Thread = #{ pid    => ThreadPid
+            , frames => stack_frames(ThreadPid)
+            },
   els_dap_server:send_event(<<"stopped">>, #{ <<"reason">> => <<"breakpoint">>
                                             , <<"threadId">> => ThreadId
                                             }),
@@ -166,19 +217,24 @@ local_node() ->
 id(Pid) ->
   erlang:phash2(Pid).
 
--spec stack_frames(pid()) -> [map()].
+-spec stack_frames(pid()) -> #{frame_id() => frame()}.
 stack_frames(Pid) ->
   %% TODO: Abstract RPC into a function
-  {ok, Meta} =  rpc:call(project_node(), dbg_iserver, safe_call, [{get_meta, Pid}]),
+  {ok, Meta} =
+    rpc:call(project_node(), dbg_iserver, safe_call, [{get_meta, Pid}]),
   %% TODO: Also examine rest of list
-  [{_Level, {M, F, A}}|_] = rpc:call(project_node(), int, meta, [Meta, backtrace, all]),
-  StackFrame = #{ <<"id">> => erlang:unique_integer([positive])
-                , <<"name">> => unicode:characters_to_binary(io_lib:format("~p:~p/~p", [M, F, length(A)]))
-                , <<"source">> => #{<<"path">> => path(M)}
-                , <<"line">> => break_line(Pid)
-                , <<"column">> => 0
+  [{_Level, {M, F, A}}|_] =
+    rpc:call(project_node(), int, meta, [Meta, backtrace, all]),
+  Bindings = rpc:call(project_node(), int, meta, [Meta, bindings, nostack]),
+  StackFrameId = erlang:unique_integer([positive]),
+  StackFrame = #{ module    => M
+                , function  => F
+                , arguments => A
+                , source    => source(M)
+                , line      => break_line(Pid)
+                , bindings  => Bindings
                 },
-  [StackFrame].
+  #{StackFrameId => StackFrame}.
 
 -spec break_line(pid()) -> integer().
 break_line(Pid) ->
@@ -186,8 +242,20 @@ break_line(Pid) ->
   {Pid, _Function, break, {_Module, Line}} = lists:keyfind(Pid, 1, Snapshots),
   Line.
 
--spec path(atom()) -> binary().
-path(M) ->
+-spec source(atom()) -> binary().
+source(M) ->
   CompileOpts = rpc:call(project_node(), M, module_info, [compile]),
   Source = proplists:get_value(source, CompileOpts),
   unicode:characters_to_binary(Source).
+
+-spec to_pid(pos_integer(), #{thread_id() => thread()}) -> pid().
+to_pid(ThreadId, Threads) ->
+  Thread = maps:get(ThreadId, Threads),
+  maps:get(pid, Thread).
+
+-spec frame_by_id(frame_id(), [thread()]) -> frame().
+frame_by_id(FrameId, Threads) ->
+  [Frame] = [ maps:get(FrameId, Frames)
+              ||  #{frames := Frames} <- Threads, maps:is_key(FrameId, Frames)
+            ],
+  Frame.
