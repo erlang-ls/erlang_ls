@@ -213,7 +213,8 @@ handle_info( {int_cb, ThreadPid}
 
 -spec capabilities() -> capabilities().
 capabilities() ->
-  #{}.
+  #{ <<"supportsConfigurationDoneRequest">> => true
+   , <<"supportsEvaluateForHovers">> => true }.
 
 %%==============================================================================
 %% Internal Functions
