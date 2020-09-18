@@ -29,9 +29,9 @@ dependencies([Uri|Uris], Acc, AlreadyProcessed) ->
       Deps = els_dt_document:pois(Document, [behaviour, parse_transform]),
       IncludedUris = included_uris(Document),
       FilteredUris = [IncludedUri || IncludedUri <- IncludedUris,
-                      not set:is_element(IncludedUri, AlreadyProcessed)],
+                      not sets:is_element(IncludedUri, AlreadyProcessed)],
       dependencies(Uris ++ FilteredUris, Acc ++ [Id || #{id := Id} <- Deps],
-                   set:add_element(Uri, AlreadyProcessed));
+                   sets:add_element(Uri, AlreadyProcessed));
     Error ->
       lager:info("Lookup failed [Error=~p]", [Error]),
       []
