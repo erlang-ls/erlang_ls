@@ -15,20 +15,23 @@
 
 -spec dependencies(uri()) -> [atom()].
 dependencies(Uri) ->
-  dependencies([Uri], []).
+  dependencies([Uri], [], sets:new()).
 
 %%==============================================================================
 %% Internal Functions
 %%==============================================================================
--spec dependencies([uri()], [atom()]) -> [atom()].
-dependencies([], Acc) ->
+-spec dependencies([uri()], [atom()], sets:set(binary())) -> [atom()].
+dependencies([], Acc, _AlreadyProcessed) ->
   Acc;
-dependencies([Uri|Uris], Acc) ->
+dependencies([Uri|Uris], Acc, AlreadyProcessed) ->
   case els_dt_document:lookup(Uri) of
     {ok, [Document]} ->
       Deps = els_dt_document:pois(Document, [behaviour, parse_transform]),
       IncludedUris = included_uris(Document),
-      dependencies(Uris ++ IncludedUris, Acc ++ [Id || #{id := Id} <- Deps]);
+      FilteredUris = [IncludedUri || IncludedUri <- IncludedUris,
+                      not sets:is_element(IncludedUri, AlreadyProcessed)],
+      dependencies(Uris ++ FilteredUris, Acc ++ [Id || #{id := Id} <- Deps],
+                   sets:add_element(Uri, AlreadyProcessed));
     Error ->
       lager:info("Lookup failed [Error=~p]", [Error]),
       []

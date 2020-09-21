@@ -71,29 +71,41 @@ goto_definition(_Filename, _) ->
 
 -spec find(uri() | [uri()], poi_kind(), any()) ->
    {ok, uri(), poi()} | {error, not_found}.
-find([], _Kind, _Data) ->
+find(UriOrUris, Kind, Data) ->
+  find(UriOrUris, Kind, Data, sets:new()).
+
+-spec find(uri() | [uri()], poi_kind(), any(), sets:set(binary())) ->
+   {ok, uri(), poi()} | {error, not_found}.
+find([], _Kind, _Data, _AlreadyVisited) ->
   {error, not_found};
-find([Uri|Uris0], Kind, Data) ->
-  case els_dt_document:lookup(Uri) of
-    {ok, [Document]} ->
-      find_in_document([Uri|Uris0], Document, Kind, Data);
-    {ok, []} ->
-      find(Uris0, Kind, Data)
+find([Uri|Uris0], Kind, Data, AlreadyVisited) ->
+  case sets:is_element(Uri, AlreadyVisited) of
+    true ->
+      find(Uris0, Kind, Data, AlreadyVisited);
+    false ->
+      AlreadyVisited2 = sets:add_element(Uri, AlreadyVisited),
+      case els_dt_document:lookup(Uri) of
+        {ok, [Document]} ->
+          find_in_document([Uri|Uris0], Document, Kind, Data, AlreadyVisited2);
+        {ok, []} ->
+          find(Uris0, Kind, Data, AlreadyVisited2)
+      end
   end;
-find(Uri, Kind, Data) ->
-  find([Uri], Kind, Data).
+find(Uri, Kind, Data, AlreadyVisited) ->
+  find([Uri], Kind, Data, AlreadyVisited).
 
 -spec find_in_document(uri() | [uri()], els_dt_document:item(), poi_kind()
-                      , any()) ->
+                      , any(), sets:set(binary())) ->
         {ok, uri(), poi()} | {error, any()}.
-find_in_document([Uri|Uris0], Document, Kind, Data) ->
+find_in_document([Uri|Uris0], Document, Kind, Data, AlreadyVisited) ->
   POIs = els_dt_document:pois(Document, [Kind]),
   case [POI || #{id := Id} = POI <- POIs, Id =:= Data] of
     [] ->
       case maybe_imported(Document, Kind, Data) of
         {ok, U, P} -> {ok, U, P};
         {error, not_found} ->
-          find(lists:usort(include_uris(Document) ++ Uris0), Kind, Data)
+          find(lists:usort(include_uris(Document) ++ Uris0), Kind, Data,
+               AlreadyVisited)
       end;
     Definitions ->
       {ok, Uri, hd(els_poi:sort(Definitions))}
