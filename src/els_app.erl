@@ -22,7 +22,12 @@
 -spec start(normal, any()) -> {ok, pid()}.
 start(_StartType, _StartArgs) ->
   ok = application:set_env(elvis, no_output, true),
-  els_sup:start_link().
+  case application:get_env(erlang_ls, dap) of
+    {ok, true} ->
+      els_dap_sup:start_link();
+    _ ->
+      els_sup:start_link()
+  end.
 
 -spec stop(any()) -> ok.
 stop(_State) ->

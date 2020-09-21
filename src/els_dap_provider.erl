@@ -1,4 +1,8 @@
--module(els_provider).
+%%==============================================================================
+%% @doc Erlang DAP Provider Behaviour
+%% @end
+%%==============================================================================
+-module(els_dap_provider).
 
 %% API
 -export([ handle_request/2
@@ -21,21 +25,8 @@
 -optional_callbacks([init/0, handle_info/2]).
 
 -type config()   :: any().
--type provider() :: els_completion_provider
-                  | els_definition_provider
-                  | els_document_symbol_provider
-                  | els_hover_provider
-                  | els_references_provider
-                  | els_formatting_provider
-                  | els_document_highlight_provider
-                  | els_workspace_symbol_provider
-                  | els_folding_range_provider
-                  | els_implementation_provider
-                  | els_code_action_provider
-                  | els_general_provider
-                  | els_code_lens_provider
-                  | els_execute_command_provider.
--type request()  :: {atom() | binary(), map()}.
+-type provider() :: els_dap_general_provider.
+-type request()  :: {atom(), map()}.
 -type state()    :: #{ provider := provider()
                      , internal_state := any()
                      }.
@@ -57,6 +48,15 @@ start_link(Provider) ->
 -spec handle_request(provider(), request()) -> any().
 handle_request(Provider, Request) ->
   gen_server:call(Provider, {handle_request, Provider, Request}, infinity).
+
+-spec available_providers() -> [provider()].
+available_providers() ->
+  [ els_dap_general_provider
+  ].
+
+-spec enabled_providers() -> [provider()].
+enabled_providers() ->
+  [Provider || Provider <- available_providers(), Provider:is_enabled()].
 
 %%==============================================================================
 %% gen_server callbacks
@@ -96,26 +96,3 @@ handle_info(Request, State) ->
     false ->
       {noreply, State}
   end.
-
--spec available_providers() -> [provider()].
-available_providers() ->
-  [ els_completion_provider
-  , els_definition_provider
-  , els_document_symbol_provider
-  , els_hover_provider
-  , els_references_provider
-  , els_formatting_provider
-  , els_document_highlight_provider
-  , els_workspace_symbol_provider
-  , els_folding_range_provider
-  , els_implementation_provider
-  , els_code_action_provider
-  , els_general_provider
-  , els_code_lens_provider
-  , els_execute_command_provider
-  , els_diagnostics_provider
-  ].
-
--spec enabled_providers() -> [provider()].
-enabled_providers() ->
-  [Provider || Provider <- available_providers(), Provider:is_enabled()].

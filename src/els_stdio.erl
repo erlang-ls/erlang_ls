@@ -21,7 +21,12 @@ start_listener(Cb) ->
 init({Cb, IoDevice}) ->
   lager:info("Starting stdio server..."),
   ok = io:setopts(IoDevice, [binary]),
-  ok = els_server:set_connection(IoDevice),
+  case application:get_env(erlang_ls, dap) of
+    {ok, true} ->
+      ok = els_dap_server:set_connection(IoDevice);
+    _ ->
+      ok = els_server:set_connection(IoDevice)
+  end,
   ?MODULE:loop([], IoDevice, Cb, [return_maps]).
 
 -spec send(any(), binary()) -> ok.
