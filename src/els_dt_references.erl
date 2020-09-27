@@ -55,7 +55,7 @@ name() -> ?MODULE.
 -spec opts() -> proplists:proplist().
 opts() ->
   [ {attributes        , record_info(fields, els_dt_references)}
-  , {disc_copies       , [node()]}
+  , {leveled_copies    , [node()]}
   , {index             , [#els_dt_references.uri]}
   , {type              , bag}
   , {storage_properties, [{ets, [ {read_concurrency, true}

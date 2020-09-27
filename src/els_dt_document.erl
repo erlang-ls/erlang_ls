@@ -73,7 +73,7 @@ name() -> ?MODULE.
 -spec opts() -> proplists:proplist().
 opts() ->
   [ {attributes        , record_info(fields, els_dt_document)}
-  , {disc_copies       , [node()]}
+  , {leveled_copies    , [node()]}
   , {index             , []}
   , {type              , set}
   , {storage_properties, [{ets, []}]}

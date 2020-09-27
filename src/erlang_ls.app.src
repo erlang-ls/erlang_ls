@@ -19,6 +19,10 @@
       , tdiff
       , getopt
       , uuid
+      , mnesia_leveled
+      , leveled
+      , sext
+      , lz4
       ]
     }
   , { env
