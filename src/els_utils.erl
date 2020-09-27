@@ -8,6 +8,7 @@
         , fold_files/4
         , halt/1
         , lookup_document/1
+        , macro_string_to_term/1
         , project_relative/1
         , resolve_paths/3
         , to_binary/1
@@ -127,6 +128,23 @@ lookup_document(Uri) ->
       {ok, Uri} = els_indexing:index_file(Path),
       {ok, [Document]} = els_dt_document:lookup(Uri),
       {ok, Document}
+  end.
+
+-spec macro_string_to_term(list()) -> any().
+macro_string_to_term(Value) ->
+  try
+    {ok, Tokens, _End} = erl_scan:string(Value ++ "."),
+    {ok, Term} = erl_parse:parse_term(Tokens),
+    Term
+  catch
+    _Class:Exception ->
+      Fmt =
+        "Error parsing custom defined macro, "
+        "falling back to 'true'"
+        "[value=~p] [exception=~p]",
+      Args = [Value, Exception],
+      lager:error(Fmt, Args),
+      true
   end.
 
 %% @doc Folds over all files in a directory recursively

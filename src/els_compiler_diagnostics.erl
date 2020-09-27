@@ -250,7 +250,7 @@ macro_options() ->
 
 -spec macro_option(macro_config()) -> macro_option().
 macro_option(#{"name" := Name, "value" := Value}) ->
-  {'d', list_to_atom(Name), string_to_term(Value)};
+  {'d', list_to_atom(Name), els_utils:macro_string_to_term(Value)};
 macro_option(#{"name" := Name}) ->
   {'d', list_to_atom(Name), true}.
 
@@ -274,24 +274,6 @@ diagnostics_options_bare() ->
                , [ return_warnings
                  , return_errors
                  ]]).
-
-
--spec string_to_term(list()) -> any().
-string_to_term(Value) ->
-  try
-    {ok, Tokens, _End} = erl_scan:string(Value ++ "."),
-    {ok, Term} = erl_parse:parse_term(Tokens),
-    Term
-  catch
-    _Class:Exception ->
-      Fmt =
-        "Error parsing custom defined macro, "
-        "falling back to 'true'"
-        "[value=~p] [exception=~p]",
-      Args = [Value, Exception],
-      lager:error(Fmt, Args),
-      true
-  end.
 
 -spec compile_file(string(), [atom()]) ->
         {{ok | error, [compiler_msg()], [compiler_msg()]}
