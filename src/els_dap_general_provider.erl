@@ -64,8 +64,21 @@ handle_request({<<"launch">>, Params}, State) ->
   #{<<"cwd">> := Cwd} = Params,
   ok = file:set_cwd(Cwd),
 
-  ProjectNode = node_name("dap_project_", Cwd),
-  spawn(fun() -> els_utils:cmd("rebar3", ["shell", "--name", ProjectNode]) end),
+  ProjectNode = case Params of
+                  #{ <<"projectnode">> := Node } -> Node;
+                  _ -> node_name("dap_project_", Cwd)
+                end,
+  case Params of
+    #{ <<"runinterminal">> := Cmd } ->
+      lager:info("Launching terminal: [~p]", [Cmd]),
+      %% M = daptoy_fact,
+      %% F = fact,
+      %% A = [5],
+      rpc:cast(ProjectNode, M, F, A);
+    _ ->
+      lager:info("launching 'rebar3 shell`", []),
+      spawn(fun() -> els_utils:cmd("rebar3", ["shell", "--name", ProjectNode]) end)
+  end,
 
   LocalNode = node_name("dap_", Cwd),
   els_distribution_server:start_distribution(LocalNode),
