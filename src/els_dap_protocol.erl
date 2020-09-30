@@ -32,19 +32,19 @@
 -spec event(number(), binary(), any()) -> binary().
 %% TODO: Body is optional
 event(Seq, EventType, Body) ->
-  Message = #{ seq => Seq
-             , type => <<"event">>
+  Message = #{ type => <<"event">>
+             , seq => Seq
              , event => EventType
              , body => Body
              },
   content(jsx:encode(Message)).
 
 -spec request(number(), binary(), any()) -> binary().
-request(RequestId, Method, Params) ->
-  Message = #{ jsonrpc => ?JSONRPC_VSN
-             , method  => Method
-             , id      => RequestId
-             , params  => Params
+request(RequestSeq, Method, Params) ->
+  Message = #{ type => <<"request">>
+             , seq => RequestSeq
+             , command => Method
+             , arguments => Params
              },
   content(jsx:encode(Message)).
 

@@ -165,7 +165,7 @@ do_send_event(EventType, Body, #state{seq = Seq0} = State0) ->
 -spec do_send_request(binary(), map(), state()) -> state().
 do_send_request(Method, Params, #state{seq = RequestId0} = State0) ->
   RequestId = RequestId0 + 1,
-  Request = els_protocol:request(RequestId, Method, Params),
+  Request = els_dap_protocol:request(RequestId, Method, Params),
   lager:debug( "[SERVER] Sending request [request=~p]"
              , [Request]
              ),
