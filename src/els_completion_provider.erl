@@ -36,30 +36,29 @@ handle_request({completion, Params}, State) ->
    , <<"textDocument">> := #{<<"uri">> := Uri}
    } = Params,
   {ok, #{text := Text} = Document} = els_utils:lookup_document(Uri),
-  case maps:find(<<"context">>, Params) of
-    {ok, Context} ->
-      TriggerKind = maps:get(<<"triggerKind">>, Context),
-      TriggerCharacter = maps:get(<<"triggerCharacter">>, Context, <<>>),
-      %% We subtract 1 to strip the character that triggered the
-      %% completion from the string.
-      Length = case Character > 0 of true -> 1; false -> 0 end,
-      Prefix = case TriggerKind of
-                 ?COMPLETION_TRIGGER_KIND_CHARACTER ->
-                   els_text:line(Text, Line, Character - Length);
-                 ?COMPLETION_TRIGGER_KIND_INVOKED ->
-                   els_text:line(Text, Line, Character);
-                 ?COMPLETION_TRIGGER_KIND_FOR_INCOMPLETE_COMPLETIONS ->
-                   els_text:line(Text, Line, Character)
-               end,
-      Opts   = #{ trigger  => TriggerCharacter
-                , document => Document
-                , line     => Line + 1
-                , column   => Character
-                },
-      {find_completion(Prefix, TriggerKind, Opts), State};
-    error ->
-      {null, State}
-  end.
+  Context = maps:get( <<"context">>
+                    , Params
+                    , #{ <<"triggerKind">> => ?COMPLETION_TRIGGER_KIND_INVOKED }
+                    ),
+  TriggerKind = maps:get(<<"triggerKind">>, Context),
+  TriggerCharacter = maps:get(<<"triggerCharacter">>, Context, <<>>),
+  %% We subtract 1 to strip the character that triggered the
+  %% completion from the string.
+  Length = case Character > 0 of true -> 1; false -> 0 end,
+  Prefix = case TriggerKind of
+             ?COMPLETION_TRIGGER_KIND_CHARACTER ->
+               els_text:line(Text, Line, Character - Length);
+             ?COMPLETION_TRIGGER_KIND_INVOKED ->
+               els_text:line(Text, Line, Character);
+             ?COMPLETION_TRIGGER_KIND_FOR_INCOMPLETE_COMPLETIONS ->
+               els_text:line(Text, Line, Character)
+           end,
+  Opts   = #{ trigger  => TriggerCharacter
+              , document => Document
+              , line     => Line + 1
+              , column   => Character
+            },
+  {find_completion(Prefix, TriggerKind, Opts), State}.
 
 %%==============================================================================
 %% Internal functions
@@ -109,19 +108,35 @@ find_completion( Prefix
                   }
                ) ->
   case lists:reverse(els_text:tokens(Prefix)) of
+    %% Check for "[...] fun atom:"
+    [{':', _}, {atom, _, Module}, {'fun', _} | _] ->
+      exported_definitions(Module, function, _ExportFormat = true);
     %% Check for "[...] fun atom:atom"
     [{atom, _, _}, {':', _}, {atom, _, Module}, {'fun', _} | _] ->
       exported_definitions(Module, function, _ExportFormat = true);
+    %% Check for "[...] atom:"
+    [{':', _}, {atom, _, Module} | _] ->
+      {ExportFormat, TypeOrFun} = completion_context(Document, Line, Column),
+      exported_definitions(Module, TypeOrFun, ExportFormat);
     %% Check for "[...] atom:atom"
     [{atom, _, _}, {':', _}, {atom, _, Module} | _] ->
       {ExportFormat, TypeOrFun} = completion_context(Document, Line, Column),
       exported_definitions(Module, TypeOrFun, ExportFormat);
+    %% Check for "[...] ?"
+    [{'?', _} | _] ->
+      definitions(Document, define);
     %% Check for "[...] ?anything"
     [_, {'?', _} | _] ->
       definitions(Document, define);
+    %% Check for "[...] #anything."
+    [{'.', _}, {atom, _, RecordName}, {'#', _} | _] ->
+      record_fields(Document, RecordName);
     %% Check for "[...] #anything.something"
     [_, {'.', _}, {atom, _, RecordName}, {'#', _} | _] ->
       record_fields(Document, RecordName);
+    %% Check for "[...] #"
+    [{'#', _} | _] ->
+      definitions(Document, record);
     %% Check for "[...] #anything"
     [_, {'#', _} | _] ->
       definitions(Document, record);
