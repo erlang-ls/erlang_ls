@@ -39,14 +39,6 @@
 ;; Enable logging for lsp-mode
 (setq lsp-log-io t)
 
-;; Enable code completion
-(package-require 'company-lsp)
-(push 'company-lsp company-backends)
-
-;; Override the default erlang-compile-tag to use completion-at-point
-(eval-after-load 'erlang
-  '(define-key erlang-mode-map (kbd "C-M-i") #'company-lsp))
-
 ;; Show line and column numbers
 (add-hook 'erlang-mode-hook 'linum-mode)
 (add-hook 'erlang-mode-hook 'column-number-mode)
