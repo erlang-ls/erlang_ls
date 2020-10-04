@@ -74,6 +74,8 @@ init_per_testcase(_TestCase, Config) ->
   RootUri   = ?config(root_uri, Config),
   els_client:initialize(RootUri, #{indexingEnabled => false}),
   els_client:initialized(),
+  %% Ensure the DB is up and running before attempting manual indexing
+  wait_for_db(),
   SrcConfig = lists:flatten(
                 [index_file(RootPath, src, S) || S <- sources()]),
   TestConfig = lists:flatten(
@@ -127,6 +129,8 @@ wait_for_fun(_CheckFun, _WaitTime, 0) ->
   timeout;
 wait_for_fun(CheckFun, WaitTime, Retries) ->
   case CheckFun() of
+    true ->
+      ok;
     {true, Value} ->
       {ok, Value};
     false ->
@@ -230,3 +234,15 @@ atoms_append(Atom1, Atom2) ->
   Bin1 = atom_to_binary(Atom1, utf8),
   Bin2 = atom_to_binary(Atom2, utf8),
   binary_to_atom(<<Bin1/binary, Bin2/binary>>, utf8).
+
+-spec wait_for_db() -> ok.
+wait_for_db() ->
+  CheckFun = fun() ->
+                 try mnesia:wait_for_tables(els_db:tables(), 5000) of
+                   ok -> true;
+                   _Error -> false
+                 catch _C:_E:_S ->
+                     false
+                 end
+             end,
+  wait_for_fun(CheckFun, 200, 10).
