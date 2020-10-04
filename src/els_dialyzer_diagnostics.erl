@@ -22,6 +22,12 @@
 -include("erlang_ls.hrl").
 
 %%==============================================================================
+%% Type Definitions
+%%==============================================================================
+-type macro_config() :: #{string() => string()}.
+-type macro_option() :: {atom()} | {atom(), any()}.
+
+%%==============================================================================
 %% Callback Functions
 %%==============================================================================
 
@@ -41,6 +47,7 @@ run(Uri) ->
                             , {from, src_code}
                             , {include_dirs, els_config:get(include_paths)}
                             , {plts, [DialyzerPltPath]}
+                            , {defines, defines()}
                             ])
            catch Type:Error ->
                lager:error( "Error while running dialyzer [type=~p] [error=~p]"
@@ -76,3 +83,14 @@ diagnostic({_, {_, Line}, _} = Warning) ->
 dep_path(Module) ->
   {ok, Uri} = els_utils:find_module(Module),
   els_utils:to_list(els_uri:path(Uri)).
+
+-spec defines() -> [macro_option()].
+defines() ->
+  Macros = els_config:get(macros),
+  [define(M) || M <- Macros].
+
+-spec define(macro_config()) -> macro_option().
+define(#{"name" := Name, "value" := Value}) ->
+  {list_to_atom(Name), els_utils:macro_string_to_term(Value)};
+define(#{"name" := Name}) ->
+  {list_to_atom(Name), true}.
