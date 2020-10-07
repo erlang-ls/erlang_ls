@@ -100,7 +100,7 @@ ct_run_test(Config) ->
                                              }]),
   Expected = [],
   ?assertEqual(Expected, Result),
-  wait_until_mock_called(els_protocol, notification),
+  els_test_utils:wait_until_mock_called(els_protocol, notification),
   ?assertEqual(1, meck:num_calls(els_distribution_server, rpc_call, '_')),
   Notifications = [{Method, Args} ||
                     { _Pid
@@ -153,16 +153,6 @@ setup_mocks() ->
 teardown_mocks() ->
   meck:unload(els_protocol),
   ok.
-
--spec wait_until_mock_called(atom(), atom()) -> ok.
-wait_until_mock_called(M, F) ->
-  case meck:num_calls(M, F, '_') of
-    0 ->
-      timer:sleep(100),
-      wait_until_mock_called(M, F);
-    _ ->
-      ok
-  end.
 
 -spec wait_for_notifications(pos_integer()) -> [map()].
 wait_for_notifications(Num) ->
