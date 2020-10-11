@@ -69,7 +69,7 @@ uri(Path) ->
     uri_string:recompose(#{
       scheme => <<"file">>,
       host => Host,
-      path => [<<"/">>, Path1]
+      path => [$/, Path1]
     })
   ).
 
