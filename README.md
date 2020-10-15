@@ -9,8 +9,8 @@ An Erlang server implementing Microsoft's Language Server Protocol 3.15.
 
 ## Minimum Requirements
 
-* Erlang OTP 21+
-* rebar3 3.9.1+
+* [Erlang OTP 21+](https://github.com/erlang/otp)
+* [rebar3 3.9.1+](https://github.com/erlang/rebar3)
 
 ## Quickstart
 
