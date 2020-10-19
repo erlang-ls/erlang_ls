@@ -51,7 +51,10 @@ start_distribution(Name) ->
     {ok, _Pid} ->
       lager:info("Distribution enabled [name=~p]", [Name]);
     {error, {already_started, _Pid}} ->
-      lager:info("Distribution already enabled [name=~p]", [Name])
+      lager:info("Distribution already enabled [name=~p]", [Name]);
+    {error, {{shutdown, {failed_to_start_child, net_kernel, E1}}, E2}} ->
+      lager:info("Distribution shutdown [errs=~p]", [{E1, E2}]),
+      lager:info("Distribution shut down [name=~p]", [Name])
   end.
 
 %% @doc Connect to an existing runtime node, if available, or start one.

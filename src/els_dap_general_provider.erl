@@ -64,13 +64,31 @@ handle_request({<<"launch">>, Params}, State) ->
   #{<<"cwd">> := Cwd} = Params,
   ok = file:set_cwd(Cwd),
 
-  ProjectNode = node_name("dap_project_", Cwd),
-  spawn(fun() -> els_utils:cmd("rebar3", ["shell", "--name", ProjectNode]) end),
+  ProjectNode = case Params of
+                  #{ <<"projectnode">> := Node } -> binary_to_atom(Node, utf8);
+                  _ -> node_name("dap_project_", Cwd)
+                end,
+  case Params of
+    #{ <<"runinterminal">> := Cmd
+     } ->
+      ParamsR
+        = #{ <<"kind">> => <<"integrated">>
+           , <<"title">> => ProjectNode
+           , <<"cwd">> => Cwd
+           , <<"args">> => Cmd
+           },
+      lager:info("Sending runinterminal request: [~p]", [ParamsR]),
+      els_dap_server:send_request(<<"runInTerminal">>, ParamsR),
+      ok;
+    _ ->
+      lager:info("launching 'rebar3 shell`", []),
+      spawn(fun() ->
+                els_utils:cmd("rebar3", ["shell", "--name", ProjectNode]) end)
+  end,
 
   LocalNode = node_name("dap_", Cwd),
   els_distribution_server:start_distribution(LocalNode),
-
-  els_distribution_server:wait_connect_and_monitor(ProjectNode, 5),
+  lager:info("Distribution up on: [~p]", [LocalNode]),
 
   els_dap_server:send_event(<<"initialized">>, #{}),
 
@@ -79,6 +97,9 @@ handle_request( {<<"configurationDone">>, _Params}
               , #{ project_node := ProjectNode
                  , launch_params := LaunchParams} = State
               ) ->
+  lager:info("Connecting to: [~p]", [ProjectNode]),
+  els_distribution_server:wait_connect_and_monitor(ProjectNode),
+
   inject_dap_agent(ProjectNode),
 
   %% TODO: Fetch stack_trace mode from Launch Config
@@ -106,6 +127,10 @@ handle_request( {<<"setBreakpoints">>, Params}
   SourceBreakpoints = maps:get(<<"breakpoints">>, Params, []),
   _SourceModified = maps:get(<<"sourceModified">>, Params, false),
   Module = els_uri:module(els_uri:uri(Path)),
+
+  %% AZ: we should have something like `ensure_connected`
+  lager:info("Connecting to: [~p]", [ProjectNode]),
+  els_distribution_server:wait_connect_and_monitor(ProjectNode),
 
   %% TODO: Keep a list of interpreted modules, not to re-interpret them
   els_dap_rpc:i(ProjectNode, Module),
@@ -174,6 +199,15 @@ handle_request( {<<"stepIn">>, Params}
   Pid = to_pid(ThreadId, Threads),
   ok = els_dap_rpc:step(ProjectNode, Pid),
   {#{}, State};
+handle_request( {<<"stepOut">>, Params}
+              , #{ threads := Threads
+                 , project_node := ProjectNode
+                 } = State
+              ) ->
+  #{<<"threadId">> := ThreadId} = Params,
+  Pid = to_pid(ThreadId, Threads),
+  ok = els_dap_rpc:next(ProjectNode, Pid),
+  {#{}, State};
 handle_request({<<"evaluate">>, #{ <<"context">> := <<"hover">>
                                  , <<"frameId">> := FrameId
                                  , <<"expression">> := Input
@@ -189,7 +223,10 @@ handle_request({<<"evaluate">>, #{ <<"context">> := <<"hover">>
   {#{<<"result">> => Result}, State};
 handle_request({<<"variables">>, _Params}, State) ->
   %% TODO: Return variables
-  {#{<<"variables">> => []}, State}.
+  {#{<<"variables">> => []}, State};
+handle_request({<<"disconnect">>, _Params}, State) ->
+  els_utils:halt(0),
+  {#{}, State}.
 
 -spec handle_info(any(), state()) -> state().
 handle_info( {int_cb, ThreadPid}

@@ -113,6 +113,64 @@ While working on the project, we noticed a few issues with third-party projects 
 
 (require 'dap-mode)
 
+;; Log io to *Messages*. Seems to be the only option at the moment. Optional
+(setq dap-inhibit-io nil)
+(setq dap-print-io t)
+
+(defun dap-erlang--populate-start-file-args (conf)
+  "Populate CONF with the required arguments."
+  (-> conf
+      (dap--put-if-absent :dap-server-path '("els_dap"))
+      (dap--put-if-absent :request "launch")
+      (dap--put-if-absent :projectDir (lsp-find-session-folder (lsp-session) (buffer-file-name)))
+      (dap--put-if-absent :cwd (lsp-find-session-folder (lsp-session) (buffer-file-name)))
+      ))
+
+;; Add a Run Configuration for running 'rebar3 shell'
+(dap-register-debug-provider "Erlang" 'dap-erlang--populate-start-file-args)
+(dap-register-debug-template "Erlang rebar3 shell"
+                             (list :type "Erlang"
+                                   :program "rebar3"
+                                   :args "shell"
+                                   :name "Erlang::Run"))
+
+;; Add a Run Configuration for executing a given MFA
+(dap-register-debug-template "Erlang MFA"
+                             (list :type "Erlang"
+                                   :module "daptoy_fact"
+                                   :function "fact"
+                                   ;; :function "dummy"
+                                   :args "[3]"
+                                   :name "Erlang::Run MFA"))
+
+;; Add a Run Configuration for running 'rebar3 shell'
+;; in an integrated terminal in the client
+;; NOTE: set the projectnode hostname in two places
+(dap-register-debug-template "Erlang Terminal"
+                             (list :type "Erlang"
+                                   :runinterminal '("rebar3" "shell" "--name" "dapnode@alanzimm-mbp")
+                                   :projectnode "dapnode@alanzimm-mbp"
+                                   :name "Erlang::Terminal"))
+
+;; Add a Run Configuration for running 'rebar3 shell'
+;; in an integrated terminal in the client, running a given MFA
+;; NOTE: set the projectnode hostname in two places
+(dap-register-debug-template "Erlang Terminal MFA"
+                             (list :type "Erlang"
+                                   :runinterminal '("rebar3" "shell" "--name" "dapnode@alanzimm-mbp")
+                                   :projectnode "dapnode@alanzimm-mbp"
+                                   :module "daptoy_fact"
+                                   :function "fact"
+                                   ;; :function "dummy"
+                                   :args "[4]"
+                                   :name "Erlang::Terminal MFA"))
+
+
+
+
+
+(require 'dap-mode)
+
 ;; Show debug logs
 (setq dap-inhibit-io nil)
 (setq dap-print-io t)
