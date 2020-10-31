@@ -102,7 +102,9 @@ noop_group_leader() ->
       lager:info("noop_group_leader got [message=~p]", [Message]),
       case Message of
         {io_request, From, ReplyAs, getopts} ->
-          From ! {io_reply, ReplyAs, []};
+          %% We need to pass the underlying io opts, otherwise shell_docs does
+          %% not know which encoding to use. See #754
+          From ! {io_reply, ReplyAs, io:getopts()};
         {io_request, From, ReplyAs, _} ->
           From ! {io_reply, ReplyAs, ok};
         _ ->
