@@ -49,12 +49,7 @@ name() -> ?MODULE.
 
 -spec opts() -> proplists:proplist().
 opts() ->
-  [ {attributes        , record_info(fields, els_dt_signatures)}
-  , {disc_copies       , [node()]}
-  , {index             , []}
-  , {type              , set}
-  , {storage_properties, [{ets, []}]}
-  ].
+  [].
 
 %%==============================================================================
 %% API
@@ -73,7 +68,7 @@ to_item(#els_dt_signatures{ mfa = MFA, spec = Spec }) ->
 -spec insert(item()) -> ok | {error, any()}.
 insert(Map) when is_map(Map) ->
   Record = from_item(Map),
-  els_db:write(Record).
+  els_db:write(name(), Record).
 
 -spec lookup(mfa()) -> {ok, [item()]}.
 lookup(MFA) ->

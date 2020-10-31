@@ -54,13 +54,7 @@ name() -> ?MODULE.
 
 -spec opts() -> proplists:proplist().
 opts() ->
-  [ {attributes        , record_info(fields, els_dt_references)}
-  , {disc_copies       , [node()]}
-  , {index             , [#els_dt_references.uri]}
-  , {type              , bag}
-  , {storage_properties, [{ets, [ {read_concurrency, true}
-                                , {write_concurrency, true} ]}]}
-  ].
+  [bag].
 
 %%==============================================================================
 %% API
@@ -81,14 +75,12 @@ to_item(#els_dt_references{ id = {_Category, Id}, uri = Uri, range = Range }) ->
 -spec delete_by_uri(uri()) -> ok | {error, any()}.
 delete_by_uri(Uri) ->
   Pattern = #els_dt_references{uri = Uri, _ = '_'},
-  {ok, Items} = els_db:match(Pattern),
-  [ok = els_db:delete_object(Item) ||  Item <- Items],
-  ok.
+  ok = els_db:match_delete(name(), Pattern).
 
 -spec insert(poi_kind(), item()) -> ok | {error, any()}.
 insert(Kind, Map) when is_map(Map) ->
   Record = from_item(Kind, Map),
-  els_db:write(Record).
+  els_db:write(name(), Record).
 
 %% @doc Find all
 -spec find_all() -> {ok, [item()]} | {error, any()}.
@@ -105,7 +97,7 @@ find_by_id(Kind, Id) ->
 
 -spec find_by(tuple()) -> {ok, [item()]}.
 find_by(Pattern) ->
-  {ok, Items} = els_db:match(Pattern),
+  {ok, Items} = els_db:match(name(), Pattern),
   {ok, [to_item(Item) || Item <- Items]}.
 
 -spec kind_to_category(poi_kind()) -> function | type | macro | record.
