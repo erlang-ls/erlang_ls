@@ -50,7 +50,7 @@ name() -> ?MODULE.
 -spec opts() -> proplists:proplist().
 opts() ->
   [ {attributes        , record_info(fields, els_dt_signatures)}
-  , {disc_copies       , [node()]}
+  , {ram_copies        , [node()]}
   , {index             , []}
   , {type              , set}
   , {storage_properties, [{ets, []}]}

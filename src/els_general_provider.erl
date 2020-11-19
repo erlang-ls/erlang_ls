@@ -76,11 +76,8 @@ handle_request({initialize, Params}, State) ->
   NewState = State#{ root_uri => RootUri, init_options => InitOptions},
   {server_capabilities(), NewState};
 handle_request({initialized, _Params}, State) ->
-  #{root_uri := RootUri, init_options := InitOptions} = State,
-  DbDir = application:get_env(erlang_ls, db_dir, default_db_dir()),
-  OtpPath = els_config:get(otp_path),
-  NodeName = node_name(RootUri, els_utils:to_binary(OtpPath)),
-  els_db:install(NodeName, DbDir),
+  #{init_options := InitOptions} = State,
+  els_db:install(),
   case maps:get(<<"indexingEnabled">>, InitOptions, true) of
     true  -> els_indexing:start();
     false -> lager:info("Skipping Indexing (disabled via InitOptions)")
@@ -150,11 +147,3 @@ server_capabilities() ->
 %%==============================================================================
 %% Internal Functions
 %%==============================================================================
--spec node_name(uri(), binary()) -> atom().
-node_name(RootUri, OtpPath) ->
-  <<SHA:160/integer>> = crypto:hash(sha, <<RootUri/binary, OtpPath/binary>>),
-  list_to_atom(lists:flatten(io_lib:format("erlang_ls_~40.16.0b", [SHA]))).
-
--spec default_db_dir() -> string().
-default_db_dir() ->
-  filename:basedir(user_cache, "erlang_ls").
