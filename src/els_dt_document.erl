@@ -72,12 +72,7 @@ name() -> ?MODULE.
 
 -spec opts() -> proplists:proplist().
 opts() ->
-  [ {attributes        , record_info(fields, els_dt_document)}
-  , {disc_copies       , [node()]}
-  , {index             , []}
-  , {type              , set}
-  , {storage_properties, [{ets, []}]}
-  ].
+  [].
 
 %%==============================================================================
 %% API
@@ -118,7 +113,7 @@ to_item(#els_dt_document{ uri  = Uri
 -spec insert(item()) -> ok | {error, any()}.
 insert(Map) when is_map(Map) ->
   Record = from_item(Map),
-  els_db:write(Record).
+  els_db:write(name(), Record).
 
 -spec lookup(uri()) -> {ok, [item()]}.
 lookup(Uri) ->

@@ -15,6 +15,7 @@
         , wait_connect_and_monitor/2
         , rpc_call/3
         , rpc_call/4
+        , node_name/2
         ]).
 
 %%==============================================================================
@@ -166,3 +167,11 @@ wait_connect_and_monitor(Node, Attempts) ->
 ensure_epmd() ->
   0 = els_utils:cmd("epmd", ["-daemon"]),
   ok.
+
+-spec node_name(string(), binary()) -> atom().
+node_name(Prefix, Binary) ->
+  <<SHA:160/integer>> = crypto:hash(sha, Binary),
+  Int = erlang:unique_integer([positive]),
+  Id = lists:flatten(io_lib:format("~40.16.0b_~p", [SHA, Int])),
+  {ok, Hostname} = inet:gethostname(),
+  list_to_atom(Prefix ++ Id ++ "@" ++ Hostname).

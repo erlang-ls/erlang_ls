@@ -54,12 +54,7 @@ name() -> ?MODULE.
 
 -spec opts() -> proplists:proplist().
 opts() ->
-  [ {attributes        , record_info(fields, els_dt_document_index)}
-  , {disc_copies       , [node()]}
-  , {index             , [#els_dt_document_index.kind]}
-  , {type              , bag}
-  , {storage_properties, [{ets, []}]}
-  ].
+  [bag].
 
 %%==============================================================================
 %% API
@@ -76,7 +71,7 @@ to_item(#els_dt_document_index{id = Id, uri = Uri, kind = Kind}) ->
 -spec insert(item()) -> ok | {error, any()}.
 insert(Map) when is_map(Map) ->
   Record = from_item(Map),
-  els_db:write(Record).
+  els_db:write(name(), Record).
 
 -spec lookup(atom()) -> {ok, [item()]}.
 lookup(Id) ->
@@ -86,7 +81,7 @@ lookup(Id) ->
 -spec find_by_kind(els_dt_document:kind()) -> {ok, [item()]}.
 find_by_kind(Kind) ->
   Pattern = #els_dt_document_index{kind = Kind, _ = '_'},
-  {ok, Items} = els_db:match(Pattern),
+  {ok, Items} = els_db:match(name(), Pattern),
   {ok, [to_item(Item) || Item <- Items]}.
 
 -spec new(atom(), uri(), els_dt_document:kind()) -> item().

@@ -58,20 +58,18 @@ end_per_testcase(_TestCase, Config) ->
 %% Testcases
 %%==============================================================================
 -spec index_otp(config()) -> ok.
-index_otp(Config) ->
-  index_otp(db, ?config(priv_dir, Config)).
+index_otp(_Config) ->
+  do_index_otp().
 
 -spec reindex_otp(config()) -> ok.
-reindex_otp(Config) ->
-  index_otp(db, ?config(priv_dir, Config)),
+reindex_otp(_Config) ->
+  do_index_otp(),
   ok.
 
--spec index_otp(atom(), string()) -> ok.
-index_otp(DBName, DBDir) ->
-  ok = els_db:install(DBName, DBDir),
+-spec do_index_otp() -> ok.
+do_index_otp() ->
   [els_indexing:index_dir(Dir, 'shallow') || Dir <- els_config:get(otp_paths)],
-  els_db:dump_tables(),
-  ok = els_db:stop().
+  ok.
 
 -spec otp_apps_exclude() -> [string()].
 otp_apps_exclude() ->

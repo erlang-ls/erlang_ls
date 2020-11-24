@@ -168,7 +168,6 @@ resolve_paths(PathSpecs, RootPath, Recursive) ->
 
 -spec halt(non_neg_integer()) -> ok.
 halt(ExitCode) ->
-  els_db:stop(),
   ok = init:stop(ExitCode).
 
 %% @doc Returns a project-relative file path for a given URI

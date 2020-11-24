@@ -66,7 +66,7 @@ handle_request({<<"launch">>, Params}, State) ->
 
   ProjectNode = case Params of
                   #{ <<"projectnode">> := Node } -> binary_to_atom(Node, utf8);
-                  _ -> node_name("dap_project_", Cwd)
+                  _ -> els_distribution_server:node_name("dap_project_", Cwd)
                 end,
   case Params of
     #{ <<"runinterminal">> := Cmd
@@ -86,7 +86,7 @@ handle_request({<<"launch">>, Params}, State) ->
                 els_utils:cmd("rebar3", ["shell", "--name", ProjectNode]) end)
   end,
 
-  LocalNode = node_name("dap_", Cwd),
+  LocalNode = els_distribution_server:node_name("dap_", Cwd),
   els_distribution_server:start_distribution(LocalNode),
   lager:info("Distribution up on: [~p]", [LocalNode]),
 
@@ -262,13 +262,6 @@ inject_dap_agent(Node) ->
   {Module, Bin, File} = code:get_object_code(Module),
   {_Replies, _} = els_dap_rpc:load_binary(Node, Module, File, Bin),
   ok.
-
--spec node_name(string(), binary()) -> atom().
-node_name(Prefix, Binary) ->
-  <<SHA:160/integer>> = crypto:hash(sha, Binary),
-  Id = lists:flatten(io_lib:format("~40.16.0b", [SHA])),
-  {ok, Hostname} = inet:gethostname(),
-  list_to_atom(Prefix ++ Id ++ "@" ++ Hostname).
 
 -spec id(pid()) -> integer().
 id(Pid) ->
