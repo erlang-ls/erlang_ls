@@ -67,13 +67,16 @@ make_diagnostic(#{range := Range, id := Id}) ->
 
 -spec has_definition(poi(), els_dt_document:item()) -> boolean().
 has_definition(#{ kind := application
-                , id := {erlang, module_info, 0} }, _) -> true;
+                , id := {module_info, 0} }, _) -> true;
 has_definition(#{ kind := application
-                , id := {erlang, module_info, 1} }, _) -> true;
+                , id := {module_info, 1} }, _) -> true;
 has_definition(#{ kind := application
                 , id := {record_info, 2} }, _) -> true;
 has_definition(#{ kind := application
                 , id := {behaviour_info, 1} }, _) -> true;
+has_definition(#{ kind := application
+                , id := {lager, Level, Arity} }, _) ->
+  lager_definition(Level, Arity);
 has_definition(POI, #{uri := Uri}) ->
   case els_code_navigation:goto_definition(Uri, POI) of
     {ok, _Uri, _POI} ->
@@ -81,3 +84,12 @@ has_definition(POI, #{uri := Uri}) ->
     {error, _Error} ->
       false
   end.
+
+-spec lager_definition(atom(), integer()) -> boolean().
+lager_definition(Level, Arity) when Arity =:= 1 orelse Arity =:= 2 ->
+  lists:member(Level, lager_levels());
+lager_definition(_, _) -> false.
+
+-spec lager_levels() -> [atom()].
+lager_levels() ->
+ [debug, info, notice, warning, error, critical, alert, emergency].

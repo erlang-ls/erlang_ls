@@ -9,4 +9,24 @@ main() ->
   module_info(),
   module_info(module),
   ?MODULE:behaviour_info(callbacks),
+  lager:debug("log message", []),
+  lager:info("log message", []),
+  lager:notice("log message", []),
+  lager:warning("log message", []),
+  lager:error("log message", []),
+  lager:critical("log message", []),
+  lager:alert("log message", []),
+  lager:emergency("log message", []),
+
+  lager:debug("log message"),
+  lager:info("log message"),
+  lager:notice("log message"),
+  lager:warning("log message"),
+  lager:error("log message"),
+  lager:critical("log message"),
+  lager:alert("log message"),
+  lager:emergency("log message"),
+
+  % At lease one failure so we know the diagnostic is running
+  unknown_module:nonexistent(),
   ok.
