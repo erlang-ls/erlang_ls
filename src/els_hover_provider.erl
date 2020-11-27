@@ -83,7 +83,7 @@ documentation(_M, _POI) ->
 -ifdef(OTP_RELEASE).
 -if(?OTP_RELEASE >= 23).
 get_docs(M, F, A) ->
-  try code:get_doc(M) of
+  try get_doc_chunk(M) of
     {ok, #docs_v1{ format = ?NATIVE_FORMAT
                  , module_doc = MDoc
                  } = DocChunk} when MDoc =/= none ->
@@ -97,13 +97,35 @@ get_docs(M, F, A) ->
       end;
     _R1 ->
       docs_from_src(M, F, A)
-  catch C:E ->
+  catch C:E:ST ->
       %% code:get_doc/1 fails for escriptized modules, so fall back
       %% reading docs from source. See #751 for details
-      Fmt = "Error fetching docs, falling back to src. module=~p error=~p:~p",
-      Args = [M, C, E],
+      Fmt = "Error fetching docs, falling back to src."
+        " module=~p error=~p:~p st=~p",
+      Args = [M, C, E, ST],
       lager:warning(Fmt, Args),
       docs_from_src(M, F, A)
+  end.
+
+%% This function first tries to read the doc chunk from the .beam file
+%% and if that fails it attempts to find the .chunk file.
+-spec get_doc_chunk(M :: module()) -> {ok, term()} | error.
+get_doc_chunk(M) ->
+  {ok, Uri} = els_utils:find_module(M),
+  SrcDir    = filename:dirname(els_utils:to_list(els_uri:path(Uri))),
+  BeamFile  = filename:join([SrcDir, "..", "ebin", lists:concat([M, ".beam"])]),
+  ChunkFile = filename:join([SrcDir, "..", "doc", "chunks",
+                             lists:concat([M, ".chunk"])]),
+  case beam_lib:chunks(BeamFile, ["Docs"]) of
+    {ok, {_Mod, [{"Docs", Bin}]}} ->
+        {ok, binary_to_term(Bin)};
+    _ ->
+      case file:read_file(ChunkFile) of
+        {ok, Bin} ->
+          {ok, binary_to_term(Bin)};
+        _ ->
+          error
+      end
   end.
 -else.
 get_docs(M, F, A) ->
