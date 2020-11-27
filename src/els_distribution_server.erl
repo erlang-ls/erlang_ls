@@ -168,10 +168,9 @@ ensure_epmd() ->
   0 = els_utils:cmd("epmd", ["-daemon"]),
   ok.
 
--spec node_name(string(), binary()) -> atom().
-node_name(Prefix, Binary) ->
-  <<SHA:160/integer>> = crypto:hash(sha, Binary),
-  Int = erlang:unique_integer([positive]),
-  Id = lists:flatten(io_lib:format("~40.16.0b_~p", [SHA, Int])),
+-spec node_name(binary(), binary()) -> atom().
+node_name(Prefix, Name) ->
+  Int = erlang:phash2(erlang:timestamp()),
+  Id = lists:flatten(io_lib:format("~s_~s_~p", [Prefix, Name, Int])),
   {ok, Hostname} = inet:gethostname(),
-  list_to_atom(Prefix ++ Id ++ "@" ++ Hostname).
+  list_to_atom(Id ++ "@" ++ Hostname).
