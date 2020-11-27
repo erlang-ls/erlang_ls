@@ -160,6 +160,7 @@ sources() ->
   , diagnostics_parse_transform_usage_broken
   , diagnostics_parse_transform_usage_included
   , diagnostics_xref
+  , diagnostics_xref_pseudo
   , elvis_diagnostics
   , format_input
   , my_gen_server

@@ -27,6 +27,7 @@
         , escript_warnings/1
         , escript_errors/1
         , xref/1
+        , xref_pseudo_functions/1
         ]).
 
 %%==============================================================================
@@ -75,6 +76,11 @@ init_per_testcase(xref, Config) ->
   meck:expect(els_xref_diagnostics, is_default, 0, true),
   els_mock_diagnostics:setup(),
   els_test_utils:init_per_testcase(xref, Config);
+init_per_testcase(xref_pseudo_functions, Config) ->
+  meck:new(els_xref_diagnostics, [passthrough, no_link]),
+  meck:expect(els_xref_diagnostics, is_default, 0, true),
+  els_mock_diagnostics:setup(),
+  els_test_utils:init_per_testcase(xref_pseudo_functions, Config);
 init_per_testcase(TestCase, Config) ->
   els_mock_diagnostics:setup(),
   els_test_utils:init_per_testcase(TestCase, Config).
@@ -88,6 +94,11 @@ end_per_testcase(TestCase, Config) when TestCase =:= code_reload orelse
 end_per_testcase(xref, Config) ->
   meck:unload(els_xref_diagnostics),
   els_test_utils:end_per_testcase(xref, Config),
+  els_mock_diagnostics:teardown(),
+  ok;
+end_per_testcase(xref_pseudo_functions, Config) ->
+  meck:unload(els_xref_diagnostics),
+  els_test_utils:end_per_testcase(xref_pseudo_functions, Config),
   els_mock_diagnostics:teardown(),
   ok;
 end_per_testcase(TestCase, Config) ->
@@ -412,6 +423,24 @@ xref(Config) ->
                 , source => <<"Compiler">>
                 }
              ],
+  F = fun(#{message := M1}, #{message := M2}) -> M1 =< M2 end,
+  ?assertEqual(Expected, lists:sort(F, Diagnostics)),
+  ok.
+
+%% #641
+-spec xref_pseudo_functions(config()) -> ok.
+xref_pseudo_functions(Config) ->
+  Uri = ?config(diagnostics_xref_pseudo_uri, Config),
+  els_mock_diagnostics:subscribe(),
+  ok = els_client:did_save(Uri),
+  Diagnostics = els_mock_diagnostics:wait_until_complete(),
+  Expected =
+    [#{message =>
+         <<"Cannot find definition for function unknown_module:nonexistent/0">>,
+       range =>
+         #{'end' => #{character => 28, line => 30},
+           start => #{character => 2, line => 30}},
+       severity => 1, source => <<"XRef">>}],
   F = fun(#{message := M1}, #{message := M2}) -> M1 =< M2 end,
   ?assertEqual(Expected, lists:sort(F, Diagnostics)),
   ok.
