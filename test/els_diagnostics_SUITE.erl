@@ -26,8 +26,8 @@
         , escript/1
         , escript_warnings/1
         , escript_errors/1
-        , xref/1
-        , xref_pseudo_functions/1
+        , crossref/1
+        , crossref_pseudo_functions/1
         , unused_includes/1
         ]).
 
@@ -72,16 +72,16 @@ init_per_testcase(TestCase, Config) when TestCase =:= code_reload orelse
   mock_rpc(),
   mock_code_reload_enabled(),
   els_test_utils:init_per_testcase(TestCase, Config);
-init_per_testcase(xref, Config) ->
-  meck:new(els_xref_diagnostics, [passthrough, no_link]),
-  meck:expect(els_xref_diagnostics, is_default, 0, true),
+init_per_testcase(crossref, Config) ->
+  meck:new(els_crossref_diagnostics, [passthrough, no_link]),
+  meck:expect(els_crossref_diagnostics, is_default, 0, true),
   els_mock_diagnostics:setup(),
-  els_test_utils:init_per_testcase(xref, Config);
-init_per_testcase(xref_pseudo_functions, Config) ->
-  meck:new(els_xref_diagnostics, [passthrough, no_link]),
-  meck:expect(els_xref_diagnostics, is_default, 0, true),
+  els_test_utils:init_per_testcase(crossref, Config);
+init_per_testcase(crossref_pseudo_functions, Config) ->
+  meck:new(els_crossref_diagnostics, [passthrough, no_link]),
+  meck:expect(els_crossref_diagnostics, is_default, 0, true),
   els_mock_diagnostics:setup(),
-  els_test_utils:init_per_testcase(xref_pseudo_functions, Config);
+  els_test_utils:init_per_testcase(crossref_pseudo_functions, Config);
 init_per_testcase(unused_includes, Config) ->
   meck:new(els_unused_includes_diagnostics, [passthrough, no_link]),
   meck:expect(els_unused_includes_diagnostics, is_default, 0, true),
@@ -97,14 +97,14 @@ end_per_testcase(TestCase, Config) when TestCase =:= code_reload orelse
   unmock_rpc(),
   unmock_code_reload_enabled(),
   els_test_utils:end_per_testcase(TestCase, Config);
-end_per_testcase(xref, Config) ->
-  meck:unload(els_xref_diagnostics),
-  els_test_utils:end_per_testcase(xref, Config),
+end_per_testcase(crossref, Config) ->
+  meck:unload(els_crossref_diagnostics),
+  els_test_utils:end_per_testcase(crossref, Config),
   els_mock_diagnostics:teardown(),
   ok;
-end_per_testcase(xref_pseudo_functions, Config) ->
-  meck:unload(els_xref_diagnostics),
-  els_test_utils:end_per_testcase(xref_pseudo_functions, Config),
+end_per_testcase(crossref_pseudo_functions, Config) ->
+  meck:unload(els_crossref_diagnostics),
+  els_test_utils:end_per_testcase(crossref_pseudo_functions, Config),
   els_mock_diagnostics:teardown(),
   ok;
 end_per_testcase(unused_includes, Config) ->
@@ -405,8 +405,8 @@ code_reload_sticky_mod(Config) ->
   ?assertNot(meck:called(rpc, call, ['fakenode', c, c, [Module]])),
   ok.
 
--spec xref(config()) -> ok.
-xref(Config) ->
+-spec crossref(config()) -> ok.
+crossref(Config) ->
   Uri = ?config(diagnostics_xref_uri, Config),
   els_mock_diagnostics:subscribe(),
   ok = els_client:did_save(Uri),
@@ -416,14 +416,14 @@ xref(Config) ->
                 , range =>
                     #{ 'end' => #{character => 11, line => 5}
                      , start => #{character => 2, line => 5}}
-                , severity => 1, source => <<"XRef">>}
+                , severity => 1, source => <<"CrossRef">>}
              , #{ message =>
                     <<"Cannot find definition for function non_existing/0">>
                 , range =>
                     #{ 'end' => #{character => 14, line => 6}
                      , start => #{character => 2, line => 6}}
                 , severity => 1
-                , source => <<"XRef">>
+                , source => <<"CrossRef">>
                 }
              , #{ message =>
                     <<"function non_existing/0 undefined">>
@@ -439,8 +439,8 @@ xref(Config) ->
   ok.
 
 %% #641
--spec xref_pseudo_functions(config()) -> ok.
-xref_pseudo_functions(Config) ->
+-spec crossref_pseudo_functions(config()) -> ok.
+crossref_pseudo_functions(Config) ->
   Uri = ?config(diagnostics_xref_pseudo_uri, Config),
   els_mock_diagnostics:subscribe(),
   ok = els_client:did_save(Uri),
@@ -451,7 +451,7 @@ xref_pseudo_functions(Config) ->
        range =>
          #{'end' => #{character => 28, line => 30},
            start => #{character => 2, line => 30}},
-       severity => 1, source => <<"XRef">>}],
+       severity => 1, source => <<"CrossRef">>}],
   F = fun(#{message := M1}, #{message := M2}) -> M1 =< M2 end,
   ?assertEqual(Expected, lists:sort(F, Diagnostics)),
   ok.
