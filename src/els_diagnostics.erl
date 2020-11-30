@@ -60,6 +60,7 @@ available_diagnostics() ->
   , <<"dialyzer">>
   , <<"elvis">>
   , <<"xref">>
+  , <<"unused_includes">>
   ].
 
 -spec default_diagnostics() -> [diagnostic_id()].

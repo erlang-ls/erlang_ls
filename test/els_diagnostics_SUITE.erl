@@ -28,6 +28,7 @@
         , escript_errors/1
         , xref/1
         , xref_pseudo_functions/1
+        , unused_includes/1
         ]).
 
 %%==============================================================================
@@ -81,6 +82,11 @@ init_per_testcase(xref_pseudo_functions, Config) ->
   meck:expect(els_xref_diagnostics, is_default, 0, true),
   els_mock_diagnostics:setup(),
   els_test_utils:init_per_testcase(xref_pseudo_functions, Config);
+init_per_testcase(unused_includes, Config) ->
+  meck:new(els_unused_includes_diagnostics, [passthrough, no_link]),
+  meck:expect(els_unused_includes_diagnostics, is_default, 0, true),
+  els_mock_diagnostics:setup(),
+  els_test_utils:init_per_testcase(unused_includes, Config);
 init_per_testcase(TestCase, Config) ->
   els_mock_diagnostics:setup(),
   els_test_utils:init_per_testcase(TestCase, Config).
@@ -99,6 +105,11 @@ end_per_testcase(xref, Config) ->
 end_per_testcase(xref_pseudo_functions, Config) ->
   meck:unload(els_xref_diagnostics),
   els_test_utils:end_per_testcase(xref_pseudo_functions, Config),
+  els_mock_diagnostics:teardown(),
+  ok;
+end_per_testcase(unused_includes, Config) ->
+  meck:unload(els_unused_includes_diagnostics),
+  els_test_utils:end_per_testcase(unused_includes, Config),
   els_mock_diagnostics:teardown(),
   ok;
 end_per_testcase(TestCase, Config) ->
@@ -441,6 +452,29 @@ xref_pseudo_functions(Config) ->
          #{'end' => #{character => 28, line => 30},
            start => #{character => 2, line => 30}},
        severity => 1, source => <<"XRef">>}],
+  F = fun(#{message := M1}, #{message := M2}) -> M1 =< M2 end,
+  ?assertEqual(Expected, lists:sort(F, Diagnostics)),
+  ok.
+
+-spec unused_includes(config()) -> ok.
+unused_includes(Config) ->
+  Uri = ?config(diagnostics_unused_includes_uri, Config),
+  els_mock_diagnostics:subscribe(),
+  ok = els_client:did_save(Uri),
+  Diagnostics = els_mock_diagnostics:wait_until_complete(),
+  Expected = [ #{ message => <<"Unused file: et.hrl">>
+                , range =>
+                    #{ 'end' => #{ character => 34
+                                 , line => 3
+                                 }
+                     , start => #{ character => 0
+                                 , line => 3
+                                 }
+                     }
+                , severity => 2
+                , source => <<"UnusedIncludes">>
+                }
+             ],
   F = fun(#{message := M1}, #{message := M2}) -> M1 =< M2 end,
   ?assertEqual(Expected, lists:sort(F, Diagnostics)),
   ok.

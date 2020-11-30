@@ -7,6 +7,7 @@
 %% Exports
 %%==============================================================================
 -export([ dependencies/1
+        , included_uris/1
         ]).
 %%==============================================================================
 %% Includes
@@ -16,6 +17,11 @@
 -spec dependencies(uri()) -> [atom()].
 dependencies(Uri) ->
   dependencies([Uri], [], sets:new()).
+
+-spec included_uris(els_dt_document:item()) -> [uri()].
+included_uris(Document) ->
+  POIs = els_dt_document:pois(Document, [include, include_lib]),
+  included_uris([Id || #{id := Id} <- POIs], []).
 
 %%==============================================================================
 %% Internal Functions
@@ -36,11 +42,6 @@ dependencies([Uri|Uris], Acc, AlreadyProcessed) ->
       lager:info("Lookup failed [Error=~p]", [Error]),
       []
   end.
-
--spec included_uris(els_dt_document:item()) -> [uri()].
-included_uris(Document) ->
-  POIs = els_dt_document:pois(Document, [include, include_lib]),
-  included_uris([Id || #{id := Id} <- POIs], []).
 
 -spec included_uris([atom()], [uri()]) -> [uri()].
 included_uris([], Acc) ->
