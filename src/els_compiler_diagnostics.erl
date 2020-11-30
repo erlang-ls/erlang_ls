@@ -16,6 +16,10 @@
 %% identity function for our own diagnostics
 -export([ format_error/1 ]).
 
+-export([ inclusion_range/2
+        , inclusion_range/3
+        ]).
+
 %%==============================================================================
 %% Includes
 %%==============================================================================
@@ -241,7 +245,9 @@ include_lib_id(Path) ->
   Length     = length(Components),
   End        = Length - 1,
   Beginning  = max(1, Length - 2),
-  filename:join(lists:sublist(Components, Beginning, End)).
+  [H|T]      = lists:sublist(Components, Beginning, End),
+  %% Strip the app version number from the path
+  filename:join([re:replace(H, "-.*", "", [{return, list}])], filename:join(T)).
 
 -spec macro_options() -> [macro_option()].
 macro_options() ->

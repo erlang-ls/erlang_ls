@@ -579,6 +579,7 @@
                    | include_lib
                    | macro
                    | module
+                   | parse_transform
                    | record
                    | record_access
                    | record_expr
