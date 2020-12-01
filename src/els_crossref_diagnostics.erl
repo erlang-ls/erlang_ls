@@ -1,7 +1,8 @@
 %%==============================================================================
-%% Xref diagnostics
+%% Crossref diagnostics
+%% Like xref, but using the internal indexing results
 %%==============================================================================
--module(els_xref_diagnostics).
+-module(els_crossref_diagnostics).
 
 %%==============================================================================
 %% Behaviours
@@ -45,7 +46,7 @@ run(Uri) ->
 
 -spec source() -> binary().
 source() ->
-  <<"XRef">>.
+  <<"CrossRef">>.
 
 %%==============================================================================
 %% Internal Functions

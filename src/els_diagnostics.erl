@@ -57,9 +57,9 @@
 -spec available_diagnostics() -> [diagnostic_id()].
 available_diagnostics() ->
   [ <<"compiler">>
+  , <<"crossref">>
   , <<"dialyzer">>
   , <<"elvis">>
-  , <<"xref">>
   , <<"unused_includes">>
   ].
 
