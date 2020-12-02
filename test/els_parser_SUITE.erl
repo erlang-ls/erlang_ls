@@ -11,6 +11,8 @@
         , parse_invalid_code/1
         , underscore_macro/1
         , specs_with_record/1
+        , types_with_record/1
+        , types_with_types/1
         ]).
 
 %%==============================================================================
@@ -73,5 +75,23 @@ specs_with_record(_Config) ->
   Text = "-record(bar, {a, b}). -spec foo(#bar{}) -> any().",
   {ok, POIs} = els_parser:parse(Text),
   Spec = [POI || #{id := bar, kind := record_expr} = POI <- POIs],
+  ?assertEqual(1, length(Spec)),
+  ok.
+
+%% Issue #818
+-spec types_with_record(config()) -> ok.
+types_with_record(_Config) ->
+  Text = "-record(bar, {a, b}). -type foo() :: #bar{}.",
+  {ok, POIs} = els_parser:parse(Text),
+  Spec = [POI || #{id := bar, kind := record_expr} = POI <- POIs],
+  ?assertEqual(1, length(Spec)),
+  ok.
+
+%% Issue #818
+-spec types_with_types(config()) -> ok.
+types_with_types(_Config) ->
+  Text = "-type bar() :: {a,b}. -type foo() :: bar().",
+  {ok, POIs} = els_parser:parse(Text),
+  Spec = [POI || #{id := {bar, 0}, kind := type_application} = POI <- POIs],
   ?assertEqual(1, length(Spec)),
   ok.
