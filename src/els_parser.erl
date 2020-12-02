@@ -147,6 +147,8 @@ do_find_spec_points_of_interest(Tree, Acc) ->
     {true, {type, _, {type, Type}, Args}} ->
       Id = {Type, length(Args)},
       [poi(Pos, type_application, Id)|Acc];
+    {true, {type, _, record, [{atom, _, Name}]}} ->
+      [poi(Pos, record_expr, Name)|Acc];
     {true, {user_type, _, Type, Args}} ->
       Id = {Type, length(Args)},
       [poi(Pos, type_application, Id)|Acc];
@@ -408,7 +410,7 @@ node_name(Tree) ->
 -spec is_type_application(tree()) -> boolean().
 is_type_application(Tree) ->
   Type  = erl_syntax:type(Tree),
-  Types = [type_application, user_type_application],
+  Types = [type_application, user_type_application, record_type],
   lists:member(Type, Types).
 
 -spec poi(pos() | {pos(), pos()}, poi_kind(), any()) -> poi().

@@ -10,6 +10,7 @@
 -export([ specs_location/1
         , parse_invalid_code/1
         , underscore_macro/1
+        , specs_with_record/1
         ]).
 
 %%==============================================================================
@@ -64,4 +65,13 @@ underscore_macro(_Config) ->
                els_parser:parse("?_.")),
   ?assertMatch({ok, []},
                els_parser:parse("?_(ok).")),
+  ok.
+
+%% Issue #815
+-spec specs_with_record(config()) -> ok.
+specs_with_record(_Config) ->
+  Text = "-record(bar, {a, b}). -spec foo(#bar{}) -> any().",
+  {ok, POIs} = els_parser:parse(Text),
+  Spec = [POI || #{id := bar, kind := record_expr} = POI <- POIs],
+  ?assertEqual(1, length(Spec)),
   ok.
