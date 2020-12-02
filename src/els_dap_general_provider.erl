@@ -63,11 +63,12 @@ handle_request({<<"initialize">>, _Params}, State) ->
 handle_request({<<"launch">>, Params}, State) ->
   #{<<"cwd">> := Cwd} = Params,
   ok = file:set_cwd(Cwd),
-
-  ProjectNode = case Params of
-                  #{ <<"projectnode">> := Node } -> binary_to_atom(Node, utf8);
-                  _ -> els_distribution_server:node_name("dap_project_", Cwd)
-                end,
+  Name = filename:basename(Cwd),
+  ProjectNode =
+    case Params of
+      #{ <<"projectnode">> := Node } -> binary_to_atom(Node, utf8);
+      _ -> els_distribution_server:node_name(<<"erlang_ls_dap_project">>, Name)
+    end,
   case Params of
     #{ <<"runinterminal">> := Cmd
      } ->
@@ -85,8 +86,7 @@ handle_request({<<"launch">>, Params}, State) ->
       spawn(fun() ->
                 els_utils:cmd("rebar3", ["shell", "--name", ProjectNode]) end)
   end,
-
-  LocalNode = els_distribution_server:node_name("dap_", Cwd),
+  LocalNode = els_distribution_server:node_name(<<"erlang_ls_dap">>, Name),
   els_distribution_server:start_distribution(LocalNode),
   lager:info("Distribution up on: [~p]", [LocalNode]),
 

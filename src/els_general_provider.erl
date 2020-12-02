@@ -77,9 +77,8 @@ handle_request({initialize, Params}, State) ->
   {server_capabilities(), NewState};
 handle_request({initialized, _Params}, State) ->
   #{root_uri := RootUri, init_options := InitOptions} = State,
-  OtpPath = els_utils:to_binary(els_config:get(otp_path)),
-  Binary = <<RootUri/binary, OtpPath/binary>>,
-  NodeName = els_distribution_server:node_name("els_", Binary),
+  NodeName = els_distribution_server:node_name( <<"erlang_ls">>
+                                              , filename:basename(RootUri)),
   els_distribution_server:start_distribution(NodeName),
   lager:info("Started distribution for: [~p]", [NodeName]),
   case maps:get(<<"indexingEnabled">>, InitOptions, true) of
