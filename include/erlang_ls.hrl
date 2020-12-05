@@ -573,6 +573,7 @@
                    | export_type_entry
                    | folding_range
                    | function
+                   | function_clause
                    | implicit_fun
                    | import_entry
                    | include

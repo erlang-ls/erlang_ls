@@ -140,6 +140,8 @@ server_capabilities() ->
             els_execute_command_provider:options()
         , codeLensProvider =>
             els_code_lens_provider:options()
+        , renameProvider =>
+            els_rename_provider:is_enabled()
         },
      serverInfo =>
        #{ name    => <<"Erlang LS">>
