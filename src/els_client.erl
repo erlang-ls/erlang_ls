@@ -43,6 +43,7 @@
         , document_formatting/3
         , document_rangeformatting/3
         , document_ontypeformatting/4
+        , document_rename/4
         , folding_range/1
         , shutdown/0
         , start_link/2
@@ -158,6 +159,11 @@ document_rangeformatting(Uri, Range, FormattingOptions) ->
 document_ontypeformatting(Uri, Position, Char, FormattingOptions) ->
   gen_server:call(?SERVER, {document_ontypeformatting,
                             {Uri, Position, Char, FormattingOptions}}).
+
+-spec document_rename(uri(), non_neg_integer(), non_neg_integer(), binary()) ->
+        ok.
+document_rename(Uri, Line, Character, NewName) ->
+  gen_server:call(?SERVER, {rename, {Uri, Line, Character, NewName}}).
 
 -spec did_open(uri(), binary(), number(), binary()) -> ok.
 did_open(Uri, LanguageId, Version, Text) ->
@@ -379,6 +385,7 @@ method_lookup(document_codelens)        -> <<"textDocument/codeLens">>;
 method_lookup(document_formatting)      -> <<"textDocument/formatting">>;
 method_lookup(document_rangeformatting) -> <<"textDocument/rangeFormatting">>;
 method_lookup(document_ontypeormatting) -> <<"textDocument/onTypeFormatting">>;
+method_lookup(rename)                   -> <<"textDocument/rename">>;
 method_lookup(did_open)                 -> <<"textDocument/didOpen">>;
 method_lookup(did_save)                 -> <<"textDocument/didSave">>;
 method_lookup(did_close)                -> <<"textDocument/didClose">>;
@@ -433,6 +440,13 @@ request_params({ document_formatting
    , options      => #{ tabSize      => TabSize
                       , insertSpaces => InsertSpaces
                       }
+   };
+request_params({rename, {Uri, Line, Character, NewName}}) ->
+  #{ textDocument => #{ uri => Uri }
+   , position     => #{ line      => Line
+                      , character => Character
+                      }
+   , newName      => NewName
    };
 request_params({folding_range, {Uri}}) ->
   TextDocument = #{ uri => Uri },

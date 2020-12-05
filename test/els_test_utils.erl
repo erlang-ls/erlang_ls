@@ -165,6 +165,9 @@ sources() ->
   , elvis_diagnostics
   , format_input
   , my_gen_server
+  , rename
+  , rename_usage1
+  , rename_usage2
   ].
 
 tests() ->

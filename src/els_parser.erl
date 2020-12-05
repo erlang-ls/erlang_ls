@@ -289,8 +289,12 @@ type_args(Args) ->
 
 -spec function(tree(), erl_anno:location()) -> [poi()].
 function(Tree, {EndLine, _} = _EndLocation) ->
-  {F, A}         = erl_syntax_lib:analyze_function(Tree),
-  Args           = function_args(Tree, A),
+  {F, A} = erl_syntax_lib:analyze_function(Tree),
+  Clauses = erl_syntax:function_clauses(Tree),
+  IndexedClauses = lists:zip(lists:seq(1, length(Clauses)), Clauses),
+  ClausesPOIs = [ poi(erl_syntax:get_pos(Clause), function_clause, {F, A, I})
+                  || {I, Clause} <- IndexedClauses],
+  Args = function_args(hd(Clauses), A),
   {StartLine, _} = StartLocation = erl_syntax:get_pos(Tree),
   %% It only makes sense to fold a function if the function contains
   %% at least one line apart from its signature.
@@ -303,11 +307,13 @@ function(Tree, {EndLine, _} = _EndLocation) ->
                     false ->
                       []
                   end,
-  [ poi(StartLocation, function, {F, A}, Args) | FoldingRanges ].
+  lists:append([ [ poi(StartLocation, function, {F, A}, Args) ]
+               , FoldingRanges
+               , ClausesPOIs
+               ]).
 
 -spec function_args(tree(), arity()) -> [{integer(), string()}].
-function_args(Tree, Arity) ->
-  Clause   = hd(erl_syntax:function_clauses(Tree)),
+function_args(Clause, Arity) ->
   Patterns = erl_syntax:clause_patterns(Clause),
   [ case erl_syntax:type(P) of
       variable -> {N, erl_syntax:variable_literal(P)};

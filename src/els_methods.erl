@@ -27,6 +27,7 @@
         , workspace_didchangeconfiguration/2
         , textdocument_codeaction/2
         , textdocument_codelens/2
+        , textdocument_rename/2
         , workspace_executecommand/2
         , workspace_didchangewatchedfiles/2
         , workspace_symbol/2
@@ -356,6 +357,16 @@ textdocument_codeaction(Params, State) ->
 textdocument_codelens(Params, State) ->
   Provider = els_code_lens_provider,
   Response = els_provider:handle_request(Provider, {document_codelens, Params}),
+  {response, Response, State}.
+
+%%==============================================================================
+%% textDocument/rename
+%%==============================================================================
+
+-spec textdocument_rename(params(), state()) -> result().
+textdocument_rename(Params, State) ->
+  Provider = els_rename_provider,
+  Response = els_provider:handle_request(Provider, {rename, Params}),
   {response, Response, State}.
 
 %%==============================================================================
