@@ -99,6 +99,8 @@ find_attribute_pois(Tree, Tokens) ->
               || {{F, A}, {atom, Pos, _}} <- lists:zip(Exports, Atoms)
             ],
           [find_attribute_tokens(Tokens), ExportTypeEntries];
+        {type, Type} ->
+          type_to_poi(Type);
         _ -> []
       catch
         throw:syntax_error ->
@@ -107,6 +109,14 @@ find_attribute_pois(Tree, Tokens) ->
     _ ->
       []
   end.
+
+-spec type_to_poi(tree()) -> [poi()].
+type_to_poi({type, {_, {type, Pos, record, [{atom, _, RecordName}]}, _}}) ->
+  [poi(Pos, record_expr, RecordName)];
+type_to_poi({type, {_, {user_type, Pos, Name, Args}, _}}) ->
+  [poi(Pos, type_application, {Name, length(Args)})];
+type_to_poi(_) ->
+  [].
 
 %% @doc Resolve POI for specific sections
 %%
