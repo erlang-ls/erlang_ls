@@ -105,7 +105,10 @@ find_in_document([Uri|Uris0], Document, Kind, Data, AlreadyVisited) ->
         {ok, U, P} -> {ok, U, P};
         {error, not_found} ->
           find(lists:usort(include_uris(Document) ++ Uris0), Kind, Data,
-               AlreadyVisited)
+               AlreadyVisited);
+        {error, Other} ->
+          lager:info("find_in_document: [{Uri, error}]", [{Uri, Other}]),
+          {error, not_found}
       end;
     Definitions ->
       {ok, Uri, hd(els_poi:sort(Definitions))}
@@ -129,7 +132,7 @@ beginning() ->
 
 %% @doc check for a match in any of the module imported functions.
 -spec maybe_imported(els_dt_document:item(), poi_kind(), any()) ->
-        {ok, uri(), poi()} | {error, not_found}.
+        {ok, uri(), poi()} | {error, any()}.
 maybe_imported(Document, function, {F, A}) ->
   POIs = els_dt_document:pois(Document, [import_entry]),
   case [{M, F, A} || #{id := {M, FP, AP}} <- POIs, FP =:= F, AP =:= A] of
