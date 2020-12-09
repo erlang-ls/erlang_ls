@@ -45,7 +45,16 @@ handle_request({rename, Params}, State) ->
 -spec workspace_edits(uri(), [poi()], binary()) -> null | [any()].
 workspace_edits(_Uri, [], _NewName) ->
   null;
-workspace_edits(Uri, [#{kind := callback} = POI | _], NewName) ->
+workspace_edits(Uri, [#{kind := 'define'} = POI| _], NewName) ->
+  #{changes => changes(Uri, POI, NewName)};
+workspace_edits(Uri, [#{kind := 'macro'} = POI| _], NewName) ->
+  case els_code_navigation:goto_definition(Uri, POI) of
+    {ok, DefUri, DefPOI} ->
+      #{changes => changes(DefUri, DefPOI, NewName)};
+    _ ->
+      null
+  end;
+workspace_edits(Uri, [#{kind := 'callback'} = POI | _], NewName) ->
   #{id := {Name, Arity} = Id} = POI,
   Module = els_uri:module(Uri),
   {ok, Refs} = els_dt_references:find_by_id(behaviour, Module),
@@ -103,3 +112,30 @@ editable_range(#{kind := spec, id := {F, _A}, range := Range}) ->
    };
 editable_range(#{kind := _Kind, range := Range}) ->
   els_protocol:range(Range).
+
+-spec editable_range(poi_kind(), els_dt_references:item()) -> range().
+editable_range(macro, #{range := Range}) ->
+  #{ from := {FromL, FromC}, to := {ToL, ToC} } = Range,
+  #{ start => #{line => FromL - 1, character => FromC}
+   , 'end' => #{line => ToL - 1,   character => ToC}
+   }.
+
+-spec changes(uri(), poi(), binary()) -> #{uri() => [text_edit()]} | null.
+changes(Uri, #{kind := 'define', id := Id} = POI, NewName) ->
+  Self = #{range => editable_range(POI), newText => NewName},
+  {ok, Refs} = els_dt_references:find_by_id(macro, Id),
+  erlang:display({refs, Refs}),
+  lists:foldl(
+    fun(#{uri := U} = Ref, Acc) ->
+        Change = #{ range => editable_range(macro, Ref)
+                  , newText => NewName
+                  },
+        case maps:is_key(U, Acc) of
+          false ->
+            maps:put(U, [Change], Acc);
+          true ->
+            maps:put(U, [Change|maps:get(U, Acc)], Acc)
+        end
+    end, #{Uri => [Self]}, Refs);
+changes(_Uri, _POI, _NewName) ->
+  null.
