@@ -185,6 +185,7 @@ escripts() ->
 includes() ->
   [ code_navigation
   , diagnostics
+  , rename
   ].
 
 %% @doc Index a file and produce the respective config entries
