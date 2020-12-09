@@ -20,7 +20,8 @@ is_enabled() -> true.
 
 -spec options() -> map().
 options() ->
-  #{ commands => [ els_command:with_prefix(<<"replace-lines">>)
+  #{ commands => [ els_command:with_prefix(<<"inline">>)
+                 , els_command:with_prefix(<<"replace-lines">>)
                  , els_command:with_prefix(<<"server-info">>)
                  , els_command:with_prefix(<<"ct-run-test">>)
                  , els_command:with_prefix(<<"show-behaviour-usages">>)
@@ -85,6 +86,12 @@ execute_command(<<"ct-run-test">>, [Params]) ->
   els_command_ct_run_test:execute(Params),
   [];
 execute_command(<<"show-behaviour-usages">>, [_Params]) ->
+  [];
+execute_command(<<"inline">>, [_Params]) ->
+  els_server:send_notification(<<"window/showMessage">>,
+                               #{ type => ?MESSAGE_TYPE_INFO,
+                                  message => <<"Inlining">>
+                                }),
   [];
 execute_command(Command, Arguments) ->
   lager:info("Unsupported command: [Command=~p] [Arguments=~p]"

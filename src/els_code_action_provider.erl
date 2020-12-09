@@ -29,14 +29,35 @@ handle_request({document_codeaction, Params}, State) ->
 %% Internal Functions
 %%==============================================================================
 
-
 %% @doc Result: `(Command | CodeAction)[] | null'
 -spec code_actions(uri(), range(), code_action_context()) -> [map()].
-code_actions(Uri, _Range, Context) ->
+code_actions(Uri, Range, Context) ->
+  {ok, [Document]} = els_dt_document:lookup(Uri),
+  #{ <<"start">> := #{ <<"character">> := Character
+                     , <<"line">>      := Line }
+   } = Range,
+  Elems = els_dt_document:get_element_at_pos(Document, Line + 1, Character + 1),
+  ElemCodeActions = code_actions(Elems),
   #{ <<"diagnostics">> := Diagnostics } = Context,
   Actions0 = [ make_code_action(Uri, D) || D <- Diagnostics],
   Actions = lists:flatten(Actions0),
-  Actions.
+  Actions ++ ElemCodeActions.
+
+-spec code_actions([poi()]) -> [map()].
+code_actions([]) ->
+  [];
+code_actions([#{kind := 'define', id := Id}|_]) ->
+  [#{ title => <<"Inline">>
+    , kind => <<"refactor.inline">>
+    , command =>
+        els_command:make_command( <<"Inline Command">>
+                                , <<"inline">>
+                                , [#{ kind => 'define'
+                                    , id => Id
+                                    }])
+    }];
+code_actions([#{kind := _Kind}|_]) ->
+  [].
 
 %% @doc Note: if the start and end line of the range are the same, the line
 %% is simply added.
