@@ -124,7 +124,6 @@ editable_range(macro, #{range := Range}) ->
 changes(Uri, #{kind := 'define', id := Id} = POI, NewName) ->
   Self = #{range => editable_range(POI), newText => NewName},
   {ok, Refs} = els_dt_references:find_by_id(macro, Id),
-  erlang:display({refs, Refs}),
   lists:foldl(
     fun(#{uri := U} = Ref, Acc) ->
         Change = #{ range => editable_range(macro, Ref)
