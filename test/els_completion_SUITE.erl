@@ -29,6 +29,7 @@
         , types/1
         , types_export_list/1
         , variables/1
+        , remote_fun/1
         ]).
 
 %%==============================================================================
@@ -475,3 +476,24 @@ expected_exported_functions() ->
      , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
      }
   ].
+
+
+%% [#790] Complete only with arity for remote applications
+-spec remote_fun(config()) -> ok.
+remote_fun(Config) ->
+  TriggerKind = ?COMPLETION_TRIGGER_KIND_CHARACTER,
+  Uri = ?config(completion_caller_uri, Config),
+  ExpectedCompletion = [ #{ label            => <<"complete_1/0">>
+                          , kind             => ?COMPLETION_ITEM_KIND_FUNCTION
+                          , insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+                          }
+                       , #{ label            => <<"complete_2/0">>
+                          , kind             => ?COMPLETION_ITEM_KIND_FUNCTION
+                          , insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+                          }
+                       ],
+  #{result := Completion} =
+    els_client:completion(Uri, 6, 19, TriggerKind, <<":">>),
+  ?assertEqual(lists:sort(ExpectedCompletion), lists:sort(Completion)),
+
+  ok.
