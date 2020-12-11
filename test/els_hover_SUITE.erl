@@ -13,9 +13,10 @@
         ]).
 
 %% Test cases
--export([ hover_docs/1
-        , hover_docs_local/1
-        , hover_no_docs/1
+-export([ local_call_no_args/1
+        , local_call_with_args/1
+        , remote_call_multiple_clauses/1
+        , no_poi/1
         ]).
 
 %%==============================================================================
@@ -63,51 +64,51 @@ end_per_testcase(TestCase, Config) ->
 %%==============================================================================
 %% Testcases
 %%==============================================================================
-
--define( FUNCTION_J_DOC
-       , <<"```erlang\n"
-           "-spec function_j() -> pos_integer().\n"
-           "```\n\n"
-           "### code_navigation:function_j/0"
-           "\n\n"
-           "Such a wonderful function."
-           "\n\n">>
-       ).
-
--spec hover_docs(config()) -> ok.
-hover_docs(Config) ->
-  Uri = ?config(code_navigation_extra_uri, Config),
-  #{result := Result} = els_client:hover(Uri, 13, 26),
+local_call_no_args(Config) ->
+  Uri = ?config(hover_docs_caller_uri, Config),
+  #{result := Result} = els_client:hover(Uri, 9, 7),
   ?assert(maps:is_key(contents, Result)),
   Contents = maps:get(contents, Result),
+  Value = <<"## local_call/0">>,
   Expected = #{ kind  => <<"markdown">>
-              , value => ?FUNCTION_J_DOC
+              , value => Value
               },
-
   ?assertEqual(Expected, Contents),
   ok.
 
-hover_docs_local(Config) ->
-  ct:comment("Hover the local function call"),
-  ExtraUri = ?config(code_navigation_extra_uri, Config),
-  Response1 = els_client:hover(ExtraUri, 6, 5),
-  ?assertMatch(#{result := #{contents := _}}, Response1),
-  #{result := #{contents := #{kind := Kind, value := Value}}} = Response1,
-  ?assertEqual(<<"markdown">>, Kind),
-  ?assertMatch( <<"```erlang\n-spec do_4(nat(), opaque_local()) ->", _/binary>>
-              , Value),
-  ct:comment("Hover the export entry for function_j/0"),
-  Uri = ?config(code_navigation_uri, Config),
-  Response2 = els_client:hover(Uri, 5, 55),
-  ?assertMatch(#{result := #{contents := _}}, Response2),
-  #{result := #{contents := Contents2}} = Response2,
-  Expected2 =#{kind  => <<"markdown">>, value => ?FUNCTION_J_DOC},
-  ?assertEqual(Expected2, Contents2),
+local_call_with_args(Config) ->
+  Uri = ?config(hover_docs_caller_uri, Config),
+  #{result := Result} = els_client:hover(Uri, 12, 7),
+  ?assert(maps:is_key(contents, Result)),
+  Contents = maps:get(contents, Result),
+  Value = <<"## local_call/2\n\n"
+            "```erlang\n\n"
+            "  local_call(Arg1, Arg2) \n\n"
+            "```">>,
+  Expected = #{ kind  => <<"markdown">>
+              , value => Value
+              },
+  ?assertEqual(Expected, Contents),
   ok.
 
--spec hover_no_docs(config()) -> ok.
-hover_no_docs(Config) ->
-  Uri = ?config(code_navigation_uri, Config),
-  #{result := Result} = els_client:hover(Uri, 32, 18),
+remote_call_multiple_clauses(Config) ->
+  Uri = ?config(hover_docs_caller_uri, Config),
+  #{result := Result} = els_client:hover(Uri, 15, 15),
+  ?assert(maps:is_key(contents, Result)),
+  Contents = maps:get(contents, Result),
+  Value = <<"## hover_docs:multiple_clauses/1\n\n"
+            "```erlang\n\n"
+            "  multiple_clauses(L) when is_list(L)\n\n"
+            "  multiple_clauses(#{data := Data}) \n\n"
+            "  multiple_clauses(X) \n\n```">>,
+  Expected = #{ kind  => <<"markdown">>
+              , value => Value
+              },
+  ?assertEqual(Expected, Contents),
+  ok.
+
+no_poi(Config) ->
+  Uri = ?config(hover_docs_caller_uri, Config),
+  #{result := Result} = els_client:hover(Uri, 10, 1),
   ?assertEqual(null, Result),
   ok.
