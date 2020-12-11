@@ -149,6 +149,8 @@ sources() ->
   , code_navigation
   , code_navigation_extra
   , code_navigation_types
+  , completion
+  , completion_caller
   , diagnostics
   , diagnostics_behaviour
   , diagnostics_behaviour_impl
