@@ -164,6 +164,8 @@ sources() ->
   , diagnostics_unused_includes
   , elvis_diagnostics
   , format_input
+  , hover_docs
+  , hover_docs_caller
   , my_gen_server
   , rename
   , rename_usage1
