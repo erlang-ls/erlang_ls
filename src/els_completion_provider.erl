@@ -73,8 +73,10 @@ find_completion( Prefix
                   , column   := Column
                   }
                ) ->
-  case els_text:last_token(Prefix) of
-    {atom, _, Module} ->
+  case lists:reverse(els_text:tokens(Prefix)) of
+    [{atom, _, Module}, {'fun', _}| _] ->
+      exported_definitions(Module, 'function', true);
+    [{atom, _, Module}|_] ->
       {ExportFormat, TypeOrFun} = completion_context(Document, Line, Column),
       exported_definitions(Module, TypeOrFun, ExportFormat);
     _ ->
