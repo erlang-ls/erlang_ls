@@ -88,7 +88,7 @@ find_attribute_pois(Tree, Tokens) ->
         {spec, {spec, {{F, A}, FTs}}} ->
           From = erl_syntax:get_pos(Tree),
           To   = erl_scan:location(lists:last(Tokens)),
-          Data = pretty_print_spec(Tree),
+          Data = pretty_print(Tree),
           [ poi({From, To}, spec, {F, A}, Data)
           | lists:flatten([find_spec_points_of_interest(FT) || FT <- FTs])
           ];
@@ -302,7 +302,11 @@ function(Tree, {EndLine, _} = _EndLocation) ->
   {F, A} = erl_syntax_lib:analyze_function(Tree),
   Clauses = erl_syntax:function_clauses(Tree),
   IndexedClauses = lists:zip(lists:seq(1, length(Clauses)), Clauses),
-  ClausesPOIs = [ poi(erl_syntax:get_pos(Clause), function_clause, {F, A, I})
+  ClausesPOIs = [ poi( erl_syntax:get_pos(Clause)
+                     , function_clause
+                     , {F, A, I}
+                     , pretty_print_clause(Clause)
+                     )
                   || {I, Clause} <- IndexedClauses],
   Args = function_args(hd(Clauses), A),
   {StartLine, _} = StartLocation = erl_syntax:get_pos(Tree),
@@ -326,6 +330,7 @@ function(Tree, {EndLine, _} = _EndLocation) ->
 function_args(Clause, Arity) ->
   Patterns = erl_syntax:clause_patterns(Clause),
   [ case erl_syntax:type(P) of
+      %% TODO: Handle literals
       variable -> {N, erl_syntax:variable_literal(P)};
       _        -> {N, "Arg" ++ integer_to_list(N)}
     end
@@ -495,11 +500,28 @@ subtrees(Tree, attribute) ->
 subtrees(Tree, _) ->
   erl_syntax:subtrees(Tree).
 
--spec pretty_print_spec(tree()) -> binary().
-pretty_print_spec(Tree) ->
+-spec pretty_print(tree()) -> binary().
+pretty_print(Tree) ->
   try
     els_utils:to_binary(erl_prettypr:format(Tree))
  catch
    _:_:_ ->
      <<>>
  end.
+
+-spec pretty_print_clause(tree()) -> binary().
+pretty_print_clause(Tree) ->
+  Patterns = erl_syntax:clause_patterns(Tree),
+  PrettyPatterns = [ erl_prettypr:format(P) || P <- Patterns],
+  Guard = erl_syntax:clause_guard(Tree),
+  PrettyGuard = case Guard of
+                  none ->
+                    "";
+                  _ ->
+                    "when " ++ erl_prettypr:format(Guard)
+                end,
+  PrettyClause = io_lib:format( "(~s) ~s"
+                              , [ string:join(PrettyPatterns, ", ")
+                                , PrettyGuard
+                                ]),
+  els_utils:to_binary(PrettyClause).
