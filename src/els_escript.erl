@@ -149,7 +149,17 @@ parse_source(S, File, Fd, StartLine, HeaderSz) ->
   _ = io:get_line(Fd, ''),
   Encoding = epp:set_encoding(Fd),
   {ok, _} = file:position(Fd, HeaderSz),
-  {ok, Epp} = epp:open(File, Fd, StartLine, IncludePath, PreDefMacros),
+  {ok, Epp} =
+        case erlang:function_exported(epp, open, 5) of
+            true ->
+                %% Pre OTP-24 function to call for escripts
+                %% Done via apply in order to silence dialyzer
+                apply(epp, open, [File, Fd, StartLine,
+                                  IncludePath, PreDefMacros]);
+            false ->
+                epp:open([{fd, Fd}, {name, File}, {location, StartLine},
+                          {includes, IncludePath}, {macros, PreDefMacros}])
+        end,
   _ = [io:setopts(Fd, [{encoding, Encoding}]) || Encoding =/= none],
   {ok, FileForm} = epp:parse_erl_form(Epp),
   OptModRes = epp:parse_erl_form(Epp),

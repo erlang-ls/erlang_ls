@@ -28,7 +28,7 @@
 %%==============================================================================
 %% Type Definitions
 %%==============================================================================
--type compiler_info()  :: {erl_anno:line() | 'none', module(), any()}.
+-type compiler_info()  :: {erl_anno:anno() | 'none', module(), any()}.
 -type compiler_msg()   :: {file:filename(), [compiler_info()]}.
 -type macro_config()   :: #{string() => string()}.
 -type macro_option()   :: {'d', atom()} | {'d', atom(), any()}.
@@ -96,8 +96,8 @@ parse(Uri) ->
   {ok, Epp} = epp:open([ {name, FileName}
                        , {includes, els_config:get(include_paths)}
                        ]),
-  Res = [epp_diagnostic(Line, Module, Desc)
-         || {error, {Line, Module, Desc}} <- epp:parse_file(Epp)],
+  Res = [epp_diagnostic(Anno, Module, Desc)
+         || {error, {Anno, Module, Desc}} <- epp:parse_file(Epp)],
   epp:close(Epp),
   Res.
 
@@ -106,13 +106,13 @@ parse(Uri) ->
 %% ,{error,{1,epp,{error,1,{undefined,'MODULE',none}}}}
 %% ,{error,{3,epp,{error,"including nonexistent_macro.hrl is not allowed"}}}
 %% ,{error,{3,epp,{include,file,"yaws.hrl"}}}
--spec epp_diagnostic(integer(), module(), any()) ->
+-spec epp_diagnostic(erl_anno:anno(), module(), any()) ->
         els_diagnostics:diagnostic().
-epp_diagnostic(Line, epp, {error, Line, Reason}) ->
+epp_diagnostic(Anno, epp, {error, Anno, Reason}) ->
     %% Workaround for https://bugs.erlang.org/browse/ERL-1310
-    epp_diagnostic(Line, epp, Reason);
-epp_diagnostic(Line, Module, Desc) ->
-    diagnostic(range(Line), Module, Desc, ?DIAGNOSTIC_ERROR).
+    epp_diagnostic(Anno, epp, Reason);
+epp_diagnostic(Anno, Module, Desc) ->
+    diagnostic(range(Anno), Module, Desc, ?DIAGNOSTIC_ERROR).
 
 -spec parse_escript(uri()) -> [els_diagnostics:diagnostic()].
 parse_escript(Uri) ->
@@ -141,12 +141,12 @@ diagnostics(Path, List, Severity) ->
     {ok, [Document]} ->
       lists:flatten([[ diagnostic( Path
                                  , MessagePath
-                                 , range(Line)
+                                 , range(Anno)
                                  , Document
                                  , Module
                                  , Desc
                                  , Severity)
-                       || {Line, Module, Desc} <- Info]
+                       || {Anno, Module, Desc} <- Info]
                      || {MessagePath, Info} <- List]);
     Error ->
       lager:info("diagnostics doc lookup failed [Error=~p]", [Error]),
@@ -191,11 +191,13 @@ diagnostic(Range, Module, Desc, Severity) ->
 format_error(Str) ->
   Str.
 
--spec range(erl_anno:line() | none) -> poi_range().
-range(Line) when is_integer(Line) ->
-  #{from => {Line, 1}, to => {Line + 1, 1}};
+-spec range(erl_anno:anno() | none) -> poi_range().
 range(none) ->
-  range(1).
+    range(erl_anno:new(1));
+range(Anno) ->
+    true = erl_anno:is_anno(Anno),
+    Line = erl_anno:line(Anno),
+    #{from => {Line, 1}, to => {Line + 1, 1}}.
 
 %% @doc Find the inclusion range for a header file.
 %%
@@ -210,7 +212,7 @@ inclusion_range(IncludePath, Document) ->
     inclusion_range(IncludePath, Document, parse_transform)
   of
     [Range|_] -> Range;
-    _ -> range(1)
+    _ -> range(none)
   end.
 
 -spec inclusion_range( string()
