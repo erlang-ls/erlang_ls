@@ -425,6 +425,10 @@ types_export_list(Config) ->
   Uri = ?config(code_navigation_types_uri, Config),
   Expected = [ #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
                 , kind             => ?COMPLETION_ITEM_KIND_TYPE_PARAM
+                , label            => <<"user_type_a/0">>
+                }
+             , #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+                , kind             => ?COMPLETION_ITEM_KIND_TYPE_PARAM
                 , label            => <<"type_a/0">>
                 }
              , #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT

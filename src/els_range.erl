@@ -122,7 +122,7 @@ range({Line, Column}, type_application, {M, F, _A}, _Data) ->
   To = {Line, Column + length(atom_to_list(M)) + length(atom_to_list(F))},
   #{ from => From, to => To };
 range({Line, Column}, type_definition, {Name, _}, _Data) ->
-  From = plus({Line, Column}, "type "),
+  From = {Line, Column},
   To = plus(From, atom_to_list(Name)),
   #{ from => From, to => To };
 range({Line, Column}, variable, Name, _Data) ->

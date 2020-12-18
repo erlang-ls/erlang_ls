@@ -21,6 +21,7 @@
         , export_type_entry/1
         , import_entry/1
         , type/1
+        , opaque/1
         , macro/1
         ]).
 
@@ -157,6 +158,17 @@ type(Config) ->
   Uri = ?config(code_navigation_uri, Config),
   #{result := Locations} = els_client:document_highlight(Uri, 37, 9),
   ExpectedLocations = [ #{range => #{from => {37, 7}, to => {37, 13}}}
+                        %% Should also include the usage, but does not
+                        %%, #{range => #{from => {55, 23}, to => {55, 29}}}
+                      ],
+  assert_locations(ExpectedLocations, Locations),
+  ok.
+
+-spec opaque(config()) -> ok.
+opaque(Config) ->
+  Uri = ?config(code_navigation_types_uri, Config),
+  #{result := Locations} = els_client:document_highlight(Uri, 7, 9),
+  ExpectedLocations = [ #{range => #{from => {7, 9}, to => {7, 22}}}
                         %% Should also include the usage, but does not
                         %%, #{range => #{from => {55, 23}, to => {55, 29}}}
                       ],
