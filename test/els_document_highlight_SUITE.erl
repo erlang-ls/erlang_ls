@@ -18,6 +18,7 @@
         , fun_local/1
         , fun_remote/1
         , export_entry/1
+        , macro/1
         ]).
 
 %%==============================================================================
@@ -123,6 +124,21 @@ export_entry(Config) ->
   Uri = ?config(code_navigation_uri, Config),
   #{result := Locations} = els_client:document_highlight(Uri, 5, 25),
   ExpectedLocations = expected_definitions(),
+  assert_locations(ExpectedLocations, Locations),
+  ok.
+
+-spec macro(config()) -> ok.
+macro(Config) ->
+  Uri = ?config(code_navigation_uri, Config),
+  #{result := Locations} = els_client:document_highlight(Uri, 26, 6),
+
+  %% Should include this range (macro definition)
+  %% but does not right now
+  %%  #{ range => #{ from => {18, 9}, to => {18, 16} } },
+
+  ExpectedLocations = [ #{range => #{from => {26, 3}, to => {26, 11}}}
+                      , #{range => #{from => {75, 23}, to => {75, 31}}}
+                      ],
   assert_locations(ExpectedLocations, Locations),
   ok.
 

@@ -91,7 +91,7 @@ range({Line, Column}, include_lib, Include, _Data) ->
   #{ from => From, to => To };
 range({Line, Column}, macro, Macro, _Data) when is_atom(Macro) ->
   From = {Line, Column},
-  To = plus(From, atom_to_list(Macro)),
+  To = plus(From, "?" ++ atom_to_list(Macro)),
   #{ from => From, to => To };
 range({Line, Column}, module, Module, _Data) ->
   %% The Column we get is of the 'm' in the -module pragma
