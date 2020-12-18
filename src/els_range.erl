@@ -132,10 +132,10 @@ range({Line, Column}, variable, Name, _Data) ->
 
 -spec get_entry_range(pos(), atom(), non_neg_integer()) -> poi_range().
 get_entry_range({Line, Column}, F, A) ->
-  From = {Line, Column - 1},
+  From = {Line, Column},
   %% length("function/arity")
-  Length = length(atom_to_list(F)) + length(integer_to_list(A)) + 1,
-  To = {Line, Column + Length - 1},
+  Length = length(atom_to_list(F) ++ "/" ++ integer_to_list(A)),
+  To = {Line, Column + Length},
   #{ from => From, to => To }.
 
 -spec minus(pos(), string()) -> pos().

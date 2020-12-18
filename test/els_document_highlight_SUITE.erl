@@ -150,5 +150,5 @@ expected_definitions() ->
   [ #{range => #{from => {25, 1}, to => {25, 11}}}
   , #{range => #{from => {22, 3}, to => {22, 13}}}
   , #{range => #{from => {51, 7}, to => {51, 23}}}
-  , #{range => #{from => {5, 24}, to => {5, 36}}}
+  , #{range => #{from => {5, 25}, to => {5, 37}}}
   ].
