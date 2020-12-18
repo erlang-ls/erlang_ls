@@ -28,7 +28,7 @@
 %%==============================================================================
 %% Type Definitions
 %%==============================================================================
--type compiler_info()  :: {erl_anno:line() | 'none', module(), any()}.
+-type compiler_info()  :: {erl_anno:anno() | 'none', module(), any()}.
 -type compiler_msg()   :: {file:filename(), [compiler_info()]}.
 -type macro_config()   :: #{string() => string()}.
 -type macro_option()   :: {'d', atom()} | {'d', atom(), any()}.
@@ -106,7 +106,7 @@ parse(Uri) ->
 %% ,{error,{1,epp,{error,1,{undefined,'MODULE',none}}}}
 %% ,{error,{3,epp,{error,"including nonexistent_macro.hrl is not allowed"}}}
 %% ,{error,{3,epp,{include,file,"yaws.hrl"}}}
--spec epp_diagnostic(integer(), module(), any()) ->
+-spec epp_diagnostic(erl_anno:anno(), module(), any()) ->
         els_diagnostics:diagnostic().
 epp_diagnostic(Anno, epp, {error, Anno, Reason}) ->
     %% Workaround for https://bugs.erlang.org/browse/ERL-1310
@@ -191,7 +191,7 @@ diagnostic(Range, Module, Desc, Severity) ->
 format_error(Str) ->
   Str.
 
--spec range(erl_anno:line() | none) -> poi_range().
+-spec range(erl_anno:anno() | none) -> poi_range().
 range(none) ->
     range(erl_anno:new(1));
 range(Anno) ->
