@@ -98,10 +98,16 @@ compile(Uri) ->
 -spec parse(uri()) -> [els_diagnostics:diagnostic()].
 parse(Uri) ->
   FileName = els_utils:to_list(els_uri:path(Uri)),
+  Document = case els_dt_document:lookup(Uri) of
+                 {ok, [DocItem]} ->
+                     DocItem;
+                 _ ->
+                     undefined
+             end,
   {ok, Epp} = epp:open([ {name, FileName}
                        , {includes, els_config:get(include_paths)}
                        ]),
-  Res = [epp_diagnostic(Anno, Module, Desc)
+  Res = [epp_diagnostic(Document, Anno, Module, Desc)
          || {error, {Anno, Module, Desc}} <- epp:parse_file(Epp)],
   epp:close(Epp),
   Res.
@@ -111,13 +117,14 @@ parse(Uri) ->
 %% ,{error,{1,epp,{error,1,{undefined,'MODULE',none}}}}
 %% ,{error,{3,epp,{error,"including nonexistent_macro.hrl is not allowed"}}}
 %% ,{error,{3,epp,{include,file,"yaws.hrl"}}}
--spec epp_diagnostic(erl_anno:anno(), module(), any()) ->
+-spec epp_diagnostic(els_dt_document:item(),
+                     erl_anno:anno(), module(), any()) ->
         els_diagnostics:diagnostic().
-epp_diagnostic(Anno, epp, {error, Anno, Reason}) ->
+epp_diagnostic(Document, Anno, epp, {error, Anno, Reason}) ->
     %% Workaround for https://bugs.erlang.org/browse/ERL-1310
-    epp_diagnostic(Anno, epp, Reason);
-epp_diagnostic(Anno, Module, Desc) ->
-    diagnostic(range(Anno), Module, Desc, ?DIAGNOSTIC_ERROR).
+    epp_diagnostic(Document, Anno, epp, Reason);
+epp_diagnostic(Document, Anno, Module, Desc) ->
+    diagnostic(range(Document, Anno), Module, Desc, ?DIAGNOSTIC_ERROR).
 
 -spec parse_escript(uri()) -> [els_diagnostics:diagnostic()].
 parse_escript(Uri) ->
@@ -146,7 +153,7 @@ diagnostics(Path, List, Severity) ->
     {ok, Document} ->
       lists:flatten([[ diagnostic( Path
                                  , MessagePath
-                                 , range(Anno)
+                                 , range(Document, Anno)
                                  , Document
                                  , Module
                                  , Desc
@@ -195,13 +202,37 @@ diagnostic(Range, Module, Desc, Severity) ->
 format_error(Str) ->
   Str.
 
--spec range(erl_anno:anno() | none) -> poi_range().
-range(none) ->
-    range(erl_anno:new(1));
-range(Anno) ->
+-spec range(els_dt_document:item() | undefined,
+            erl_anno:anno() | none) -> poi_range().
+range(Document, none) ->
+    range(Document, erl_anno:new(1));
+range(Document, Anno) ->
     true = erl_anno:is_anno(Anno),
     Line = erl_anno:line(Anno),
-    #{from => {Line, 1}, to => {Line + 1, 1}}.
+    case erl_anno:column(Anno) of
+        Col when Document =:= undefined; Col =:= undefined ->
+            #{from => {Line, 1}, to => {Line + 1, 1}};
+        Col ->
+            Ranges = els_dt_document:get_element_at_pos(Document, Line, Col),
+
+            %% * If we find no pois that we just return the original line
+            %% * If we find a poi that start on the line and col as the anno
+            %%   we are looking for we that that one.
+            %% * We take the "first" poi if we find some, but none come from
+            %%   the correct line and number.
+
+            case lists:search(
+                   fun(#{ range := #{ from := {FromLine, FromCol} } }) ->
+                           FromLine =:= Line andalso FromCol =:= Col
+                   end, Ranges) of
+                {value, #{ range := Range } } ->
+                    Range;
+                false when Ranges =:= [] ->
+                    #{ from => {Line, 1}, to => {Line + 1, 1} };
+                false ->
+                    maps:get(range, hd(Ranges))
+            end
+    end.
 
 %% @doc Find the inclusion range for a header file.
 %%
@@ -216,7 +247,7 @@ inclusion_range(IncludePath, Document) ->
     inclusion_range(IncludePath, Document, parse_transform)
   of
     [Range|_] -> Range;
-    _ -> range(none)
+    _ -> range(undefined, none)
   end.
 
 -spec inclusion_range( string()
