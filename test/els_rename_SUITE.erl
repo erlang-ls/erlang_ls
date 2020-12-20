@@ -81,8 +81,8 @@ rename_behaviour_callback(Config) ->
                    , binary_to_atom(?config(rename_usage1_uri, Config), utf8) =>
                        [ #{ newText => NewName
                           , range =>
-                              #{ 'end' => #{character => 18, line => 6}
-                               , start => #{character => 9, line => 6}}}
+                              #{ 'end' => #{character => 19, line => 6}
+                               , start => #{character => 10, line => 6}}}
                        , #{ newText => NewName
                           , range =>
                               #{ 'end' => #{character => 9, line => 9}
@@ -99,8 +99,8 @@ rename_behaviour_callback(Config) ->
                    , binary_to_atom(?config(rename_usage2_uri, Config), utf8) =>
                        [ #{ newText => NewName
                           , range =>
-                              #{ 'end' => #{character => 18, line => 6}
-                               , start => #{character => 9, line => 6}}}
+                              #{ 'end' => #{character => 19, line => 6}
+                               , start => #{character => 10, line => 6}}}
                        , #{ newText => NewName
                           , range =>
                              #{ 'end' => #{character => 9, line => 8}
@@ -108,7 +108,7 @@ rename_behaviour_callback(Config) ->
                        ]
                    }
                },
-  ?assertEqual(Expected, Result).
+  assert_changes(Expected, Result).
 
 -spec rename_macro(config()) -> ok.
 rename_macro(Config) ->
@@ -127,22 +127,22 @@ rename_macro(Config) ->
                    , binary_to_atom(?config(rename_usage1_uri, Config), utf8) =>
                        [ #{ newText => NewName
                           , range =>
-                              #{ 'end' => #{character => 13, line => 15}
+                              #{ 'end' => #{character => 14, line => 15}
                                , start => #{character => 4, line => 15}}}
                        , #{ newText => NewName
                           , range =>
-                              #{ 'end' => #{character => 25, line => 15}
+                              #{ 'end' => #{character => 26, line => 15}
                                , start => #{character => 16, line => 15}}}
                        ]
                    , binary_to_atom(?config(rename_usage2_uri, Config), utf8) =>
                        [ #{ newText => NewName
                           , range =>
-                              #{ 'end' => #{character => 26, line => 11}
+                              #{ 'end' => #{character => 27, line => 11}
                                , start => #{character => 17, line => 11}}}
                        ]
                    }
                },
-  ?assertEqual(Expected, Result).
+  assert_changes(Expected, Result).
 
 -spec rename_parametrized_macro(config()) -> ok.
 rename_parametrized_macro(Config) ->
@@ -161,11 +161,11 @@ rename_parametrized_macro(Config) ->
                    , binary_to_atom(?config(rename_usage1_uri, Config), utf8) =>
                        [ #{ newText => NewName
                           , range =>
-                              #{ 'end' => #{character => 26, line => 18}
+                              #{ 'end' => #{character => 27, line => 18}
                                , start => #{character => 4, line => 18}}}
                        , #{ newText => NewName
                           , range =>
-                              #{ 'end' => #{character => 54, line => 18}
+                              #{ 'end' => #{character => 55, line => 18}
                                , start => #{character => 32, line => 18}}}
                        ]
                    %%   This is currently not possible due to #805
@@ -173,12 +173,12 @@ rename_parametrized_macro(Config) ->
                    %%     ?config(rename_usage2_uri, Config), utf8) =>
                    %%     [ #{ newText => NewName
                    %%        , range =>
-                   %%            #{ 'end' => #{character => 27, line => 11}
-                   %%             , start => #{character => 17, line => 11}}}
+                   %%            #{ 'end' => #{character => 52, line => 14}
+                   %%             , start => #{character => 29, line => 14}}}
                    %%     ]
                    }
                },
-  ?assertEqual(Expected, Result).
+  assert_changes(Expected, Result).
 
 -spec rename_macro_from_usage(config()) -> ok.
 rename_macro_from_usage(Config) ->
@@ -197,19 +197,31 @@ rename_macro_from_usage(Config) ->
                    , binary_to_atom(?config(rename_usage1_uri, Config), utf8) =>
                        [ #{ newText => NewName
                           , range =>
-                              #{ 'end' => #{character => 13, line => 15}
+                              #{ 'end' => #{character => 14, line => 15}
                                , start => #{character => 4, line => 15}}}
                        , #{ newText => NewName
                           , range =>
-                              #{ 'end' => #{character => 25, line => 15}
+                              #{ 'end' => #{character => 26, line => 15}
                                , start => #{character => 16, line => 15}}}
                        ]
                    , binary_to_atom(?config(rename_usage2_uri, Config), utf8) =>
                        [ #{ newText => NewName
                           , range =>
-                              #{ 'end' => #{character => 26, line => 11}
+                              #{ 'end' => #{character => 27, line => 11}
                                , start => #{character => 17, line => 11}}}
                        ]
                    }
                },
-  ?assertEqual(Expected, Result).
+  assert_changes(Expected, Result).
+
+assert_changes(#{ changes := ExpectedChanges }, #{ changes := Changes }) ->
+  ?assertEqual(maps:keys(ExpectedChanges), maps:keys(Changes)),
+  Pairs = lists:zip(lists:sort(maps:to_list(Changes)),
+                    lists:sort(maps:to_list(ExpectedChanges))),
+  [ begin
+      ?assertEqual(ExpectedKey, Key),
+      ?assertEqual(Expected, Change)
+    end
+    || {{Key, Change}, {ExpectedKey, Expected}} <- Pairs
+  ],
+  ok.

@@ -279,9 +279,14 @@ attribute(Tree) ->
       end;
     {record, {Record, Fields}} ->
       [poi(Pos, record, Record, Fields)];
-    {Name, {Name, {Type, _, Args}}} when Name =:= type;
-                                         Name =:= opaque ->
-      [poi(Pos, type_definition, {Type, length(Args)}, type_args(Args))];
+    {type, {type, {Type, _, Args}}} ->
+      {Line, Col} = Pos,
+      [poi({Line, Col + length("type ")}, type_definition,
+           {Type, length(Args)}, type_args(Args))];
+    {opaque, {opaque, {Type, _, Args}}} ->
+      {Line, Col} = Pos,
+      [poi({Line, Col + length("opaque ")}, type_definition,
+           {Type, length(Args)}, type_args(Args))];
     _ ->
       []
   catch throw:syntax_error ->

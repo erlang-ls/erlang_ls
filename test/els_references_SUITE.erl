@@ -159,10 +159,10 @@ macro(Config) ->
   Uri = ?config(code_navigation_uri, Config),
 
   ExpectedLocations = [ #{ uri => Uri
-                         , range => #{from => {26, 3}, to => {26, 10}}
+                         , range => #{from => {26, 3}, to => {26, 11}}
                          }
                       , #{ uri => Uri
-                         , range => #{from => {75, 23}, to => {75, 30}}
+                         , range => #{from => {75, 23}, to => {75, 31}}
                          }
                       ],
 

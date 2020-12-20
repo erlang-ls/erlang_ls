@@ -91,7 +91,7 @@ range({Line, Column}, include_lib, Include, _Data) ->
   #{ from => From, to => To };
 range({Line, Column}, macro, Macro, _Data) when is_atom(Macro) ->
   From = {Line, Column},
-  To = plus(From, atom_to_list(Macro)),
+  To = plus(From, "?" ++ atom_to_list(Macro)),
   #{ from => From, to => To };
 range({Line, Column}, module, Module, _Data) ->
   %% The Column we get is of the 'm' in the -module pragma
@@ -122,7 +122,7 @@ range({Line, Column}, type_application, {M, F, _A}, _Data) ->
   To = {Line, Column + length(atom_to_list(M)) + length(atom_to_list(F))},
   #{ from => From, to => To };
 range({Line, Column}, type_definition, {Name, _}, _Data) ->
-  From = plus({Line, Column}, "type "),
+  From = {Line, Column},
   To = plus(From, atom_to_list(Name)),
   #{ from => From, to => To };
 range({Line, Column}, variable, Name, _Data) ->
@@ -132,10 +132,10 @@ range({Line, Column}, variable, Name, _Data) ->
 
 -spec get_entry_range(pos(), atom(), non_neg_integer()) -> poi_range().
 get_entry_range({Line, Column}, F, A) ->
-  From = {Line, Column - 1},
+  From = {Line, Column},
   %% length("function/arity")
-  Length = length(atom_to_list(F)) + length(integer_to_list(A)) + 1,
-  To = {Line, Column + Length - 1},
+  Length = length(atom_to_list(F) ++ "/" ++ integer_to_list(A)),
+  To = {Line, Column + Length},
   #{ from => From, to => To }.
 
 -spec minus(pos(), string()) -> pos().
