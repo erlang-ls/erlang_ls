@@ -1,0 +1,7 @@
+receive
+  ${1:Pattern} ->
+    ${2:Body};
+after
+  ${3:Timeout} ->
+    ${4:TimeoutBody}
+end

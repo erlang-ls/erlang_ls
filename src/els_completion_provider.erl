@@ -54,9 +54,9 @@ handle_request({completion, Params}, State) ->
                els_text:line(Text, Line, Character)
            end,
   Opts   = #{ trigger  => TriggerCharacter
-              , document => Document
-              , line     => Line + 1
-              , column   => Character
+            , document => Document
+            , line     => Line + 1
+            , column   => Character
             },
   {find_completion(Prefix, TriggerKind, Opts), State}.
 
@@ -157,9 +157,10 @@ find_completion( Prefix
         ++ bifs(POIKind, ExportFormat)
         ++ atoms(Document, NameBinary)
         ++ modules(NameBinary)
-        ++ definitions(Document, POIKind, ExportFormat);
+        ++ definitions(Document, POIKind, ExportFormat)
+        ++ els_snippets_server:snippets();
     _ ->
-      []
+      null
   end;
 find_completion(_Prefix, _TriggerKind, _Opts) ->
   null.

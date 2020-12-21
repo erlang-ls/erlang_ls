@@ -1,0 +1,5 @@
+try ${1:Exprs}
+catch
+  ${2:Class}:${3:ExceptionPattern}:${4:Stacktrace} ->
+    ${5:ExceptionBody}
+end
