@@ -195,13 +195,16 @@ module(Config) ->
 record(Config) ->
   Uri = ?config(code_navigation_uri, Config),
   ExpectedLocations = [ #{ uri => Uri
-                         , range => #{from => {23, 2}, to => {23, 11}}
+                         , range => #{from => {23, 4}, to => {23, 12}}
                          }
                       , #{ uri => Uri
-                         , range => #{from => {33, 6}, to => {33, 15}}
+                         , range => #{from => {33, 8}, to => {33, 16}}
                          }
                       , #{ uri => Uri
-                         , range => #{from => {34, 7}, to => {34, 25}}
+                         , range => #{from => {34, 10}, to => {34, 26}}
+                         }
+                      , #{ uri => Uri
+                         , range => #{from => {34, 35}, to => {34, 51}}
                          }
                       ],
 
@@ -277,7 +280,7 @@ type_remote(Config) ->
   UriTypes = ?config(code_navigation_types_uri, Config),
   Uri = ?config(code_navigation_extra_uri, Config),
   ExpectedLocations = [ #{ uri   => Uri
-                         , range => #{from => {11, 38}, to => {11, 65}}
+                         , range => #{from => {11, 38}, to => {11, 66}}
                          }
                       ],
 

@@ -92,24 +92,19 @@ workspace_edits(_Uri, _POIs, _NewName) ->
 
 -spec editable_range(poi()) -> range().
 editable_range(#{kind := callback, range := Range}) ->
-  #{ from := {FromL, FromC}, to := {ToL, ToC} } = Range,
-  #{ start => #{line => FromL - 1, character => FromC + length("callback")}
-   , 'end' => #{line => ToL - 1,   character => ToC}
-   };
+  #{ from := {FromL, FromC} } = Range,
+  EditFromC = FromC + length("-callback "),
+  els_protocol:range(Range#{ from := {FromL, EditFromC } });
 editable_range(#{kind := export_entry, id := {F, _A}, range := Range}) ->
-  #{ from := {FromL, FromC}, to := {ToL, _ToC} } = Range,
-  #{ start => #{line => FromL - 1, character => FromC}
-   , 'end' => #{line => ToL - 1,   character => FromC + length(atom_to_list(F))}
-   };
+  #{ from := {FromL, FromC} } = Range,
+  EditToC = FromC + length(atom_to_list(F)),
+  els_protocol:range(Range#{ to := {FromL, EditToC} });
 editable_range(#{kind := spec, id := {F, _A}, range := Range}) ->
-  #{ from := {FromL, FromC}, to := {ToL, _ToC} } = Range,
-  #{ start => #{ line => FromL - 1
-               , character => FromC + length("spec") + 1}
-   , 'end' => #{line => ToL - 1
-               , character =>
-                  FromC + length("spec") + length(atom_to_list(F)) + 1
-               }
-   };
+  #{ from := {FromL, FromC}, to := {_ToL, _ToC} } = Range,
+  EditFromC = FromC + length("-spec "),
+  EditToC = EditFromC + length(atom_to_list(F)),
+  els_protocol:range(Range#{ from := {FromL, EditFromC}
+                           , to := {FromL, EditToC} });
 editable_range(#{kind := _Kind, range := Range}) ->
   els_protocol:range(Range).
 

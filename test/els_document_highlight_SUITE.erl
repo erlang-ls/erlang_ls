@@ -17,12 +17,21 @@
         , function_definition/1
         , fun_local/1
         , fun_remote/1
+        , record/1
+        , record_access/1
+        , record_field/1
+        , export/1
         , export_entry/1
         , export_type_entry/1
+        , import/1
         , import_entry/1
         , type/1
+        , type_application/1
         , opaque/1
         , macro/1
+        , spec/1
+        , behaviour/1
+        , callback/1
         ]).
 
 %%==============================================================================
@@ -123,6 +132,47 @@ fun_remote(Config) ->
   assert_locations(ExpectedLocations, Locations),
   ok.
 
+-spec record(config()) -> ok.
+record(Config) ->
+  Uri = ?config(code_navigation_uri, Config),
+  #{result := Locations} = els_client:document_highlight(Uri, 23, 4),
+  ExpectedLocations = [ #{range => #{from => {23, 4}, to => {23, 12}}}
+                      , #{range => #{from => {33, 8}, to => {33, 16}}}
+                      ],
+  assert_locations(ExpectedLocations, Locations),
+  ok.
+
+-spec record_access(config()) -> ok.
+record_access(Config) ->
+  Uri = ?config(code_navigation_uri, Config),
+  #{result := Locations} = els_client:document_highlight(Uri, 34, 10),
+  ExpectedLocations = [ #{range => #{from => {34, 10}, to => {34, 26}}}
+                      , #{range => #{from => {34, 35}, to => {34, 51}}}
+                      ],
+  assert_locations(ExpectedLocations, Locations),
+  ok.
+
+-spec record_field(config()) -> ok.
+record_field(Config) ->
+  Uri = ?config(code_navigation_uri, Config),
+  #{result := Locations} = els_client:document_highlight(Uri, 16, 23),
+  ExpectedLocations = [ #{range => #{from => {33, 18}, to => {33, 25}}}
+                      , #{range => #{from => {34, 19}, to => {34, 26}}}
+                      , #{range => #{from => {16, 20}, to => {16, 27}}}
+                      , #{range => #{from => {34, 44}, to => {34, 51}}}
+                      ],
+  assert_locations(ExpectedLocations, Locations),
+  ok.
+
+-spec export(config()) -> ok.
+export(Config) ->
+  Uri = ?config(code_navigation_uri, Config),
+  #{result := Locations} = els_client:document_highlight(Uri, 5, 5),
+  ExpectedLocations = [ #{range => #{from => {5, 1}, to => {5, 68}}}
+                      ],
+  assert_locations(ExpectedLocations, Locations),
+  ok.
+
 -spec export_entry(config()) -> ok.
 export_entry(Config) ->
   Uri = ?config(code_navigation_uri, Config),
@@ -139,6 +189,17 @@ export_type_entry(Config) ->
                         %% Should also include the definition, but does not
                         %%, #{range => #{from => {3, 7}, to => {3, 13}}}
                       ],
+  assert_locations(ExpectedLocations, Locations),
+  ok.
+
+-spec import(config()) -> ok.
+import(Config) ->
+  Uri = ?config(code_navigation_uri, Config),
+  #{result := Locations} = els_client:document_highlight(Uri, 10, 3),
+  ExpectedLocations = null,
+  %% Should include this range
+  %% ExpectedLocations = [ #{range => #{from => {10, 1}, to => {10, 51}}}
+  %%                     ],
   assert_locations(ExpectedLocations, Locations),
   ok.
 
@@ -164,13 +225,20 @@ type(Config) ->
   assert_locations(ExpectedLocations, Locations),
   ok.
 
+-spec type_application(config()) -> ok.
+type_application(Config) ->
+  Uri = ?config(code_navigation_uri, Config),
+  #{result := Locations} = els_client:document_highlight(Uri, 55, 57),
+  ExpectedLocations = [ #{range => #{from => {55, 55}, to => {55, 62}}}
+                      ],
+  assert_locations(ExpectedLocations, Locations),
+  ok.
+
 -spec opaque(config()) -> ok.
 opaque(Config) ->
   Uri = ?config(code_navigation_types_uri, Config),
   #{result := Locations} = els_client:document_highlight(Uri, 7, 9),
   ExpectedLocations = [ #{range => #{from => {7, 9}, to => {7, 22}}}
-                        %% Should also include the usage, but does not
-                        %%, #{range => #{from => {55, 23}, to => {55, 29}}}
                       ],
   assert_locations(ExpectedLocations, Locations),
   ok.
@@ -190,12 +258,43 @@ macro(Config) ->
   assert_locations(ExpectedLocations, Locations),
   ok.
 
+-spec spec(config()) -> ok.
+spec(Config) ->
+  Uri = ?config(code_navigation_uri, Config),
+  #{result := Locations} = els_client:document_highlight(Uri, 55, 11),
+  ExpectedLocations = [ #{range => #{from => {55, 1}, to => {55, 64}}}
+                      ],
+  assert_locations(ExpectedLocations, Locations),
+  ok.
+
+-spec behaviour(config()) -> ok.
+behaviour(Config) ->
+  Uri = ?config(code_navigation_uri, Config),
+  #{result := Locations} = els_client:document_highlight(Uri, 3, 1),
+  ExpectedLocations = [ #{range => #{from => {3, 1}, to => {3, 25}}}
+                      ],
+  assert_locations(ExpectedLocations, Locations),
+  ok.
+
+-spec callback(config()) -> ok.
+callback(Config) ->
+  Uri = ?config(rename_uri, Config),
+  #{result := Locations} = els_client:document_highlight(Uri, 3, 10),
+  ExpectedLocations = [ #{range => #{from => {3, 1}, to => {3, 20}}}
+                      ],
+  assert_locations(ExpectedLocations, Locations),
+  ok.
+
 %%==============================================================================
 %% Internal functions
 %%==============================================================================
 
--spec assert_locations([map()], [map()]) -> ok.
+-spec assert_locations([map()] | null, [map()] | null) -> ok.
+assert_locations(null, null) ->
+  ok;
 assert_locations(ExpectedLocations, Locations) ->
+  ct:log("ExpectedLocations: ~p~nLocations: ~p~n",
+         [ExpectedLocations, lists:sort(Locations)]),
   ?assertEqual(length(ExpectedLocations), length(Locations)),
   Pairs = lists:zip(lists:sort(Locations), ExpectedLocations),
   [ begin
