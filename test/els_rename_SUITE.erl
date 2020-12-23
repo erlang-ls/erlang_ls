@@ -81,8 +81,8 @@ rename_behaviour_callback(Config) ->
                    , binary_to_atom(?config(rename_usage1_uri, Config), utf8) =>
                        [ #{ newText => NewName
                           , range =>
-                              #{ 'end' => #{character => 19, line => 6}
-                               , start => #{character => 10, line => 6}}}
+                              #{ 'end' => #{character => 18, line => 6}
+                               , start => #{character => 9, line => 6}}}
                        , #{ newText => NewName
                           , range =>
                               #{ 'end' => #{character => 9, line => 9}
@@ -99,8 +99,8 @@ rename_behaviour_callback(Config) ->
                    , binary_to_atom(?config(rename_usage2_uri, Config), utf8) =>
                        [ #{ newText => NewName
                           , range =>
-                              #{ 'end' => #{character => 19, line => 6}
-                               , start => #{character => 10, line => 6}}}
+                              #{ 'end' => #{character => 18, line => 6}
+                               , start => #{character => 9, line => 6}}}
                        , #{ newText => NewName
                           , range =>
                              #{ 'end' => #{character => 9, line => 8}

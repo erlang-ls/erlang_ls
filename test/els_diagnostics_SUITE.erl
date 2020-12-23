@@ -182,7 +182,7 @@ compiler_with_broken_behaviour(Config) ->
     #{message =>
         <<"Issue in included file (5): syntax error before: ">>,
       range =>
-        #{'end' => #{character => 21, line => 2},
+        #{'end' => #{character => 24, line => 2},
           start => #{character => 0, line => 2}},
       severity => 1,
       source => <<"Compiler">>},

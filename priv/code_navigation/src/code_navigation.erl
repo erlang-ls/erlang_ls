@@ -1,7 +1,7 @@
 -module(code_navigation).
 
 -behaviour(behaviour_a).
-
+-wildattribute(a).
 -export([ function_a/0, function_b/0, function_g/1, function_j/0 ]).
 
 %% behaviour_a callbacks
@@ -30,8 +30,8 @@ callback_a() ->
 
 function_c() ->
   code_navigation_extra:do(test),
-  A = #record_a{},
-  _X = A#record_a.field_a,
+  A = #record_a{ field_a = a },
+  _X = A#record_a.field_a, _Y = A#record_a.field_a,
   length([1, 2, 3]).
 
 -type type_a() :: any().
