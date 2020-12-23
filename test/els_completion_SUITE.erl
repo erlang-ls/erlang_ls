@@ -30,6 +30,7 @@
         , types_export_list/1
         , variables/1
         , remote_fun/1
+        , snippets/1
         ]).
 
 %%==============================================================================
@@ -119,6 +120,7 @@ default_completions(Config) ->
               | Functions
                 ++ els_completion_provider:keywords()
                 ++ els_completion_provider:bifs(function, false)
+                ++ els_snippets_server:snippets()
               ],
 
   #{ result := Completion1
@@ -132,6 +134,7 @@ default_completions(Config) ->
               | Functions
                 ++ els_completion_provider:keywords()
                 ++ els_completion_provider:bifs(function, false)
+                ++ els_snippets_server:snippets()
               ],
 
   #{ result := Completion2
@@ -147,7 +150,7 @@ empty_completions(Config) ->
 
   #{ result := Completion
    } = els_client:completion(Uri, 5, 1, TriggerKind, <<"">>),
-  ?assertEqual([], Completion),
+  ?assertEqual(null, Completion),
   ok.
 
 -spec exported_functions(config()) -> ok.
@@ -259,6 +262,7 @@ functions_export_list(Config) ->
                           }
                        | els_completion_provider:keywords()
                          ++ els_completion_provider:bifs(function, true)
+                         ++ els_snippets_server:snippets()
                        ],
 
   #{result := Completion} =
@@ -410,6 +414,7 @@ types(Config) ->
                 }
              | els_completion_provider:keywords()
                ++ els_completion_provider:bifs(type_definition, false)
+               ++ els_snippets_server:snippets()
              ],
 
   ct:comment("Types defined both in the current file and in includes"),
@@ -437,6 +442,7 @@ types_export_list(Config) ->
                 }
              | els_completion_provider:keywords()
                ++ els_completion_provider:bifs(type_definition, true)
+               ++ els_snippets_server:snippets()
              ],
 
   ct:comment("Types in an export_type section is provided with arity"),
@@ -503,3 +509,16 @@ remote_fun(Config) ->
   ?assertEqual(lists:sort(ExpectedCompletion), lists:sort(Completion)),
 
   ok.
+
+-spec snippets(config()) -> ok.
+snippets(Config) ->
+  TriggerKind = ?COMPLETION_TRIGGER_KIND_INVOKED,
+  Uri = ?config(completion_snippets_uri, Config),
+  #{result := Result} = els_client:completion(Uri, 3, 6, TriggerKind, <<"">>),
+  Completions = [C || #{kind := ?COMPLETION_ITEM_KIND_SNIPPET} = C <- Result],
+  SnippetsDir = els_snippets_server:builtin_snippets_dir(),
+  Snippets = filelib:wildcard("*", SnippetsDir),
+  CustomSnippetsDir = els_snippets_server:custom_snippets_dir(),
+  CustomSnippets = filelib:wildcard("*", CustomSnippetsDir),
+  Expected = lists:usort(Snippets ++ CustomSnippets),
+  ?assertEqual(length(Expected), length(Completions)).

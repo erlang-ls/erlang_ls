@@ -129,6 +129,8 @@
 
 -define(INSERT_TEXT_FORMAT_PLAIN_TEXT, 1).
 -define(INSERT_TEXT_FORMAT_SNIPPET,    2).
+-type insert_text_format() :: ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+                            | ?INSERT_TEXT_FORMAT_SNIPPET.
 
 %%------------------------------------------------------------------------------
 %% Text Edit
@@ -296,6 +298,12 @@
                               | ?COMPLETION_ITEM_KIND_EVENT
                               | ?COMPLETION_ITEM_KIND_OPERATOR
                               | ?COMPLETION_ITEM_KIND_TYPE_PARAM.
+
+-type completion_item() :: #{ label := binary()
+                            , kind => completion_item_kind()
+                            , insertText => binary()
+                            , insertTextFormat => insert_text_format()
+                            }.
 
 -type client_capabilities() ::
         #{ workspace    => workspace_client_capabilities()

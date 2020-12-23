@@ -151,6 +151,7 @@ sources() ->
   , code_navigation_types
   , completion
   , completion_caller
+  , completion_snippets
   , diagnostics
   , diagnostics_behaviour
   , diagnostics_behaviour_impl

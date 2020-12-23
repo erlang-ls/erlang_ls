@@ -64,6 +64,9 @@ init([]) ->
                   , start => {els_distribution_sup, start_link, []}
                   , type  => supervisor
                   }
+               , #{ id       => els_snippets_server
+                  , start    => {els_snippets_server, start_link, []}
+                  }
                , #{ id       => els_server
                   , start    => {els_server, start_link, [Transport]}
                   }
