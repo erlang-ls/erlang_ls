@@ -67,7 +67,7 @@ start(Uri) ->
                 %% TODO: Dependencies (eg for parse transforms)
                },
   Timer = dialyzer_timing:init(false),
-  TrustedFiles = filter_fd(Args#args.trusted, [], fun is_erl_file/1),
+  TrustedFiles = [], %% TODO
   Analysis2 = extract(Analysis, TrustedFiles),
   All_Files = get_all_files(Args),
   Analysis3 = Analysis2#analysis{files = All_Files},
@@ -203,7 +203,7 @@ get_external(Exts, Plt) ->
 show(Analysis) ->
   Fun = fun ({File, Module}) ->
             Info = get_final_info(File, Module, Analysis),
-            show_type_info(File, Info)
+            show_type_info(Info)
         end,
   lists:foreach(Fun, Analysis#analysis.fms).
 
@@ -280,7 +280,7 @@ remove_module_info(FunInfoList) ->
       end,
   lists:filter(F, FunInfoList).
 
-get_type_string(F, A, Info, Mode) ->
+get_type_string(F, A, Info) ->
   Type = get_type_info({F,A}, Info#info.types),
   TypeStr =
     case Type of
@@ -290,19 +290,13 @@ get_type_string(F, A, Info, Mode) ->
         Sig = erl_types:t_fun(ArgType, RetType),
         dialyzer_utils:format_sig(Sig, Info#info.records)
     end,
-  case {Mode, Type} of
-    {file, {contract, _}} -> "";
-    _ ->
-      Prefix = lists:concat(["-spec ", erl_types:atom_to_string(F)]),
-      lists:concat([Prefix, TypeStr, "."])
-  end.
+  Prefix = lists:concat(["-spec ", erl_types:atom_to_string(F)]),
+  lists:concat([Prefix, TypeStr, "."]).
 
-show_type_info(File, Info) ->
-  io:format("\n%% File: ~tp\n%% ", [File]),
-  OutputString = lists:concat(["~.", length(File)+8, "c~n"]),
-  io:fwrite(OutputString, [$-]),
-  Fun = fun ({_LineNo, F, A}) ->
-            TypeInfo = get_type_string(F, A, Info, show),
+show_type_info(Info) ->
+  Fun = fun ({LineNo, F, A}) ->
+            erlang:display({line_no, LineNo}),
+            TypeInfo = get_type_string(F, A, Info),
             io:format("~ts\n", [TypeInfo])
         end,
   lists:foreach(Fun, Info#info.functions).
@@ -325,119 +319,8 @@ get_type_info(Func, Types) ->
 
 -spec get_all_files(args()) -> [file:filename(),...].
 
-get_all_files(#args{files = Fs, files_r = Ds}) ->
-  case filter_fd(Fs, Ds, fun test_erl_file_exclude_ann/1) of
-    [] -> fatal_error("no file(s) to analyze");
-    AllFiles -> AllFiles
-  end.
-
--spec test_erl_file_exclude_ann(file:filename()) -> boolean().
-
-test_erl_file_exclude_ann(File) ->
-  case is_erl_file(File) of
-    true -> %% Exclude files ending with ".ann.erl"
-      case re:run(File, "[\.]ann[\.]erl$", [unicode]) of
-        {match, _} -> false;
-        nomatch -> true
-      end;
-    false -> false
-  end.
-
--spec is_erl_file(file:filename()) -> boolean().
-
-is_erl_file(File) ->
-  filename:extension(File) =:= ".erl".
-
--type test_file_fun() :: fun((file:filename()) -> boolean()).
-
--spec filter_fd(files(), files(), test_file_fun()) -> files().
-
-filter_fd(File_Dir, Dir_R, Fun) ->
-  All_File_1 = process_file_and_dir(File_Dir, Fun),
-  All_File_2 = process_dir_rec(Dir_R, Fun),
-  remove_dup(All_File_1 ++ All_File_2).
-
--spec process_file_and_dir(files(), test_file_fun()) -> files().
-
-process_file_and_dir(File_Dir, TestFun) ->
-  Fun =
-    fun (Elem, Acc) ->
-        case filelib:is_regular(Elem) of
-          true  -> process_file(Elem, TestFun, Acc);
-          false -> check_dir(Elem, false, Acc, TestFun)
-        end
-    end,
-  lists:foldl(Fun, [], File_Dir).
-
--spec process_dir_rec(files(), test_file_fun()) -> files().
-
-process_dir_rec(Dirs, TestFun) ->
-  Fun = fun (Dir, Acc) -> check_dir(Dir, true, Acc, TestFun) end,
-  lists:foldl(Fun, [], Dirs).
-
--spec check_dir(file:filename(), boolean(), files(), test_file_fun()) -> files().
-
-check_dir(Dir, Recursive, Acc, Fun) ->
-  case file:list_dir(Dir) of
-    {ok, Files} ->
-      {TmpDirs, TmpFiles} = split_dirs_and_files(Files, Dir),
-      case Recursive of
-        false ->
-          FinalFiles = process_file_and_dir(TmpFiles, Fun),
-          Acc ++ FinalFiles;
-        true ->
-          TmpAcc1 = process_file_and_dir(TmpFiles, Fun),
-          TmpAcc2 = process_dir_rec(TmpDirs, Fun),
-          Acc ++ TmpAcc1 ++ TmpAcc2
-      end;
-    {error, eacces} ->
-      fatal_error("no access permission to dir \""++Dir++"\"");
-    {error, enoent} ->
-      fatal_error("cannot access "++Dir++": No such file or directory");
-    {error, _Reason} ->
-      fatal_error("error involving a use of file:list_dir/1")
-  end.
-
-%% Same order as the input list
--spec process_file(file:filename(), test_file_fun(), files()) -> files().
-
-process_file(File, TestFun, Acc) ->
-  case TestFun(File) of
-    true  -> Acc ++ [File];
-    false -> Acc
-  end.
-
-%% Same order as the input list
--spec split_dirs_and_files(files(), file:filename()) -> {files(), files()}.
-
-split_dirs_and_files(Elems, Dir) ->
-  Test_Fun =
-    fun (Elem, {DirAcc, FileAcc}) ->
-        File = filename:join(Dir, Elem),
-        case filelib:is_regular(File) of
-          false -> {[File|DirAcc], FileAcc};
-          true  -> {DirAcc, [File|FileAcc]}
-        end
-    end,
-  {Dirs, Files} = lists:foldl(Test_Fun, {[], []}, Elems),
-  {lists:reverse(Dirs), lists:reverse(Files)}.
-
-%% Removes duplicate filenames but keeps the order of the input list
--spec remove_dup(files()) -> files().
-
-remove_dup(Files) ->
-  Test_Dup = fun (File, Acc) ->
-                 case lists:member(File, Acc) of
-                   true  -> Acc;
-                   false -> [File|Acc]
-                 end
-             end,
-  Reversed_Elems = lists:foldl(Test_Dup, [], Files),
-  lists:reverse(Reversed_Elems).
-
-%%--------------------------------------------------------------------
-%% Collect information.
-%%--------------------------------------------------------------------
+get_all_files(#args{files = Fs, files_r = _Ds}) ->
+  Fs.
 
 -type inc_file_info() :: {file:filename(), func_info()}.
 
