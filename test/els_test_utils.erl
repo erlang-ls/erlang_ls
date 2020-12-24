@@ -166,6 +166,7 @@ sources() ->
   , diagnostics_xref_pseudo
   , diagnostics_unused_includes
   , elvis_diagnostics
+  , execute_command_add_spec
   , format_input
   , hover_docs
   , hover_docs_caller

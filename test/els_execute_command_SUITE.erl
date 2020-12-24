@@ -14,6 +14,7 @@
 -export([ erlang_ls_info/1
         , ct_run_test/1
         , strip_server_prefix/1
+        , add_spec/1
         ]).
 
 %%==============================================================================
@@ -54,6 +55,14 @@ end_per_suite(Config) ->
 init_per_testcase(ct_run_test, Config0) ->
   Config = els_test_utils:init_per_testcase(ct_run_test, Config0),
   setup_mocks(),
+  Config;
+init_per_testcase(add_spec, Config0) ->
+  Config = els_test_utils:init_per_testcase(add_spec, Config0),
+  meck:new(els_protocol, [passthrough, no_link]),
+  meck:expect( els_protocol, request, 3
+             , fun(RequestId, Method, Params) ->
+                   meck:passthrough([RequestId, Method, Params])
+               end),
   Config;
 init_per_testcase(TestCase, Config) ->
   els_test_utils:init_per_testcase(TestCase, Config).
@@ -120,6 +129,40 @@ ct_run_test(Config) ->
                     uri => Uri}
                 }]
               , Notifications),
+  ok.
+
+-spec add_spec(config()) -> ok.
+add_spec(Config) ->
+  Uri = ?config(execute_command_add_spec_uri, Config),
+  PrefixedCommand = els_command:with_prefix(<<"add-spec">>),
+  #{result := Result}
+    = els_client:workspace_executecommand(
+        PrefixedCommand
+       , [#{ uri => Uri
+           , module => execute_command_add_spec
+           , function => without_spec
+           , arity => 2
+           , line => 12
+           }]),
+  Expected = [],
+  ?assertEqual(Expected, Result),
+  Pattern = ['_', <<"workspace/applyEdit">>, '_'],
+  ok = meck:wait(1, els_protocol, request, Pattern, 5000),
+  History = meck:history(els_protocol),
+  [Edit] = [Params || { _Pid, { els_protocol
+                              , request
+                              , [_RequestId, <<"workspace/applyEdit">>, Params]}
+                      , _Binary
+                      } <- History],
+  #{edit := #{changes := #{Uri := [#{ newText := NewText
+                                    , range := Range}]}}} = Edit,
+  ?assertEqual(<<"todo">>, NewText),
+  ?assertEqual(#{ 'end' => #{ character => 0
+                            , line => 12
+                            }
+                , start => #{ character => 0
+                            , line => 12
+                            }}, Range),
   ok.
 
 -spec strip_server_prefix(config()) -> ok.
