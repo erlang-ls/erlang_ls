@@ -93,6 +93,9 @@ execute_command(<<"add-spec">>, [#{ <<"uri">> := Uri
                                   , <<"arity">> := _Arity
                                   }]) ->
   Method = <<"workspace/applyEdit">>,
+  erlang:display({uri, Uri}),
+  Res = els_typer:start(Uri),
+  erlang:display({res, Res}),
   Params =
     #{ edit =>
          els_text_edit:edit_replace_text(Uri, <<"todo">>, Line, Line)

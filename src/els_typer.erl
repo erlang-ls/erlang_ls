@@ -24,7 +24,7 @@
 
 -module(els_typer).
 
--export([start/0]).
+-export([ start/1 ]).
 
 %%-----------------------------------------------------------------------
 
@@ -32,8 +32,6 @@
 -define(SHOW_EXPORTED, show_exported).
 -define(ANNOTATE, annotate).
 -define(ANNOTATE_INC_FILES, annotate_inc_files).
-
--type mode() :: ?SHOW | ?SHOW_EXPORTED | ?ANNOTATE | ?ANNOTATE_INC_FILES.
 
 %%-----------------------------------------------------------------------
 
@@ -43,7 +41,7 @@
 -type plt()        :: dialyzer_plt:plt().
 
 -record(analysis,
-        {mode        :: mode() | 'undefined',
+        {mode       = 'show',
          macros     = []     :: [{atom(), term()}],
          includes   = []     :: files(),
          codeserver = dialyzer_codeserver:new():: codeserver(),
@@ -69,29 +67,26 @@
                trusted = [] :: files()}).
 -type args() :: #args{}.
 
-%%--------------------------------------------------------------------
-
--spec start() -> no_return().
-
-start() ->
-  _ = io:setopts(standard_error, [{encoding,unicode}]),
-  _ = io:setopts([{encoding,unicode}]),
-  {Args, Analysis} = process_cl_args(),
-  %% io:format("Args: ~p\n", [Args]),
-  %% io:format("Analysis: ~p\n", [Analysis]),
+start(Uri) ->
+  Path = binary_to_list(els_uri:path(Uri)),
+  Args = #args{ files = [Path] },
+  Analysis = #analysis{
+                %% TODO: Pass macros
+                macros = []
+                %% TODO: Pass includes
+               , includes = []
+                %% TODO: Dependencies (eg for parse transforms)
+               },
   Timer = dialyzer_timing:init(false),
   TrustedFiles = filter_fd(Args#args.trusted, [], fun is_erl_file/1),
   Analysis2 = extract(Analysis, TrustedFiles),
   All_Files = get_all_files(Args),
-  %% io:format("All_Files: ~tp\n", [All_Files]),
   Analysis3 = Analysis2#analysis{files = All_Files},
   Analysis4 = collect_info(Analysis3),
-  %% io:format("Final: ~p\n", [Analysis4#analysis.fms]),
   TypeInfo = get_type_info(Analysis4),
   dialyzer_timing:stop(Timer),
-  show_or_annotate(TypeInfo),
-  %% io:format("\nTyper analysis finished\n"),
-  erlang:halt(0).
+  show(TypeInfo),
+  ok.
 
 %%--------------------------------------------------------------------
 
@@ -216,54 +211,6 @@ get_external(Exts, Plt) ->
                functions = []       :: [func_info()],
                types = map__new()   :: map_dict(),
                edoc = false     :: boolean()}).
--record(inc, {map = map__new() :: map_dict(), filter = [] :: files()}).
--type inc() :: #inc{}.
-
--spec show_or_annotate(analysis()) -> 'ok'.
-
-show_or_annotate(#analysis{mode = Mode, fms = Files} = Analysis) ->
-  case Mode of
-    ?SHOW -> show(Analysis);
-    ?SHOW_EXPORTED -> show(Analysis);
-    ?ANNOTATE ->
-      Fun = fun ({File, Module}) ->
-                Info = get_final_info(File, Module, Analysis),
-                write_typed_file(File, Info)
-            end,
-      lists:foreach(Fun, Files);
-    ?ANNOTATE_INC_FILES ->
-      IncInfo = write_and_collect_inc_info(Analysis),
-      write_inc_files(IncInfo)
-  end.
-
-write_and_collect_inc_info(Analysis) ->
-  Fun = fun ({File, Module}, Inc) ->
-            Info = get_final_info(File, Module, Analysis),
-            write_typed_file(File, Info),
-            IncFuns = get_functions(File, Analysis),
-            collect_imported_functions(IncFuns, Info#info.types, Inc)
-        end,
-  NewInc = lists:foldl(Fun, #inc{}, Analysis#analysis.fms),
-  clean_inc(NewInc).
-
-write_inc_files(Inc) ->
-  Fun =
-    fun (File) ->
-        Val = map__lookup(File, Inc#inc.map),
-        %% Val is function with its type info
-        %% in form [{{Line,F,A},Type}]
-        Functions = [Key || {Key, _} <- Val],
-        Val1 = [{{F,A},Type} || {{_Line,F,A},Type} <- Val],
-        Info = #info{types = map__from_list(Val1),
-                     records = maps:new(),
-                     %% Note we need to sort functions here!
-                     functions = lists:keysort(1, Functions)},
-        %% io:format("Types ~tp\n", [Info#info.types]),
-        %% io:format("Functions ~tp\n", [Info#info.functions]),
-        %% io:format("Records ~tp\n", [Info#info.records]),
-        write_typed_file(File, Info)
-    end,
-  lists:foreach(Fun, dict:fetch_keys(Inc#inc.map)).
 
 show(Analysis) ->
   Fun = fun ({File, Module}) ->
@@ -278,97 +225,6 @@ get_final_info(File, Module, Analysis) ->
   Functions = get_functions(File, Analysis),
   Edoc = Analysis#analysis.edoc,
   #info{records = Records, functions = Functions, types = Types, edoc = Edoc}.
-
-collect_imported_functions(Functions, Types, Inc) ->
-  %% Coming from other sourses, including:
-  %% FIXME: How to deal with yecc-generated file????
-  %%     --.yrl (yecc-generated file)???
-  %%     -- yeccpre.hrl (yecc-generated file)???
-  %%     -- other cases
-  Fun = fun ({File, _} = Obj, I) ->
-            case is_yecc_gen(File, I) of
-              {true, NewI} -> NewI;
-              {false, NewI} ->
-                check_imported_functions(Obj, NewI, Types)
-            end
-        end,
-  lists:foldl(Fun, Inc, Functions).
-
--spec is_yecc_gen(file:filename(), inc()) -> {boolean(), inc()}.
-
-is_yecc_gen(File, #inc{filter = Fs} = Inc) ->
-  case lists:member(File, Fs) of
-    true -> {true, Inc};
-    false ->
-      case filename:extension(File) of
-        ".yrl" ->
-          Rootname = filename:rootname(File, ".yrl"),
-          Obj = Rootname ++ ".erl",
-          case lists:member(Obj, Fs) of
-            true -> {true, Inc};
-            false ->
-              NewInc = Inc#inc{filter = [Obj|Fs]},
-              {true, NewInc}
-          end;
-        _ ->
-          case filename:basename(File) of
-            "yeccpre.hrl" -> {true, Inc};
-            _ -> {false, Inc}
-          end
-      end
-  end.
-
-check_imported_functions({File, {Line, F, A}}, Inc, Types) ->
-  IncMap = Inc#inc.map,
-  FA = {F, A},
-  Type = get_type_info(FA, Types),
-  case map__lookup(File, IncMap) of
-    none -> %% File is not added. Add it
-      Obj = {File,[{FA, {Line, Type}}]},
-      NewMap = map__insert(Obj, IncMap),
-      Inc#inc{map = NewMap};
-    Val -> %% File is already in. Check.
-      case lists:keyfind(FA, 1, Val) of
-        false ->
-          %% Function is not in; add it
-          Obj = {File, Val ++ [{FA, {Line, Type}}]},
-          NewMap = map__insert(Obj, IncMap),
-          Inc#inc{map = NewMap};
-        Type ->
-          %% Function is in and with same type
-          Inc;
-        _ ->
-          %% Function is in but with diff type
-          inc_warning(FA, File),
-          Elem = lists:keydelete(FA, 1, Val),
-          NewMap = case Elem of
-                     [] -> map__remove(File, IncMap);
-                     _  -> map__insert({File, Elem}, IncMap)
-                   end,
-          Inc#inc{map = NewMap}
-      end
-  end.
-
-inc_warning({F, A}, File) ->
-  io:format("      ***Warning: Skip function ~tp/~p ", [F, A]),
-  io:format("in file ~tp because of inconsistent type\n", [File]).
-
-clean_inc(Inc) ->
-  Inc1 = remove_yecc_generated_file(Inc),
-  normalize_obj(Inc1).
-
-remove_yecc_generated_file(#inc{filter = Filter} = Inc) ->
-  Fun = fun (Key, #inc{map = Map} = I) ->
-            I#inc{map = map__remove(Key, Map)}
-        end,
-  lists:foldl(Fun, Inc, Filter).
-
-normalize_obj(TmpInc) ->
-  Fun = fun (Key, Val, Inc) ->
-            NewVal = [{{Line,F,A},Type} || {{F,A},{Line,Type}} <- Val],
-            map__insert({Key, NewVal}, Inc)
-        end,
-  TmpInc#inc{map = map__fold(Fun, map__new(), TmpInc#inc.map)}.
 
 get_records(File, Analysis) ->
   map__lookup(File, Analysis#analysis.record).
@@ -448,81 +304,6 @@ remove_module_info(FunInfoList) ->
       end,
   lists:filter(F, FunInfoList).
 
-write_typed_file(File, Info) ->
-  io:format("      Processing file: ~tp\n", [File]),
-  Dir = filename:dirname(File),
-  RootName = filename:basename(filename:rootname(File)),
-  Ext = filename:extension(File),
-  TyperAnnDir = filename:join(Dir, ?TYPER_ANN_DIR),
-  TmpNewFilename = lists:concat([RootName, ".ann", Ext]),
-  NewFileName = filename:join(TyperAnnDir, TmpNewFilename),
-  case file:make_dir(TyperAnnDir) of
-    {error, Reason} ->
-      case Reason of
-        eexist -> %% TypEr dir exists; remove old typer files if they exist
-          case file:delete(NewFileName) of
-            ok -> ok;
-            {error, enoent} -> ok;
-            {error, _} ->
-              Msg = io_lib:format("Error in deleting file ~ts\n", [NewFileName]),
-              fatal_error(Msg)
-          end,
-          write_typed_file(File, Info, NewFileName);
-        enospc ->
-          Msg = io_lib:format("Not enough space in ~tp\n", [Dir]),
-          fatal_error(Msg);
-        eacces ->
-          Msg = io_lib:format("No write permission in ~tp\n", [Dir]),
-          fatal_error(Msg);
-        _ ->
-          Msg = io_lib:format("Unhandled error ~ts when writing ~tp\n",
-                              [Reason, Dir]),
-          fatal_error(Msg)
-      end;
-    ok -> %% Typer dir does NOT exist
-      write_typed_file(File, Info, NewFileName)
-  end.
-
-write_typed_file(File, Info, NewFileName) ->
-  {ok, Binary} = file:read_file(File),
-  Chars = unicode:characters_to_list(Binary),
-  write_typed_file(Chars, NewFileName, Info, 1, []),
-  io:format("             Saved as: ~tp\n", [NewFileName]).
-
-write_typed_file(Chars, File, #info{functions = []}, _LNo, _Acc) ->
-  ok = file:write_file(File, unicode:characters_to_binary(Chars), [append]);
-write_typed_file([Ch|Chs] = Chars, File, Info, LineNo, Acc) ->
-  [{Line,F,A}|RestFuncs] = Info#info.functions,
-  case Line of
-    1 -> %% This will happen only for inc files
-      ok = raw_write(F, A, Info, File, []),
-      NewInfo = Info#info{functions = RestFuncs},
-      NewAcc = [],
-      write_typed_file(Chars, File, NewInfo, Line, NewAcc);
-    _ ->
-      case Ch of
-        10 ->
-          NewLineNo = LineNo + 1,
-          {NewInfo, NewAcc} =
-            case NewLineNo of
-              Line ->
-                ok = raw_write(F, A, Info, File, [Ch|Acc]),
-                {Info#info{functions = RestFuncs}, []};
-              _ ->
-                {Info, [Ch|Acc]}
-            end,
-          write_typed_file(Chs, File, NewInfo, NewLineNo, NewAcc);
-        _ ->
-          write_typed_file(Chs, File, Info, LineNo, [Ch|Acc])
-      end
-  end.
-
-raw_write(F, A, Info, File, Content) ->
-  TypeInfo = get_type_string(F, A, Info, file),
-  ContentList = lists:reverse(Content) ++ TypeInfo ++ "\n",
-  ContentBin = unicode:characters_to_binary(ContentList),
-  file:write_file(File, ContentBin, [append]).
-
 get_type_string(F, A, Info, Mode) ->
   Type = get_type_info({F,A}, Info#info.types),
   TypeStr =
@@ -567,117 +348,6 @@ get_type_info(Func, Types) ->
     {contract, _Fun} = C -> C;
     {_RetType, _ArgType} = RA -> RA
   end.
-
-%%--------------------------------------------------------------------
-%% Processing of command-line options and arguments.
-%%--------------------------------------------------------------------
-
--spec process_cl_args() -> {args(), analysis()}.
-
-process_cl_args() ->
-  ArgList = init:get_plain_arguments(),
-  %% io:format("Args is ~tp\n", [ArgList]),
-  {Args, Analysis} = analyze_args(ArgList, #args{}, #analysis{}),
-  %% if the mode has not been set, set it to the default mode (show)
-  {Args, case Analysis#analysis.mode of
-           undefined -> Analysis#analysis{mode = ?SHOW};
-           Mode when is_atom(Mode) -> Analysis
-         end}.
-
-analyze_args([], Args, Analysis) ->
-  {Args, Analysis};
-analyze_args(ArgList, Args, Analysis) ->
-  {Result, Rest} = cl(ArgList),
-  {NewArgs, NewAnalysis} = analyze_result(Result, Args, Analysis),
-  analyze_args(Rest, NewArgs, NewAnalysis).
-
-cl(["-h"|_])     -> help_message();
-cl(["--help"|_]) -> help_message();
-cl(["--edoc"|Opts]) -> {edoc, Opts};
-cl(["--show"|Opts]) -> {{mode, ?SHOW}, Opts};
-cl(["--show_exported"|Opts]) -> {{mode, ?SHOW_EXPORTED}, Opts};
-cl(["--show-exported"|Opts]) -> {{mode, ?SHOW_EXPORTED}, Opts};
-cl(["--show_success_typings"|Opts]) -> {show_succ, Opts};
-cl(["--show-success-typings"|Opts]) -> {show_succ, Opts};
-cl(["--annotate"|Opts]) -> {{mode, ?ANNOTATE}, Opts};
-cl(["--annotate-inc-files"|Opts]) -> {{mode, ?ANNOTATE_INC_FILES}, Opts};
-cl(["--no_spec"|Opts]) -> {no_spec, Opts};
-cl(["--plt",Plt|Opts]) -> {{plt, Plt}, Opts};
-cl(["-D"++Def|Opts]) ->
-  case Def of
-    "" -> fatal_error("no variable name specified after -D");
-    _ ->
-      DefPair = process_def_list(re:split(Def, "=", [{return, list}, unicode])),
-      {{def, DefPair}, Opts}
-  end;
-cl(["-I",Dir|Opts]) -> {{inc, Dir}, Opts};
-cl(["-I"++Dir|Opts]) ->
-  case Dir of
-    "" -> fatal_error("no include directory specified after -I");
-    _ -> {{inc, Dir}, Opts}
-  end;
-cl(["-T"|Opts]) ->
-  {Files, RestOpts} = dialyzer_cl_parse:collect_args(Opts),
-  case Files of
-    [] -> fatal_error("no file or directory specified after -T");
-    [_|_] -> {{trusted, Files}, RestOpts}
-  end;
-cl(["-r"|Opts]) ->
-  {Files, RestOpts} = dialyzer_cl_parse:collect_args(Opts),
-  {{files_r, Files}, RestOpts};
-cl(["-pa",Dir|Opts]) -> {{pa,Dir}, Opts};
-cl(["-pz",Dir|Opts]) -> {{pz,Dir}, Opts};
-cl(["-"++H|_]) -> fatal_error("unknown option -"++H);
-cl(Opts) ->
-  {Files, RestOpts} = dialyzer_cl_parse:collect_args(Opts),
-  {{files, Files}, RestOpts}.
-
-process_def_list(L) ->
-  case L of
-    [Name, Value] ->
-      {ok, Tokens, _} = erl_scan:string(Value ++ "."),
-      {ok, ErlValue} = erl_parse:parse_term(Tokens),
-      {list_to_atom(Name), ErlValue};
-    [Name] ->
-      {list_to_atom(Name), true}
-  end.
-
-%% Get information about files that the user trusts and wants to analyze
-analyze_result({files, Val}, Args, Analysis) ->
-  NewVal = Args#args.files ++ Val,
-  {Args#args{files = NewVal}, Analysis};
-analyze_result({files_r, Val}, Args, Analysis) ->
-  NewVal = Args#args.files_r ++ Val,
-  {Args#args{files_r = NewVal}, Analysis};
-analyze_result({trusted, Val}, Args, Analysis) ->
-  NewVal = Args#args.trusted ++ Val,
-  {Args#args{trusted = NewVal}, Analysis};
-analyze_result(edoc, Args, Analysis) ->
-  {Args, Analysis#analysis{edoc = true}};
-%% Get useful information for actual analysis
-analyze_result({mode, Mode}, Args, Analysis) ->
-  case Analysis#analysis.mode of
-    undefined -> {Args, Analysis#analysis{mode = Mode}};
-    OldMode -> mode_error(OldMode, Mode)
-  end;
-analyze_result({def, Val}, Args, Analysis) ->
-  NewVal = Analysis#analysis.macros ++ [Val],
-  {Args, Analysis#analysis{macros = NewVal}};
-analyze_result({inc, Val}, Args, Analysis) ->
-  NewVal = Analysis#analysis.includes ++ [Val],
-  {Args, Analysis#analysis{includes = NewVal}};
-analyze_result({plt, Plt}, Args, Analysis) ->
-  {Args, Analysis#analysis{plt = Plt}};
-analyze_result(show_succ, Args, Analysis) ->
-  {Args, Analysis#analysis{show_succ = true}};
-analyze_result(no_spec, Args, Analysis) ->
-  {Args, Analysis#analysis{no_spec = true}};
-analyze_result({pa, Dir}, Args, Analysis) ->
-  true = code:add_patha(Dir),
-  {Args, Analysis};
-analyze_result({pz, Dir}, Args, Analysis) ->
-  true = code:add_pathz(Dir),
-  {Args, Analysis}.
 
 %%--------------------------------------------------------------------
 %% File processing.
@@ -974,14 +644,6 @@ fatal_error(Slogan) ->
   msg(io_lib:format("typer: ~ts\n", [Slogan])),
   erlang:halt(1).
 
--spec mode_error(mode(), mode()) -> no_return().
-
-mode_error(OldMode, NewMode) ->
-  Msg = io_lib:format("Mode was previously set to '~s'; "
-                      "cannot set it to '~s' now",
-                      [OldMode, NewMode]),
-  fatal_error(Msg).
-
 -spec compile_error([string()]) -> no_return().
 
 compile_error(Reason) ->
@@ -993,55 +655,6 @@ compile_error(Reason) ->
 
 msg(Msg) ->
   io:format(standard_error, "~ts", [Msg]).
-
--spec help_message() -> no_return().
-
-help_message() ->
-  S = <<" Usage: typer [--help] [--plt PLT] [--edoc]
-              [--show | --show-exported | --annotate | --annotate-inc-files]
-        [-Ddefine]* [-I include_dir]* [-pa dir]* [-pz dir]*
-        [-T application]* [-r] file*
-
-        Options:
-        -r dir*
-        search directories recursively for .erl files below them
-        --show
-        Prints type specifications for all functions on stdout.
-(this is the default behaviour; this option is not really needed)
---show-exported (or --show_exported)
-Same as --show, but prints specifications for exported functions only
-Specs are displayed sorted alphabetically on the function's name
-   --annotate
-Annotates the specified files with type specifications
---annotate-inc-files
-Same as --annotate but annotates all -include() files as well as
-all .erl files (use this option with caution - has not been tested much)
---edoc
-Prints type information as Edoc @spec comments, not as type specs
---plt PLT
-Use the specified dialyzer PLT file rather than the default one
--T file*
-The specified file(s) already contain type specifications and these
-are to be trusted in order to print specs for the rest of the files
-(Multiple files or dirs, separated by spaces, can be specified.)
--Dname (or -Dname=value)
-pass the defined name(s) to TypEr
-(The syntax of defines is the same as that used by \"erlc\".)
-   -I include_dir
- pass the include_dir to TypEr
-                           (The syntax of includes is the same as that used by \"erlc\".)
-   -pa dir
-                            -pz dir
-                            Set code path options to TypEr
-                                                       (This is useful for files that use parse tranforms.)
-                            --help (or -h)
-                            prints this message and exits
-
-                            Note:
-                              * denotes that multiple occurrences of these options are possible.
-">>,
-  io:put_chars(S),
-erlang:halt(0).
 
 %%--------------------------------------------------------------------
 %% Handle messages.
@@ -1083,11 +696,3 @@ map__lookup(Key, Map) ->
 -spec map__from_list([{fa(), term()}]) -> map_dict().
 map__from_list(List) ->
   dict:from_list(List).
-
--spec map__remove(term(), map_dict()) -> map_dict().
-map__remove(Key, Dict) ->
-  dict:erase(Key, Dict).
-
--spec map__fold(fun((term(), term(), term()) -> map_dict()), map_dict(), map_dict()) -> map_dict().
-map__fold(Fun, Acc0, Dict) ->
-  dict:fold(Fun, Acc0, Dict).
