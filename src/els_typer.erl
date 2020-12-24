@@ -26,15 +26,6 @@
 
 -export([ start/1 ]).
 
-%%-----------------------------------------------------------------------
-
--define(SHOW, show).
--define(SHOW_EXPORTED, show_exported).
--define(ANNOTATE, annotate).
--define(ANNOTATE_INC_FILES, annotate_inc_files).
-
-%%-----------------------------------------------------------------------
-
 -type files()      :: [file:filename()].
 -type callgraph()  :: dialyzer_callgraph:callgraph().
 -type codeserver() :: dialyzer_codeserver:codeserver().
@@ -50,8 +41,6 @@
          plt        = none     :: 'none' | file:filename(),
          no_spec    = false              :: boolean(),
          show_succ  = false              :: boolean(),
-         %% For choosing between specs or edoc @spec comments
-         edoc       = false    :: boolean(),
          %% Files in 'fms' are compilable with option 'to_pp'; we keep them
          %% as {FileName, ModuleName} in case the ModuleName is different
          fms        = []     :: [{file:filename(), module()}],
@@ -209,8 +198,7 @@ get_external(Exts, Plt) ->
 
 -record(info, {records = maps:new() :: erl_types:type_table(),
                functions = []       :: [func_info()],
-               types = map__new()   :: map_dict(),
-               edoc = false     :: boolean()}).
+               types = map__new()   :: map_dict()}).
 
 show(Analysis) ->
   Fun = fun ({File, Module}) ->
@@ -223,8 +211,7 @@ get_final_info(File, Module, Analysis) ->
   Records = get_records(File, Analysis),
   Types = get_types(Module, Analysis, Records),
   Functions = get_functions(File, Analysis),
-  Edoc = Analysis#analysis.edoc,
-  #info{records = Records, functions = Functions, types = Types, edoc = Edoc}.
+  #info{records = Records, functions = Functions, types = Types}.
 
 get_records(File, Analysis) ->
   map__lookup(File, Analysis#analysis.record).
@@ -277,20 +264,9 @@ get_type({{M, F, A} = MFA, Range, Arg}, CodeServer, Records) ->
   end.
 
 get_functions(File, Analysis) ->
-  case Analysis#analysis.mode of
-    ?SHOW ->
-      Funcs = map__lookup(File, Analysis#analysis.func),
-      Inc_Funcs = map__lookup(File, Analysis#analysis.inc_func),
-      remove_module_info(Funcs) ++ normalize_incFuncs(Inc_Funcs);
-    ?SHOW_EXPORTED ->
-      Ex_Funcs = map__lookup(File, Analysis#analysis.ex_func),
-      remove_module_info(Ex_Funcs);
-    ?ANNOTATE ->
-      Funcs = map__lookup(File, Analysis#analysis.func),
-      remove_module_info(Funcs);
-    ?ANNOTATE_INC_FILES ->
-      map__lookup(File, Analysis#analysis.inc_func)
-  end.
+  Funcs = map__lookup(File, Analysis#analysis.func),
+  Inc_Funcs = map__lookup(File, Analysis#analysis.inc_func),
+  remove_module_info(Funcs) ++ normalize_incFuncs(Inc_Funcs).
 
 normalize_incFuncs(Functions) ->
   [FunInfo || {_FileName, FunInfo} <- Functions].
@@ -314,16 +290,10 @@ get_type_string(F, A, Info, Mode) ->
         Sig = erl_types:t_fun(ArgType, RetType),
         dialyzer_utils:format_sig(Sig, Info#info.records)
     end,
-  case Info#info.edoc of
-    false ->
-      case {Mode, Type} of
-        {file, {contract, _}} -> "";
-        _ ->
-          Prefix = lists:concat(["-spec ", erl_types:atom_to_string(F)]),
-          lists:concat([Prefix, TypeStr, "."])
-      end;
-    true ->
-      Prefix = lists:concat(["%% @spec ", F]),
+  case {Mode, Type} of
+    {file, {contract, _}} -> "";
+    _ ->
+      Prefix = lists:concat(["-spec ", erl_types:atom_to_string(F)]),
       lists:concat([Prefix, TypeStr, "."])
   end.
 
