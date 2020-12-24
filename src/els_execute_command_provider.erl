@@ -86,6 +86,19 @@ execute_command(<<"ct-run-test">>, [Params]) ->
   [];
 execute_command(<<"show-behaviour-usages">>, [_Params]) ->
   [];
+execute_command(<<"add-spec">>, [#{ <<"uri">> := Uri
+                                  , <<"line">> := Line
+                                  , <<"module">> := _Module
+                                  , <<"function">> := _Function
+                                  , <<"arity">> := _Arity
+                                  }]) ->
+  Method = <<"workspace/applyEdit">>,
+  Params =
+    #{ edit =>
+         els_text_edit:edit_replace_text(Uri, <<"todo">>, Line, Line)
+     },
+  els_server:send_request(Method, Params),
+  [];
 execute_command(Command, Arguments) ->
   lager:info("Unsupported command: [Command=~p] [Arguments=~p]"
             , [Command, Arguments]),
