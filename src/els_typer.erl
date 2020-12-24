@@ -593,8 +593,6 @@ analyze_args(ArgList, Args, Analysis) ->
 
 cl(["-h"|_])     -> help_message();
 cl(["--help"|_]) -> help_message();
-cl(["-v"|_])        -> version_message();
-cl(["--version"|_]) -> version_message();
 cl(["--edoc"|Opts]) -> {edoc, Opts};
 cl(["--show"|Opts]) -> {{mode, ?SHOW}, Opts};
 cl(["--show_exported"|Opts]) -> {{mode, ?SHOW_EXPORTED}, Opts};
@@ -996,20 +994,10 @@ compile_error(Reason) ->
 msg(Msg) ->
   io:format(standard_error, "~ts", [Msg]).
 
-%%--------------------------------------------------------------------
-%% Version and help messages.
-%%--------------------------------------------------------------------
-
--spec version_message() -> no_return().
-
-version_message() ->
-  io:format("TypEr version "++?VSN++"\n"),
-  erlang:halt(0).
-
 -spec help_message() -> no_return().
 
 help_message() ->
-  S = <<" Usage: typer [--help] [--version] [--plt PLT] [--edoc]
+  S = <<" Usage: typer [--help] [--plt PLT] [--edoc]
               [--show | --show-exported | --annotate | --annotate-inc-files]
         [-Ddefine]* [-I include_dir]* [-pa dir]* [-pz dir]*
         [-T application]* [-r] file*
@@ -1046,8 +1034,6 @@ pass the defined name(s) to TypEr
                             -pz dir
                             Set code path options to TypEr
                                                        (This is useful for files that use parse tranforms.)
-                            --version (or -v)
-                            prints the Typer version and exits
                             --help (or -h)
                             prints this message and exits
 
