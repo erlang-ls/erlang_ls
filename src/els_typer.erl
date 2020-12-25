@@ -51,14 +51,8 @@
          trust_plt  = dialyzer_plt:new() :: plt()}).
 -type analysis() :: #analysis{}.
 
--record(args, {files   = [] :: files(),
-               files_r = [] :: files(),
-               trusted = [] :: files()}).
--type args() :: #args{}.
-
 start(Uri) ->
   Path = binary_to_list(els_uri:path(Uri)),
-  Args = #args{ files = [Path] },
   Analysis = #analysis{
                 %% TODO: Pass macros
                 macros = []
@@ -69,8 +63,7 @@ start(Uri) ->
   Timer = dialyzer_timing:init(false),
   TrustedFiles = [], %% TODO
   Analysis2 = extract(Analysis, TrustedFiles),
-  All_Files = get_all_files(Args),
-  Analysis3 = Analysis2#analysis{files = All_Files},
+  Analysis3 = Analysis2#analysis{files = [Path]},
   Analysis4 = collect_info(Analysis3),
   TypeInfo = get_type_info(Analysis4),
   dialyzer_timing:stop(Timer),
@@ -316,11 +309,6 @@ get_type_info(Func, Types) ->
 %%--------------------------------------------------------------------
 %% File processing.
 %%--------------------------------------------------------------------
-
--spec get_all_files(args()) -> [file:filename(),...].
-
-get_all_files(#args{files = Fs, files_r = _Ds}) ->
-  Fs.
 
 -type inc_file_info() :: {file:filename(), func_info()}.
 
