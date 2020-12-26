@@ -24,6 +24,7 @@ options() ->
                  , els_command:with_prefix(<<"server-info">>)
                  , els_command:with_prefix(<<"ct-run-test">>)
                  , els_command:with_prefix(<<"show-behaviour-usages">>)
+                 , els_command:with_prefix(<<"add-spec">>)
                  ] }.
 
 -spec handle_request(any(), state()) -> {any(), state()}.
