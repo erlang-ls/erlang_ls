@@ -24,7 +24,7 @@
 
 -module(els_typer).
 
--export([ start/1 ]).
+-export([ suggest/3 ]).
 
 -type files()      :: [file:filename()].
 -type callgraph()  :: dialyzer_callgraph:callgraph().
@@ -50,7 +50,11 @@
          trust_plt  = dialyzer_plt:new() :: plt()}).
 -type analysis() :: #analysis{}.
 
-start(Uri) ->
+-record(info, {records = maps:new() :: erl_types:type_table(),
+               functions = []       :: [func_info()],
+               types = map__new()   :: map_dict()}).
+
+suggest(Uri, Function, Arity) ->
   Path = binary_to_list(els_uri:path(Uri)),
   Analysis = #analysis{
                 %% TODO: Pass macros
@@ -59,15 +63,17 @@ start(Uri) ->
                , includes = []
                 %% TODO: Dependencies (eg for parse transforms)
                },
-  Timer = dialyzer_timing:init(false),
   TrustedFiles = [], %% TODO
   Analysis2 = extract(Analysis, TrustedFiles),
   Analysis3 = Analysis2#analysis{files = [Path]},
   Analysis4 = collect_info(Analysis3),
-  TypeInfo = get_type_info(Analysis4),
-  dialyzer_timing:stop(Timer),
-  show(TypeInfo),
-  ok.
+  Analysis5 = get_type_info(Analysis4),
+  [{File, Module}] = Analysis5#analysis.fms,
+  Info = get_final_info(File, Module, Analysis5),
+  Functions = Info#info.functions,
+  [{LineNo, F, A}] = [{LineNo, F, A} || {LineNo, F, A} <- Functions, F =:= Function, A =:= Arity],
+  TypeInfo = get_type_string(F, A, Info),
+  {LineNo, TypeInfo}.
 
 %%--------------------------------------------------------------------
 
@@ -188,17 +194,6 @@ get_external(Exts, Plt) ->
 -type fa()        :: {atom(), arity()}.
 -type func_info() :: {line(), atom(), arity()}.
 
--record(info, {records = maps:new() :: erl_types:type_table(),
-               functions = []       :: [func_info()],
-               types = map__new()   :: map_dict()}).
-
-show(Analysis) ->
-  Fun = fun ({File, Module}) ->
-            Info = get_final_info(File, Module, Analysis),
-            show_type_info(Info)
-        end,
-  lists:foreach(Fun, Analysis#analysis.fms).
-
 get_final_info(File, Module, Analysis) ->
   Records = get_records(File, Analysis),
   Types = get_types(Module, Analysis, Records),
@@ -284,14 +279,6 @@ get_type_string(F, A, Info) ->
     end,
   Prefix = lists:concat(["-spec ", erl_types:atom_to_string(F)]),
   lists:concat([Prefix, TypeStr, "."]).
-
-show_type_info(Info) ->
-  Fun = fun ({LineNo, F, A}) ->
-            erlang:display({line_no, LineNo}),
-            TypeInfo = get_type_string(F, A, Info),
-            io:format("~ts\n", [TypeInfo])
-        end,
-  lists:foreach(Fun, Info#info.functions).
 
 get_type_info(Func, Types) ->
   case map__lookup(Func, Types) of

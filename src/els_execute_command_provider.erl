@@ -87,20 +87,34 @@ execute_command(<<"ct-run-test">>, [Params]) ->
 execute_command(<<"show-behaviour-usages">>, [_Params]) ->
   [];
 execute_command(<<"add-spec">>, [#{ <<"uri">> := Uri
-                                  , <<"line">> := Line
+                                  , <<"line">> := _Line
                                   , <<"module">> := _Module
-                                  , <<"function">> := _Function
-                                  , <<"arity">> := _Arity
+                                  , <<"function">> := Function
+                                  , <<"arity">> := Arity
                                   }]) ->
   Method = <<"workspace/applyEdit">>,
-  erlang:display({uri, Uri}),
-  Res = els_typer:start(Uri),
-  erlang:display({res, Res}),
-  Params =
-    #{ edit =>
-         els_text_edit:edit_replace_text(Uri, <<"todo">>, Line, Line)
-     },
-  els_server:send_request(Method, Params),
+  try els_typer:suggest(Uri, binary_to_atom(Function), Arity) of
+    {LineNo, Spec0} ->
+      Spec = "\n" ++ Spec0,
+      Params =
+        #{ edit =>
+             els_text_edit:edit_replace_text(Uri, Spec, LineNo - 2, LineNo - 2)
+         },
+      els_server:send_request(Method, Params)
+  catch
+    Class:Exception:Stacktrace ->
+      Fmt =
+        "Could not suggest spec.~n"
+        "Class: ~p~n"
+        "Exception: ~p~n"
+        "Stacktrace: ~p~n",
+      Args = [Class, Exception, Stacktrace],
+      Message = lists:flatten(io_lib:format(Fmt, Args)),
+      els_server:send_notification(<<"window/showMessage">>,
+                                   #{ type => ?MESSAGE_TYPE_ERROR,
+                                      message => Message
+                                    })
+  end,
   [];
 execute_command(Command, Arguments) ->
   lager:info("Unsupported command: [Command=~p] [Arguments=~p]"
