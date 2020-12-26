@@ -39,7 +39,6 @@
          callgraph  = dialyzer_callgraph:new() :: callgraph(),
          files      = []     :: files(),   % absolute names
          plt        = none     :: 'none' | file:filename(),
-         no_spec    = false              :: boolean(),
          show_succ  = false              :: boolean(),
          %% Files in 'fms' are compilable with option 'to_pp'; we keep them
          %% as {FileName, ModuleName} in case the ModuleName is different
@@ -384,12 +383,7 @@ analyze_core_tree(Core, Records, SpecInfo, CbInfo, ExpTypes, Analysis, File) ->
   CS2 = dialyzer_codeserver:insert(Module, Tree, CS1),
   CS3 = dialyzer_codeserver:set_next_core_label(NewLabel, CS2),
   CS4 = dialyzer_codeserver:store_temp_records(Module, Records, CS3),
-  CS5 =
-    case Analysis#analysis.no_spec of
-      true -> CS4;
-      false ->
-        dialyzer_codeserver:store_temp_contracts(Module, SpecInfo, CbInfo, CS4)
-    end,
+  CS5 = dialyzer_codeserver:store_temp_contracts(Module, SpecInfo, CbInfo, CS4),
   OldExpTypes = dialyzer_codeserver:get_temp_exported_types(CS5),
   MergedExpTypes = sets:union(ExpTypes, OldExpTypes),
   CS6 = dialyzer_codeserver:insert_temp_exported_types(MergedExpTypes, CS5),
