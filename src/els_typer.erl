@@ -93,39 +93,22 @@ extract(#analysis{macros = Macros,
         AllIncludes = [filename:dirname(filename:dirname(File)) | Includes],
         Is = [{i, Dir} || Dir <- AllIncludes],
         CompOpts = dialyzer_utils:src_compiler_opts() ++ Is ++ Ds,
-        case dialyzer_utils:get_core_from_src(File, CompOpts) of
-          {ok, Core} ->
-            case dialyzer_utils:get_record_and_type_info(Core) of
-              {ok, RecDict} ->
-                Mod = list_to_atom(filename:basename(File, ".erl")),
-                case dialyzer_utils:get_spec_info(Mod, Core, RecDict) of
-                  {ok, SpecDict, CbDict} ->
-                    CS1 = dialyzer_codeserver:store_temp_records(Mod, RecDict, CS),
-                    dialyzer_codeserver:store_temp_contracts(Mod, SpecDict, CbDict, CS1);
-                  {error, Reason} -> compile_error([Reason])
-                end;
-              {error, Reason} -> compile_error([Reason])
-            end;
-          {error, Reason} -> compile_error(Reason)
-        end
+        {ok, Core} = dialyzer_utils:get_core_from_src(File, CompOpts),
+        {ok, RecDict} = dialyzer_utils:get_record_and_type_info(Core),
+        Mod = list_to_atom(filename:basename(File, ".erl")),
+        {ok, SpecDict, CbDict} = dialyzer_utils:get_spec_info(Mod, Core, RecDict),
+        CS1 = dialyzer_codeserver:store_temp_records(Mod, RecDict, CS),
+        dialyzer_codeserver:store_temp_contracts(Mod, SpecDict, CbDict, CS1)
     end,
   CodeServer1 = lists:foldl(Fun, CodeServer, TrustedFiles),
-  %% Process remote types
-  NewCodeServer =
-    try
-      CodeServer2 =
-        dialyzer_utils:merge_types(CodeServer1,
-                                   TrustPLT), % XXX change to the PLT?
-      NewExpTypes = dialyzer_codeserver:get_temp_exported_types(CodeServer1),
-      case sets:size(NewExpTypes) of 0 -> ok end,
-      CodeServer3 = dialyzer_codeserver:finalize_exported_types(NewExpTypes, CodeServer2),
-      CodeServer4 = dialyzer_utils:process_record_remote_types(CodeServer3),
-      dialyzer_contracts:process_contract_remote_types(CodeServer4)
-    catch
-      throw:{error, ErrorMsg} ->
-        compile_error(ErrorMsg)
-    end,
-  %% Create TrustPLT
+  CodeServer2 =
+    dialyzer_utils:merge_types(CodeServer1,
+                               TrustPLT), % XXX change to the PLT?
+  NewExpTypes = dialyzer_codeserver:get_temp_exported_types(CodeServer1),
+  case sets:size(NewExpTypes) of 0 -> ok end,
+  CodeServer3 = dialyzer_codeserver:finalize_exported_types(NewExpTypes, CodeServer2),
+  CodeServer4 = dialyzer_utils:process_record_remote_types(CodeServer3),
+  NewCodeServer = dialyzer_contracts:process_contract_remote_types(CodeServer4),
   ContractsDict = dialyzer_codeserver:get_contracts(NewCodeServer),
   Contracts = orddict:from_list(dict:to_list(ContractsDict)),
   NewTrustPLT = dialyzer_plt:insert_contract_list(TrustPLT, Contracts),
@@ -139,19 +122,10 @@ get_type_info(#analysis{callgraph = CallGraph,
                         trust_plt = TrustPLT,
                         codeserver = CodeServer} = Analysis) ->
   StrippedCallGraph = remove_external(CallGraph, TrustPLT),
-  %% io:format("--- Analyzing callgraph... "),
-  try
-    NewPlt = dialyzer_succ_typings:analyze_callgraph(StrippedCallGraph,
-                                                     TrustPLT,
-                                                     CodeServer),
-    Analysis#analysis{callgraph = StrippedCallGraph, trust_plt = NewPlt}
-  catch
-    error:What:Stacktrace ->
-      fatal_error(io_lib:format("Analysis failed with message: ~tp",
-                                [{What, Stacktrace}]));
-    throw:{dialyzer_succ_typing_error, Msg} ->
-      fatal_error(io_lib:format("Analysis failed with message: ~ts", [Msg]))
-  end.
+  NewPlt = dialyzer_succ_typings:analyze_callgraph(StrippedCallGraph,
+                                                   TrustPLT,
+                                                   CodeServer),
+  Analysis#analysis{callgraph = StrippedCallGraph, trust_plt = NewPlt}.
 
 -spec remove_external(callgraph(), plt()) -> callgraph().
 
@@ -159,13 +133,8 @@ remove_external(CallGraph, PLT) ->
   {StrippedCG0, Ext} = dialyzer_callgraph:remove_external(CallGraph),
   case get_external(Ext, PLT) of
     [] -> ok;
-    Externals ->
-      msg(io_lib:format(" Unknown functions: ~tp\n", [lists:usort(Externals)])),
-      ExtTypes = rcv_ext_types(),
-      case ExtTypes of
-        [] -> ok;
-        _ -> msg(io_lib:format(" Unknown types: ~tp\n", [ExtTypes]))
-      end
+    _Externals ->
+      rcv_ext_types()
   end,
   StrippedCG0.
 
@@ -223,7 +192,7 @@ get_types(Module, Analysis, Records) ->
 convert_type_info({{_M, F, A}, Range, Arg}) ->
   {{F, A}, {Range, Arg}}.
 
-get_type({{M, F, A} = MFA, Range, Arg}, CodeServer, Records) ->
+get_type({{_M, F, A} = MFA, Range, Arg}, CodeServer, _Records) ->
   case dialyzer_codeserver:lookup_mfa_contract(MFA, CodeServer) of
     error ->
       {{F, A}, {Range, Arg}};
@@ -234,19 +203,7 @@ get_type({{M, F, A} = MFA, Range, Arg}, CodeServer, Records) ->
         {range_warnings, _} ->
           {{F, A}, {contract, Contract}};
         {error, {overlapping_contract, []}} ->
-          {{F, A}, {contract, Contract}};
-        {error, invalid_contract} ->
-          CString = dialyzer_contracts:contract_to_string(Contract),
-          SigString = dialyzer_utils:format_sig(Sig, Records),
-          Msg = io_lib:format("Error in contract of function ~w:~tw/~w\n"
-                              "\t The contract is: " ++ CString ++ "\n" ++
-                                "\t but the inferred signature is: ~ts",
-                              [M, F, A, SigString]),
-          fatal_error(Msg);
-        {error, ErrorStr} when is_list(ErrorStr) -> % ErrorStr is a string()
-          Msg = io_lib:format("Error in contract of function ~w:~tw/~w: ~ts",
-                              [M, F, A, ErrorStr]),
-          fatal_error(Msg)
+          {{F, A}, {contract, Contract}}
       end
   end.
 
@@ -282,12 +239,6 @@ get_type_string(F, A, Info) ->
 
 get_type_info(Func, Types) ->
   case map__lookup(Func, Types) of
-    none ->
-      %% Note: Typeinfo of any function should exist in
-      %% the result offered by dialyzer, otherwise there
-      %% *must* be something wrong with the analysis
-      Msg = io_lib:format("No type info for function: ~tp\n", [Func]),
-      fatal_error(Msg);
     {contract, _Fun} = C -> C;
     {_RetType, _ArgType} = RA -> RA
   end.
@@ -307,33 +258,21 @@ get_type_info(Func, Types) ->
 -spec collect_info(analysis()) -> analysis().
 
 collect_info(Analysis) ->
-  NewPlt =
-    try get_dialyzer_plt(Analysis) of
-      DialyzerPlt ->
-        dialyzer_plt:merge_plts([Analysis#analysis.trust_plt, DialyzerPlt])
-    catch
-      throw:{dialyzer_error,_Reason} ->
-        fatal_error("Dialyzer's PLT is missing or is not up-to-date; please (re)create it")
-    end,
+  DialyzerPlt = get_dialyzer_plt(Analysis),
+  NewPlt = dialyzer_plt:merge_plts([Analysis#analysis.trust_plt, DialyzerPlt]),
   NewAnalysis = lists:foldl(fun collect_one_file_info/2,
                             Analysis#analysis{trust_plt = NewPlt},
                             Analysis#analysis.files),
   %% Process Remote Types
   TmpCServer = NewAnalysis#analysis.codeserver,
-  NewCServer =
-    try
-      TmpCServer1 = dialyzer_utils:merge_types(TmpCServer, NewPlt),
-      NewExpTypes = dialyzer_codeserver:get_temp_exported_types(TmpCServer),
-      OldExpTypes = dialyzer_plt:get_exported_types(NewPlt),
-      MergedExpTypes = sets:union(NewExpTypes, OldExpTypes),
-      TmpCServer2 =
-        dialyzer_codeserver:finalize_exported_types(MergedExpTypes, TmpCServer1),
-      TmpCServer3 = dialyzer_utils:process_record_remote_types(TmpCServer2),
-      dialyzer_contracts:process_contract_remote_types(TmpCServer3)
-    catch
-      throw:{error, ErrorMsg} ->
-        fatal_error(ErrorMsg)
-    end,
+  TmpCServer1 = dialyzer_utils:merge_types(TmpCServer, NewPlt),
+  NewExpTypes = dialyzer_codeserver:get_temp_exported_types(TmpCServer),
+  OldExpTypes = dialyzer_plt:get_exported_types(NewPlt),
+  MergedExpTypes = sets:union(NewExpTypes, OldExpTypes),
+  TmpCServer2 =
+    dialyzer_codeserver:finalize_exported_types(MergedExpTypes, TmpCServer1),
+  TmpCServer3 = dialyzer_utils:process_record_remote_types(TmpCServer2),
+  NewCServer = dialyzer_contracts:process_contract_remote_types(TmpCServer3),
   NewAnalysis#analysis{codeserver = NewCServer}.
 
 collect_one_file_info(File, Analysis) ->
@@ -342,24 +281,13 @@ collect_one_file_info(File, Analysis) ->
   Includes = [filename:dirname(File)|Analysis#analysis.includes],
   Is = [{i,Dir} || Dir <- Includes],
   Options = dialyzer_utils:src_compiler_opts() ++ Is ++ Ds,
-  case dialyzer_utils:get_core_from_src(File, Options) of
-    {error, Reason} ->
-      %% io:format("File=~tp\n,Options=~p\n,Error=~p\n", [File,Options,Reason]),
-      compile_error(Reason);
-    {ok, Core} ->
-      case dialyzer_utils:get_record_and_type_info(Core) of
-        {error, Reason} -> compile_error([Reason]);
-        {ok, Records} ->
-          Mod = cerl:concrete(cerl:module_name(Core)),
-          case dialyzer_utils:get_spec_info(Mod, Core, Records) of
-            {error, Reason} -> compile_error([Reason]);
-            {ok, SpecInfo, CbInfo} ->
-              ExpTypes = get_exported_types_from_core(Core),
-              analyze_core_tree(Core, Records, SpecInfo, CbInfo,
-                                ExpTypes, Analysis, File)
-          end
-      end
-  end.
+  {ok, Core} = dialyzer_utils:get_core_from_src(File, Options),
+  {ok, Records} = dialyzer_utils:get_record_and_type_info(Core),
+  Mod = cerl:concrete(cerl:module_name(Core)),
+  {ok, SpecInfo, CbInfo} = dialyzer_utils:get_spec_info(Mod, Core, Records),
+  ExpTypes = get_exported_types_from_core(Core),
+  analyze_core_tree(Core, Records, SpecInfo, CbInfo,
+                    ExpTypes, Analysis, File).
 
 analyze_core_tree(Core, Records, SpecInfo, CbInfo, ExpTypes, Analysis, File) ->
   Module = cerl:concrete(cerl:module_name(Core)),
@@ -455,28 +383,6 @@ get_exported_types_from_core(Core) ->
   ExpTypes2 = lists:flatten(ExpTypes1),
   M = cerl:atom_val(cerl:module_name(Core)),
   sets:from_list([{M, F, A} || {F, A} <- ExpTypes2]).
-
-%%--------------------------------------------------------------------
-%% Utilities for error reporting.
-%%--------------------------------------------------------------------
-
--spec fatal_error(string()) -> no_return().
-
-fatal_error(Slogan) ->
-  msg(io_lib:format("typer: ~ts\n", [Slogan])),
-  erlang:halt(1).
-
--spec compile_error([string()]) -> no_return().
-
-compile_error(Reason) ->
-  JoinedString = lists:flatten([X ++ "\n" || X <- Reason]),
-  Msg = "Analysis failed with error report:\n" ++ JoinedString,
-  fatal_error(Msg).
-
--spec msg(string()) -> 'ok'.
-
-msg(Msg) ->
-  io:format(standard_error, "~ts", [Msg]).
 
 %%--------------------------------------------------------------------
 %% Handle messages.
