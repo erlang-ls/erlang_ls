@@ -156,14 +156,15 @@ add_spec(Config) ->
                       } <- History],
   #{edit := #{changes := #{Uri := [#{ newText := NewText
                                     , range := Range}]}}} = Edit,
-  ?assertEqual(<<"\n-spec without_spec(number(),binary()) -> "
-                 "{number(),binary()}.">>
+  ?assertEqual(<<"-spec without_spec(number(),binary()) -> "
+                 "{number(),binary()}.\n"
+                 "without_spec(A, B) when is_binary(B) ->\n">>
               , NewText),
   ?assertEqual(#{ 'end' => #{ character => 0
-                            , line => 10
+                            , line => 12
                             }
                 , start => #{ character => 0
-                            , line => 10
+                            , line => 11
                             }}, Range),
   ok.
 

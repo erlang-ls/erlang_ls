@@ -22,8 +22,7 @@ command(_POI) ->
 -spec command_args(els_dt_document:item(), poi()) -> [any()].
 command_args( #{uri := Uri} = _Document
             , #{id := {F, A}, range := #{from := {Line, _}}} = _POI) ->
-  [#{ module => els_uri:module(Uri)
-    , function => F
+  [#{ function => F
     , arity => A
     , uri => Uri
     , line => Line

@@ -88,18 +88,20 @@ execute_command(<<"ct-run-test">>, [Params]) ->
 execute_command(<<"show-behaviour-usages">>, [_Params]) ->
   [];
 execute_command(<<"add-spec">>, [#{ <<"uri">> := Uri
-                                  , <<"line">> := _Line
-                                  , <<"module">> := _Module
+                                  , <<"line">> := Line
                                   , <<"function">> := Function
                                   , <<"arity">> := Arity
                                   }]) ->
   Method = <<"workspace/applyEdit">>,
   try els_typer:suggest(Uri, binary_to_atom(Function), Arity) of
-    {LineNo, Spec0} ->
-      Spec = "\n" ++ Spec0,
+    Spec ->
+      {ok, #{text := Text}} = els_utils:lookup_document(Uri),
+      LineText = els_text:line(Text, Line - 1),
+      BinarySpec = unicode:characters_to_binary(Spec),
+      NewText = <<BinarySpec/binary, "\n", LineText/binary, "\n">>,
       Params =
         #{ edit =>
-             els_text_edit:edit_replace_text(Uri, Spec, LineNo - 2, LineNo - 2)
+             els_text_edit:edit_replace_text(Uri, NewText, Line - 1, Line)
          },
       els_server:send_request(Method, Params)
   catch
@@ -110,11 +112,12 @@ execute_command(<<"add-spec">>, [#{ <<"uri">> := Uri
         "Exception: ~p~n"
         "Stacktrace: ~p~n",
       Args = [Class, Exception, Stacktrace],
-      Message = lists:flatten(io_lib:format(Fmt, Args)),
-      els_server:send_notification(<<"window/showMessage">>,
-                                   #{ type => ?MESSAGE_TYPE_ERROR,
-                                      message => Message
-                                    })
+      lager:warning(Fmt, Args),
+      els_server:send_notification(
+        <<"window/showMessage">>,
+        #{ type => ?MESSAGE_TYPE_INFO,
+           message => <<"Could not suggest spec, check logs">>
+         })
   end,
   [];
 execute_command(Command, Arguments) ->

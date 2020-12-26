@@ -56,13 +56,14 @@
 
 suggest(Uri, Function, Arity) ->
   Path = binary_to_list(els_uri:path(Uri)),
-  Analysis = #analysis{
-                %% TODO: Pass macros
-                macros = []
-                %% TODO: Pass includes
-               , includes = []
-                %% TODO: Dependencies (eg for parse transforms)
-               },
+  Macros = els_compiler_diagnostics:macro_options(),
+  Includes = els_compiler_diagnostics:include_options(),
+  lager:warning("Macros: ~p", [Macros]),
+  lager:warning("Includes: ~p", [Includes]),
+  Analysis = #analysis{ macros = Macros
+                      , includes = Includes
+                        %% TODO: Dependencies (eg for parse transforms)
+                      },
   TrustedFiles = [], %% TODO
   Analysis2 = extract(Analysis, TrustedFiles),
   Analysis3 = Analysis2#analysis{files = [Path]},
@@ -70,10 +71,7 @@ suggest(Uri, Function, Arity) ->
   Analysis5 = get_type_info(Analysis4),
   [{File, Module}] = Analysis5#analysis.fms,
   Info = get_final_info(File, Module, Analysis5),
-  Functions = Info#info.functions,
-  [{LineNo, F, A}] = [{LineNo, F, A} || {LineNo, F, A} <- Functions, F =:= Function, A =:= Arity],
-  TypeInfo = get_type_string(F, A, Info),
-  {LineNo, TypeInfo}.
+  get_type_string(Function, Arity, Info).
 
 %%--------------------------------------------------------------------
 
@@ -82,17 +80,13 @@ suggest(Uri, Function, Arity) ->
 extract(#analysis{macros = Macros,
                   includes = Includes,
                   trust_plt = TrustPLT} = Analysis, TrustedFiles) ->
-  %% io:format("--- Extracting trusted typer_info... "),
-  Ds = [{d, Name, Value} || {Name, Value} <- Macros],
   CodeServer = dialyzer_codeserver:new(),
   Fun =
     fun(File, CS) ->
         %% We include one more dir; the one above the one we are trusting
         %% E.g, for /home/tests/typer_ann/test.ann.erl, we should include
         %% /home/tests/ rather than /home/tests/typer_ann/
-        AllIncludes = [filename:dirname(filename:dirname(File)) | Includes],
-        Is = [{i, Dir} || Dir <- AllIncludes],
-        CompOpts = dialyzer_utils:src_compiler_opts() ++ Is ++ Ds,
+        CompOpts = dialyzer_utils:src_compiler_opts() ++ Includes ++ Macros,
         {ok, Core} = dialyzer_utils:get_core_from_src(File, CompOpts),
         {ok, RecDict} = dialyzer_utils:get_record_and_type_info(Core),
         Mod = list_to_atom(filename:basename(File, ".erl")),
@@ -276,11 +270,9 @@ collect_info(Analysis) ->
   NewAnalysis#analysis{codeserver = NewCServer}.
 
 collect_one_file_info(File, Analysis) ->
-  Ds = [{d,Name,Val} || {Name,Val} <- Analysis#analysis.macros],
-  %% Current directory should also be included in "Includes".
-  Includes = [filename:dirname(File)|Analysis#analysis.includes],
-  Is = [{i,Dir} || Dir <- Includes],
-  Options = dialyzer_utils:src_compiler_opts() ++ Is ++ Ds,
+  Macros = Analysis#analysis.macros,
+  Includes = Analysis#analysis.includes,
+  Options = dialyzer_utils:src_compiler_opts() ++ Includes ++ Macros,
   {ok, Core} = dialyzer_utils:get_core_from_src(File, Options),
   {ok, Records} = dialyzer_utils:get_record_and_type_info(Core),
   Mod = cerl:concrete(cerl:module_name(Core)),
