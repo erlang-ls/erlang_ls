@@ -367,7 +367,12 @@ get_file([]) -> "no_file". % should not happen
 
 -spec get_dialyzer_plt() -> plt().
 get_dialyzer_plt() ->
-  PltFile = dialyzer_plt:get_default_plt(),
+  PltFile = case els_config:get(plt_path) of
+              undefined ->
+                dialyzer_plt:get_default_plt();
+              PltPath ->
+                PltPath
+            end,
   dialyzer_plt:from_file(PltFile).
 
 %% Exported Types
