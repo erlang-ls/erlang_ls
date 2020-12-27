@@ -71,6 +71,9 @@ init_per_testcase(TestCase, Config) ->
 end_per_testcase(ct_run_test, Config) ->
   teardown_mocks(),
   els_test_utils:end_per_testcase(ct_run_test, Config);
+end_per_testcase(add_spec, Config) ->
+  meck:unload(els_protocol),
+  els_test_utils:end_per_testcase(ct_run_test, Config);
 end_per_testcase(TestCase, Config) ->
   els_test_utils:end_per_testcase(TestCase, Config).
 
