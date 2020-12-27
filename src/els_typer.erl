@@ -26,6 +26,8 @@
 
 -export([ suggest/3 ]).
 
+-include("erlang_ls.hrl").
+
 -type files()      :: [file:filename()].
 -type callgraph()  :: dialyzer_callgraph:callgraph().
 -type codeserver() :: dialyzer_codeserver:codeserver().
@@ -54,17 +56,15 @@
                functions = []       :: [func_info()],
                types = map__new()   :: map_dict()}).
 
+-spec suggest(uri(), atom(), arity()) -> string().
 suggest(Uri, Function, Arity) ->
   Path = binary_to_list(els_uri:path(Uri)),
   Macros = els_compiler_diagnostics:macro_options(),
   Includes = els_compiler_diagnostics:include_options(),
-  lager:warning("Macros: ~p", [Macros]),
-  lager:warning("Includes: ~p", [Includes]),
   Analysis = #analysis{ macros = Macros
                       , includes = Includes
-                        %% TODO: Dependencies (eg for parse transforms)
                       },
-  TrustedFiles = [], %% TODO
+  TrustedFiles = [],
   Analysis2 = extract(Analysis, TrustedFiles),
   Analysis3 = Analysis2#analysis{files = [Path]},
   Analysis4 = collect_info(Analysis3),
@@ -153,19 +153,21 @@ get_external(Exts, Plt) ->
 
 -define(TYPER_ANN_DIR, "typer_ann").
 
--type line()      :: non_neg_integer().
 -type fa()        :: {atom(), arity()}.
--type func_info() :: {line(), atom(), arity()}.
+-type func_info() :: {non_neg_integer(), atom(), arity()}.
 
+-spec get_final_info(string(), atom(), #analysis{}) -> #info{}.
 get_final_info(File, Module, Analysis) ->
   Records = get_records(File, Analysis),
   Types = get_types(Module, Analysis, Records),
   Functions = get_functions(File, Analysis),
   #info{records = Records, functions = Functions, types = Types}.
 
+-spec get_records(string(), #analysis{}) -> any().
 get_records(File, Analysis) ->
   map__lookup(File, Analysis#analysis.record).
 
+-spec get_types(atom(), #analysis{}, any()) -> dict:dict().
 get_types(Module, Analysis, Records) ->
   TypeInfoPlt = Analysis#analysis.trust_plt,
   TypeInfo =
@@ -183,9 +185,11 @@ get_types(Module, Analysis, Records) ->
     end,
   map__from_list(TypeInfoList).
 
+-spec convert_type_info({mfa(), any(), any()}) -> {fa(), {any(), any()}}.
 convert_type_info({{_M, F, A}, Range, Arg}) ->
   {{F, A}, {Range, Arg}}.
 
+-spec get_type({mfa(), any(), any()}, any(), any()) -> {fa(), {any(), any()}}.
 get_type({{_M, F, A} = MFA, Range, Arg}, CodeServer, _Records) ->
   case dialyzer_codeserver:lookup_mfa_contract(MFA, CodeServer) of
     error ->
@@ -201,16 +205,17 @@ get_type({{_M, F, A} = MFA, Range, Arg}, CodeServer, _Records) ->
       end
   end.
 
+-spec get_functions(string(), #analysis{}) -> [any()].
 get_functions(File, Analysis) ->
   Funcs = map__lookup(File, Analysis#analysis.func),
   Inc_Funcs = map__lookup(File, Analysis#analysis.inc_func),
   remove_module_info(Funcs) ++ normalize_incFuncs(Inc_Funcs).
 
+-spec normalize_incFuncs([any()]) -> [any()].
 normalize_incFuncs(Functions) ->
   [FunInfo || {_FileName, FunInfo} <- Functions].
 
 -spec remove_module_info([func_info()]) -> [func_info()].
-
 remove_module_info(FunInfoList) ->
   F = fun ({_,module_info,0}) -> false;
           ({_,module_info,1}) -> false;
@@ -218,6 +223,7 @@ remove_module_info(FunInfoList) ->
       end,
   lists:filter(F, FunInfoList).
 
+-spec get_type_string(atom(), arity(), #info{}) -> string().
 get_type_string(F, A, Info) ->
   Type = get_type_info({F,A}, Info#info.types),
   TypeStr =
@@ -231,18 +237,14 @@ get_type_string(F, A, Info) ->
   Prefix = lists:concat(["-spec ", erl_types:atom_to_string(F)]),
   lists:concat([Prefix, TypeStr, "."]).
 
+-spec get_type_info({any(), any()}, dict:dict()) -> {any(), any()}.
 get_type_info(Func, Types) ->
   case map__lookup(Func, Types) of
     {contract, _Fun} = C -> C;
     {_RetType, _ArgType} = RA -> RA
   end.
 
-%%--------------------------------------------------------------------
-%% File processing.
-%%--------------------------------------------------------------------
-
 -type inc_file_info() :: {file:filename(), func_info()}.
-
 -record(tmpAcc, {file     :: file:filename(),
                  module     :: atom(),
                  funcAcc = []   :: [func_info()],
@@ -250,14 +252,12 @@ get_type_info(Func, Types) ->
                  dialyzerObj = [] :: [{mfa(), {_, _}}]}).
 
 -spec collect_info(analysis()) -> analysis().
-
 collect_info(Analysis) ->
   DialyzerPlt = get_dialyzer_plt(Analysis),
   NewPlt = dialyzer_plt:merge_plts([Analysis#analysis.trust_plt, DialyzerPlt]),
   NewAnalysis = lists:foldl(fun collect_one_file_info/2,
                             Analysis#analysis{trust_plt = NewPlt},
                             Analysis#analysis.files),
-  %% Process Remote Types
   TmpCServer = NewAnalysis#analysis.codeserver,
   TmpCServer1 = dialyzer_utils:merge_types(TmpCServer, NewPlt),
   NewExpTypes = dialyzer_codeserver:get_temp_exported_types(TmpCServer),
@@ -269,6 +269,7 @@ collect_info(Analysis) ->
   NewCServer = dialyzer_contracts:process_contract_remote_types(TmpCServer3),
   NewAnalysis#analysis{codeserver = NewCServer}.
 
+-spec collect_one_file_info(string(), #analysis{}) -> #analysis{}.
 collect_one_file_info(File, Analysis) ->
   Macros = Analysis#analysis.macros,
   Includes = Analysis#analysis.includes,
@@ -281,6 +282,8 @@ collect_one_file_info(File, Analysis) ->
   analyze_core_tree(Core, Records, SpecInfo, CbInfo,
                     ExpTypes, Analysis, File).
 
+-spec analyze_core_tree(any(), any(), any(), any(), sets:set(_), #analysis{}, string()) ->
+        #analysis{}.
 analyze_core_tree(Core, Records, SpecInfo, CbInfo, ExpTypes, Analysis, File) ->
   Module = cerl:concrete(cerl:module_name(Core)),
   TmpTree = cerl:from_records(Core),
@@ -319,6 +322,7 @@ analyze_core_tree(Core, Records, SpecInfo, CbInfo, ExpTypes, Analysis, File) ->
                     record = RecordMap,
                     func = FuncMap}.
 
+-spec analyze_one_function({any(), any()}, #tmpAcc{}) -> #tmpAcc{}.
 analyze_one_function({Var, FunBody} = Function, Acc) ->
   F = cerl:fname_id(Var),
   A = cerl:fname_arity(Var),
@@ -346,16 +350,17 @@ analyze_one_function({Var, FunBody} = Function, Acc) ->
              incFuncAcc = IncFuncAcc,
              dialyzerObj = NewDialyzerObj}.
 
+-spec get_line([line()]) -> 'none' | integer().
 get_line([Line|_]) when is_integer(Line) -> Line;
 get_line([_|T]) -> get_line(T);
 get_line([]) -> none.
 
+-spec get_file([any()]) -> any().
 get_file([{file,File}|_]) -> File;
 get_file([_|T]) -> get_file(T);
 get_file([]) -> "no_file". % should not happen
 
 -spec get_dialyzer_plt(analysis()) -> plt().
-
 get_dialyzer_plt(#analysis{plt = PltFile0}) ->
   PltFile =
     case PltFile0 =:= none of
@@ -366,6 +371,7 @@ get_dialyzer_plt(#analysis{plt = PltFile0}) ->
 
 %% Exported Types
 
+-spec get_exported_types_from_core(any()) -> sets:set().
 get_exported_types_from_core(Core) ->
   Attrs = cerl:module_attrs(Core),
   ExpTypes1 = [cerl:concrete(L2) || {L1, L2} <- Attrs,
@@ -380,11 +386,13 @@ get_exported_types_from_core(Core) ->
 %% Handle messages.
 %%--------------------------------------------------------------------
 
+-spec rcv_ext_types() -> [any()].
 rcv_ext_types() ->
   Self = self(),
   Self ! {Self, done},
   rcv_ext_types(Self, []).
 
+-spec rcv_ext_types(pid(), [any()]) -> [any()].
 rcv_ext_types(Self, ExtTypes) ->
   receive
     {Self, ext_types, ExtType} ->
