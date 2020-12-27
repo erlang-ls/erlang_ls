@@ -1,4 +1,10 @@
-%% -*- erlang-indent-level: 2 -*-
+%% =============================================================================
+%% An erlang_ls fork of Erlang/OTP's typer
+%% =============================================================================
+%% The main reasons for the fork:
+%%   * Typer is designed as a CLI tool
+%%   * Typer does not allow to pass Macros and Includes options
+%% =============================================================================
 %%
 %% Licensed under the Apache License, Version 2.0 (the "License");
 %% you may not use this file except in compliance with the License.
