@@ -24,6 +24,7 @@ options() ->
                  , els_command:with_prefix(<<"server-info">>)
                  , els_command:with_prefix(<<"ct-run-test">>)
                  , els_command:with_prefix(<<"show-behaviour-usages">>)
+                 , els_command:with_prefix(<<"suggest-spec">>)
                  ] }.
 
 -spec handle_request(any(), state()) -> {any(), state()}.
@@ -85,6 +86,39 @@ execute_command(<<"ct-run-test">>, [Params]) ->
   els_command_ct_run_test:execute(Params),
   [];
 execute_command(<<"show-behaviour-usages">>, [_Params]) ->
+  [];
+execute_command(<<"suggest-spec">>, [#{ <<"uri">> := Uri
+                                      , <<"line">> := Line
+                                      , <<"function">> := Function
+                                      , <<"arity">> := Arity
+                                      }]) ->
+  Method = <<"workspace/applyEdit">>,
+  try els_typer:suggest(Uri, binary_to_atom(Function, utf8), Arity) of
+    Spec ->
+      {ok, #{text := Text}} = els_utils:lookup_document(Uri),
+      LineText = els_text:line(Text, Line - 1),
+      BinarySpec = unicode:characters_to_binary(Spec),
+      NewText = <<BinarySpec/binary, "\n", LineText/binary, "\n">>,
+      Params =
+        #{ edit =>
+             els_text_edit:edit_replace_text(Uri, NewText, Line - 1, Line)
+         },
+      els_server:send_request(Method, Params)
+  catch
+    Class:Exception:Stacktrace ->
+      Fmt =
+        "Could not suggest spec.~n"
+        "Class: ~p~n"
+        "Exception: ~p~n"
+        "Stacktrace: ~p~n",
+      Args = [Class, Exception, Stacktrace],
+      lager:warning(Fmt, Args),
+      els_server:send_notification(
+        <<"window/showMessage">>,
+        #{ type => ?MESSAGE_TYPE_INFO,
+           message => <<"Could not suggest spec, check logs">>
+         })
+  end,
   [];
 execute_command(Command, Arguments) ->
   lager:info("Unsupported command: [Command=~p] [Arguments=~p]"

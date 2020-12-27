@@ -14,6 +14,7 @@
 -export([ erlang_ls_info/1
         , ct_run_test/1
         , strip_server_prefix/1
+        , suggest_spec/1
         ]).
 
 %%==============================================================================
@@ -55,12 +56,23 @@ init_per_testcase(ct_run_test, Config0) ->
   Config = els_test_utils:init_per_testcase(ct_run_test, Config0),
   setup_mocks(),
   Config;
+init_per_testcase(suggest_spec, Config0) ->
+  Config = els_test_utils:init_per_testcase(suggest_spec, Config0),
+  meck:new(els_protocol, [passthrough, no_link]),
+  meck:expect( els_protocol, request, 3
+             , fun(RequestId, Method, Params) ->
+                   meck:passthrough([RequestId, Method, Params])
+               end),
+  Config;
 init_per_testcase(TestCase, Config) ->
   els_test_utils:init_per_testcase(TestCase, Config).
 
 -spec end_per_testcase(atom(), config()) -> ok.
 end_per_testcase(ct_run_test, Config) ->
   teardown_mocks(),
+  els_test_utils:end_per_testcase(ct_run_test, Config);
+end_per_testcase(suggest_spec, Config) ->
+  meck:unload(els_protocol),
   els_test_utils:end_per_testcase(ct_run_test, Config);
 end_per_testcase(TestCase, Config) ->
   els_test_utils:end_per_testcase(TestCase, Config).
@@ -120,6 +132,43 @@ ct_run_test(Config) ->
                     uri => Uri}
                 }]
               , Notifications),
+  ok.
+
+-spec suggest_spec(config()) -> ok.
+suggest_spec(Config) ->
+  Uri = ?config(execute_command_suggest_spec_uri, Config),
+  PrefixedCommand = els_command:with_prefix(<<"suggest-spec">>),
+  #{result := Result}
+    = els_client:workspace_executecommand(
+        PrefixedCommand
+       , [#{ uri => Uri
+           , module => execute_command_suggest_spec
+           , function => without_spec
+           , arity => 2
+           , line => 12
+           }]),
+  Expected = [],
+  ?assertEqual(Expected, Result),
+  Pattern = ['_', <<"workspace/applyEdit">>, '_'],
+  ok = meck:wait(1, els_protocol, request, Pattern, 5000),
+  History = meck:history(els_protocol),
+  [Edit] = [Params || { _Pid, { els_protocol
+                              , request
+                              , [_RequestId, <<"workspace/applyEdit">>, Params]}
+                      , _Binary
+                      } <- History],
+  #{edit := #{changes := #{Uri := [#{ newText := NewText
+                                    , range := Range}]}}} = Edit,
+  ?assertEqual(<<"-spec without_spec(number(),binary()) -> "
+                 "{number(),binary()}.\n"
+                 "without_spec(A, B) when is_binary(B) ->\n">>
+              , NewText),
+  ?assertEqual(#{ 'end' => #{ character => 0
+                            , line => 12
+                            }
+                , start => #{ character => 0
+                            , line => 11
+                            }}, Range),
   ok.
 
 -spec strip_server_prefix(config()) -> ok.

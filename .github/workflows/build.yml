@@ -34,6 +34,8 @@ jobs:
           ${{ runner.os }}-dialyzer-
     - name: Compile
       run: rebar3 compile
+    - name: Generate Dialyzer PLT for usage in CT Tests
+      run: dialyzer --build_plt --apps erts kernel stdlib
     - name: Run CT Tests
       run: rebar3 ct
     - name: Store CT Logs
