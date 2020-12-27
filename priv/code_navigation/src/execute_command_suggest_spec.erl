@@ -1,4 +1,4 @@
--module(execute_command_add_spec).
+-module(execute_command_suggest_spec).
 
 -export([with_spec/2, without_spec/2]).
 

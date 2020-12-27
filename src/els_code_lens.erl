@@ -53,7 +53,7 @@ available_lenses() ->
   [ <<"ct-run-test">>
   , <<"server-info">>
   , <<"show-behaviour-usages">>
-  , <<"add-spec">>
+  , <<"suggest-spec">>
   ].
 
 -spec default_lenses() -> [lens_id()].

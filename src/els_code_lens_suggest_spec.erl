@@ -1,8 +1,7 @@
 %%==============================================================================
-%% Code Lens: add_spec
+%% Code Lens: suggest_spec
 %%==============================================================================
-
--module(els_code_lens_add_spec).
+-module(els_code_lens_suggest_spec).
 
 -behaviour(els_code_lens).
 -export([ command/1
@@ -17,7 +16,7 @@
 
 -spec command(poi()) -> els_command:command_id().
 command(_POI) ->
-  <<"add-spec">>.
+  <<"suggest-spec">>.
 
 -spec command_args(els_dt_document:item(), poi()) -> [any()].
 command_args( #{uri := Uri} = _Document

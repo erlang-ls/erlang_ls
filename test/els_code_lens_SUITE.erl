@@ -55,9 +55,9 @@ end_per_suite(Config) ->
 init_per_testcase(server_info, Config) ->
   meck:new(els_code_lens_server_info, [passthrough, no_link]),
   meck:expect(els_code_lens_server_info, is_default, 0, true),
-  %% Let's disable the add_spec lens to avoid noise
-  meck:new(els_code_lens_add_spec, [passthrough, no_link]),
-  meck:expect(els_code_lens_add_spec, is_default, 0, false),
+  %% Let's disable the suggest_spec lens to avoid noise
+  meck:new(els_code_lens_suggest_spec, [passthrough, no_link]),
+  meck:expect(els_code_lens_suggest_spec, is_default, 0, false),
   els_test_utils:init_per_testcase(server_info, Config);
 init_per_testcase(ct_run_test, Config) ->
   meck:new(els_code_lens_ct_run_test, [passthrough, no_link]),
@@ -70,7 +70,7 @@ init_per_testcase(TestCase, Config) ->
 end_per_testcase(server_info, Config) ->
   els_test_utils:end_per_testcase(server_info, Config),
   meck:unload(els_code_lens_server_info),
-  meck:unload(els_code_lens_add_spec),
+  meck:unload(els_code_lens_suggest_spec),
   ok;
 end_per_testcase(ct_run_test, Config) ->
   els_test_utils:end_per_testcase(ct_run_test, Config),
@@ -89,7 +89,7 @@ default_lenses(Config) ->
   #{result := Result} = els_client:document_codelens(Uri),
   Commands = [els_command:without_prefix(Command) ||
                #{command := #{command := Command }} <- Result],
-  ?assertEqual([<<"add-spec">>], lists:usort(Commands)),
+  ?assertEqual([<<"suggest-spec">>], lists:usort(Commands)),
   ?assertEqual(14, length(Commands)),
   ok.
 

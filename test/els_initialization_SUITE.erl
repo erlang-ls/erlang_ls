@@ -141,7 +141,11 @@ initialize_diagnostics_invalid(Config) ->
   InitOpts = #{ <<"erlang">> => #{ <<"config_path">> => ConfigPath }},
   els_client:initialize(RootUri, InitOpts),
   Result = els_diagnostics:enabled_diagnostics(),
-  Expected = [<<"compiler">>, <<"crossref">>, <<"dialyzer">>, <<"elvis">>],
+  Expected = [ <<"compiler">>
+             , <<"crossref">>
+             , <<"dialyzer">>
+             , <<"elvis">>
+             ],
   ?assertEqual(Expected, Result),
   ok.
 
@@ -164,7 +168,7 @@ initialize_lenses_custom(Config) ->
   ConfigPath = filename:join(DataDir, "lenses_custom.config"),
   InitOpts = #{ <<"erlang">> => #{ <<"config_path">> => ConfigPath }},
   els_client:initialize(RootUri, InitOpts),
-  Expected = [<<"server-info">>],
+  Expected = [<<"server-info">>, <<"suggest-spec">>],
   Result = els_code_lens:enabled_lenses(),
   ?assertEqual(Expected, Result),
   ok.
@@ -177,6 +181,9 @@ initialize_lenses_invalid(Config) ->
   InitOpts = #{ <<"erlang">> => #{ <<"config_path">> => ConfigPath }},
   els_client:initialize(RootUri, InitOpts),
   Result = els_code_lens:enabled_lenses(),
-  Expected = [<<"ct-run-test">>, <<"show-behaviour-usages">>],
+  Expected = [ <<"ct-run-test">>
+             , <<"show-behaviour-usages">>
+             , <<"suggest-spec">>
+             ],
   ?assertEqual(Expected, Result),
   ok.

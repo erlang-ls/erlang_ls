@@ -14,7 +14,7 @@
 -export([ erlang_ls_info/1
         , ct_run_test/1
         , strip_server_prefix/1
-        , add_spec/1
+        , suggest_spec/1
         ]).
 
 %%==============================================================================
@@ -56,8 +56,8 @@ init_per_testcase(ct_run_test, Config0) ->
   Config = els_test_utils:init_per_testcase(ct_run_test, Config0),
   setup_mocks(),
   Config;
-init_per_testcase(add_spec, Config0) ->
-  Config = els_test_utils:init_per_testcase(add_spec, Config0),
+init_per_testcase(suggest_spec, Config0) ->
+  Config = els_test_utils:init_per_testcase(suggest_spec, Config0),
   meck:new(els_protocol, [passthrough, no_link]),
   meck:expect( els_protocol, request, 3
              , fun(RequestId, Method, Params) ->
@@ -71,7 +71,7 @@ init_per_testcase(TestCase, Config) ->
 end_per_testcase(ct_run_test, Config) ->
   teardown_mocks(),
   els_test_utils:end_per_testcase(ct_run_test, Config);
-end_per_testcase(add_spec, Config) ->
+end_per_testcase(suggest_spec, Config) ->
   meck:unload(els_protocol),
   els_test_utils:end_per_testcase(ct_run_test, Config);
 end_per_testcase(TestCase, Config) ->
@@ -134,15 +134,15 @@ ct_run_test(Config) ->
               , Notifications),
   ok.
 
--spec add_spec(config()) -> ok.
-add_spec(Config) ->
-  Uri = ?config(execute_command_add_spec_uri, Config),
-  PrefixedCommand = els_command:with_prefix(<<"add-spec">>),
+-spec suggest_spec(config()) -> ok.
+suggest_spec(Config) ->
+  Uri = ?config(execute_command_suggest_spec_uri, Config),
+  PrefixedCommand = els_command:with_prefix(<<"suggest-spec">>),
   #{result := Result}
     = els_client:workspace_executecommand(
         PrefixedCommand
        , [#{ uri => Uri
-           , module => execute_command_add_spec
+           , module => execute_command_suggest_spec
            , function => without_spec
            , arity => 2
            , line => 12

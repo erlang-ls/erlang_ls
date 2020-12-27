@@ -24,7 +24,7 @@ options() ->
                  , els_command:with_prefix(<<"server-info">>)
                  , els_command:with_prefix(<<"ct-run-test">>)
                  , els_command:with_prefix(<<"show-behaviour-usages">>)
-                 , els_command:with_prefix(<<"add-spec">>)
+                 , els_command:with_prefix(<<"suggest-spec">>)
                  ] }.
 
 -spec handle_request(any(), state()) -> {any(), state()}.
@@ -87,11 +87,11 @@ execute_command(<<"ct-run-test">>, [Params]) ->
   [];
 execute_command(<<"show-behaviour-usages">>, [_Params]) ->
   [];
-execute_command(<<"add-spec">>, [#{ <<"uri">> := Uri
-                                  , <<"line">> := Line
-                                  , <<"function">> := Function
-                                  , <<"arity">> := Arity
-                                  }]) ->
+execute_command(<<"suggest-spec">>, [#{ <<"uri">> := Uri
+                                      , <<"line">> := Line
+                                      , <<"function">> := Function
+                                      , <<"arity">> := Arity
+                                      }]) ->
   Method = <<"workspace/applyEdit">>,
   try els_typer:suggest(Uri, binary_to_atom(Function, utf8), Arity) of
     Spec ->
