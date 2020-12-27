@@ -93,7 +93,7 @@ execute_command(<<"add-spec">>, [#{ <<"uri">> := Uri
                                   , <<"arity">> := Arity
                                   }]) ->
   Method = <<"workspace/applyEdit">>,
-  try els_typer:suggest(Uri, binary_to_atom(Function), Arity) of
+  try els_typer:suggest(Uri, binary_to_atom(Function, utf8), Arity) of
     Spec ->
       {ok, #{text := Text}} = els_utils:lookup_document(Uri),
       LineText = els_text:line(Text, Line - 1),
