@@ -259,7 +259,7 @@ get_type_info(Func, Types) ->
 
 -spec collect_info(analysis()) -> analysis().
 collect_info(Analysis) ->
-  DialyzerPlt = get_dialyzer_plt(Analysis),
+  DialyzerPlt = get_dialyzer_plt(),
   NewPlt = dialyzer_plt:merge_plts([Analysis#analysis.trust_plt, DialyzerPlt]),
   NewAnalysis = lists:foldl(fun collect_one_file_info/2,
                             Analysis#analysis{trust_plt = NewPlt},
@@ -362,17 +362,12 @@ get_line([_|T]) -> get_line(T);
 get_line([]) -> none.
 
 -spec get_file([any()]) -> any().
-get_file([{file,File}|_]) -> File;
 get_file([_|T]) -> get_file(T);
 get_file([]) -> "no_file". % should not happen
 
--spec get_dialyzer_plt(analysis()) -> plt().
-get_dialyzer_plt(#analysis{plt = PltFile0}) ->
-  PltFile =
-    case PltFile0 =:= none of
-      true -> dialyzer_plt:get_default_plt();
-      false -> PltFile0
-    end,
+-spec get_dialyzer_plt() -> plt().
+get_dialyzer_plt() ->
+  PltFile = dialyzer_plt:get_default_plt(),
   dialyzer_plt:from_file(PltFile).
 
 %% Exported Types
