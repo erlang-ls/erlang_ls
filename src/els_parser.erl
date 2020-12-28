@@ -101,6 +101,8 @@ find_attribute_pois(Tree, Tokens) ->
           [find_attribute_tokens(Tokens), ExportTypeEntries];
         {type, Type} ->
           type_to_poi(Type);
+        {compile, {compile, CompileOpts}} ->
+          find_compile_options_pois(CompileOpts, Tokens);
         _ -> []
       catch
         throw:syntax_error ->
@@ -109,6 +111,20 @@ find_attribute_pois(Tree, Tokens) ->
     _ ->
       []
   end.
+
+-spec find_compile_options_pois([any()] | tuple(), [erl_scan:token()]) ->
+        [poi()].
+find_compile_options_pois(CompileOpts, Tokens) when is_tuple(CompileOpts) ->
+  find_compile_options_pois([CompileOpts], Tokens);
+find_compile_options_pois(CompileOpts, Tokens) when is_list(CompileOpts) ->
+  Fun = fun({parse_transform, PT}, Acc) ->
+            POIs = [poi(erl_syntax:get_pos(T), parse_transform, Name) ||
+                     {atom, _, Name} = T <- Tokens, Name =:= PT],
+            POIs ++ Acc;
+           (_, Acc) ->
+            Acc
+        end,
+  lists:foldl(Fun, [], CompileOpts).
 
 -spec type_to_poi(tree()) -> [poi()].
 type_to_poi({type, {_, {type, Pos, record, [{atom, _, RecordName}]}, _}}) ->
@@ -257,10 +273,6 @@ attribute(Tree) ->
       [poi(Pos, behaviour, Behaviour)];
     {callback, {callback, {{F, A}, _}}} ->
       [poi(Pos, callback, {F, A})];
-    {compile, {compile, {parse_transform, ParseTransform}}} ->
-      [poi(Pos, parse_transform, ParseTransform)];
-    {compile, {compile, CompileOpts}} when is_list(CompileOpts) ->
-      [poi(Pos, parse_transform, PT) || {parse_transform, PT} <- CompileOpts];
     {module, {Module, _Args}} ->
       [poi(Pos, module, Module)];
     {module, Module} ->

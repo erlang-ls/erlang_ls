@@ -66,6 +66,11 @@ goto_definition(_Uri, #{ kind := type_application, id := {M, T, A} }) ->
   end;
 goto_definition(Uri, #{ kind := type_application, id := {T, A} }) ->
   find(Uri, type_definition, {T, A});
+goto_definition(_Uri, #{ kind := parse_transform, id := Module }) ->
+  case els_utils:find_module(Module) of
+    {ok, Uri}      -> find(Uri, module, Module);
+    {error, Error} -> {error, Error}
+  end;
 goto_definition(_Filename, _) ->
   {error, not_found}.
 
