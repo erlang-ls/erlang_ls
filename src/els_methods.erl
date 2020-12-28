@@ -139,8 +139,10 @@ initialized(Params, State) ->
   lager:info("initialized: [App=~p] [Version=~p]", [?APP, Version]),
   BinVersion = els_utils:to_binary(Version),
   Root = filename:basename(els_uri:path(els_config:get(root_uri))),
+  OTPVersion = els_utils:to_binary(erlang:system_info(otp_release)),
   Message = <<"Erlang LS (in ", Root/binary, "), version: "
-             , BinVersion/binary>>,
+             , BinVersion/binary, ", OTP version: "
+             , OTPVersion/binary>>,
   NMethod  = <<"window/showMessage">>,
   NParams  = #{ type    => ?MESSAGE_TYPE_INFO
               , message => Message
