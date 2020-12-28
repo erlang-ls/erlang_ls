@@ -101,9 +101,9 @@ range({Line, Column}, module, Module, _Data) ->
   From = plus({Line, Column}, "module("),
   To = plus(From, atom_to_list(Module)),
   #{ from => From, to => To };
-range({Line, _Column}, parse_transform, _Define, _Data) ->
-  From = {Line, 1},
-  To = From,
+range({Line, Column}, parse_transform, PT, _Data) ->
+  From = {Line, Column},
+  To = plus(From, atom_to_list(PT)),
   #{ from => From, to => To };
 range(Pos, record_access, Record, Field) ->
   From = plus(Pos, "#"),
