@@ -37,6 +37,8 @@
         , record_access_included/1
         , record_expr/1
         , record_expr_included/1
+        , record_field/1
+        , record_field_included/1
         , type_application_remote/1
         , type_application_undefined/1
         , type_application_user/1
@@ -332,6 +334,26 @@ record_expr(Config) ->
 record_expr_included(Config) ->
   Uri = ?config(code_navigation_uri, Config),
   Def = els_client:definition(Uri, 53, 30),
+  #{result := #{range := Range, uri := DefUri}} = Def,
+  ?assertEqual(?config(code_navigation_h_uri, Config), DefUri),
+  ?assertEqual( els_protocol:range(#{from => {1, 9}, to => {1, 26}})
+              , Range),
+  ok.
+
+-spec record_field(config()) -> ok.
+record_field(Config) ->
+  Uri = ?config(code_navigation_uri, Config),
+  Def = els_client:definition(Uri, 33, 20),
+  #{result := #{range := Range, uri := DefUri}} = Def,
+  ?assertEqual(Uri, DefUri),
+  ?assertEqual( els_protocol:range(#{from => {16, 9}, to => {16, 17}})
+              , Range),
+  ok.
+
+-spec record_field_included(config()) -> ok.
+record_field_included(Config) ->
+  Uri = ?config(code_navigation_uri, Config),
+  Def = els_client:definition(Uri, 53, 45),
   #{result := #{range := Range, uri := DefUri}} = Def,
   ?assertEqual(?config(code_navigation_h_uri, Config), DefUri),
   ?assertEqual( els_protocol:range(#{from => {1, 9}, to => {1, 26}})

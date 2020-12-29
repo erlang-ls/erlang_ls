@@ -52,6 +52,8 @@ goto_definition(Uri, #{ kind := record_access
   find(Uri, record, Record);
 goto_definition(Uri, #{ kind := record_expr, id := Record }) ->
   find(Uri, record, Record);
+goto_definition(Uri, #{ kind := record_field, data := Record }) ->
+  find(Uri, record, Record);
 goto_definition(_Uri, #{ kind := Kind, id := Id }
                ) when Kind =:= include;
                       Kind =:= include_lib ->

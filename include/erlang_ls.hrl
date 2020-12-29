@@ -592,6 +592,7 @@
                    | record
                    | record_access
                    | record_expr
+                   | record_field
                    | spec
                    | type_application
                    | type_definition

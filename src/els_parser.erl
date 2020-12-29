@@ -399,9 +399,27 @@ record_expr(Tree) ->
   case erl_syntax:type(RecordNode) of
     atom ->
       Record = erl_syntax:atom_value(RecordNode),
-      [poi(erl_syntax:get_pos(Tree), record_expr, Record)];
+      [ poi(erl_syntax:get_pos(Tree), record_expr, Record)
+      | record_expr_fields(Record, Tree)];
     _ ->
       []
+  end.
+
+-spec record_expr_fields(atom(), tree()) -> [poi()].
+record_expr_fields(Record, RecordExprTree) ->
+  Fields = erl_syntax:record_expr_fields(RecordExprTree),
+  [begin
+     NameNode = erl_syntax:record_field_name(FieldNode),
+     NameAtom = record_field_name_atom(NameNode),
+     poi(erl_syntax:get_pos(NameNode), record_field, NameAtom, Record)
+   end
+   || FieldNode <- Fields].
+
+-spec record_field_name_atom(tree()) -> atom().
+record_field_name_atom(Tree) ->
+  case erl_syntax:type(Tree) of
+    atom -> erl_syntax:atom_value(Tree);
+    _    -> 'UNKNOWN_FIELD'
   end.
 
 -spec variable(tree()) -> [poi()].

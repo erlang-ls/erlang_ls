@@ -50,7 +50,7 @@ function_f() ->
 function_g(X) ->
   F = fun function_b/0,
   G = {fun code_navigation_extra:do/1, X#included_record_a.field_b},
-  {?INCLUDED_MACRO_A, #included_record_a{}, F, G}.
+  {?INCLUDED_MACRO_A, #included_record_a{included_field_a = a}, F, G}.
 
 -spec function_h() -> type_a() | undefined_type_a() | file:fd().
 function_h() ->
