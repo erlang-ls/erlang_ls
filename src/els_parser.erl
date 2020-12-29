@@ -124,7 +124,9 @@ find_compile_options_pois(CompileOpts, Tokens) when is_list(CompileOpts) ->
            (_, Acc) ->
             Acc
         end,
-  lists:foldl(Fun, [], CompileOpts).
+  lists:foldl(Fun, [], CompileOpts);
+find_compile_options_pois(_CompileOpts, _Tokens) ->
+  [].
 
 -spec type_to_poi(tree()) -> [poi()].
 type_to_poi({type, {_, {type, Pos, record, [{atom, _, RecordName}]}, _}}) ->
