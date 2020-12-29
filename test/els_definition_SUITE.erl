@@ -299,7 +299,7 @@ parse_transform(Config) ->
 -spec record_access(config()) -> ok.
 record_access(Config) ->
   Uri = ?config(code_navigation_uri, Config),
-  Def = els_client:definition(Uri, 33, 11),
+  Def = els_client:definition(Uri, 34, 13),
   #{result := #{range := Range, uri := DefUri}} = Def,
   ?assertEqual(Uri, DefUri),
   ?assertEqual( els_protocol:range(#{from => {16, 9}, to => {16, 17}})
@@ -309,7 +309,7 @@ record_access(Config) ->
 -spec record_access_included(config()) -> ok.
 record_access_included(Config) ->
   Uri = ?config(code_navigation_uri, Config),
-  Def = els_client:definition(Uri, 53, 30),
+  Def = els_client:definition(Uri, 52, 43),
   #{result := #{range := Range, uri := DefUri}} = Def,
   ?assertEqual(?config(code_navigation_h_uri, Config), DefUri),
   ?assertEqual( els_protocol:range(#{from => {1, 9}, to => {1, 26}})
@@ -321,7 +321,7 @@ record_access_included(Config) ->
 -spec record_expr(config()) -> ok.
 record_expr(Config) ->
   Uri = ?config(code_navigation_uri, Config),
-  Def = els_client:definition(Uri, 34, 13),
+  Def = els_client:definition(Uri, 33, 11),
   #{result := #{range := Range, uri := DefUri}} = Def,
   ?assertEqual(Uri, DefUri),
   ?assertEqual( els_protocol:range(#{from => {16, 9}, to => {16, 17}})
@@ -331,7 +331,7 @@ record_expr(Config) ->
 -spec record_expr_included(config()) -> ok.
 record_expr_included(Config) ->
   Uri = ?config(code_navigation_uri, Config),
-  Def = els_client:definition(Uri, 52, 43),
+  Def = els_client:definition(Uri, 53, 30),
   #{result := #{range := Range, uri := DefUri}} = Def,
   ?assertEqual(?config(code_navigation_h_uri, Config), DefUri),
   ?assertEqual( els_protocol:range(#{from => {1, 9}, to => {1, 26}})
