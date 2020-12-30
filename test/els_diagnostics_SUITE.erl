@@ -19,6 +19,7 @@
         , compiler_with_parse_transform_list/1
         , compiler_with_parse_transform_included/1
         , compiler_with_parse_transform_broken/1
+        , compiler_with_parse_transform_deps/1
         , epp_with_nonexistent_macro/1
         , code_reload/1
         , code_reload_sticky_mod/1
@@ -276,6 +277,23 @@ compiler_with_parse_transform_broken(Config) ->
                           #{'end' => #{character => 0, line => 1},
                             start => #{character => 0, line => 0}}],
   ?assertEqual(ExpectedErrorsRanges, ErrorsRanges),
+  ok.
+
+-spec compiler_with_parse_transform_deps(config()) -> ok.
+compiler_with_parse_transform_deps(Config) ->
+  Uri = ?config(diagnostics_parse_transform_deps_a_uri, Config),
+  els_mock_diagnostics:subscribe(),
+  ok = els_client:did_save(Uri),
+  Diagnostics = els_mock_diagnostics:wait_until_complete(),
+  ?assertEqual(1, length(Diagnostics)),
+  Warnings = [D || #{severity := ?DIAGNOSTIC_WARNING} = D <- Diagnostics],
+  ?assertEqual(1, length(Warnings)),
+  Errors = [D || #{severity := ?DIAGNOSTIC_ERROR} = D <- Diagnostics],
+  ?assertEqual(0, length(Errors)),
+  WarningsRanges = [ Range || #{range := Range} <- Warnings],
+  ExpectedWarningsRanges = [#{'end' => #{character => 0, line => 5},
+                              start => #{character => 0, line => 4}}],
+  ?assertEqual(ExpectedWarningsRanges, WarningsRanges),
   ok.
 
 
