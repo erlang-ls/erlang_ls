@@ -32,16 +32,65 @@ dependencies([], Acc, _AlreadyProcessed) ->
 dependencies([Uri|Uris], Acc, AlreadyProcessed) ->
   case els_dt_document:lookup(Uri) of
     {ok, [Document]} ->
-      Deps = els_dt_document:pois(Document, [behaviour, parse_transform]),
+      Behaviours = els_dt_document:pois(Document, [behaviour]),
+      ParseTransforms = els_dt_document:pois(Document, [parse_transform]),
       IncludedUris = included_uris(Document),
-      FilteredUris = [IncludedUri || IncludedUri <- IncludedUris,
-                      not sets:is_element(IncludedUri, AlreadyProcessed)],
-      dependencies(Uris ++ FilteredUris, Acc ++ [Id || #{id := Id} <- Deps],
-                   sets:add_element(Uri, AlreadyProcessed));
+      FilteredIncludedUris = exclude_already_processed( IncludedUris
+                                                      , AlreadyProcessed
+                                                      ),
+      PTUris = lists:usort(
+                 lists:flatten(
+                   [pt_deps(Id) || #{id := Id} <- ParseTransforms])),
+      FilteredPTUris = exclude_already_processed( PTUris
+                                                , AlreadyProcessed
+                                                ),
+      dependencies( Uris ++ FilteredIncludedUris ++ FilteredPTUris
+                  , Acc ++ [Id || #{id := Id} <- Behaviours ++ ParseTransforms]
+                    ++ [els_uri:module(FPTUri) || FPTUri <- FilteredPTUris]
+                  , sets:add_element(Uri, AlreadyProcessed));
     Error ->
       lager:info("Lookup failed [Error=~p]", [Error]),
       []
   end.
+
+-spec exclude_already_processed([uri()], sets:set()) -> [uri()].
+exclude_already_processed(Uris, AlreadyProcessed) ->
+  [Uri || Uri <- Uris, not sets:is_element(Uri, AlreadyProcessed)].
+
+-spec pt_deps(atom()) -> [uri()].
+pt_deps(Module) ->
+  case els_utils:find_module(Module) of
+    {ok, Uri} ->
+      case els_dt_document:lookup(Uri) of
+        {ok, [Document]} ->
+          Applications = els_dt_document:pois(Document, [ application
+                                                        , implicit_fun
+                                                        ]),
+          applications_to_uris(Applications);
+        Error ->
+          lager:info("Lookup failed [Error=~p]", [Error]),
+          []
+      end;
+    {error, Error} ->
+      lager:info("Find module failed [module=~p] [error=~p]", [Module, Error]),
+      []
+  end.
+
+-spec applications_to_uris([poi()]) -> [uri()].
+applications_to_uris(Applications) ->
+  Modules = [M|| #{id := {M, _F, _A}} <- Applications],
+  Fun = fun(M, Acc) ->
+            case els_utils:find_module(M) of
+              {ok, Uri} ->
+                [Uri|Acc];
+              {error, Error} ->
+                lager:info( "Could not find module [module=~p] [error=~p]"
+                          , [M, Error]
+                          ),
+                Acc
+            end
+        end,
+  lists:foldl(Fun, [], Modules).
 
 -spec included_uris([atom()], [uri()]) -> [uri()].
 included_uris([], Acc) ->
