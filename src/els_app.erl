@@ -21,7 +21,7 @@
 %%==============================================================================
 -spec start(normal, any()) -> {ok, pid()}.
 start(_StartType, _StartArgs) ->
-  ok = application:set_env(elvis, no_output, true),
+  ok = application:set_env(elvis_core, no_output, true),
   case application:get_env(erlang_ls, dap) of
     {ok, true} ->
       els_dap_sup:start_link();
