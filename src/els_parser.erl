@@ -399,27 +399,24 @@ record_expr(Tree) ->
   case erl_syntax:type(RecordNode) of
     atom ->
       Record = erl_syntax:atom_value(RecordNode),
+      FieldPois  = lists:filtermap(
+                     fun(F) -> record_expr_field(F, Record) end,
+                     erl_syntax:record_expr_fields(Tree)),
       [ poi(erl_syntax:get_pos(Tree), record_expr, Record)
-      | record_expr_fields(Record, Tree)];
+      | FieldPois ];
     _ ->
       []
   end.
 
--spec record_expr_fields(atom(), tree()) -> [poi()].
-record_expr_fields(Record, RecordExprTree) ->
-  Fields = erl_syntax:record_expr_fields(RecordExprTree),
-  [begin
-     NameNode = erl_syntax:record_field_name(FieldNode),
-     NameAtom = record_field_name_atom(NameNode),
-     poi(erl_syntax:get_pos(NameNode), record_field, NameAtom, Record)
-   end
-   || FieldNode <- Fields].
-
--spec record_field_name_atom(tree()) -> atom().
-record_field_name_atom(Tree) ->
-  case erl_syntax:type(Tree) of
-    atom -> erl_syntax:atom_value(Tree);
-    _    -> 'UNKNOWN_FIELD'
+-spec record_expr_field(tree(), atom()) -> {true, poi()} | false.
+record_expr_field(FieldNode, Record) ->
+  NameNode = erl_syntax:record_field_name(FieldNode),
+  case erl_syntax:type(NameNode) of
+    atom ->
+      NameAtom = erl_syntax:atom_value(NameNode),
+      {true, poi(erl_syntax:get_pos(NameNode), record_field, NameAtom, Record)};
+    _ ->
+      false
   end.
 
 -spec variable(tree()) -> [poi()].
