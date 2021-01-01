@@ -49,21 +49,31 @@ find_highlights(Document, #{ id := Id, kind := Kind })
        Kind =:= implicit_fun;
        Kind =:= function;
        Kind =:= export_entry ->
-  POIs = els_dt_document:pois(Document, [ application
-                                        , implicit_fun
-                                        , function
-                                        , export_entry]),
-  Highlights = [document_highlight(R) ||
-                 #{id := I, range := R} <- POIs,
-                 I =:= Id
-               ],
-  normalize_result(Highlights);
+  do_find_highlights(Document, Id, [ application
+                                   , implicit_fun
+                                   , function
+                                   , export_entry]);
+find_highlights(Document, #{ id := Id, kind := Kind })
+  when Kind =:= record_def_field;
+       Kind =:= record_field ->
+  do_find_highlights(Document, Id, [ record_def_field
+                                   , record_field]);
 find_highlights(Document, #{ id := Id, kind := Kind }) ->
   POIs = els_dt_document:pois(Document, [Kind]),
   Highlights = [document_highlight(R) ||
                  #{id := I, kind := K, range := R} <- POIs,
                  I =:= Id,
                  K =/= 'folding_range'
+               ],
+  normalize_result(Highlights).
+
+-spec do_find_highlights(els_dt_document:item() , poi_id() , [poi_kind()])
+                        -> any().
+do_find_highlights(Document, Id, Kinds) ->
+  POIs = els_dt_document:pois(Document, Kinds),
+  Highlights = [document_highlight(R) ||
+                 #{id := I, range := R} <- POIs,
+                 I =:= Id
                ],
   normalize_result(Highlights).
 

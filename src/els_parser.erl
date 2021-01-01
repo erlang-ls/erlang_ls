@@ -292,7 +292,7 @@ attribute(Tree) ->
           []
       end;
     {record, {Record, Fields}} ->
-      [poi(Pos, record, Record, Fields)];
+      [poi(Pos, record, Record, Fields) | record_def_fields(Tree, Record)];
     {type, {type, {Type, _, Args}}} ->
       {Line, Col} = Pos,
       [poi({Line, Col + length("type ")}, type_definition,
@@ -399,24 +399,52 @@ record_expr(Tree) ->
   case erl_syntax:type(RecordNode) of
     atom ->
       Record = erl_syntax:atom_value(RecordNode),
-      FieldPois  = lists:filtermap(
-                     fun(F) -> record_expr_field(F, Record) end,
-                     erl_syntax:record_expr_fields(Tree)),
+      FieldPois  = lists:append(
+                     [record_field_name(F, Record, record_field)
+                      || F <- erl_syntax:record_expr_fields(Tree)]),
       [ poi(erl_syntax:get_pos(Tree), record_expr, Record)
       | FieldPois ];
     _ ->
       []
   end.
 
--spec record_expr_field(tree(), atom()) -> {true, poi()} | false.
-record_expr_field(FieldNode, Record) ->
+-spec record_field_name(tree(), atom(), poi_kind()) -> [poi()].
+record_field_name(FieldNode, Record, Kind) ->
   NameNode = erl_syntax:record_field_name(FieldNode),
   case erl_syntax:type(NameNode) of
     atom ->
+      Pos = erl_syntax:get_pos(NameNode),
       NameAtom = erl_syntax:atom_value(NameNode),
-      {true, poi(erl_syntax:get_pos(NameNode), record_field, NameAtom, Record)};
+      [poi(Pos, Kind, {Record, NameAtom})];
     _ ->
-      false
+      []
+  end.
+
+-spec record_def_fields(tree(), atom()) -> [poi()].
+record_def_fields(AttrTree, Record) ->
+  case erl_syntax:attribute_arguments(AttrTree) of
+    none -> [];
+    [_R, T] ->
+      case erl_syntax:type(T) of
+        tuple ->
+          lists:append(
+            [record_def_field(F, Record)
+             || F <- erl_syntax:tuple_elements(T)]);
+        _ ->
+          []
+      end
+  end.
+
+-spec record_def_field(tree(), atom()) -> [poi()].
+record_def_field(FieldTree, Record) ->
+  case erl_syntax:type(FieldTree) of
+    record_field ->
+      record_field_name(FieldTree, Record, record_def_field);
+    typed_record_field ->
+      F = erl_syntax:typed_record_field_body(FieldTree),
+      record_field_name(F, Record, record_def_field);
+    _ ->
+      []
   end.
 
 -spec variable(tree()) -> [poi()].

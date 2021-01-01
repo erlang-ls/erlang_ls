@@ -346,7 +346,7 @@ record_field(Config) ->
   Def = els_client:definition(Uri, 33, 20),
   #{result := #{range := Range, uri := DefUri}} = Def,
   ?assertEqual(Uri, DefUri),
-  ?assertEqual( els_protocol:range(#{from => {16, 9}, to => {16, 17}})
+  ?assertEqual( els_protocol:range(#{from => {16, 20}, to => {16, 27}})
               , Range),
   ok.
 
@@ -356,7 +356,7 @@ record_field_included(Config) ->
   Def = els_client:definition(Uri, 53, 45),
   #{result := #{range := Range, uri := DefUri}} = Def,
   ?assertEqual(?config(code_navigation_h_uri, Config), DefUri),
-  ?assertEqual( els_protocol:range(#{from => {1, 9}, to => {1, 26}})
+  ?assertEqual( els_protocol:range(#{from => {1, 29}, to => {1, 45}})
               , Range),
   ok.
 

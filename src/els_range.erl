@@ -112,7 +112,10 @@ range(Pos, record_access, Record, Field) ->
 range(Pos, record_expr, Record, _Data) ->
   From = plus(Pos, "#"),
   #{ from => From, to => plus(From, atom_to_list(Record)) };
-range(Pos, record_field, Field, _Record) ->
+range(Pos, record_field, {_Record, Field}, _Data) ->
+  From = Pos,
+  #{ from => From, to => plus(From, atom_to_list(Field)) };
+range(Pos, record_def_field, {_Record, Field}, _Data) ->
   From = Pos,
   #{ from => From, to => plus(From, atom_to_list(Field)) };
 range({Line, Column}, record, Record, _Data) ->
