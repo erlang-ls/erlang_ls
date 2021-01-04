@@ -31,6 +31,7 @@
         , variables/1
         , remote_fun/1
         , snippets/1
+        , resolve_application_local/1
         ]).
 
 %%==============================================================================
@@ -522,3 +523,28 @@ snippets(Config) ->
   CustomSnippets = filelib:wildcard("*", CustomSnippetsDir),
   Expected = lists:usort(Snippets ++ CustomSnippets),
   ?assertEqual(length(Expected), length(Completions)).
+
+-spec resolve_application_local(config()) -> ok.
+resolve_application_local(Config) ->
+  Uri = ?config(completion_resolve_uri, Config),
+  CompletionItem = #{ label => <<"local_call_1/0">>
+                    , kind => ?COMPLETION_ITEM_KIND_FUNCTION
+                    , insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+                    , data => #{ uri => Uri
+                               , type => <<"local">>
+                               , module => <<"completion_resolve">>
+                               , function => <<"local_call_1">>
+                               , arity => 0
+                               }
+                      },
+  #{result := Result} = els_client:completionitem_resolve(CompletionItem),
+  ExpectedResult =
+    CompletionItem#{ documentation =>
+                       #{ kind => <<"markdown">>
+                        , value => <<"## local_call_1/0\n\n"
+                                     "```"
+                                     "erlang\n-spec local_call_1() -> ok.\n"
+                                     "```">>
+                        }
+                   },
+  ?assertEqual(ExpectedResult, Result).

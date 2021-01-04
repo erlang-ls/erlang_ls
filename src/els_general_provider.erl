@@ -113,7 +113,7 @@ server_capabilities() ->
         , hoverProvider =>
             els_hover_provider:is_enabled()
         , completionProvider =>
-            #{ resolveProvider => false
+            #{ resolveProvider => true
              , triggerCharacters => [<<":">>, <<"#">>, <<"?">>, <<".">>]
              }
         , definitionProvider =>

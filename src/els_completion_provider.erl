@@ -58,11 +58,37 @@ handle_request({completion, Params}, State) ->
             , line     => Line + 1
             , column   => Character
             },
-  {find_completion(Prefix, TriggerKind, Opts), State}.
+  Completions0 = find_completion(Prefix, TriggerKind, Opts),
+  Completions = [populate_with_uri(C, Uri) || C <- Completions0],
+  {Completions, State};
+handle_request({resolve, CompletionItem}, State) ->
+  {resolve(CompletionItem), State}.
 
 %%==============================================================================
 %% Internal functions
 %%==============================================================================
+-spec resolve(completion_item()) -> completion_item().
+resolve(#{ <<"kind">> := ?COMPLETION_ITEM_KIND_FUNCTION
+         , <<"data">> := Data
+         } = CompletionItem) ->
+  #{ <<"type">> := Type
+   , <<"module">> := Module
+   , <<"function">> := Function
+   , <<"arity">> := Arity
+   } = Data,
+  Entries = els_docs:function_docs ( binary_to_atom(Type, utf8)
+                                   , binary_to_atom(Module, utf8)
+                                   , binary_to_atom(Function, utf8)
+                                   , Arity),
+  CompletionItem#{documentation => els_markup_content:new(Entries)};
+resolve(CompletionItem) ->
+  CompletionItem.
+
+-spec populate_with_uri(map(), uri()) -> map().
+populate_with_uri(#{data := Data0} = CompletionItem, Uri) ->
+  CompletionItem#{data => maps:put(uri, Uri, Data0)};
+populate_with_uri(CompletionItem, Uri) ->
+  CompletionItem#{data => #{uri => Uri}}.
 
 -spec find_completion(binary(), integer(), options()) -> any().
 find_completion( Prefix
@@ -224,7 +250,6 @@ definitions(Document, POIKind, ExportFormat, ExportedOnly) ->
                  Exports = local_and_included_pois(Document, ExportKind),
                  [FA || #{id := FA} <- Exports]
              end,
-
   Items = resolve_definitions(POIs, FAs, ExportedOnly, ExportFormat),
   lists:usort(Items).
 
