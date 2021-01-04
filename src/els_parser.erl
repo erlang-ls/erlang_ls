@@ -554,6 +554,20 @@ subtrees(Tree, record_expr) ->
     none -> [Fields];
     Arg  -> [[Arg], Fields]
   end;
+subtrees(Tree, record_field) ->
+  NameNode = erl_syntax:record_field_name(Tree),
+  [case erl_syntax:type(NameNode) of
+     atom ->
+       [];
+     _ ->
+       [NameNode]
+   end,
+   case erl_syntax:record_field_value(Tree) of
+     none ->
+       [];
+     V ->
+       [V]
+   end];
 subtrees(Tree, attribute) ->
   case erl_syntax:attribute_arguments(Tree) of
     none -> [];
