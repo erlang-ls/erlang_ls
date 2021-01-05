@@ -36,9 +36,8 @@ run(Uri) ->
     RelFile ->
       %% Note: elvis_core:rock_this requires a file path relative to the
       %%       project root, formatted as a string.
-      RootPath = els_uri:path(els_config:get(root_uri)),
       try
-        Filename = filename:join([RootPath, "elvis.config"]),
+        Filename = get_elvis_config_path(),
         Config = elvis_config:from_file(Filename),
         elvis_core:rock_this(RelFile, Config)
       of
@@ -96,3 +95,13 @@ diagnostic(_File, Name, Msg, Ln, Info) ->
     , message  => Message
     , relatedInformation => []
     }].
+
+-spec get_elvis_config_path() -> file:filename_all().
+get_elvis_config_path() ->
+  case els_config:get(elvis_config_path) of
+    undefined ->
+      RootPath = els_uri:path(els_config:get(root_uri)),
+      filename:join([RootPath, "elvis.config"]);
+    FilePath ->
+      FilePath
+  end.
