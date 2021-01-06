@@ -99,6 +99,8 @@ do_initialize(RootUri, Capabilities, {ConfigPath, Config}) ->
   CodeReload = maps:get("code_reload", Config, disabled),
   Runtime = maps:get("runtime", Config, #{}),
   CtRunTest = maps:get("ct-run-test", Config, #{}),
+  CodePathExtraDirs = maps:get("code_path_extra_dirs", Config, []),
+  ok = add_code_paths(CodePathExtraDirs, RootPath),
 
   %% Passed by the LSP client
   ok = set(root_uri       , RootUri),
@@ -235,3 +237,20 @@ otp_paths(OtpPath, Recursive) ->
                          , OtpPath
                          , Recursive
                          ).
+
+-spec add_code_paths(Dirs :: list(string()),
+                     RooDir :: string()) ->
+  ok.
+add_code_paths(WCDirs, RootDir) ->
+  AddADir = fun(ADir) ->
+                lager:info("Adding code path: ~p", [ADir]),
+                true = code:add_path(ADir)
+            end,
+  AllNames = lists:foldl(fun(Elem, AccIn) ->
+                             AccIn ++ filelib:wildcard(Elem, RootDir)
+                         end, [], WCDirs),
+  Dirs = [ [$/ | filename:safe_relative_path(Dir)]
+           || Name <- AllNames,
+           filelib:is_dir([$/ | Dir] = filename:absname(Name, RootDir))
+         ],
+  lists:foreach(AddADir, Dirs).
