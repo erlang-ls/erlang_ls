@@ -168,14 +168,13 @@ rename_parametrized_macro(Config) ->
                               #{ 'end' => #{character => 55, line => 18}
                                , start => #{character => 32, line => 18}}}
                        ]
-                   %%   This is currently not possible due to #805
-                   %% , binary_to_atom(
-                   %%     ?config(rename_usage2_uri, Config), utf8) =>
-                   %%     [ #{ newText => NewName
-                   %%        , range =>
-                   %%            #{ 'end' => #{character => 52, line => 14}
-                   %%             , start => #{character => 29, line => 14}}}
-                   %%     ]
+                    , binary_to_atom(
+                        ?config(rename_usage2_uri, Config), utf8) =>
+                        [ #{ newText => NewName
+                           , range =>
+                               #{ 'end' => #{character => 53, line => 14}
+                                , start => #{character => 30, line => 14}}}
+                        ]
                    }
                },
   assert_changes(Expected, Result).
