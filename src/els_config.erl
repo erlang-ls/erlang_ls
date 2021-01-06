@@ -240,17 +240,28 @@ otp_paths(OtpPath, Recursive) ->
 
 -spec add_code_paths(Dirs :: list(string()),
                      RooDir :: string()) ->
-  ok.
+                      ok.
 add_code_paths(WCDirs, RootDir) ->
   AddADir = fun(ADir) ->
-                lager:info("Adding code path: ~p", [ADir]),
-                true = code:add_path(ADir)
+    lager:info("Adding code path: ~p", [ADir]),
+    true = code:add_path(ADir)
             end,
   AllNames = lists:foldl(fun(Elem, AccIn) ->
-                             AccIn ++ filelib:wildcard(Elem, RootDir)
-                         end, [], WCDirs),
-  Dirs = [ [$/ | filename:safe_relative_path(Dir)]
+    AccIn ++ filelib:wildcard(Elem, RootDir) end, [], WCDirs),
+  Dirs = [ [$/ | safe_relative_path(Dir)]
            || Name <- AllNames,
            filelib:is_dir([$/ | Dir] = filename:absname(Name, RootDir))
          ],
   lists:foreach(AddADir, Dirs).
+
+-if(?OTP_RELEASE >= 23).
+-spec safe_relative_path(Dir :: filelib:filename_all()) ->
+  Path :: filelib:filename_all().
+safe_relative_path(Dir) ->
+  filelib:safe_relative_path(Dir, "/").
+-else.
+-spec safe_relative_path(FileName :: file:name_all()) ->
+  Path :: file:filename_all().
+safe_relative_path(Dir) ->
+  filename:safe_relative_path(Dir).
+-endif.
