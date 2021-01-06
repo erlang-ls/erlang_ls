@@ -85,6 +85,10 @@ function_m(code_navigation_types) ->
   code_navigation_extra,
   function_m(code_navigation_extra).
 
-%% [#386] got to definition of import by module
+%% [#386] go to definition of import by module
 function_n() ->
   do(4).
+
+%% atom highlighting and completion includes record fields
+function_o() ->
+  {field_a, incl}.

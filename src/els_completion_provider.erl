@@ -156,6 +156,7 @@ find_completion( Prefix
       keywords()
         ++ bifs(POIKind, ExportFormat)
         ++ atoms(Document, NameBinary)
+        ++ all_record_fields(Document, NameBinary)
         ++ modules(NameBinary)
         ++ definitions(Document, POIKind, ExportFormat)
         ++ els_snippets_server:snippets();
@@ -177,8 +178,8 @@ atoms(Document, Prefix) ->
   filter_by_prefix(Prefix, Unique, fun to_binary/1, fun item_kind_atom/1).
 
 -spec item_kind_atom(binary()) -> map().
-item_kind_atom(Module) ->
-  #{ label            => Module
+item_kind_atom(Atom) ->
+  #{ label            => Atom
    , kind             => ?COMPLETION_ITEM_KIND_CONSTANT
    , insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
    }.
@@ -274,15 +275,21 @@ variables(Document) ->
 %%  Record Fields
 %%==============================================================================
 
+-spec all_record_fields(els_dt_document:item(), binary()) -> [map()].
+all_record_fields(Document, Prefix) ->
+  POIs   = local_and_included_pois(Document, [ record_def_field
+                                             , record_field]),
+  Fields  = [Id || #{id := {_Record, Id}} <- POIs],
+  Unique = lists:usort(Fields),
+  filter_by_prefix(Prefix, Unique, fun to_binary/1, fun item_kind_field/1).
+
 -spec record_fields(els_dt_document:item(), atom()) -> [map()].
 record_fields(Document, RecordName) ->
   case find_record_definition(Document, RecordName) of
     [] -> [];
     POIs ->
       [#{data := Fields} | _] = els_poi:sort(POIs),
-      [ #{ label => atom_to_binary(Name, utf8)
-         , kind  => ?COMPLETION_ITEM_KIND_FIELD
-         }
+      [ item_kind_field(Name)
         || {Name, _} <- Fields
       ]
   end.
@@ -291,6 +298,12 @@ record_fields(Document, RecordName) ->
 find_record_definition(Document, RecordName) ->
   POIs = local_and_included_pois(Document, record),
   [X || X = #{id := Name} <- POIs, Name =:= RecordName].
+
+-spec item_kind_field(binary()) -> map().
+item_kind_field(Name) ->
+  #{ label => Name
+   , kind  => ?COMPLETION_ITEM_KIND_FIELD
+   }.
 
 %%==============================================================================
 %% Keywords
@@ -439,28 +452,31 @@ export_entry_kind(type_definition) -> export_type_entry;
 export_entry_kind(function) -> export_entry;
 export_entry_kind(_) -> {error, no_export_entry_kind}.
 
-%% @doc Returns POIs of the provided `Kind' in the document and included files
--spec local_and_included_pois(els_dt_document:item(), poi_kind()) -> [poi()].
-local_and_included_pois(Document, Kind) ->
-  lists:flatten([ els_dt_document:pois(Document, [Kind])
-                , included_pois(Document, Kind)
+%% @doc Returns POIs of the provided `Kinds' in the document and included files
+-spec local_and_included_pois(els_dt_document:item(), poi_kind() | [poi_kind()])
+                             -> [poi()].
+local_and_included_pois(Document, Kind) when is_atom(Kind) ->
+  local_and_included_pois(Document, [Kind]);
+local_and_included_pois(Document, Kinds) ->
+  lists:flatten([ els_dt_document:pois(Document, Kinds)
+                , included_pois(Document, Kinds)
                 ]).
 
-%% @doc Returns POIs of the provided `Kind' in included files from `Document'
--spec included_pois(els_dt_document:item(), poi_kind()) -> [[map()]].
-included_pois(Document, Type) ->
+%% @doc Returns POIs of the provided `Kinds' in included files from `Document'
+-spec included_pois(els_dt_document:item(), [poi_kind()]) -> [[map()]].
+included_pois(Document, Kinds) ->
   POIs  = els_dt_document:pois(Document, [include, include_lib]),
-  [include_file_pois(Name, Type) || #{id := Name} <- POIs].
+  [include_file_pois(Name, Kinds) || #{id := Name} <- POIs].
 
-%% @doc Returns POIs of the provided `Kind' in the included file
--spec include_file_pois(string(), poi_kind()) -> [map()].
-include_file_pois(Name, Kind) ->
+%% @doc Returns POIs of the provided `Kinds' in the included file
+-spec include_file_pois(string(), [poi_kind()]) -> [map()].
+include_file_pois(Name, Kinds) ->
   Filename = filename:basename(Name, filename:extension(Name)),
   H = list_to_atom(Filename),
   case els_utils:find_header(H) of
     {ok, Uri} ->
       {ok, IncludeDocument} = els_utils:lookup_document(Uri),
-      els_dt_document:pois(IncludeDocument, [Kind]);
+      els_dt_document:pois(IncludeDocument, Kinds);
     {error, _} ->
       []
   end.

@@ -49,15 +49,24 @@ find_highlights(Document, #{ id := Id, kind := Kind })
        Kind =:= implicit_fun;
        Kind =:= function;
        Kind =:= export_entry ->
-  do_find_highlights(Document, Id, [ application
-                                   , implicit_fun
-                                   , function
-                                   , export_entry]);
+  find_highlights(Document, Id, [ application
+                                , implicit_fun
+                                , function
+                                , export_entry]);
 find_highlights(Document, #{ id := Id, kind := Kind })
   when Kind =:= record_def_field;
        Kind =:= record_field ->
-  do_find_highlights(Document, Id, [ record_def_field
-                                   , record_field]);
+  find_highlights(Document, Id, [ record_def_field
+                                , record_field]);
+find_highlights(Document, #{ id := Id, kind := atom }) ->
+  AtomHighlights = do_find_highlights(Document, Id, [ atom ]),
+  FieldPOIs = els_dt_document:pois(Document, [ record_def_field
+                                             , record_field]),
+  FieldHighlights = [document_highlight(R) ||
+                      #{id := I, range := R} <- FieldPOIs,
+                      element(2, I) =:= Id
+                    ],
+  normalize_result(AtomHighlights ++ FieldHighlights);
 find_highlights(Document, #{ id := Id, kind := Kind }) ->
   POIs = els_dt_document:pois(Document, [Kind]),
   Highlights = [document_highlight(R) ||
@@ -67,15 +76,20 @@ find_highlights(Document, #{ id := Id, kind := Kind }) ->
                ],
   normalize_result(Highlights).
 
+-spec find_highlights(els_dt_document:item() , poi_id() , [poi_kind()])
+                     -> any().
+find_highlights(Document, Id, Kinds) ->
+  Highlights = do_find_highlights(Document, Id, Kinds),
+  normalize_result(Highlights).
+
 -spec do_find_highlights(els_dt_document:item() , poi_id() , [poi_kind()])
                         -> any().
 do_find_highlights(Document, Id, Kinds) ->
   POIs = els_dt_document:pois(Document, Kinds),
-  Highlights = [document_highlight(R) ||
-                 #{id := I, range := R} <- POIs,
-                 I =:= Id
-               ],
-  normalize_result(Highlights).
+  _Highlights = [document_highlight(R) ||
+                  #{id := I, range := R} <- POIs,
+                  I =:= Id
+                ].
 
 -spec document_highlight(poi_range()) -> map().
 document_highlight(Range) ->

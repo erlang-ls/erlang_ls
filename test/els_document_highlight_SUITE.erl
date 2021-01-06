@@ -17,6 +17,7 @@
         , function_definition/1
         , fun_local/1
         , fun_remote/1
+        , atom/1
         , record/1
         , record_access/1
         , record_field/1
@@ -128,6 +129,19 @@ fun_remote(Config) ->
   #{result := Locations} = els_client:document_highlight(Uri, 52, 14),
   ExpectedLocations = [ #{range => #{from => {32, 3}, to => {32, 27}}}
                       , #{range => #{from => {52, 8}, to => {52, 38}}}
+                      ],
+  assert_locations(ExpectedLocations, Locations),
+  ok.
+
+-spec atom(config()) -> ok.
+atom(Config) ->
+  Uri = ?config(code_navigation_uri, Config),
+  #{result := Locations} = els_client:document_highlight(Uri, 94, 5),
+  ExpectedLocations = [ #{range => #{from => {94, 4}, to => {94, 11}}}
+                      , #{range => #{from => {33, 18}, to => {33, 25}}}
+                      , #{range => #{from => {34, 19}, to => {34, 26}}}
+                      , #{range => #{from => {16, 20}, to => {16, 27}}}
+                      , #{range => #{from => {34, 44}, to => {34, 51}}}
                       ],
   assert_locations(ExpectedLocations, Locations),
   ok.
