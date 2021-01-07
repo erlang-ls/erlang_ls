@@ -378,7 +378,7 @@ compile_options(Module) ->
       case beam_lib:chunks(Beam, [compile_info]) of
         {ok, {_, Chunks}} ->
           Info = proplists:get_value(compile_info, Chunks),
-          proplists:get_value(options, Info);
+          proplists:get_value(options, Info, []);
         Error ->
           lager:info( "Error extracting compile_info. [module=~p] [error=~p]"
                     , [Module, Error]),
