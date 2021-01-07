@@ -55,8 +55,6 @@ init_per_suite(Config) ->
                            , ?TEST_APP]),
   RootUri = els_uri:uri(RootPath),
   application:load(erlang_ls),
-  Priv = ?config(priv_dir, Config),
-  application:set_env(erlang_ls, db_dir, Priv),
   [ {root_uri, RootUri}
   , {root_path, RootPath}
   | Config ].
