@@ -21,6 +21,7 @@
         , compiler_with_parse_transform_broken/1
         , compiler_with_parse_transform_deps/1
         , code_path_extra_dirs/1
+        , use_long_names/1
         , epp_with_nonexistent_macro/1
         , code_reload/1
         , code_reload_sticky_mod/1
@@ -98,6 +99,17 @@ init_per_testcase(code_path_extra_dirs, Config) ->
                                       end),
   els_mock_diagnostics:setup(),
   els_test_utils:init_per_testcase(code_path_extra_dirs, Config);
+init_per_testcase(use_long_names, Config) ->
+  meck:new(yamerl, [passthrough, no_link]),
+  Content = <<"runtime:\n",
+              "  use_long_names: true\n",
+              "  cookie: mycookie\n",
+              "  node_name: my_node\n">>,
+  meck:expect(yamerl, decode_file, 2, fun(_, Opts) ->
+                                        yamerl:decode(Content, Opts)
+                                      end),
+  els_mock_diagnostics:setup(),
+  els_test_utils:init_per_testcase(code_path_extra_dirs, Config);
 init_per_testcase(TestCase, Config) ->
   els_mock_diagnostics:setup(),
   els_test_utils:init_per_testcase(TestCase, Config).
@@ -123,7 +135,9 @@ end_per_testcase(unused_includes, Config) ->
   els_test_utils:end_per_testcase(unused_includes, Config),
   els_mock_diagnostics:teardown(),
   ok;
-end_per_testcase(code_path_extra_dirs, Config) ->
+end_per_testcase(TestCase, Config)
+     when TestCase =:= code_path_extra_dirs orelse
+          TestCase =:= use_long_names ->
   meck:unload(yamerl),
   els_test_utils:end_per_testcase(code_path_extra_dirs, Config),
   els_mock_diagnostics:teardown(),
@@ -318,6 +332,16 @@ code_path_extra_dirs(Config) ->
            || Dir <- filelib:wildcard("*", RootPath),
            filelib:is_dir(AbsDir = filename:absname(Dir, RootPath))],
   ?assertMatch(true, lists:all(fun(Elem) -> code:del_path(Elem) end, Dirs)),
+  ok.
+
+-spec use_long_names(config()) -> ok.
+use_long_names(_Config) ->
+  {ok, HostName} = inet:gethostname(),
+  NodeName = "my_node@" ++
+             HostName ++ "." ++
+             proplists:get_value(domain, inet:get_rc(), ""),
+  Node = list_to_atom(NodeName),
+  ?assertMatch(Node, els_config_runtime:get_node_name()),
   ok.
 
 -spec epp_with_nonexistent_macro(config()) -> ok.
