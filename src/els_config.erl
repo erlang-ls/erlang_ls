@@ -48,7 +48,8 @@
                | plt_path
                | root_uri
                | search_paths
-               | code_reload.
+               | code_reload
+               | elvis_config_path.
 
 -type path()  :: file:filename().
 -type state() :: #{ apps_dirs        => [path()]
@@ -101,6 +102,7 @@ do_initialize(RootUri, Capabilities, {ConfigPath, Config}) ->
   CtRunTest = maps:get("ct-run-test", Config, #{}),
   CodePathExtraDirs = maps:get("code_path_extra_dirs", Config, []),
   ok = add_code_paths(CodePathExtraDirs, RootPath),
+  ElvisConfigPath = maps:get("elvis_config_path", Config, undefined),
 
   %% Passed by the LSP client
   ok = set(root_uri       , RootUri),
@@ -117,6 +119,7 @@ do_initialize(RootUri, Capabilities, {ConfigPath, Config}) ->
                               , Runtime)),
   ok = set('ct-run-test', maps:merge( els_config_ct_run_test:default_config()
                                     , CtRunTest)),
+  ok = set(elvis_config_path, ElvisConfigPath),
   %% Calculated from the above
   ok = set(apps_paths     , project_paths(RootPath, AppsDirs, false)),
   ok = set(deps_paths     , project_paths(RootPath, DepsDirs, false)),
