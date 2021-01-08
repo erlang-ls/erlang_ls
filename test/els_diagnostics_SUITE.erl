@@ -20,6 +20,7 @@
         , compiler_with_parse_transform_included/1
         , compiler_with_parse_transform_broken/1
         , compiler_with_parse_transform_deps/1
+        , code_path_extra_dirs/1
         , epp_with_nonexistent_macro/1
         , code_reload/1
         , code_reload_sticky_mod/1
@@ -88,6 +89,15 @@ init_per_testcase(unused_includes, Config) ->
   meck:expect(els_unused_includes_diagnostics, is_default, 0, true),
   els_mock_diagnostics:setup(),
   els_test_utils:init_per_testcase(unused_includes, Config);
+init_per_testcase(code_path_extra_dirs, Config) ->
+  meck:new(yamerl, [passthrough, no_link]),
+  Content = <<"code_path_extra_dirs:\n",
+              "  - \"../code_navigation/*/\"\n">>,
+  meck:expect(yamerl, decode_file, 2, fun(_, Opts) ->
+                                        yamerl:decode(Content, Opts)
+                                      end),
+  els_mock_diagnostics:setup(),
+  els_test_utils:init_per_testcase(code_path_extra_dirs, Config);
 init_per_testcase(TestCase, Config) ->
   els_mock_diagnostics:setup(),
   els_test_utils:init_per_testcase(TestCase, Config).
@@ -111,6 +121,11 @@ end_per_testcase(crossref_pseudo_functions, Config) ->
 end_per_testcase(unused_includes, Config) ->
   meck:unload(els_unused_includes_diagnostics),
   els_test_utils:end_per_testcase(unused_includes, Config),
+  els_mock_diagnostics:teardown(),
+  ok;
+end_per_testcase(code_path_extra_dirs, Config) ->
+  meck:unload(yamerl),
+  els_test_utils:end_per_testcase(code_path_extra_dirs, Config),
   els_mock_diagnostics:teardown(),
   ok;
 end_per_testcase(TestCase, Config) ->
@@ -296,6 +311,14 @@ compiler_with_parse_transform_deps(Config) ->
   ?assertEqual(ExpectedWarningsRanges, WarningsRanges),
   ok.
 
+-spec code_path_extra_dirs(config()) -> ok.
+code_path_extra_dirs(Config) ->
+  RootPath = binary_to_list(?config(root_path, Config)),
+  Dirs = [ AbsDir
+           || Dir <- filelib:wildcard("*", RootPath),
+           filelib:is_dir(AbsDir = filename:absname(Dir, RootPath))],
+  ?assertMatch(true, lists:all(fun(Elem) -> code:del_path(Elem) end, Dirs)),
+  ok.
 
 -spec epp_with_nonexistent_macro(config()) -> ok.
 epp_with_nonexistent_macro(Config) ->
