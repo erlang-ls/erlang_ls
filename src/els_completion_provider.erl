@@ -234,15 +234,15 @@ definitions(Document, POIKind, ExportFormat) ->
 -spec definitions(els_dt_document:item(), poi_kind(), boolean(), boolean()) ->
   [map()].
 definitions(Document, POIKind, ExportFormat, ExportedOnly) ->
-  POIs     = local_and_included_pois(Document, POIKind),
+  POIs = local_and_included_pois(Document, POIKind),
   #{uri := Uri} = Document,
   %% Find exported entries when there is an export_entry kind available
-  FAs      = case export_entry_kind(POIKind) of
-               {error, no_export_entry_kind} -> [];
-               ExportKind ->
-                 Exports = local_and_included_pois(Document, ExportKind),
-                 [FA || #{id := FA} <- Exports]
-             end,
+  FAs = case export_entry_kind(POIKind) of
+          {error, no_export_entry_kind} -> [];
+          ExportKind ->
+            Exports = local_and_included_pois(Document, ExportKind),
+            [FA || #{id := FA} <- Exports]
+        end,
   Items = resolve_definitions(Uri, POIs, FAs, ExportedOnly, ExportFormat),
   lists:usort(Items).
 
@@ -260,6 +260,7 @@ completion_context(Document, Line, Column) ->
                           [{atom(), arity()}], boolean(), boolean()) ->
   [map()].
 resolve_definitions(Uri, Functions, ExportsFA, ExportedOnly, ArityOnly) ->
+  %% TODO: Get rid of BEGIN
   [ begin
       {F, A} = FA,
       Data = #{ uri => Uri
