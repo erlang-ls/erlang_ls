@@ -31,6 +31,7 @@
         , variables/1
         , remote_fun/1
         , snippets/1
+        , resolve_application_remote/1
         , resolve_application_local/1
         ]).
 
@@ -524,27 +525,46 @@ snippets(Config) ->
   Expected = lists:usort(Snippets ++ CustomSnippets),
   ?assertEqual(length(Expected), length(Completions)).
 
+-spec resolve_application_remote(config()) -> ok.
+resolve_application_remote(Config) ->
+  Uri = ?config(completion_resolve_uri, Config),
+  CompletionKind = ?COMPLETION_TRIGGER_KIND_INVOKED,
+  #{result := Result0} =
+    els_client:completion(Uri, 16, 23, CompletionKind, <<":">>),
+  Remotes = [CI || #{ kind := ?COMPLETION_ITEM_KIND_FUNCTION
+                    , data := #{ module := <<"completion_resolve">>}
+                    } = CI <- Result0],
+  [Selected] = [CI || #{data := #{function := <<"call_1">>}} = CI <- Remotes],
+  #{result := Result} = els_client:completionitem_resolve(Selected),
+  ExpectedResult =
+    Selected#{ documentation =>
+                 #{ kind => <<"markdown">>
+                  , value => <<"## completion_resolve:call_1/0\n\n"
+                               "```"
+                               "erlang\n-spec call_1() -> ok.\n"
+                               "```">>
+                  }
+             },
+  ?assertEqual(ExpectedResult, Result).
+
 -spec resolve_application_local(config()) -> ok.
 resolve_application_local(Config) ->
   Uri = ?config(completion_resolve_uri, Config),
-  CompletionItem = #{ label => <<"local_call_1/0">>
-                    , kind => ?COMPLETION_ITEM_KIND_FUNCTION
-                    , insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
-                    , data => #{ uri => Uri
-                               , type => <<"local">>
-                               , module => <<"completion_resolve">>
-                               , function => <<"local_call_1">>
-                               , arity => 0
-                               }
-                      },
-  #{result := Result} = els_client:completionitem_resolve(CompletionItem),
+  CompletionKind = ?COMPLETION_TRIGGER_KIND_INVOKED,
+  #{result := Result0} =
+    els_client:completion(Uri, 17, 5, CompletionKind, <<"">>),
+  Remotes = [CI || #{ kind := ?COMPLETION_ITEM_KIND_FUNCTION
+                    , data := #{ module := <<"completion_resolve">>}
+                    } = CI <- Result0],
+  [Selected] = [CI || #{data := #{function := <<"call_1">>}} = CI <- Remotes],
+  #{result := Result} = els_client:completionitem_resolve(Selected),
   ExpectedResult =
-    CompletionItem#{ documentation =>
-                       #{ kind => <<"markdown">>
-                        , value => <<"## local_call_1/0\n\n"
-                                     "```"
-                                     "erlang\n-spec local_call_1() -> ok.\n"
-                                     "```">>
-                        }
-                   },
+    Selected#{ documentation =>
+                 #{ kind => <<"markdown">>
+                  , value => <<"## call_1/0\n\n"
+                               "```"
+                               "erlang\n-spec call_1() -> ok.\n"
+                               "```">>
+                  }
+             },
   ?assertEqual(ExpectedResult, Result).
