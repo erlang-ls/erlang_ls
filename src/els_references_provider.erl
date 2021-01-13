@@ -65,8 +65,7 @@ find_references(Uri, #{ kind := Kind
   find_references_for_id(Kind, Key);
 find_references(_Uri, #{kind := Kind, id := Name})
   when Kind =:= record_expr;
-       Kind =:= record;
-       Kind =:= record_access ->
+       Kind =:= record ->
   find_references_for_id(Kind, Name);
 find_references(_Uri, #{kind := Kind, id := Name})
   when Kind =:= macro;

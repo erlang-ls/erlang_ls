@@ -384,11 +384,16 @@ record_access(Tree) ->
   case erl_syntax:type(RecordNode) of
     atom ->
       Record = erl_syntax:atom_value(RecordNode),
-      Field = case erl_syntax:type(FieldNode) of
-                atom -> erl_syntax:atom_value(FieldNode);
-                _    -> 'UNKNOWN_FIELD'
-              end,
-      [poi(erl_syntax:get_pos(Tree), record_access, Record, Field)];
+      FieldPoi =
+        case erl_syntax:type(FieldNode) of
+          atom ->
+            Field = erl_syntax:atom_value(FieldNode),
+            [poi(erl_syntax:get_pos(FieldNode), record_field, {Record, Field})];
+          _    ->
+            []
+        end,
+      [ poi(erl_syntax:get_pos(Tree), record_expr, Record)
+      | FieldPoi ];
     _ ->
       []
   end.
@@ -544,9 +549,9 @@ subtrees(Tree, macro) ->
     Args -> [Args]
   end;
 subtrees(Tree, record_access) ->
-  [ [ erl_syntax:record_access_argument(Tree)
-    , erl_syntax:record_access_field(Tree)
-    ]
+  NameNode = erl_syntax:record_access_field(Tree),
+  [ [erl_syntax:record_access_argument(Tree)]
+  , skip_record_field_atom(NameNode)
   ];
 subtrees(Tree, record_expr) ->
   Fields = erl_syntax:record_expr_fields(Tree),
@@ -556,18 +561,13 @@ subtrees(Tree, record_expr) ->
   end;
 subtrees(Tree, record_field) ->
   NameNode = erl_syntax:record_field_name(Tree),
-  [case erl_syntax:type(NameNode) of
-     atom ->
-       [];
-     _ ->
-       [NameNode]
-   end,
-   case erl_syntax:record_field_value(Tree) of
-     none ->
-       [];
-     V ->
+  [ skip_record_field_atom(NameNode)
+  , case erl_syntax:record_field_value(Tree) of
+      none ->
+        [];
+      V ->
        [V]
-   end];
+    end];
 subtrees(Tree, attribute) ->
   case erl_syntax:attribute_arguments(Tree) of
     none -> [];
@@ -575,6 +575,17 @@ subtrees(Tree, attribute) ->
   end;
 subtrees(Tree, _) ->
   erl_syntax:subtrees(Tree).
+
+%% Skip visiting atoms of record field names as they are already represented as
+%% `record_field' pois
+-spec skip_record_field_atom(tree()) -> [tree()].
+skip_record_field_atom(NameNode) ->
+  case erl_syntax:type(NameNode) of
+     atom ->
+       [];
+     _ ->
+       [NameNode]
+   end.
 
 -spec pretty_print(tree()) -> binary().
 pretty_print(Tree) ->

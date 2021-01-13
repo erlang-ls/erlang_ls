@@ -201,17 +201,17 @@ record(Config) ->
                          , range => #{from => {33, 8}, to => {33, 16}}
                          }
                       , #{ uri => Uri
-                         , range => #{from => {34, 10}, to => {34, 26}}
+                         , range => #{from => {34, 10}, to => {34, 18}}
                          }
                       , #{ uri => Uri
-                         , range => #{from => {34, 35}, to => {34, 51}}
+                         , range => #{from => {34, 35}, to => {34, 43}}
                          }
                       ],
 
   ct:comment("Find references record_a from a usage"),
   #{result := Locations} = els_client:references(Uri, 23, 4),
-  ct:comment("Find references record_a from a field usage"),
-  #{result := Locations} = els_client:references(Uri, 34, 22),
+  ct:comment("Find references record_a from an access"),
+  #{result := Locations} = els_client:references(Uri, 34, 15),
   ct:comment("Find references record_a from beginning of definition"),
   #{result := Locations} = els_client:references(Uri, 16, 9),
   ct:comment("Find references record_a from end of definition"),

@@ -150,9 +150,7 @@ atom(Config) ->
 record(Config) ->
   Uri = ?config(code_navigation_uri, Config),
   #{result := Locations} = els_client:document_highlight(Uri, 23, 4),
-  ExpectedLocations = [ #{range => #{from => {23, 4}, to => {23, 12}}}
-                      , #{range => #{from => {33, 8}, to => {33, 16}}}
-                      ],
+  ExpectedLocations = record_uses(),
   assert_locations(ExpectedLocations, Locations),
   ok.
 
@@ -160,9 +158,7 @@ record(Config) ->
 record_access(Config) ->
   Uri = ?config(code_navigation_uri, Config),
   #{result := Locations} = els_client:document_highlight(Uri, 34, 10),
-  ExpectedLocations = [ #{range => #{from => {34, 10}, to => {34, 26}}}
-                      , #{range => #{from => {34, 35}, to => {34, 51}}}
-                      ],
+  ExpectedLocations = record_uses(),
   assert_locations(ExpectedLocations, Locations),
   ok.
 
@@ -172,9 +168,8 @@ record_field(Config) ->
   #{result := Locations} = els_client:document_highlight(Uri, 16, 23),
   ExpectedLocations = [ #{range => #{from => {33, 18}, to => {33, 25}}}
                       , #{range => #{from => {16, 20}, to => {16, 27}}}
-                      %% TODO record access not highlighted
-                      %%, #{range => #{from => {34, 19}, to => {34, 26}}}
-                      %%, #{range => #{from => {34, 44}, to => {34, 51}}}
+                      , #{range => #{from => {34, 19}, to => {34, 26}}}
+                      , #{range => #{from => {34, 44}, to => {34, 51}}}
                       ],
   assert_locations(ExpectedLocations, Locations),
   ok.
@@ -308,20 +303,24 @@ callback(Config) ->
 assert_locations(null, null) ->
   ok;
 assert_locations(ExpectedLocations, Locations) ->
-  ct:log("ExpectedLocations: ~p~nLocations: ~p~n",
-         [ExpectedLocations, lists:sort(Locations)]),
+  ExpectedProtoLocs = lists:sort(protocol_ranges(ExpectedLocations)),
+  SortedLocations = lists:sort(Locations),
+  ct:log("ExpectedLocations:~n ~p~nLocations:~n ~p~n",
+         [ExpectedProtoLocs, SortedLocations]),
   ?assertEqual(length(ExpectedLocations), length(Locations)),
-  Pairs = lists:zip(lists:sort(Locations), ExpectedLocations),
+  Pairs = lists:zip(SortedLocations, ExpectedProtoLocs),
   [ begin
       #{range := Range} = Location,
       #{range := ExpectedRange} = Expected,
-      ?assertEqual( els_protocol:range(ExpectedRange)
-                  , Range
-                  )
+      ?assertEqual(ExpectedRange, Range)
     end
     || {Location, Expected} <- Pairs
   ],
   ok.
+
+protocol_ranges(Locations) ->
+  [ L#{range => els_protocol:range(R)}
+    || L = #{range := R} <- Locations ].
 
 -spec expected_definitions() -> [map()].
 expected_definitions() ->
@@ -329,4 +328,12 @@ expected_definitions() ->
   , #{range => #{from => {22, 3}, to => {22, 13}}}
   , #{range => #{from => {51, 7}, to => {51, 23}}}
   , #{range => #{from => {5, 25}, to => {5, 37}}}
+  ].
+
+-spec record_uses() -> [map()].
+record_uses() ->
+  [ #{range => #{from => {23, 4}, to => {23, 12}}}
+  , #{range => #{from => {33, 8}, to => {33, 16}}}
+  , #{range => #{from => {34, 10}, to => {34, 18}}}
+  , #{range => #{from => {34, 35}, to => {34, 43}}}
   ].

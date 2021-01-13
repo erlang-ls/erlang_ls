@@ -105,10 +105,6 @@ range({Line, Column}, parse_transform, PT, _Data) ->
   From = {Line, Column},
   To = plus(From, atom_to_list(PT)),
   #{ from => From, to => To };
-range(Pos, record_access, Record, Field) ->
-  From = plus(Pos, "#"),
-  #{ from => From
-   , to => plus(From, atom_to_list(Record) ++ "." ++ atom_to_list(Field)) };
 range(Pos, record_expr, Record, _Data) ->
   From = plus(Pos, "#"),
   #{ from => From, to => plus(From, atom_to_list(Record)) };
