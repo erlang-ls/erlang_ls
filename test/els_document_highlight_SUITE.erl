@@ -346,10 +346,10 @@ expected_definitions() ->
 -spec record_uses() -> [map()].
 record_uses() ->
   [ #{range => #{from => {16, 9}, to => {16, 17}}}
-  , #{range => #{from => {23, 4}, to => {23, 12}}}
-  , #{range => #{from => {33, 8}, to => {33, 16}}}
-  , #{range => #{from => {34, 10}, to => {34, 18}}}
-  , #{range => #{from => {34, 35}, to => {34, 43}}}
+  , #{range => #{from => {23, 3}, to => {23, 12}}}
+  , #{range => #{from => {33, 7}, to => {33, 16}}}
+  , #{range => #{from => {34, 9}, to => {34, 18}}}
+  , #{range => #{from => {34, 34}, to => {34, 43}}}
   ].
 
 -spec macro_uses() -> [map()].
