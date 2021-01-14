@@ -18,7 +18,8 @@
         , fun_local/1
         , fun_remote/1
         , atom/1
-        , record/1
+        , record_def/1
+        , record_expr/1
         , record_access/1
         , record_field/1
         , export/1
@@ -29,6 +30,7 @@
         , type/1
         , type_application/1
         , opaque/1
+        , macro_define/1
         , macro/1
         , spec/1
         , behaviour/1
@@ -146,8 +148,16 @@ atom(Config) ->
   assert_locations(ExpectedLocations, Locations),
   ok.
 
--spec record(config()) -> ok.
-record(Config) ->
+-spec record_def(config()) -> ok.
+record_def(Config) ->
+  Uri = ?config(code_navigation_uri, Config),
+  #{result := Locations} = els_client:document_highlight(Uri, 16, 10),
+  ExpectedLocations = record_uses(),
+  assert_locations(ExpectedLocations, Locations),
+  ok.
+
+-spec record_expr(config()) -> ok.
+record_expr(Config) ->
   Uri = ?config(code_navigation_uri, Config),
   #{result := Locations} = els_client:document_highlight(Uri, 23, 4),
   ExpectedLocations = record_uses(),
@@ -253,18 +263,21 @@ opaque(Config) ->
   assert_locations(ExpectedLocations, Locations),
   ok.
 
+-spec macro_define(config()) -> ok.
+macro_define(Config) ->
+  Uri = ?config(code_navigation_uri, Config),
+  #{result := Locations} = els_client:document_highlight(Uri, 18, 10),
+
+  ExpectedLocations = macro_uses(),
+  assert_locations(ExpectedLocations, Locations),
+  ok.
+
 -spec macro(config()) -> ok.
 macro(Config) ->
   Uri = ?config(code_navigation_uri, Config),
   #{result := Locations} = els_client:document_highlight(Uri, 26, 6),
 
-  %% Should include this range (macro definition)
-  %% but does not right now
-  %%  #{ range => #{ from => {18, 9}, to => {18, 16} } },
-
-  ExpectedLocations = [ #{range => #{from => {26, 3}, to => {26, 11}}}
-                      , #{range => #{from => {75, 23}, to => {75, 31}}}
-                      ],
+  ExpectedLocations = macro_uses(),
   assert_locations(ExpectedLocations, Locations),
   ok.
 
@@ -332,8 +345,16 @@ expected_definitions() ->
 
 -spec record_uses() -> [map()].
 record_uses() ->
-  [ #{range => #{from => {23, 4}, to => {23, 12}}}
+  [ #{range => #{from => {16, 9}, to => {16, 17}}}
+  , #{range => #{from => {23, 4}, to => {23, 12}}}
   , #{range => #{from => {33, 8}, to => {33, 16}}}
   , #{range => #{from => {34, 10}, to => {34, 18}}}
   , #{range => #{from => {34, 35}, to => {34, 43}}}
+  ].
+
+-spec macro_uses() -> [map()].
+macro_uses() ->
+  [ #{range => #{from => {18, 9}, to => {18, 16}}}
+  , #{range => #{from => {26, 3}, to => {26, 11}}}
+  , #{range => #{from => {75, 23}, to => {75, 31}}}
   ].
