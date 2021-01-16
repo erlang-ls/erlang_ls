@@ -450,24 +450,28 @@ code_reload(Config) ->
   Uri = ?config(diagnostics_uri, Config),
   Module = els_uri:module(Uri),
   ok = els_compiler_diagnostics:on_complete(Uri, []),
-  ?assert(meck:called(rpc, call, ['fakenode', c, c, [Module]])),
+  {ok, HostName} = inet:gethostname(),
+  NodeName = list_to_atom("fakenode@" ++ HostName),
+  ?assert(meck:called(rpc, call, [NodeName, c, c, [Module]])),
   ok.
 
 -spec code_reload_sticky_mod(config()) -> ok.
 code_reload_sticky_mod(Config) ->
   Uri = ?config(diagnostics_uri, Config),
   Module = els_uri:module(Uri),
+  {ok, HostName} = inet:gethostname(),
+  NodeName = list_to_atom("fakenode@" ++ HostName),
   meck:expect( rpc
              , call
-             , fun('fakenode', code, is_sticky, [_]) ->
+             , fun(PNode, code, is_sticky, [_]) when PNode =:= NodeName ->
                    true;
                   (Node, Mod, Fun, Args) ->
                    meck:passthrough([Node, Mod, Fun, Args])
                end
              ),
   ok = els_compiler_diagnostics:on_complete(Uri, []),
-  ?assert(meck:called(rpc, call, ['fakenode', code, is_sticky, [Module]])),
-  ?assertNot(meck:called(rpc, call, ['fakenode', c, c, [Module]])),
+  ?assert(meck:called(rpc, call, [NodeName, code, is_sticky, [Module]])),
+  ?assertNot(meck:called(rpc, call, [NodeName, c, c, [Module]])),
   ok.
 
 -spec crossref(config()) -> ok.
@@ -550,9 +554,11 @@ unused_includes(Config) ->
 
 mock_rpc() ->
   meck:new(rpc, [passthrough, no_link, unstick]),
+  {ok, HostName} = inet:gethostname(),
+  NodeName = list_to_atom("fakenode@" ++ HostName),
   meck:expect( rpc
              , call
-             , fun('fakenode', c, c, [Module]) ->
+             , fun(PNode, c, c, [Module]) when PNode =:= NodeName ->
                    {ok, Module};
                   (Node, Mod, Fun, Args) ->
                    meck:passthrough([Node, Mod, Fun, Args])
@@ -567,7 +573,8 @@ mock_code_reload_enabled() ->
   meck:expect( els_config
              , get
              , fun(code_reload) ->
-                   #{"node" => "fakenode"};
+                 {ok, HostName} = inet:gethostname(),
+                   #{"node" => "fakenode@" ++ HostName};
                   (Key) ->
                    meck:passthrough([Key])
                end
