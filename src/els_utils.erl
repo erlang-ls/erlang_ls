@@ -13,6 +13,7 @@
         , resolve_paths/3
         , to_binary/1
         , to_list/1
+        , compose_node_name/2
         ]).
 
 -include("erlang_ls.hrl").
@@ -368,3 +369,21 @@ make_normalized_path([".." | T], [Head | Tail]) when Head =/= ".." ->
   make_normalized_path(T, Tail);
 make_normalized_path([H | T], NormalizedPath) ->
   make_normalized_path(T, [H | NormalizedPath]).
+
+-spec compose_node_name(Name :: string(), Type :: shortnames | longnames) ->
+  NodeName :: atom().
+compose_node_name(Name, Type) ->
+  NodeName = case lists:member($@, Name) of
+               true ->
+                 Name;
+               _ ->
+                 {ok, HostName} = inet:gethostname(),
+                 Name ++ [$@ | HostName]
+             end,
+  case Type of
+    shortnames ->
+      list_to_atom(NodeName);
+    longnames ->
+      Domain = proplists:get_value(domain, inet:get_rc(), ""),
+      list_to_atom(NodeName ++ "." ++ Domain)
+  end.

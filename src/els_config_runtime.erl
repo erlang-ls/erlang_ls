@@ -27,20 +27,7 @@ default_config() ->
 -spec get_node_name() -> atom().
 get_node_name() ->
   Value = maps:get("node_name", els_config:get(runtime), default_node_name()),
-  NodeName = case lists:member($@, Value) of
-               true ->
-                 Value;
-               _ ->
-                 {ok, HostName} = inet:gethostname(),
-                 Value ++ [$@ | HostName]
-             end,
-  case get_name_type() of
-    shortnames ->
-      list_to_atom(NodeName);
-    longnames ->
-      Domain = proplists:get_value(domain, inet:get_rc(), ""),
-      list_to_atom(NodeName ++ "." ++ Domain)
-  end.
+  els_utils:compose_node_name(Value, get_name_type()).
 
 -spec get_otp_path() -> string().
 get_otp_path() ->
