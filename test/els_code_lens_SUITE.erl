@@ -90,7 +90,7 @@ default_lenses(Config) ->
   Commands = [els_command:without_prefix(Command) ||
                #{command := #{command := Command }} <- Result],
   ?assertEqual([<<"suggest-spec">>], lists:usort(Commands)),
-  ?assertEqual(14, length(Commands)),
+  ?assertEqual(15, length(Commands)),
   ok.
 
 -spec server_info(config()) -> ok.

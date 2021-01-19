@@ -17,7 +17,9 @@
         , function_definition/1
         , fun_local/1
         , fun_remote/1
-        , record/1
+        , atom/1
+        , record_def/1
+        , record_expr/1
         , record_access/1
         , record_field/1
         , export/1
@@ -28,6 +30,7 @@
         , type/1
         , type_application/1
         , opaque/1
+        , macro_define/1
         , macro/1
         , spec/1
         , behaviour/1
@@ -132,13 +135,32 @@ fun_remote(Config) ->
   assert_locations(ExpectedLocations, Locations),
   ok.
 
--spec record(config()) -> ok.
-record(Config) ->
+-spec atom(config()) -> ok.
+atom(Config) ->
+  Uri = ?config(code_navigation_uri, Config),
+  #{result := Locations} = els_client:document_highlight(Uri, 94, 5),
+  ExpectedLocations = [ #{range => #{from => {94, 4}, to => {94, 11}}}
+                      , #{range => #{from => {33, 18}, to => {33, 25}}}
+                      , #{range => #{from => {34, 19}, to => {34, 26}}}
+                      , #{range => #{from => {16, 20}, to => {16, 27}}}
+                      , #{range => #{from => {34, 44}, to => {34, 51}}}
+                      ],
+  assert_locations(ExpectedLocations, Locations),
+  ok.
+
+-spec record_def(config()) -> ok.
+record_def(Config) ->
+  Uri = ?config(code_navigation_uri, Config),
+  #{result := Locations} = els_client:document_highlight(Uri, 16, 10),
+  ExpectedLocations = record_uses(),
+  assert_locations(ExpectedLocations, Locations),
+  ok.
+
+-spec record_expr(config()) -> ok.
+record_expr(Config) ->
   Uri = ?config(code_navigation_uri, Config),
   #{result := Locations} = els_client:document_highlight(Uri, 23, 4),
-  ExpectedLocations = [ #{range => #{from => {23, 4}, to => {23, 12}}}
-                      , #{range => #{from => {33, 8}, to => {33, 16}}}
-                      ],
+  ExpectedLocations = record_uses(),
   assert_locations(ExpectedLocations, Locations),
   ok.
 
@@ -146,9 +168,7 @@ record(Config) ->
 record_access(Config) ->
   Uri = ?config(code_navigation_uri, Config),
   #{result := Locations} = els_client:document_highlight(Uri, 34, 10),
-  ExpectedLocations = [ #{range => #{from => {34, 10}, to => {34, 26}}}
-                      , #{range => #{from => {34, 35}, to => {34, 51}}}
-                      ],
+  ExpectedLocations = record_uses(),
   assert_locations(ExpectedLocations, Locations),
   ok.
 
@@ -157,8 +177,8 @@ record_field(Config) ->
   Uri = ?config(code_navigation_uri, Config),
   #{result := Locations} = els_client:document_highlight(Uri, 16, 23),
   ExpectedLocations = [ #{range => #{from => {33, 18}, to => {33, 25}}}
-                      , #{range => #{from => {34, 19}, to => {34, 26}}}
                       , #{range => #{from => {16, 20}, to => {16, 27}}}
+                      , #{range => #{from => {34, 19}, to => {34, 26}}}
                       , #{range => #{from => {34, 44}, to => {34, 51}}}
                       ],
   assert_locations(ExpectedLocations, Locations),
@@ -243,18 +263,21 @@ opaque(Config) ->
   assert_locations(ExpectedLocations, Locations),
   ok.
 
+-spec macro_define(config()) -> ok.
+macro_define(Config) ->
+  Uri = ?config(code_navigation_uri, Config),
+  #{result := Locations} = els_client:document_highlight(Uri, 18, 10),
+
+  ExpectedLocations = macro_uses(),
+  assert_locations(ExpectedLocations, Locations),
+  ok.
+
 -spec macro(config()) -> ok.
 macro(Config) ->
   Uri = ?config(code_navigation_uri, Config),
   #{result := Locations} = els_client:document_highlight(Uri, 26, 6),
 
-  %% Should include this range (macro definition)
-  %% but does not right now
-  %%  #{ range => #{ from => {18, 9}, to => {18, 16} } },
-
-  ExpectedLocations = [ #{range => #{from => {26, 3}, to => {26, 11}}}
-                      , #{range => #{from => {75, 23}, to => {75, 31}}}
-                      ],
+  ExpectedLocations = macro_uses(),
   assert_locations(ExpectedLocations, Locations),
   ok.
 
@@ -293,20 +316,24 @@ callback(Config) ->
 assert_locations(null, null) ->
   ok;
 assert_locations(ExpectedLocations, Locations) ->
-  ct:log("ExpectedLocations: ~p~nLocations: ~p~n",
-         [ExpectedLocations, lists:sort(Locations)]),
+  ExpectedProtoLocs = lists:sort(protocol_ranges(ExpectedLocations)),
+  SortedLocations = lists:sort(Locations),
+  ct:log("ExpectedLocations:~n ~p~nLocations:~n ~p~n",
+         [ExpectedProtoLocs, SortedLocations]),
   ?assertEqual(length(ExpectedLocations), length(Locations)),
-  Pairs = lists:zip(lists:sort(Locations), ExpectedLocations),
+  Pairs = lists:zip(SortedLocations, ExpectedProtoLocs),
   [ begin
       #{range := Range} = Location,
       #{range := ExpectedRange} = Expected,
-      ?assertEqual( els_protocol:range(ExpectedRange)
-                  , Range
-                  )
+      ?assertEqual(ExpectedRange, Range)
     end
     || {Location, Expected} <- Pairs
   ],
   ok.
+
+protocol_ranges(Locations) ->
+  [ L#{range => els_protocol:range(R)}
+    || L = #{range := R} <- Locations ].
 
 -spec expected_definitions() -> [map()].
 expected_definitions() ->
@@ -314,4 +341,20 @@ expected_definitions() ->
   , #{range => #{from => {22, 3}, to => {22, 13}}}
   , #{range => #{from => {51, 7}, to => {51, 23}}}
   , #{range => #{from => {5, 25}, to => {5, 37}}}
+  ].
+
+-spec record_uses() -> [map()].
+record_uses() ->
+  [ #{range => #{from => {16, 9}, to => {16, 17}}}
+  , #{range => #{from => {23, 3}, to => {23, 12}}}
+  , #{range => #{from => {33, 7}, to => {33, 16}}}
+  , #{range => #{from => {34, 9}, to => {34, 18}}}
+  , #{range => #{from => {34, 34}, to => {34, 43}}}
+  ].
+
+-spec macro_uses() -> [map()].
+macro_uses() ->
+  [ #{range => #{from => {18, 9}, to => {18, 16}}}
+  , #{range => #{from => {26, 3}, to => {26, 11}}}
+  , #{range => #{from => {75, 23}, to => {75, 31}}}
   ].

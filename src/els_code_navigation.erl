@@ -47,11 +47,10 @@ goto_definition( _Uri
   end;
 goto_definition(Uri, #{ kind := macro, id := Define }) ->
   find(Uri, define, Define);
-goto_definition(Uri, #{ kind := record_access
-                      , id := Record}) ->
-  find(Uri, record, Record);
 goto_definition(Uri, #{ kind := record_expr, id := Record }) ->
   find(Uri, record, Record);
+goto_definition(Uri, #{ kind := record_field, id := {Record, Field} }) ->
+  find(Uri, record_def_field, {Record, Field});
 goto_definition(_Uri, #{ kind := Kind, id := Id }
                ) when Kind =:= include;
                       Kind =:= include_lib ->

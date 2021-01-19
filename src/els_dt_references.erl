@@ -114,8 +114,7 @@ kind_to_category(Kind) when Kind =:= macro;
                             Kind =:= define ->
   macro;
 kind_to_category(Kind) when Kind =:= record_expr;
-                            Kind =:= record;
-                            Kind =:= record_access ->
+                            Kind =:= record ->
   record;
 kind_to_category(Kind) when Kind =:= behaviour ->
   behaviour.

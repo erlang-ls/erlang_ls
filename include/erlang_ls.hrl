@@ -590,14 +590,16 @@
                    | module
                    | parse_transform
                    | record
-                   | record_access
+                   | record_def_field
                    | record_expr
+                   | record_field
                    | spec
                    | type_application
                    | type_definition
                    | variable.
 -type poi_range() :: #{ from := pos(), to := pos() }.
 -type poi_id()    :: atom()
+                   | {atom(), atom()} %% record_def_field, record_field
                    | string() %% include, include_lib
                    | {atom(), arity()}
                    | {module(), atom(), arity()}.

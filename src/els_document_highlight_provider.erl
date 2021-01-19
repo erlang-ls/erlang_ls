@@ -44,28 +44,32 @@ handle_request({document_highlight, Params}, State) ->
 %%==============================================================================
 
 -spec find_highlights(els_dt_document:item(), poi()) -> any().
-find_highlights(Document, #{ id := Id, kind := Kind })
-  when Kind =:= application;
-       Kind =:= implicit_fun;
-       Kind =:= function;
-       Kind =:= export_entry ->
-  POIs = els_dt_document:pois(Document, [ application
-                                        , implicit_fun
-                                        , function
-                                        , export_entry]),
-  Highlights = [document_highlight(R) ||
-                 #{id := I, range := R} <- POIs,
-                 I =:= Id
-               ],
-  normalize_result(Highlights);
+find_highlights(Document, #{ id := Id, kind := atom }) ->
+  AtomHighlights = do_find_highlights(Document, Id, [ atom ]),
+  FieldPOIs = els_dt_document:pois(Document, [ record_def_field
+                                             , record_field]),
+  FieldHighlights = [document_highlight(R) ||
+                      #{id := I, range := R} <- FieldPOIs,
+                      element(2, I) =:= Id
+                    ],
+  normalize_result(AtomHighlights ++ FieldHighlights);
 find_highlights(Document, #{ id := Id, kind := Kind }) ->
-  POIs = els_dt_document:pois(Document, [Kind]),
+  POIs = els_dt_document:pois(Document, find_similar_kinds(Kind)),
   Highlights = [document_highlight(R) ||
                  #{id := I, kind := K, range := R} <- POIs,
                  I =:= Id,
                  K =/= 'folding_range'
                ],
   normalize_result(Highlights).
+
+-spec do_find_highlights(els_dt_document:item() , poi_id() , [poi_kind()])
+                        -> any().
+do_find_highlights(Document, Id, Kinds) ->
+  POIs = els_dt_document:pois(Document, Kinds),
+  _Highlights = [document_highlight(R) ||
+                  #{id := I, range := R} <- POIs,
+                  I =:= Id
+                ].
 
 -spec document_highlight(poi_range()) -> map().
 document_highlight(Range) ->
@@ -78,3 +82,39 @@ normalize_result([]) ->
   null;
 normalize_result(L) when is_list(L) ->
   L.
+
+-spec find_similar_kinds(poi_kind()) -> [poi_kind()].
+find_similar_kinds(Kind) ->
+  find_similar_kinds(Kind, kind_groups()).
+
+-spec find_similar_kinds(poi_kind(), [[poi_kind()]]) -> [poi_kind()].
+find_similar_kinds(Kind, []) ->
+  [Kind];
+find_similar_kinds(Kind, [Group | Groups]) ->
+  case lists:member(Kind, Group) of
+    true ->
+      Group;
+    false ->
+      find_similar_kinds(Kind, Groups)
+  end.
+
+%% Each group represents a list of POI kinds which represent the same or similar
+%% objects (usually the definition and the usages of an object). Each POI kind
+%% in one group must have the same id format.
+-spec kind_groups() -> [[poi_kind()]].
+kind_groups() ->
+   [ %% function
+     [ application
+     , implicit_fun
+     , function
+     , export_entry]
+     %% record
+   , [ record
+     , record_expr]
+     %% record_field
+   , [ record_def_field
+     , record_field]
+     %% macro
+   , [ define
+     , macro]
+   ].

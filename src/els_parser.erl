@@ -292,7 +292,7 @@ attribute(Tree) ->
           []
       end;
     {record, {Record, Fields}} ->
-      [poi(Pos, record, Record, Fields)];
+      [poi(Pos, record, Record, Fields) | record_def_fields(Tree, Record)];
     {type, {type, {Type, _, Args}}} ->
       {Line, Col} = Pos,
       [poi({Line, Col + length("type ")}, type_definition,
@@ -384,11 +384,16 @@ record_access(Tree) ->
   case erl_syntax:type(RecordNode) of
     atom ->
       Record = erl_syntax:atom_value(RecordNode),
-      Field = case erl_syntax:type(FieldNode) of
-                atom -> erl_syntax:atom_value(FieldNode);
-                _    -> 'UNKNOWN_FIELD'
-              end,
-      [poi(erl_syntax:get_pos(Tree), record_access, Record, Field)];
+      FieldPoi =
+        case erl_syntax:type(FieldNode) of
+          atom ->
+            Field = erl_syntax:atom_value(FieldNode),
+            [poi(erl_syntax:get_pos(FieldNode), record_field, {Record, Field})];
+          _    ->
+            []
+        end,
+      [ poi(erl_syntax:get_pos(Tree), record_expr, Record)
+      | FieldPoi ];
     _ ->
       []
   end.
@@ -399,7 +404,50 @@ record_expr(Tree) ->
   case erl_syntax:type(RecordNode) of
     atom ->
       Record = erl_syntax:atom_value(RecordNode),
-      [poi(erl_syntax:get_pos(Tree), record_expr, Record)];
+      FieldPois  = lists:append(
+                     [record_field_name(F, Record, record_field)
+                      || F <- erl_syntax:record_expr_fields(Tree)]),
+      [ poi(erl_syntax:get_pos(Tree), record_expr, Record)
+      | FieldPois ];
+    _ ->
+      []
+  end.
+
+-spec record_field_name(tree(), atom(), poi_kind()) -> [poi()].
+record_field_name(FieldNode, Record, Kind) ->
+  NameNode = erl_syntax:record_field_name(FieldNode),
+  case erl_syntax:type(NameNode) of
+    atom ->
+      Pos = erl_syntax:get_pos(NameNode),
+      NameAtom = erl_syntax:atom_value(NameNode),
+      [poi(Pos, Kind, {Record, NameAtom})];
+    _ ->
+      []
+  end.
+
+-spec record_def_fields(tree(), atom()) -> [poi()].
+record_def_fields(AttrTree, Record) ->
+  case erl_syntax:attribute_arguments(AttrTree) of
+    none -> [];
+    [_R, T] ->
+      case erl_syntax:type(T) of
+        tuple ->
+          lists:append(
+            [record_def_field(F, Record)
+             || F <- erl_syntax:tuple_elements(T)]);
+        _ ->
+          []
+      end
+  end.
+
+-spec record_def_field(tree(), atom()) -> [poi()].
+record_def_field(FieldTree, Record) ->
+  case erl_syntax:type(FieldTree) of
+    record_field ->
+      record_field_name(FieldTree, Record, record_def_field);
+    typed_record_field ->
+      F = erl_syntax:typed_record_field_body(FieldTree),
+      record_field_name(F, Record, record_def_field);
     _ ->
       []
   end.
@@ -501,9 +549,9 @@ subtrees(Tree, macro) ->
     Args -> [Args]
   end;
 subtrees(Tree, record_access) ->
-  [ [ erl_syntax:record_access_argument(Tree)
-    , erl_syntax:record_access_field(Tree)
-    ]
+  NameNode = erl_syntax:record_access_field(Tree),
+  [ [erl_syntax:record_access_argument(Tree)]
+  , skip_record_field_atom(NameNode)
   ];
 subtrees(Tree, record_expr) ->
   Fields = erl_syntax:record_expr_fields(Tree),
@@ -511,6 +559,15 @@ subtrees(Tree, record_expr) ->
     none -> [Fields];
     Arg  -> [[Arg], Fields]
   end;
+subtrees(Tree, record_field) ->
+  NameNode = erl_syntax:record_field_name(Tree),
+  [ skip_record_field_atom(NameNode)
+  , case erl_syntax:record_field_value(Tree) of
+      none ->
+        [];
+      V ->
+       [V]
+    end];
 subtrees(Tree, attribute) ->
   case erl_syntax:attribute_arguments(Tree) of
     none -> [];
@@ -518,6 +575,17 @@ subtrees(Tree, attribute) ->
   end;
 subtrees(Tree, _) ->
   erl_syntax:subtrees(Tree).
+
+%% Skip visiting atoms of record field names as they are already represented as
+%% `record_field' pois
+-spec skip_record_field_atom(tree()) -> [tree()].
+skip_record_field_atom(NameNode) ->
+  case erl_syntax:type(NameNode) of
+     atom ->
+       [];
+     _ ->
+       [NameNode]
+   end.
 
 -spec pretty_print(tree()) -> binary().
 pretty_print(Tree) ->
