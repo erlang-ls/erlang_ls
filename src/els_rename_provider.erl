@@ -110,10 +110,9 @@ editable_range(#{kind := _Kind, range := Range}) ->
 
 -spec editable_range(poi_kind(), els_dt_references:item()) -> range().
 editable_range(macro, #{range := Range}) ->
-  #{ from := {FromL, FromC}, to := {ToL, ToC} } = Range,
-  #{ start => #{line => FromL - 1, character => FromC}
-   , 'end' => #{line => ToL - 1,   character => ToC}
-   }.
+  #{ from := {FromL, FromC} } = Range,
+  EditFromC = FromC + length("?"),
+  els_protocol:range(Range#{ from := {FromL, EditFromC} }).
 
 -spec changes(uri(), poi(), binary()) -> #{uri() => [text_edit()]} | null.
 changes(Uri, #{kind := 'define', id := Id} = POI, NewName) ->
