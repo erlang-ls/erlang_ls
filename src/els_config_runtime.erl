@@ -10,6 +10,8 @@
         , get_otp_path/0
         , get_start_cmd/0
         , get_start_args/0
+        , get_name_type/0
+        , get_cookie/0
         ]).
 
 -type config() :: #{ string() => string() }.
@@ -25,7 +27,7 @@ default_config() ->
 -spec get_node_name() -> atom().
 get_node_name() ->
   Value = maps:get("node_name", els_config:get(runtime), default_node_name()),
-  list_to_atom(Value).
+  els_utils:compose_node_name(Value, get_name_type()).
 
 -spec get_otp_path() -> string().
 get_otp_path() ->
@@ -39,6 +41,24 @@ get_start_cmd() ->
 get_start_args() ->
   Value = maps:get("start_args", els_config:get(runtime), default_start_args()),
   string:tokens(Value, " ").
+
+-spec get_name_type() -> shortnames | longnames.
+get_name_type() ->
+  case maps:get("use_long_names", els_config:get(runtime), false) of
+    false ->
+      shortnames;
+    true ->
+      longnames
+  end.
+
+-spec get_cookie() -> atom().
+get_cookie() ->
+  case maps:get("cookie", els_config:get(runtime), undefined) of
+    undefined ->
+      erlang:get_cookie();
+    Cookie ->
+      list_to_atom(Cookie)
+    end.
 
 -spec default_node_name() -> string().
 default_node_name() ->

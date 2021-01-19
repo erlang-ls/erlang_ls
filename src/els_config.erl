@@ -83,6 +83,7 @@ initialize(RootUri, Capabilities, InitOptions) ->
 do_initialize(RootUri, Capabilities, {ConfigPath, Config}) ->
   RootPath        = els_utils:to_list(els_uri:path(RootUri)),
   OtpPath         = maps:get("otp_path", Config, code:root_dir()),
+  lager:info("OTP Path: ~p", [OtpPath]),
   DepsDirs        = maps:get("deps_dirs", Config, []),
   AppsDirs        = maps:get("apps_dirs", Config, ["."]),
   IncludeDirs     = maps:get("include_dirs", Config, ["include"]),
@@ -115,6 +116,7 @@ do_initialize(RootUri, Capabilities, {ConfigPath, Config}) ->
   ok = set(macros         , Macros),
   ok = set(plt_path       , DialyzerPltPath),
   ok = set(code_reload    , CodeReload),
+  lager:info("Config=~p", [Config]),
   ok = set(runtime, maps:merge( els_config_runtime:default_config()
                               , Runtime)),
   ok = set('ct-run-test', maps:merge( els_config_ct_run_test:default_config()

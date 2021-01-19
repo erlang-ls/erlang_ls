@@ -47,9 +47,13 @@ start_link() ->
 %% @doc Turns a non-distributed node into a distributed one
 -spec start_distribution(atom()) -> ok.
 start_distribution(Name) ->
+  NameType = els_config_runtime:get_name_type(),
   lager:info("Enable distribution [name=~p]", [Name]),
-  case net_kernel:start([Name, shortnames]) of
+  case net_kernel:start([Name, NameType]) of
     {ok, _Pid} ->
+      Cookie = els_config_runtime:get_cookie(),
+      RemoteNode = els_config_runtime:get_node_name(),
+      erlang:set_cookie(RemoteNode, Cookie),
       lager:info("Distribution enabled [name=~p]", [Name]);
     {error, {already_started, _Pid}} ->
       lager:info("Distribution already enabled [name=~p]", [Name]);
@@ -173,4 +177,10 @@ node_name(Prefix, Name) ->
   Int = erlang:phash2(erlang:timestamp()),
   Id = lists:flatten(io_lib:format("~s_~s_~p", [Prefix, Name, Int])),
   {ok, Hostname} = inet:gethostname(),
-  list_to_atom(Id ++ "@" ++ Hostname).
+  case els_config_runtime:get_name_type() of
+    shortnames ->
+      list_to_atom(Id ++ "@" ++ Hostname);
+    longnames ->
+      Domain = proplists:get_value(domain, inet:get_rc(), ""),
+      list_to_atom(Id ++ "@" ++ Hostname ++ "." ++ Domain)
+  end.

@@ -338,7 +338,8 @@ load_dependency(Module, IncludingPath) ->
 maybe_compile_and_load(Uri, [] = _CDiagnostics) ->
   case els_config:get(code_reload) of
     #{"node" := NodeStr} ->
-      Node = list_to_atom(NodeStr),
+      Node = els_utils:compose_node_name(NodeStr,
+                                         els_config_runtime:get_name_type()),
       Module = els_uri:module(Uri),
       case rpc:call(Node, code, is_sticky, [Module]) of
         true -> ok;
