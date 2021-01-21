@@ -31,11 +31,16 @@ goto_definition( _Uri
     {error, Error} -> {error, Error}
   end;
 goto_definition( Uri
-               , #{ kind := Kind, id := {F, A}}
+               , #{ kind := Kind, id := {F, A}} = POI
                ) when Kind =:= application;
                       Kind =:= implicit_fun;
                       Kind =:= export_entry ->
-  find(Uri, function, {F, A});
+  case erl_internal:bif(F, A) of
+    true ->
+      goto_definition(Uri, POI#{id := {erlang, F, A}});
+    false ->
+      find(Uri, function, {F, A})
+  end;
 goto_definition( _Uri
                , #{ kind := Kind, id := Module }
                ) when Kind =:= atom;
