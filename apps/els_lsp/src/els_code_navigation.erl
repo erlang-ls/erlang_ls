@@ -32,11 +32,23 @@ goto_definition( _Uri
     {error, Error} -> {error, Error}
   end;
 goto_definition( Uri
-               , #{ kind := Kind, id := {F, A}}
+               , #{ kind := Kind, id := {F, A}} = POI
                ) when Kind =:= application;
                       Kind =:= implicit_fun;
                       Kind =:= export_entry ->
-  find(Uri, function, {F, A});
+  %% try to find local function first
+  %% fall back to bif search if unsuccesful
+  case find(Uri, function, {F, A}) of
+    {error, Error} ->
+      case is_imported_bif(Uri, F, A) of
+        true ->
+          goto_definition(Uri, POI#{id := {erlang, F, A}});
+        false ->
+          {error, Error}
+      end;
+    Result ->
+      Result
+  end;
 goto_definition( _Uri
                , #{ kind := Kind, id := Module }
                ) when Kind =:= atom;
@@ -73,6 +85,22 @@ goto_definition(_Uri, #{ kind := parse_transform, id := Module }) ->
   end;
 goto_definition(_Filename, _) ->
   {error, not_found}.
+
+-spec is_imported_bif(uri(), atom(), non_neg_integer()) -> boolean().
+is_imported_bif(_Uri, F, A) ->
+  OldBif = erl_internal:old_bif(F, A),
+  Bif = erl_internal:bif(F, A),
+  case {OldBif, Bif} of
+    %% Cannot be shadowed, always imported
+    {true, true} ->
+      true;
+    %% It's not a BIF at all
+    {false, false} ->
+      false;
+    %% The hard case, just jump to the bif for now
+    {_, _} ->
+      true
+  end.
 
 -spec find(uri() | [uri()], poi_kind(), any()) ->
    {ok, uri(), poi()} | {error, not_found}.
