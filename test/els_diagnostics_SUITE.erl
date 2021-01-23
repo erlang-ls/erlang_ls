@@ -32,6 +32,7 @@
         , crossref/1
         , crossref_pseudo_functions/1
         , unused_includes/1
+        , unused_macros/1
         ]).
 
 %%==============================================================================
@@ -90,6 +91,11 @@ init_per_testcase(unused_includes, Config) ->
   meck:expect(els_unused_includes_diagnostics, is_default, 0, true),
   els_mock_diagnostics:setup(),
   els_test_utils:init_per_testcase(unused_includes, Config);
+init_per_testcase(unused_macros, Config) ->
+  meck:new(els_unused_macros_diagnostics, [passthrough, no_link]),
+  meck:expect(els_unused_macros_diagnostics, is_default, 0, true),
+  els_mock_diagnostics:setup(),
+  els_test_utils:init_per_testcase(unused_includes, Config);
 init_per_testcase(code_path_extra_dirs, Config) ->
   meck:new(yamerl, [passthrough, no_link]),
   Content = <<"code_path_extra_dirs:\n",
@@ -133,6 +139,11 @@ end_per_testcase(crossref_pseudo_functions, Config) ->
 end_per_testcase(unused_includes, Config) ->
   meck:unload(els_unused_includes_diagnostics),
   els_test_utils:end_per_testcase(unused_includes, Config),
+  els_mock_diagnostics:teardown(),
+  ok;
+end_per_testcase(unused_macros, Config) ->
+  meck:unload(els_unused_macros_diagnostics),
+  els_test_utils:end_per_testcase(unused_macros, Config),
   els_mock_diagnostics:teardown(),
   ok;
 end_per_testcase(TestCase, Config)
@@ -542,6 +553,29 @@ unused_includes(Config) ->
                      }
                 , severity => 2
                 , source => <<"UnusedIncludes">>
+                }
+             ],
+  F = fun(#{message := M1}, #{message := M2}) -> M1 =< M2 end,
+  ?assertEqual(Expected, lists:sort(F, Diagnostics)),
+  ok.
+
+-spec unused_macros(config()) -> ok.
+unused_macros(Config) ->
+  Uri = ?config(diagnostics_unused_macros_uri, Config),
+  els_mock_diagnostics:subscribe(),
+  ok = els_client:did_save(Uri),
+  Diagnostics = els_mock_diagnostics:wait_until_complete(),
+  Expected = [ #{ message => <<"Unused macro: UNUSED_MACRO">>
+                , range =>
+                    #{ 'end' => #{ character => 20
+                                 , line => 5
+                                 }
+                     , start => #{ character => 8
+                                 , line => 5
+                                 }
+                     }
+                , severity => 2
+                , source => <<"UnusedMacros">>
                 }
              ],
   F = fun(#{message := M1}, #{message := M2}) -> M1 =< M2 end,

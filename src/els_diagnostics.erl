@@ -61,6 +61,7 @@ available_diagnostics() ->
   , <<"dialyzer">>
   , <<"elvis">>
   , <<"unused_includes">>
+  , <<"unused_macros">>
   ].
 
 -spec default_diagnostics() -> [diagnostic_id()].
