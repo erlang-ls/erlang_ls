@@ -166,6 +166,7 @@ sources() ->
   , diagnostics_xref
   , diagnostics_xref_pseudo
   , diagnostics_unused_includes
+  , diagnostics_unused_macros
   , elvis_diagnostics
   , execute_command_suggest_spec
   , format_input
