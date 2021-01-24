@@ -1,7 +1,5 @@
 -module(els_methods).
 
--include("erlang_ls.hrl").
-
 -export([ dispatch/4
         ]).
 
@@ -33,6 +31,12 @@
         , workspace_symbol/2
         ]).
 
+%%==============================================================================
+%% Includes
+%%==============================================================================
+-include("erlang_ls.hrl").
+-include_lib("kernel/include/logger.hrl").
+
 -type method_name()  :: binary().
 -type state()        :: map().
 -type params()       :: map().
@@ -49,26 +53,26 @@
 dispatch(<<"$/", Method/binary>>, Params, notification, State) ->
   Msg = "Ignoring $/ notification [method=~p] [params=~p]",
   Fmt = [Method, Params],
-  lager:debug(Msg, Fmt),
+  ?LOG_DEBUG(Msg, Fmt),
   {noresponse, State};
 dispatch(<<"$/", Method/binary>>, Params, request, State) ->
   Msg = "Ignoring $/ request [method=~p] [params=~p]",
   Fmt = [Method, Params],
-  lager:debug(Msg, Fmt),
+  ?LOG_DEBUG(Msg, Fmt),
   Error = #{ code    => ?ERR_METHOD_NOT_FOUND
            , message => <<"Method not found: ", Method/binary>>
            },
   {error, Error, State};
 dispatch(Method, Params, _Type, State) ->
   Function = method_to_function_name(Method),
-  lager:debug("Dispatching request [method=~p] [params=~p]", [Method, Params]),
+  ?LOG_DEBUG("Dispatching request [method=~p] [params=~p]", [Method, Params]),
   try do_dispatch(Function, Params, State)
   catch
     error:undef ->
       not_implemented_method(Method, State);
     Type:Reason:Stack ->
-      lager:error( "Unexpected error [type=~p] [error=~p] [stack=~p]"
-                 , [Type, Reason, Stack]),
+      ?LOG_ERROR( "Unexpected error [type=~p] [error=~p] [stack=~p]"
+                , [Type, Reason, Stack]),
       Error = #{ code    => ?ERR_UNKNOWN_ERROR_CODE
                , message => <<"Unexpected error while ", Method/binary>>
                },
@@ -97,7 +101,7 @@ do_dispatch(_Function, _Params, State) ->
 
 -spec not_implemented_method(method_name(), state()) -> result().
 not_implemented_method(Method, State) ->
-  lager:warning("[Method not implemented] [method=~s]", [Method]),
+  ?LOG_WARNING("[Method not implemented] [method=~s]", [Method]),
   Message = <<"Method not implemented: ", Method/binary>>,
   Method1 = <<"window/showMessage">>,
   Params  = #{ type    => ?MESSAGE_TYPE_INFO
@@ -136,7 +140,7 @@ initialized(Params, State) ->
   _Response = els_provider:handle_request(Provider, Request),
   %% Report to the user the server version
   {ok, Version} = application:get_key(?APP, vsn),
-  lager:info("initialized: [App=~p] [Version=~p]", [?APP, Version]),
+  ?LOG_INFO("initialized: [App=~p] [Version=~p]", [?APP, Version]),
   BinVersion = els_utils:to_binary(Version),
   Root = filename:basename(els_uri:path(els_config:get(root_uri))),
   OTPVersion = els_utils:to_binary(erlang:system_info(otp_release)),

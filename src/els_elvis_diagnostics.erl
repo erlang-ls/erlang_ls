@@ -20,6 +20,7 @@
 %% Includes
 %%==============================================================================
 -include("erlang_ls.hrl").
+-include_lib("kernel/include/logger.hrl").
 
 %%==============================================================================
 %% Callback Functions
@@ -44,7 +45,7 @@ run(Uri) ->
           ok -> [];
           {fail, Problems} -> lists:flatmap(fun format_diagnostics/1, Problems)
       catch Err ->
-          lager:warning("Elvis error.[Err=~p] ", [Err]),
+          ?LOG_WARNING("Elvis error.[Err=~p] ", [Err]),
           []
       end
     end.

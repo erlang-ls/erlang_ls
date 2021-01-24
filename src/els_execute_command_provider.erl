@@ -7,7 +7,11 @@
         , options/0
         ]).
 
+%%==============================================================================
+%% Includes
+%%==============================================================================
 -include("erlang_ls.hrl").
+-include_lib("kernel/include/logger.hrl").
 
 -type state() :: any().
 
@@ -112,7 +116,7 @@ execute_command(<<"suggest-spec">>, [#{ <<"uri">> := Uri
         "Exception: ~p~n"
         "Stacktrace: ~p~n",
       Args = [Class, Exception, Stacktrace],
-      lager:warning(Fmt, Args),
+      ?LOG_WARNING(Fmt, Args),
       els_server:send_notification(
         <<"window/showMessage">>,
         #{ type => ?MESSAGE_TYPE_INFO,
@@ -121,6 +125,6 @@ execute_command(<<"suggest-spec">>, [#{ <<"uri">> := Uri
   end,
   [];
 execute_command(Command, Arguments) ->
-  lager:info("Unsupported command: [Command=~p] [Arguments=~p]"
-            , [Command, Arguments]),
+  ?LOG_INFO("Unsupported command: [Command=~p] [Arguments=~p]"
+           , [Command, Arguments]),
   [].

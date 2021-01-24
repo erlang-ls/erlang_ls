@@ -6,10 +6,13 @@
 %%=============================================================================
 -module(els_dap_methods).
 
--include("erlang_ls.hrl").
+-export([ dispatch/4 ]).
 
--export([ dispatch/4
-        ]).
+%%==============================================================================
+%% Includes
+%%==============================================================================
+-include("erlang_ls.hrl").
+-include_lib("kernel/include/logger.hrl").
 
 -type method_name()  :: binary().
 -type state()        :: map().
@@ -25,14 +28,14 @@
 %%==============================================================================
 -spec dispatch(method_name(), params(), request_type(), state()) -> result().
 dispatch(Command, Args, Type, State) ->
-  lager:debug("Dispatching request [command=~p] [args=~p]", [Command, Args]),
+  ?LOG_DEBUG("Dispatching request [command=~p] [args=~p]", [Command, Args]),
   try do_dispatch(Command, Args, State)
   catch
     error:function_clause ->
       not_implemented_method(Command, State);
     Type:Reason:Stack ->
-      lager:error( "Unexpected error [type=~p] [error=~p] [stack=~p]"
-                 , [Type, Reason, Stack]),
+      ?LOG_ERROR( "Unexpected error [type=~p] [error=~p] [stack=~p]"
+                , [Type, Reason, Stack]),
       Error = #{ code    => ?ERR_UNKNOWN_ERROR_CODE
                , message => <<"Unexpected error while ", Command/binary>>
                },
@@ -57,6 +60,6 @@ do_dispatch(_Command, _Args, State) ->
 
 -spec not_implemented_method(method_name(), state()) -> result().
 not_implemented_method(Command, State) ->
-  lager:warning("[Command not implemented] [command=~s]", [Command]),
+  ?LOG_WARNING("[Command not implemented] [command=~s]", [Command]),
   Error = <<"Command not implemented: ", Command/binary>>,
   {error_response, Error, State}.

@@ -21,6 +21,7 @@
 %% Includes
 %%==============================================================================
 -include("erlang_ls.hrl").
+-include_lib("kernel/include/logger.hrl").
 
 %%==============================================================================
 %% Callback Functions
@@ -93,4 +94,4 @@ lager_definition(_, _) -> false.
 
 -spec lager_levels() -> [atom()].
 lager_levels() ->
- [debug, info, notice, warning, error, critical, alert, emergency].
+  [debug, info, notice, warning, error, critical, alert, emergency].

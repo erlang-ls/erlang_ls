@@ -20,6 +20,7 @@
 %% Includes
 %%==============================================================================
 -include("erlang_ls.hrl").
+-include_lib("kernel/include/logger.hrl").
 
 %%==============================================================================
 %% Type Definitions
@@ -50,9 +51,9 @@ run(Uri) ->
                             , {defines, defines()}
                             ])
            catch Type:Error ->
-               lager:error( "Error while running dialyzer [type=~p] [error=~p]"
-                          , [Type, Error]
-                          ),
+               ?LOG_ERROR( "Error while running dialyzer [type=~p] [error=~p]"
+                         , [Type, Error]
+                         ),
                []
            end,
       [diagnostic(W) || W <- WS]

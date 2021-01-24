@@ -2,7 +2,11 @@
 
 -export([ execute/1, task/2 ]).
 
+%%==============================================================================
+%% Includes
+%%==============================================================================
 -include("erlang_ls.hrl").
+-include_lib("kernel/include/logger.hrl").
 
 -spec execute(map()) -> ok.
 execute(#{ <<"module">>   := M
@@ -12,7 +16,7 @@ execute(#{ <<"module">>   := M
          , <<"uri">>      := Uri
          }) ->
   Msg = io_lib:format("Running Common Test [mfa=~s:~s/~p]", [M, F, A]),
-  lager:info(Msg, []),
+  ?LOG_INFO(Msg, []),
   Title = unicode:characters_to_binary(Msg),
   Suite = els_uri:module(Uri),
   Case = binary_to_atom(F, utf8),
@@ -28,11 +32,11 @@ execute(#{ <<"module">>   := M
 task({Uri, Line, Suite, Case}, _State) ->
   case run_test(Suite, Case) of
     {ok, IO} ->
-      lager:info("CT Test passed", []),
+      ?LOG_INFO("CT Test passed", []),
       publish_result(Uri, Line, ?DIAGNOSTIC_INFO, IO);
     {Error, IO} ->
       Message = els_utils:to_binary(io_lib:format("~p", [Error])),
-      lager:info("CT Test failed [error=~p] [io=~p]", [Error, IO]),
+      ?LOG_INFO("CT Test failed [error=~p] [io=~p]", [Error, IO]),
       publish_result(Uri, Line, ?DIAGNOSTIC_ERROR, Message)
   end.
 

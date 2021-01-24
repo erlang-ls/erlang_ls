@@ -13,6 +13,7 @@
 %% Includes
 %%==============================================================================
 -include("erlang_ls.hrl").
+-include_lib("kernel/include/logger.hrl").
 
 -spec dependencies(uri()) -> [atom()].
 dependencies(Uri) ->
@@ -49,7 +50,7 @@ dependencies([Uri|Uris], Acc, AlreadyProcessed) ->
                     ++ [els_uri:module(FPTUri) || FPTUri <- FilteredPTUris]
                   , sets:add_element(Uri, AlreadyProcessed));
     Error ->
-      lager:info("Lookup failed [Error=~p]", [Error]),
+      ?LOG_INFO("Lookup failed [Error=~p]", [Error]),
       []
   end.
 
@@ -68,11 +69,11 @@ pt_deps(Module) ->
                                                         ]),
           applications_to_uris(Applications);
         Error ->
-          lager:info("Lookup failed [Error=~p]", [Error]),
+          ?LOG_INFO("Lookup failed [Error=~p]", [Error]),
           []
       end;
     {error, Error} ->
-      lager:info("Find module failed [module=~p] [error=~p]", [Module, Error]),
+      ?LOG_INFO("Find module failed [module=~p] [error=~p]", [Module, Error]),
       []
   end.
 
@@ -84,9 +85,9 @@ applications_to_uris(Applications) ->
               {ok, Uri} ->
                 [Uri|Acc];
               {error, Error} ->
-                lager:info( "Could not find module [module=~p] [error=~p]"
-                          , [M, Error]
-                          ),
+                ?LOG_INFO( "Could not find module [module=~p] [error=~p]"
+                         , [M, Error]
+                         ),
                 Acc
             end
         end,

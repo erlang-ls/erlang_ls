@@ -14,7 +14,7 @@
 %% Includes
 %%==============================================================================
 -include("erlang_ls.hrl").
--include_lib("stdlib/include/ms_transform.hrl").
+-include_lib("kernel/include/logger.hrl").
 
 %%==============================================================================
 %% Types
@@ -121,13 +121,13 @@ start(Group, Entries) ->
 try_index_file(FullName, Mode) ->
   Uri = els_uri:uri(FullName),
   try
-    lager:debug("Indexing file. [filename=~s, uri=~s]", [FullName, Uri]),
+    ?LOG_DEBUG("Indexing file. [filename=~s, uri=~s]", [FullName, Uri]),
     {ok, Text} = file:read_file(FullName),
     ok         = index(Uri, Text, Mode)
   catch Type:Reason:St ->
-      lager:error("Error indexing file "
-                  "[filename=~s, uri=~s] "
-                  "~p:~p:~p", [FullName, Uri, Type, Reason, St]),
+      ?LOG_ERROR("Error indexing file "
+                 "[filename=~s, uri=~s] "
+                 "~p:~p:~p", [FullName, Uri, Type, Reason, St]),
       {error, {Type, Reason}}
   end.
 
@@ -153,7 +153,7 @@ register_reference(Uri, #{kind := Kind, id := Id, range := Range})
 
 -spec index_dir(string(), mode()) -> {non_neg_integer(), non_neg_integer()}.
 index_dir(Dir, Mode) ->
-  lager:debug("Indexing directory. [dir=~s] [mode=~s]", [Dir, Mode]),
+  ?LOG_DEBUG("Indexing directory. [dir=~s] [mode=~s]", [Dir, Mode]),
   F = fun(FileName, {Succeeded, Failed}) ->
           case try_index_file(els_utils:to_binary(FileName), Mode) of
             ok              -> {Succeeded + 1, Failed};
@@ -173,7 +173,7 @@ index_dir(Dir, Mode) ->
                                           , {0, 0}
                                           ]
                                         ),
-  lager:debug("Finished indexing directory. [dir=~s] [mode=~s] [time=~p] "
+  ?LOG_DEBUG("Finished indexing directory. [dir=~s] [mode=~s] [time=~p] "
              "[succeeded=~p] "
              "[failed=~p]", [Dir, Mode, Time/1000/1000, Succeeded, Failed]),
   {Succeeded, Failed}.

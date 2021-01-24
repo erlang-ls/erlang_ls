@@ -14,6 +14,11 @@
         , handle_info/2
         ]).
 
+%%==============================================================================
+%% Includes
+%%==============================================================================
+-include_lib("kernel/include/logger.hrl").
+
 -callback is_enabled() -> boolean().
 -callback init() -> any().
 -callback handle_request(request(), any()) -> {any(), any()}.
@@ -65,7 +70,7 @@ handle_request(Provider, Request) ->
 
 -spec init(els_provider:provider()) -> {ok, state()}.
 init(Provider) ->
-  lager:info("Starting provider ~p", [Provider]),
+  ?LOG_INFO("Starting provider ~p", [Provider]),
   InternalState = case erlang:function_exported(Provider, init, 0) of
                     true ->
                       Provider:init();

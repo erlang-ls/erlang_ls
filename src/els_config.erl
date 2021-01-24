@@ -18,6 +18,7 @@
 %% Includes
 %%==============================================================================
 -include("erlang_ls.hrl").
+-include_lib("kernel/include/logger.hrl").
 
 %%==============================================================================
 %% Macros
@@ -83,7 +84,7 @@ initialize(RootUri, Capabilities, InitOptions) ->
 do_initialize(RootUri, Capabilities, {ConfigPath, Config}) ->
   RootPath        = els_utils:to_list(els_uri:path(RootUri)),
   OtpPath         = maps:get("otp_path", Config, code:root_dir()),
-  lager:info("OTP Path: ~p", [OtpPath]),
+  ?LOG_INFO("OTP Path: ~p", [OtpPath]),
   DepsDirs        = maps:get("deps_dirs", Config, []),
   AppsDirs        = maps:get("apps_dirs", Config, ["."]),
   IncludeDirs     = maps:get("include_dirs", Config, ["include"]),
@@ -97,7 +98,7 @@ do_initialize(RootUri, Capabilities, {ConfigPath, Config}) ->
   Diagnostics = maps:get("diagnostics", Config, #{}),
   ExcludePathsSpecs = [[OtpPath, "lib", P ++ "*"] || P <- OtpAppsExclude],
   ExcludePaths = els_utils:resolve_paths(ExcludePathsSpecs, RootPath, true),
-  lager:info("Excluded OTP Applications: ~p", [OtpAppsExclude]),
+  ?LOG_INFO("Excluded OTP Applications: ~p", [OtpAppsExclude]),
   CodeReload = maps:get("code_reload", Config, disabled),
   Runtime = maps:get("runtime", Config, #{}),
   CtRunTest = maps:get("ct-run-test", Config, #{}),
@@ -116,7 +117,7 @@ do_initialize(RootUri, Capabilities, {ConfigPath, Config}) ->
   ok = set(macros         , Macros),
   ok = set(plt_path       , DialyzerPltPath),
   ok = set(code_reload    , CodeReload),
-  lager:info("Config=~p", [Config]),
+  ?LOG_INFO("Config=~p", [Config]),
   ok = set(runtime, maps:merge( els_config_runtime:default_config()
                               , Runtime)),
   ok = set('ct-run-test', maps:merge( els_config_ct_run_test:default_config()
@@ -202,15 +203,15 @@ possible_config_paths(Path) ->
 -spec consult_config([path()]) -> {undefined|path(), map()}.
 consult_config([]) -> {undefined, #{}};
 consult_config([Path | Paths]) ->
-  lager:info("Reading config file. path=~p", [Path]),
+  ?LOG_INFO("Reading config file. path=~p", [Path]),
   Options = [{map_node_format, map}],
   try yamerl:decode_file(Path, Options) of
       [] -> {Path, #{}};
       [Config] -> {Path, Config}
   catch
     Class:Error ->
-      lager:warning( "Could not read config file: path=~p class=~p error=~p"
-                   , [Path, Class, Error]),
+      ?LOG_WARNING( "Could not read config file: path=~p class=~p error=~p"
+                  , [Path, Class, Error]),
       consult_config(Paths)
   end.
 
@@ -248,7 +249,7 @@ otp_paths(OtpPath, Recursive) ->
                       ok.
 add_code_paths(WCDirs, RootDir) ->
   AddADir = fun(ADir) ->
-                lager:info("Adding code path: ~p", [ADir]),
+                ?LOG_INFO("Adding code path: ~p", [ADir]),
                 true = code:add_path(ADir)
             end,
   AllNames = lists:foldl(fun(Elem, AccIn) ->

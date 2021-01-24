@@ -25,6 +25,7 @@
 %% Includes
 %%==============================================================================
 -include("erlang_ls.hrl").
+-include_lib("kernel/include/logger.hrl").
 
 %%==============================================================================
 %% Messaging API
@@ -56,7 +57,7 @@ response(Seq, Command, Result) ->
              , command => Command
              , body  => Result
              },
-  lager:debug("[Response] [message=~p]", [Message]),
+  ?LOG_DEBUG("[Response] [message=~p]", [Message]),
   content(jsx:encode(Message)).
 
 -spec error_response(number(), any(), any()) -> binary().
@@ -68,7 +69,7 @@ error_response(Seq, Command, Error) ->
              , body  => #{ error => Error
                          }
              },
-  lager:debug("[Response] [message=~p]", [Message]),
+  ?LOG_DEBUG("[Response] [message=~p]", [Message]),
   content(jsx:encode(Message)).
 
 %%==============================================================================

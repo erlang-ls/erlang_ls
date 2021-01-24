@@ -22,6 +22,11 @@
         ]).
 
 %%==============================================================================
+%% Includes
+%%==============================================================================
+-include_lib("kernel/include/logger.hrl").
+
+%%==============================================================================
 %% Type Definitions
 %%==============================================================================
 -type table() :: atom().
@@ -38,7 +43,7 @@ default_opts() ->
 -spec init(table()) -> ok.
 init(Table) ->
   TableName = name(Table),
-  lager:info("Creating table [name=~p]", [TableName]),
+  ?LOG_INFO("Creating table [name=~p]", [TableName]),
   ets:new(TableName, opts(Table)),
   ok.
 

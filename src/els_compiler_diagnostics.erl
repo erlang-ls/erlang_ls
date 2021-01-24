@@ -28,6 +28,7 @@
 %% Includes
 %%==============================================================================
 -include("erlang_ls.hrl").
+-include_lib("kernel/include/logger.hrl").
 
 %%==============================================================================
 %% Type Definitions
@@ -65,7 +66,7 @@ run(Uri) ->
     <<".escript">> ->
       parse_escript(Uri);
     _Ext ->
-      lager:debug("Skipping diagnostics due to extension [uri=~p]", [Uri]),
+      ?LOG_DEBUG("Skipping diagnostics due to extension [uri=~p]", [Uri]),
       []
   end.
 
@@ -153,7 +154,7 @@ diagnostics(Path, List, Severity) ->
                        || {Anno, Module, Desc} <- Info]
                      || {MessagePath, Info} <- List]);
     Error ->
-      lager:info("diagnostics doc lookup failed [Error=~p]", [Error]),
+      ?LOG_INFO("diagnostics doc lookup failed [Error=~p]", [Error]),
       []
   end.
 
@@ -328,8 +329,8 @@ load_dependency(Module, IncludingPath) ->
               diagnostics(IncludingPath, ES, ?DIAGNOSTIC_ERROR)
         end;
       {error, Error} ->
-        lager:warning( "Error finding dependency [module=~p] [error=~p]"
-                     , [Module, Error]),
+        ?LOG_WARNING( "Error finding dependency [module=~p] [error=~p]"
+                    , [Module, Error]),
         []
     end,
   {Old, Diagnostics}.
@@ -359,8 +360,8 @@ handle_rpc_result({ok, Module}, _) ->
                                   message => els_utils:to_binary(Msg)
                                 });
 handle_rpc_result(Err, Module) ->
-  lager:info("[code_reload] code_reload using c:c/1 crashed with: ~p",
-             [Err]),
+  ?LOG_INFO("[code_reload] code_reload using c:c/1 crashed with: ~p",
+            [Err]),
   Msg = io_lib:format("code_reload swap crashed for: ~s with: ~w",
                       [Module, Err]),
   els_server:send_notification(<<"window/showMessage">>,
@@ -373,7 +374,7 @@ handle_rpc_result(Err, Module) ->
 compile_options(Module) ->
   case code:which(Module) of
     non_existing ->
-      lager:info("Could not find compile options. [module=~p]", [Module]),
+      ?LOG_INFO("Could not find compile options. [module=~p]", [Module]),
       [];
     Beam ->
       case beam_lib:chunks(Beam, [compile_info]) of
@@ -381,8 +382,8 @@ compile_options(Module) ->
           Info = proplists:get_value(compile_info, Chunks),
           proplists:get_value(options, Info, []);
         Error ->
-          lager:info( "Error extracting compile_info. [module=~p] [error=~p]"
-                    , [Module, Error]),
+          ?LOG_INFO( "Error extracting compile_info. [module=~p] [error=~p]"
+                   , [Module, Error]),
           []
       end
   end.

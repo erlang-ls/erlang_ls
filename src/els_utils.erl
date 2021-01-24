@@ -16,7 +16,12 @@
         , compose_node_name/2
         ]).
 
+
+%%==============================================================================
+%% Includes
+%%==============================================================================
 -include("erlang_ls.hrl").
+-include_lib("kernel/include/logger.hrl").
 
 -type path() :: file:filename_all().
 
@@ -31,7 +36,7 @@ cmd(Cmd, Args) ->
 % @doc Replacement for os:cmd that allows for spaces in args and paths
 -spec cmd(string(), [string()], string()) -> integer().
 cmd(Cmd, Args, Path) ->
-  lager:info("Running OS command [command=~p] [args=~p]", [Cmd, Args]),
+  ?LOG_INFO("Running OS command [command=~p] [args=~p]", [Cmd, Args]),
   Executable = case filename:basename(Cmd) of
                  Cmd ->
                    cmd_path(Cmd);
@@ -144,7 +149,7 @@ macro_string_to_term(Value) ->
         "falling back to 'true'"
         "[value=~p] [exception=~p]",
       Args = [Value, Exception],
-      lager:error(Fmt, Args),
+      ?LOG_ERROR(Fmt, Args),
       true
   end.
 

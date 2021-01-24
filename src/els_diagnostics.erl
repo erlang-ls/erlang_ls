@@ -7,6 +7,7 @@
 %% Includes
 %%==============================================================================
 -include("erlang_ls.hrl").
+-include_lib("kernel/include/logger.hrl").
 
 %%==============================================================================
 %% Types
@@ -135,7 +136,7 @@ valid(Ids0) ->
       Fmt = "Skipping invalid diagnostics in config file: ~p",
       Args = [Invalid],
       Msg = lists:flatten(io_lib:format(Fmt, Args)),
-      lager:warning(Msg),
+      ?LOG_WARNING(Msg),
       els_server:send_notification(<<"window/showMessage">>,
                                    #{ type => ?MESSAGE_TYPE_WARNING,
                                       message => els_utils:to_binary(Msg)

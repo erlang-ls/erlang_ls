@@ -9,7 +9,6 @@
       , ranch
       , jsx
       , cowlib
-      , lager
       , yamerl
       , docsh
       , elvis_core
@@ -25,8 +24,6 @@
     , [ {transport, els_tcp}
       , {io_device, standard_io}
       , {port, 10000}
-        %% Logging
-      , {logging_enabled, true}
       ]
     }
   , {modules, []}
