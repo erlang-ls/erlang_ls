@@ -20,6 +20,11 @@
         ]).
 
 %%==============================================================================
+%% Includes
+%%==============================================================================
+-include_lib("kernel/include/logger.hrl").
+
+%%==============================================================================
 %% Types
 %%==============================================================================
 
@@ -78,17 +83,17 @@ handle_request({<<"launch">>, Params}, State) ->
            , <<"cwd">> => Cwd
            , <<"args">> => Cmd
            },
-      lager:info("Sending runinterminal request: [~p]", [ParamsR]),
+      ?LOG_INFO("Sending runinterminal request: [~p]", [ParamsR]),
       els_dap_server:send_request(<<"runInTerminal">>, ParamsR),
       ok;
     _ ->
-      lager:info("launching 'rebar3 shell`", []),
+      ?LOG_INFO("launching 'rebar3 shell`", []),
       spawn(fun() ->
                 els_utils:cmd("rebar3", ["shell", "--name", ProjectNode]) end)
   end,
   LocalNode = els_distribution_server:node_name(<<"erlang_ls_dap">>, Name),
   els_distribution_server:start_distribution(LocalNode),
-  lager:info("Distribution up on: [~p]", [LocalNode]),
+  ?LOG_INFO("Distribution up on: [~p]", [LocalNode]),
 
   els_dap_server:send_event(<<"initialized">>, #{}),
 
@@ -97,7 +102,7 @@ handle_request( {<<"configurationDone">>, _Params}
               , #{ project_node := ProjectNode
                  , launch_params := LaunchParams} = State
               ) ->
-  lager:info("Connecting to: [~p]", [ProjectNode]),
+  ?LOG_INFO("Connecting to: [~p]", [ProjectNode]),
   els_distribution_server:wait_connect_and_monitor(ProjectNode),
 
   inject_dap_agent(ProjectNode),
@@ -115,7 +120,7 @@ handle_request( {<<"configurationDone">>, _Params}
       M = binary_to_atom(Module, utf8),
       F = binary_to_atom(Function, utf8),
       A = els_dap_rpc:eval(ProjectNode, Args, []),
-      lager:info("Launching MFA: [~p]", [{M, F, A}]),
+      ?LOG_INFO("Launching MFA: [~p]", [{M, F, A}]),
       rpc:cast(ProjectNode, M, F, A);
     _ -> ok
   end,
@@ -129,7 +134,7 @@ handle_request( {<<"setBreakpoints">>, Params}
   Module = els_uri:module(els_uri:uri(Path)),
 
   %% AZ: we should have something like `ensure_connected`
-  lager:info("Connecting to: [~p]", [ProjectNode]),
+  ?LOG_INFO("Connecting to: [~p]", [ProjectNode]),
   els_distribution_server:wait_connect_and_monitor(ProjectNode),
 
   %% TODO: Keep a list of interpreted modules, not to re-interpret them
@@ -234,7 +239,7 @@ handle_info( {int_cb, ThreadPid}
               , project_node := ProjectNode
               } = State
            ) ->
-  lager:debug("Int CB called. thread=~p", [ThreadPid]),
+  ?LOG_DEBUG("Int CB called. thread=~p", [ThreadPid]),
   ThreadId = id(ThreadPid),
   Thread = #{ pid    => ThreadPid
             , frames => stack_frames(ThreadPid, ProjectNode)

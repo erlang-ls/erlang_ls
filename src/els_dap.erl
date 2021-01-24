@@ -6,24 +6,26 @@
 -export([ main/1 ]).
 
 -export([ parse_args/1
-        , lager_config/0
-        , lager_handlers/1
-        , log_root/0]).
+        , log_root/0
+        ]).
+
+%%==============================================================================
+%% Includes
+%%==============================================================================
+-include_lib("kernel/include/logger.hrl").
 
 -define(APP, erlang_ls).
 -define(DEFAULT_LOGGING_LEVEL, "debug").
 
 -spec main([any()]) -> ok.
 main(Args) ->
-  %% Initialization
-  application:load(lager),
   application:load(getopt),
   application:load(?APP),
   ok = parse_args(Args),
-  ok = lager_config(),
-  %% Start the Erlang Language Server
+  configure_logging(),
   application:ensure_all_started(?APP),
-  lager:info("Started Erlang LS - DAP server", []),
+  patch_logging(),
+  ?LOG_INFO("Started Erlang LS - DAP server", []),
   receive _ -> ok end.
 
 -spec print_version() -> ok.
@@ -104,44 +106,45 @@ set(port, Port) ->
 set(log_dir, Dir) ->
   application:set_env(?APP, log_dir, Dir);
 set(log_level, Level) ->
-  application:set_env(?APP, log_level, Level);
+  application:set_env(?APP, log_level, list_to_atom(Level));
 set(port_old, Port) ->
   application:set_env(?APP, port, Port).
 
 %%==============================================================================
-%% Lager configuration
+%% Logger configuration
 %%==============================================================================
 
--spec lager_config() -> ok.
-lager_config() ->
-  LoggingEnabled = application:get_env(?APP, logging_enabled, true),
-  case LoggingEnabled of
-    true ->
-      LogRoot   = log_root(),
-      Handlers  = lager_handlers(LogRoot),
-      ok = application:set_env(lager, handlers, Handlers),
-      ok = application:set_env(lager, crash_log, "dap_crash.log"),
-      ok = application:set_env(lager, log_root, LogRoot);
-    false ->
-      ok = application:set_env(lager, handlers, []),
-      ok = application:set_env(lager, crash_log, false)
-  end.
-
--spec lager_handlers(string()) -> [any()].
-lager_handlers(LogRoot) ->
-  LogFile      = filename:join([LogRoot, "dap_server.log"]),
+-spec configure_logging() -> ok.
+configure_logging() ->
+  LogFile = filename:join([log_root(), "dap_server.log"]),
   {ok, LoggingLevel} = application:get_env(?APP, log_level),
-  ok           = filelib:ensure_dir(LogFile),
-  [ { lager_file_backend
-    , [ {file, LogFile}
-      , {level, LoggingLevel}
-      ]
-    }
-  ].
+  ok = filelib:ensure_dir(LogFile),
+  Handler = #{ config => #{ file => LogFile }
+             , level => LoggingLevel
+             , formatter => { logger_formatter
+                            , #{ template => [ "[", time, "] "
+                                             , file, ":", line, " "
+                                             , pid, " "
+                                             , "[", level, "] "
+                                             , msg, "\n"
+                                             ]
+                               }
+                            }
+             },
+  [logger:remove_handler(H) || H <-  logger:get_handler_ids()],
+  logger:add_handler(erlang_ls_handler, logger_std_h, Handler),
+  logger:set_primary_config(level, LoggingLevel),
+  ok.
+
+-spec patch_logging() -> ok.
+patch_logging() ->
+  %% The ssl_handler is added by ranch -> ssl
+  logger:remove_handler(ssl_handler),
+  ok.
 
 -spec log_root() -> string().
 log_root() ->
-  {ok, LogDir}     = application:get_env(?APP, log_dir),
+  {ok, LogDir} = application:get_env(?APP, log_dir),
   {ok, CurrentDir} = file:get_cwd(),
-  Dirname          = filename:basename(CurrentDir),
+  Dirname = filename:basename(CurrentDir),
   filename:join([LogDir, Dirname]).

@@ -27,6 +27,15 @@
         , handle_cast/2
         , handle_info/2
         ]).
+
+%%==============================================================================
+%% Includes
+%%==============================================================================
+-include_lib("kernel/include/logger.hrl").
+
+%%==============================================================================
+%% Type Definitions
+%%==============================================================================
 -type state() :: #{}.
 
 %%==============================================================================
@@ -48,18 +57,18 @@ start_link() ->
 -spec start_distribution(atom()) -> ok.
 start_distribution(Name) ->
   NameType = els_config_runtime:get_name_type(),
-  lager:info("Enable distribution [name=~p]", [Name]),
+  ?LOG_INFO("Enable distribution [name=~p]", [Name]),
   case net_kernel:start([Name, NameType]) of
     {ok, _Pid} ->
       Cookie = els_config_runtime:get_cookie(),
       RemoteNode = els_config_runtime:get_node_name(),
       erlang:set_cookie(RemoteNode, Cookie),
-      lager:info("Distribution enabled [name=~p]", [Name]);
+      ?LOG_INFO("Distribution enabled [name=~p]", [Name]);
     {error, {already_started, _Pid}} ->
-      lager:info("Distribution already enabled [name=~p]", [Name]);
+      ?LOG_INFO("Distribution already enabled [name=~p]", [Name]);
     {error, {{shutdown, {failed_to_start_child, net_kernel, E1}}, E2}} ->
-      lager:info("Distribution shutdown [errs=~p]", [{E1, E2}]),
-      lager:info("Distribution shut down [name=~p]", [Name])
+      ?LOG_INFO("Distribution shutdown [errs=~p]", [{E1, E2}]),
+      ?LOG_INFO("Distribution shut down [name=~p]", [Name])
   end.
 
 %% @doc Connect to an existing runtime node, if available, or start one.
@@ -82,7 +91,7 @@ rpc_call(M, F, A, Timeout) ->
 %%==============================================================================
 -spec init(unused) -> {ok, state()}.
 init(unused) ->
-  lager:info("Ensure EPMD is running", []),
+  ?LOG_INFO("Ensure EPMD is running", []),
   ok = ensure_epmd(),
   {ok, #{}}.
 
@@ -100,7 +109,7 @@ handle_call({connect}, _From, State) ->
 handle_call({rpc_call, M, F, A, Timeout}, _From, State) ->
   {ok, P} = els_group_leader_server:new(),
   Node = els_config_runtime:get_node_name(),
-  lager:info("RPC Call [node=~p] [mfa=~p]", [Node, {M, F, A}]),
+  ?LOG_INFO("RPC Call [node=~p] [mfa=~p]", [Node, {M, F, A}]),
   Result = rpc:call(Node, M, F, A, Timeout),
   Output = els_group_leader_server:flush(P),
   ok = els_group_leader_server:stop(P),
@@ -114,10 +123,10 @@ handle_cast(_Request, State) ->
 
 -spec handle_info(any(), state()) -> {noreply, state()}.
 handle_info({nodedown, Node}, State) ->
-  lager:error("Runtime node down [node=~p]", [Node]),
+  ?LOG_ERROR("Runtime node down [node=~p]", [Node]),
   {noreply, State};
 handle_info(Request, State) ->
-  lager:warning("Unexpected request [request=~p]", [Request]),
+  ?LOG_WARNING("Unexpected request [request=~p]", [Request]),
   {noreply, State}.
 
 %%==============================================================================
@@ -127,7 +136,7 @@ handle_info(Request, State) ->
 connect_and_monitor(Node) ->
   case net_kernel:connect_node(Node) of
     true ->
-      lager:info("Connected to node [node=~p]", [Node]),
+      ?LOG_INFO("Connected to node [node=~p]", [Node]),
       erlang:monitor_node(Node, true),
       ok;
     false ->
@@ -139,9 +148,9 @@ start(Node) ->
   Cmd = els_config_runtime:get_start_cmd(),
   Args = els_config_runtime:get_start_args(),
   Path = els_config_runtime:get_otp_path(),
-  lager:info( "Starting new Erlang node [node=~p] [cmd=~p] [args=~p] [path=~p]"
-            , [Node, Cmd, Args, Path]
-            ),
+  ?LOG_INFO( "Starting new Erlang node [node=~p] [cmd=~p] [args=~p] [path=~p]"
+           , [Node, Cmd, Args, Path]
+           ),
   spawn_link(fun() -> els_utils:cmd(Cmd, Args, Path) end),
   wait_connect_and_monitor(Node),
   ok.
@@ -152,8 +161,8 @@ wait_connect_and_monitor(Node) ->
 
 -spec wait_connect_and_monitor(Node :: atom(), Attempts :: pos_integer()) -> ok.
 wait_connect_and_monitor(Node, 0) ->
-  lager:error( "Failed to connect to node ~p after ~p attempts"
-             , [Node, ?WAIT_ATTEMPTS]),
+  ?LOG_ERROR( "Failed to connect to node ~p after ~p attempts"
+            , [Node, ?WAIT_ATTEMPTS]),
   ok;
 wait_connect_and_monitor(Node, Attempts) ->
   timer:sleep(?WAIT_INTERVAL),
@@ -161,8 +170,8 @@ wait_connect_and_monitor(Node, Attempts) ->
     ok ->
       ok;
     error ->
-      lager:warning( "Trying to connect to node ~p (~p/~p)"
-                   , [Node, ?WAIT_ATTEMPTS - Attempts + 1, ?WAIT_ATTEMPTS]),
+      ?LOG_WARNING( "Trying to connect to node ~p (~p/~p)"
+                  , [Node, ?WAIT_ATTEMPTS - Attempts + 1, ?WAIT_ATTEMPTS]),
       wait_connect_and_monitor(Node, Attempts - 1)
   end.
 

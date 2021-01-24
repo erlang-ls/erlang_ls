@@ -60,6 +60,7 @@
 %% Includes
 %%==============================================================================
 -include("erlang_ls.hrl").
+-include_lib("kernel/include/logger.hrl").
 
 %%==============================================================================
 %% Defines
@@ -343,7 +344,7 @@ do_handle_messages([Message|Messages], Pending, Notifications, Requests) ->
   case is_response(Message) of
     true ->
       RequestId = maps:get(id, Message),
-      lager:debug("[CLIENT] Handling Response [response=~p]", [Message]),
+      ?LOG_DEBUG("[CLIENT] Handling Response [response=~p]", [Message]),
       case lists:keyfind(RequestId, 1, Pending) of
         {RequestId, From} ->
           gen_server:reply(From, Message),
@@ -358,15 +359,15 @@ do_handle_messages([Message|Messages], Pending, Notifications, Requests) ->
     false ->
       case is_notification(Message) of
         true ->
-          lager:debug( "[CLIENT] Discarding Notification [message=~p]"
-                     , [Message]),
+          ?LOG_DEBUG( "[CLIENT] Discarding Notification [message=~p]"
+                    , [Message]),
           do_handle_messages( Messages
                             , Pending
                             , [Message|Notifications]
                             , Requests);
         false ->
-          lager:debug( "[CLIENT] Discarding Server Request [message=~p]"
-                     , [Message]),
+          ?LOG_DEBUG( "[CLIENT] Discarding Server Request [message=~p]"
+                    , [Message]),
           do_handle_messages( Messages
                             , Pending
                             , Notifications

@@ -12,6 +12,7 @@
 %% Includes
 %%==============================================================================
 -include("erlang_ls.hrl").
+-include_lib("kernel/include/logger.hrl").
 
 -ifdef(OTP_RELEASE).
 -if(?OTP_RELEASE >= 23).
@@ -106,7 +107,7 @@ shell_docs(M, F, A) ->
       Fmt = "Error fetching docs, falling back to src."
         " module=~p error=~p:~p st=~p",
       Args = [M, C, E, ST],
-      lager:warning(Fmt, Args),
+      ?LOG_WARNING(Fmt, Args),
       {error, not_available}
   end.
 
@@ -193,7 +194,7 @@ edoc(M, F, A) ->
     {ok, [{{function, F, A}, _Anno, _Signature, Desc, _Metadata}|_]} = Res,
     format_edoc(Desc)
   catch C:E ->
-      lager:error("[hover] Error fetching edoc [error=~p]", [{C, E}]),
+      ?LOG_ERROR("[hover] Error fetching edoc [error=~p]", [{C, E}]),
       []
   end.
 

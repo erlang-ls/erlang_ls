@@ -14,8 +14,6 @@
 
 %% Test cases
 -export([ parse_args/1
-        , lager_config/1
-        , log_handlers/1
         , log_root/1
         ]).
 
@@ -60,7 +58,6 @@ init_per_testcase(_TestCase, _Config) ->
 -spec end_per_testcase(atom(), config()) -> ok.
 end_per_testcase(_TestCase, _Config) ->
   unset_all_env(erlang_ls),
-  unset_all_env(lager),
   ok.
 
 %%==============================================================================
@@ -85,53 +82,12 @@ parse_args(_Config) ->
   Args = [ "--transport", "tcp"
          , "--port", "9000"
          , "--log-dir", "/test"
-         , "--log-level", "=error"
+         , "--log-level", "error"
          ],
   erlang_ls:parse_args(Args),
   ?assertEqual(els_tcp, application:get_env(erlang_ls, transport, undefined)),
   ?assertEqual(9000, application:get_env(erlang_ls, port, undefined)),
-  ?assertEqual("/test", application:get_env(erlang_ls, log_dir, undefined)),
-  ?assertEqual("=error", application:get_env(erlang_ls, log_level, undefined)),
-  ok.
-
--spec lager_config(config()) -> ok.
-lager_config(_Config) ->
-  meck:new(filelib, [unstick]),
-  meck:expect(filelib, ensure_dir, fun(_) -> ok end),
-
-  application:set_env(erlang_ls, logging_enabled, false),
-  erlang_ls:lager_config(),
-  ?assertEqual(0, length(application:get_env(lager, handlers, [failure]))),
-  ?assertEqual(false, application:get_env(lager, crash_log, undefined)),
-
-  application:set_env(erlang_ls, logging_enabled, true),
-  application:set_env(erlang_ls, log_level, "info"),
-  application:set_env(erlang_ls,
-                      log_dir,
-                      filename:basedir(user_log, "erlang_ls")),
-  erlang_ls:lager_config(),
-  ?assertEqual(1, length(application:get_env(lager, handlers, []))),
-  ?assertEqual("crash.log", application:get_env(lager, crash_log, undefined)),
-
-  meck:unload(filelib),
-  ok.
-
--spec log_handlers(config()) -> ok.
-log_handlers(_Config) ->
-  meck:new(filelib, [unstick]),
-  meck:expect(filelib, ensure_dir, fun(_) -> ok end),
-
-  application:set_env(erlang_ls, log_level, "info"),
-  Handlers = erlang_ls:lager_handlers("/some/directory"),
-  ExpectedHandlers = [ { lager_file_backend
-                       , [ {file, "/some/directory/server.log"}
-                         , {level, "info"}
-                         ]
-                       }
-                     ],
-  ?assertEqual(ExpectedHandlers, Handlers),
-
-  meck:unload(filelib),
+  ?assertEqual('error', application:get_env(erlang_ls, log_level, undefined)),
   ok.
 
 -spec log_root(config()) -> ok.

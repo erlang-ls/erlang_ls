@@ -27,6 +27,11 @@
         ]).
 
 %%==============================================================================
+%% Includes
+%%==============================================================================
+-include_lib("kernel/include/logger.hrl").
+
+%%==============================================================================
 %% Macro Definitions
 %%==============================================================================
 -define(SPINNING_WHEEL_INTERVAL, 100). %% ms
@@ -93,7 +98,7 @@ start_link(Config) ->
 %%==============================================================================
 -spec init(config()) -> {ok, state()}.
 init(#{entries := Entries, title := Title} = Config) ->
-  lager:info("Background job started. [pid=~p] [title=~p]", [self(), Title]),
+  ?LOG_INFO("Background job started. [pid=~p] [title=~p]", [self(), Title]),
   %% Ensure the terminate function is called on shutdown, allowing the
   %% job to clean up.
   process_flag(trap_exit, true),
@@ -179,14 +184,14 @@ terminate(normal, #{ config := #{on_complete := OnComplete}
     Pid ->
       exit(Pid, kill)
   end,
-  lager:info("Background job completed. [pid=~p]", [self()]),
+  ?LOG_INFO("Background job completed. [pid=~p]", [self()]),
   OnComplete(InternalState),
   ok;
 terminate(Reason, #{ config := #{on_error := OnError}
                    , internal_state := InternalState
                    }) ->
-  lager:warning( "Background job aborted. [reason=~p] [pid=~p]"
-               , [Reason, self()]),
+  ?LOG_WARNING( "Background job aborted. [reason=~p] [pid=~p]"
+              , [Reason, self()]),
   OnError(InternalState),
   ok.
 

@@ -10,6 +10,11 @@
 -export([ loop/4 ]).
 
 %%==============================================================================
+%% Includes
+%%==============================================================================
+-include_lib("kernel/include/logger.hrl").
+
+%%==============================================================================
 %% els_transport callbacks
 %%==============================================================================
 -spec start_listener(function()) -> {ok, pid()}.
@@ -19,7 +24,7 @@ start_listener(Cb) ->
 
 -spec init({function(), any()}) -> no_return().
 init({Cb, IoDevice}) ->
-  lager:info("Starting stdio server..."),
+  ?LOG_INFO("Starting stdio server..."),
   ok = io:setopts(IoDevice, [binary]),
   case application:get_env(erlang_ls, dap) of
     {ok, true} ->

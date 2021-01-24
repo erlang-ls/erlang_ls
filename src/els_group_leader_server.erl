@@ -29,6 +29,11 @@
         ]).
 
 %%==============================================================================
+%% Includes
+%%==============================================================================
+-include_lib("kernel/include/logger.hrl").
+
+%%==============================================================================
 %% Macro Definitions
 %%==============================================================================
 -define(SERVER, ?MODULE).
@@ -77,7 +82,7 @@ start_link(Config) ->
 -spec init(config()) -> {ok, state()}.
 init(#{caller := Caller, gl := GL}) ->
   process_flag(trap_exit, true),
-  lager:info("Starting group leader server [caller=~p] [gl=~p]", [Caller, GL]),
+  ?LOG_INFO("Starting group leader server [caller=~p] [gl=~p]", [Caller, GL]),
   group_leader(self(), Caller),
   {ok, #{acc => [], caller => Caller, gl => GL}}.
 
@@ -112,12 +117,12 @@ handle_info({io_request, From, ReplyAs, Request}, State) ->
       From ! {io_reply, ReplyAs, ok},
       {noreply, State#{acc => [List|Acc]}};
     Else ->
-      lager:warning("[Group Leader] Request not implemented", [Else]),
+      ?LOG_WARNING("[Group Leader] Request not implemented", [Else]),
       From ! {io_reply, ReplyAs, {error, not_implemented}},
       {noreply, State}
   end;
 handle_info(Request, State) ->
-  lager:warning("[Group Leader] Unexpected request", [Request]),
+  ?LOG_WARNING("[Group Leader] Unexpected request", [Request]),
   {noreply, State}.
 
 -spec terminate(any(), state()) -> ok.

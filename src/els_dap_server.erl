@@ -40,7 +40,7 @@
 %%==============================================================================
 %% Includes
 %%==============================================================================
--include("erlang_ls.hrl").
+-include_lib("kernel/include/logger.hrl").
 
 %%==============================================================================
 %% Macros
@@ -101,7 +101,7 @@ reset_internal_state() ->
 %%==============================================================================
 -spec init(module()) -> {ok, state()}.
 init(Transport) ->
-  lager:info("Starting els_dap_server..."),
+  ?LOG_INFO("Starting els_dap_server..."),
   State = #state{ transport      = Transport
                 , seq            = 0
                 , internal_state = #{}
@@ -139,26 +139,26 @@ handle_request(#{ <<"seq">> := Seq
   case els_dap_methods:dispatch(Command, Args, request, InternalState) of
     {response, Result, NewInternalState} ->
       Response = els_dap_protocol:response(Seq, Command, Result),
-      lager:debug("[SERVER] Sending response [response=~s]", [Response]),
+      ?LOG_DEBUG("[SERVER] Sending response [response=~s]", [Response]),
       send(Response, State0),
       State0#state{internal_state = NewInternalState};
     {error_response, Error, NewInternalState} ->
       Response = els_dap_protocol:error_response(Seq, Command, Error),
-      lager:debug("[SERVER] Sending error response [response=~s]", [Response]),
+      ?LOG_DEBUG("[SERVER] Sending error response [response=~s]", [Response]),
       send(Response, State0),
       State0#state{internal_state = NewInternalState}
   end;
 handle_request(Response, State0) ->
-  lager:debug( "[SERVER] got request response [response=~p]"
-             , [Response]
-             ),
+  ?LOG_DEBUG( "[SERVER] got request response [response=~p]"
+            , [Response]
+            ),
   State0.
 
 -spec do_send_event(binary(), map(), state()) -> state().
 do_send_event(EventType, Body, #state{seq = Seq0} = State0) ->
   Seq = Seq0 + 1,
   Event = els_dap_protocol:event(Seq, EventType, Body),
-  lager:debug( "[SERVER] Sending event [type=~s]", [EventType]),
+  ?LOG_DEBUG( "[SERVER] Sending event [type=~s]", [EventType]),
   send(Event, State0),
   State0#state{seq = Seq}.
 
@@ -166,9 +166,9 @@ do_send_event(EventType, Body, #state{seq = Seq0} = State0) ->
 do_send_request(Method, Params, #state{seq = RequestId0} = State0) ->
   RequestId = RequestId0 + 1,
   Request = els_dap_protocol:request(RequestId, Method, Params),
-  lager:debug( "[SERVER] Sending request [request=~p]"
-             , [Request]
-             ),
+  ?LOG_DEBUG( "[SERVER] Sending request [request=~p]"
+            , [Request]
+            ),
   send(Request, State0),
   State0#state{seq = RequestId}.
 

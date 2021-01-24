@@ -36,6 +36,7 @@
 %% Includes
 %%==============================================================================
 -include("erlang_ls.hrl").
+-include_lib("kernel/include/logger.hrl").
 
 %%==============================================================================
 %% Macros
@@ -96,7 +97,7 @@ reset_internal_state() ->
 %%==============================================================================
 -spec init(module()) -> {ok, state()}.
 init(Transport) ->
-  lager:info("Starting els_server..."),
+  ?LOG_INFO("Starting els_server..."),
   State = #state{ transport      = Transport
                 , request_id     = 0
                 , internal_state = #{}
@@ -138,45 +139,45 @@ handle_request(#{ <<"method">> := _ReqMethod } = Request
     {response, Result, NewInternalState} ->
       RequestId = maps:get(<<"id">>, Request),
       Response = els_protocol:response(RequestId, Result),
-      lager:debug("[SERVER] Sending response [response=~s]", [Response]),
+      ?LOG_DEBUG("[SERVER] Sending response [response=~s]", [Response]),
       send(Response, State0),
       State0#state{internal_state = NewInternalState};
     {error, Error, NewInternalState} ->
       RequestId = maps:get(<<"id">>, Request, null),
       ErrorResponse = els_protocol:error(RequestId, Error),
-      lager:debug( "[SERVER] Sending error response [response=~s]"
-                 , [ErrorResponse]
-                 ),
+      ?LOG_DEBUG( "[SERVER] Sending error response [response=~s]"
+                , [ErrorResponse]
+                ),
       send(ErrorResponse, State0),
       State0#state{internal_state = NewInternalState};
     {noresponse, NewInternalState} ->
-      lager:debug("[SERVER] No response", []),
+      ?LOG_DEBUG("[SERVER] No response", []),
       State0#state{internal_state = NewInternalState};
     {notification, M, P, NewInternalState} ->
       do_send_notification(M, P, State0),
       State0#state{internal_state = NewInternalState}
   end;
 handle_request(Response, State0) ->
-  lager:debug( "[SERVER] got request response [response=~p]"
-             , [Response]
-             ),
+  ?LOG_DEBUG( "[SERVER] got request response [response=~p]"
+            , [Response]
+            ),
   State0.
 
 -spec do_send_notification(binary(), map(), state()) -> ok.
 do_send_notification(Method, Params, State) ->
   Notification = els_protocol:notification(Method, Params),
-  lager:debug( "[SERVER] Sending notification [notification=~s]"
-             , [Notification]
-             ),
+  ?LOG_DEBUG( "[SERVER] Sending notification [notification=~s]"
+            , [Notification]
+            ),
   send(Notification, State).
 
 -spec do_send_request(binary(), map(), state()) -> state().
 do_send_request(Method, Params, #state{request_id = RequestId0} = State0) ->
   RequestId = RequestId0 + 1,
   Request = els_protocol:request(RequestId, Method, Params),
-  lager:debug( "[SERVER] Sending request [request=~p]"
-             , [Request]
-             ),
+  ?LOG_DEBUG( "[SERVER] Sending request [request=~p]"
+            , [Request]
+            ),
   send(Request, State0),
   State0#state{request_id = RequestId}.
 

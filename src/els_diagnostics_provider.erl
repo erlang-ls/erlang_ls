@@ -13,7 +13,12 @@
         , publish/2
         ]).
 
+
+%%==============================================================================
+%% Includes
+%%==============================================================================
 -include("erlang_ls.hrl").
+-include_lib("kernel/include/logger.hrl").
 
 -type state() :: #{in_progress => [progress_entry()]}.
 -type progress_entry() :: #{ uri := uri()
@@ -44,7 +49,7 @@ init() ->
 %% them every time we get a new chunk.
 -spec handle_info(any(), state()) -> state().
 handle_info({diagnostics, Diagnostics, Job}, State) ->
-  lager:debug("Received diagnostics [job=~p]", [Job]),
+  ?LOG_DEBUG("Received diagnostics [job=~p]", [Job]),
   #{ in_progress := InProgress } = State,
   { #{ pending := Jobs
      , diagnostics := OldDiagnostics
@@ -70,7 +75,7 @@ handle_info(_Request, State) ->
 handle_request({run_diagnostics, Params}, State) ->
   #{in_progress := InProgress} = State,
   #{<<"textDocument">> := #{<<"uri">> := Uri}} = Params,
-  lager:debug("Starting diagnostics jobs [uri=~p]", [Uri]),
+  ?LOG_DEBUG("Starting diagnostics jobs [uri=~p]", [Uri]),
   Jobs = els_diagnostics:run_diagnostics(Uri),
   Entry = #{uri => Uri, pending => Jobs, diagnostics => []},
   {noresponse, State#{in_progress => [Entry|InProgress]}}.

@@ -8,7 +8,11 @@
 -export([ server_capabilities/0
         ]).
 
+%%==============================================================================
+%% Includes
+%%==============================================================================
 -include("erlang_ls.hrl").
+-include_lib("kernel/include/logger.hrl").
 
 %%==============================================================================
 %% Types
@@ -80,16 +84,16 @@ handle_request({initialized, _Params}, State) ->
   NodeName = els_distribution_server:node_name( <<"erlang_ls">>
                                               , filename:basename(RootUri)),
   els_distribution_server:start_distribution(NodeName),
-  lager:info("Started distribution for: [~p]", [NodeName]),
+  ?LOG_INFO("Started distribution for: [~p]", [NodeName]),
   case maps:get(<<"indexingEnabled">>, InitOptions, true) of
     true  -> els_indexing:start();
-    false -> lager:info("Skipping Indexing (disabled via InitOptions)")
+    false -> ?LOG_INFO("Skipping Indexing (disabled via InitOptions)")
   end,
   {null, State};
 handle_request({shutdown, _Params}, State) ->
   {null, State};
 handle_request({exit, #{status := Status}}, State) ->
-  lager:info("Language server stopping..."),
+  ?LOG_INFO("Language server stopping..."),
   ExitCode = case Status of
                shutdown -> 0;
                _        -> 1

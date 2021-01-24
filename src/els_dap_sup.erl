@@ -20,6 +20,11 @@
 -export([ init/1 ]).
 
 %%==============================================================================
+%% Includes
+%%==============================================================================
+-include_lib("kernel/include/logger.hrl").
+
+%%==============================================================================
 %% Defines
 %%==============================================================================
 -define(SERVER, ?MODULE).
@@ -42,7 +47,7 @@ init([]) ->
               },
   {ok, Transport} = application:get_env(erlang_ls, transport),
   {ok, Vsn} = application:get_key(vsn),
-  lager:info("Starting session (version ~p)", [Vsn]),
+  ?LOG_INFO("Starting session (version ~p)", [Vsn]),
   %% Restrict access to stdio when using that transport
   restrict_stdio_access(Transport),
   ChildSpecs = [ #{ id    => els_dap_providers_sup
@@ -68,14 +73,14 @@ init([]) ->
 %% which can print warnings to standard output.
 -spec restrict_stdio_access(els_stdio | els_tcp) -> ok.
 restrict_stdio_access(els_stdio) ->
-  lager:info("Use group leader as io_device"),
+  ?LOG_INFO("Use group leader as io_device"),
   case application:get_env(erlang_ls, io_device, standard_io) of
     standard_io ->
       application:set_env(erlang_ls, io_device, erlang:group_leader());
     _ -> ok
   end,
 
-  lager:info("Replace group leader to avoid unwanted output to stdout"),
+  ?LOG_INFO("Replace group leader to avoid unwanted output to stdout"),
   Pid = erlang:spawn(fun noop_group_leader/0),
   erlang:group_leader(Pid, self()),
 
@@ -88,7 +93,7 @@ restrict_stdio_access(_) ->
 noop_group_leader() ->
   receive
     Message ->
-      lager:info("noop_group_leader got [message=~p]", [Message]),
+      ?LOG_INFO("noop_group_leader got [message=~p]", [Message]),
       case Message of
         {io_request, From, ReplyAs, getopts} ->
           From ! {io_reply, ReplyAs, []};

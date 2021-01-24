@@ -20,6 +20,7 @@
 %% Includes
 %%==============================================================================
 -include("erlang_ls.hrl").
+-include_lib("kernel/include/logger.hrl").
 
 %%==============================================================================
 %% Callback Functions
@@ -103,7 +104,7 @@ expand_includes([Uri|Uris], Graph, Visited) ->
                      , NewGraph
                      , sets:add_element(Uri, Visited));
     {ok, []} ->
-      lager:warning("Failed lookup while expanding includes [uri=~p]", [Uri]),
+      ?LOG_WARNING("Failed lookup while expanding includes [uri=~p]", [Uri]),
       []
   end.
 
