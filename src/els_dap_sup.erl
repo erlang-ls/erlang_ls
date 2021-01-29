@@ -50,7 +50,11 @@ init([]) ->
   ?LOG_INFO("Starting session (version ~p)", [Vsn]),
   %% Restrict access to stdio when using that transport
   restrict_stdio_access(Transport),
-  ChildSpecs = [ #{ id    => els_dap_providers_sup
+  ChildSpecs = [ #{ id       => els_config
+                  , start    => {els_config, start_link, []}
+                  , shutdown => brutal_kill
+                  }
+               , #{ id    => els_dap_providers_sup
                   , start => {els_dap_providers_sup, start_link, []}
                   , type  => supervisor
                   }
