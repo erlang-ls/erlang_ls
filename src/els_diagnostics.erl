@@ -57,7 +57,8 @@
 
 -spec available_diagnostics() -> [diagnostic_id()].
 available_diagnostics() ->
-  [ <<"compiler">>
+  [ <<"bound_var_in_pattern">>
+  , <<"compiler">>
   , <<"crossref">>
   , <<"dialyzer">>
   , <<"elvis">>

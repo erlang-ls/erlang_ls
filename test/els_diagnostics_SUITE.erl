@@ -11,7 +11,8 @@
         ]).
 
 %% Test cases
--export([ compiler/1
+-export([ bound_var_in_pattern/1
+        , compiler/1
         , compiler_with_behaviour/1
         , compiler_with_broken_behaviour/1
         , compiler_with_custom_macros/1
@@ -71,6 +72,11 @@ end_per_suite(Config) ->
   els_test_utils:end_per_suite(Config).
 
 -spec init_per_testcase(atom(), config()) -> config().
+init_per_testcase(bound_var_in_pattern, Config) ->
+  meck:new(els_bound_var_in_pattern_diagnostics, [passthrough, no_link]),
+  meck:expect(els_bound_var_in_pattern_diagnostics, is_default, 0, true),
+  els_mock_diagnostics:setup(),
+  els_test_utils:init_per_testcase(bound_var_in_pattern, Config);
 init_per_testcase(TestCase, Config) when TestCase =:= code_reload orelse
                                          TestCase =:= code_reload_sticky_mod ->
   mock_rpc(),
@@ -121,6 +127,11 @@ init_per_testcase(TestCase, Config) ->
   els_test_utils:init_per_testcase(TestCase, Config).
 
 -spec end_per_testcase(atom(), config()) -> ok.
+end_per_testcase(bound_var_in_pattern, Config) ->
+  meck:unload(els_bound_var_in_pattern_diagnostics),
+  els_test_utils:end_per_testcase(bound_var_in_pattern, Config),
+  els_mock_diagnostics:teardown(),
+  ok;
 end_per_testcase(TestCase, Config) when TestCase =:= code_reload orelse
                                         TestCase =:= code_reload_sticky_mod ->
   unmock_rpc(),
@@ -161,6 +172,42 @@ end_per_testcase(TestCase, Config) ->
 %%==============================================================================
 %% Testcases
 %%==============================================================================
+-spec bound_var_in_pattern(config()) -> ok.
+bound_var_in_pattern(Config) ->
+  Uri = ?config(diagnostics_bound_var_in_pattern_uri, Config),
+  els_mock_diagnostics:subscribe(),
+  ok = els_client:did_save(Uri),
+  Diagnostics = els_mock_diagnostics:wait_until_complete(),
+  Expected =
+    [ #{message => <<"Bound variable in pattern: Var1">>,
+        range =>
+          #{'end' => #{character => 6, line => 5},
+            start => #{character => 2, line => 5}},
+        severity => 4,
+        source => <<"BoundVarInPattern">>},
+      #{message => <<"Bound variable in pattern: Var2">>,
+        range =>
+          #{'end' => #{character => 13, line => 9},
+            start => #{character => 9, line => 9}},
+        severity => 4,
+        source => <<"BoundVarInPattern">>},
+      #{message => <<"Bound variable in pattern: Var3">>,
+        range =>
+          #{'end' => #{character => 14, line => 15},
+            start => #{character => 10, line => 15}},
+        severity => 4,
+        source => <<"BoundVarInPattern">>},
+      #{message => <<"Bound variable in pattern: Var4">>,
+        range =>
+          #{'end' => #{character => 12, line => 17},
+            start => #{character => 8, line => 17}},
+        severity => 4,
+        source => <<"BoundVarInPattern">>}
+    ],
+  F = fun(#{message := M1}, #{message := M2}) -> M1 =< M2 end,
+  ?assertEqual(Expected, lists:sort(F, Diagnostics)),
+  ok.
+
 -spec compiler(config()) -> ok.
 compiler(Config) ->
   Uri = ?config(diagnostics_uri, Config),
