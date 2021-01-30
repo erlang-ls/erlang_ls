@@ -13,16 +13,17 @@
 %% Includes
 %%==============================================================================
 -include("erlang_ls.hrl").
-
-%%==============================================================================
-%% Defines
-%%==============================================================================
--define(DEFAULT_SUB_INDENT, 2).
+-include_lib("kernel/include/logger.hrl").
 
 %%==============================================================================
 %% Types
 %%==============================================================================
 -type state() :: any().
+
+%%==============================================================================
+%% Macro Definitions
+%%==============================================================================
+-define(DEFAULT_SUB_INDENT, 2).
 
 %%==============================================================================
 %% els_provider functions
@@ -50,9 +51,17 @@ handle_request({document_formatting, Params}, State) ->
   #{ <<"options">>      := Options
    , <<"textDocument">> := #{<<"uri">> := Uri}
    } = Params,
-  {ok, Document} = els_utils:lookup_document(Uri),
-  case format_document(Uri, Document, Options) of
-    {ok, TextEdit} -> {TextEdit, State}
+  Path = els_uri:path(Uri),
+  case els_utils:project_relative(Uri) of
+    {error, not_relative} ->
+      {[], State};
+    RelativePath ->
+      case els_config:get(bsp_enabled) of
+        true ->
+          {format_document_bsp(Path, RelativePath, Options), State};
+        false ->
+          {format_document_local(Path, RelativePath, Options), State}
+      end
   end;
 handle_request({document_rangeformatting, Params}, State) ->
   #{ <<"range">>     := #{ <<"start">> := StartPos
@@ -84,28 +93,37 @@ handle_request({document_ontypeformatting, Params}, State) ->
 %% Internal functions
 %%==============================================================================
 
--spec format_document(uri(), map(), formatting_options())
-                     -> {ok, [text_edit()]}.
-format_document(Uri, _Document, #{ <<"insertSpaces">> := InsertSpaces
-                                 , <<"tabSize">> := TabSize } = Options) ->
-    Path = els_uri:path(Uri),
-    SubIndent = maps:get(<<"subIndent">>, Options, ?DEFAULT_SUB_INDENT),
-    Opts0 = #{ remove_tabs => InsertSpaces
-             , break_indent => TabSize
-             , sub_indent => SubIndent
-             },
-    case els_utils:project_relative(Uri) of
-      {error, not_relative} -> {ok, []};
-      RelPath ->
-        Fun = fun(Dir) ->
-          Opts = Opts0#{output_dir => Dir},
-          rebar3_formatter:format(RelPath, default_formatter, Opts),
-          OutFile = filename:join(Dir, RelPath),
-          els_text_edit:diff_files(Path, OutFile)
+-spec format_document_bsp(binary(), string(), formatting_options()) ->
+        [text_edit()].
+format_document_bsp(Path, RelativePath, _Options) ->
+  Fun = fun(Dir) ->
+            Params = #{ <<"output">>  => els_utils:to_binary(Dir)
+                      , <<"file">> => els_utils:to_binary(RelativePath)
+                      },
+            els_bsp_client:custom_format(Params),
+            OutFile = filename:join(Dir, RelativePath),
+            els_text_edit:diff_files(Path, OutFile)
         end,
-        TextEdits = tempdir:mktmp(Fun),
-        {ok, TextEdits}
-    end.
+  tempdir:mktmp(Fun).
+
+-spec format_document_local(binary(), string(), formatting_options()) ->
+        [text_edit()].
+format_document_local(Path, RelativePath,
+                      #{ <<"insertSpaces">> := InsertSpaces
+                       , <<"tabSize">> := TabSize } = Options) ->
+  SubIndent = maps:get(<<"subIndent">>, Options, ?DEFAULT_SUB_INDENT),
+  Opts0 = #{ remove_tabs => InsertSpaces
+           , break_indent => TabSize
+           , sub_indent => SubIndent
+           },
+  Fun = fun(Dir) ->
+            Opts = Opts0#{output_dir => Dir},
+            Formatter = rebar3_formatter:new(default_formatter, Opts, unused),
+            rebar3_formatter:format_file(RelativePath, Formatter),
+            OutFile = filename:join(Dir, RelativePath),
+            els_text_edit:diff_files(Path, OutFile)
+        end,
+  tempdir:mktmp(Fun).
 
 -spec rangeformat_document(uri(), map(), range(), formatting_options())
                           -> {ok, [text_edit()]}.
