@@ -151,6 +151,7 @@ sources() ->
   , completion_caller
   , completion_snippets
   , diagnostics
+  , diagnostics_bound_var_in_pattern
   , diagnostics_behaviour
   , diagnostics_behaviour_impl
   , diagnostics_macros
