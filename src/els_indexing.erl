@@ -65,7 +65,15 @@ index(Uri, Text, Mode) ->
 
 -spec do_index(els_dt_document:item(), mode()) -> ok.
 do_index(#{uri := Uri, id := Id, kind := Kind} = Document, Mode) ->
-  ok = els_dt_document:insert(Document),
+  case Mode of
+    'deep' ->
+      ok = els_dt_document:insert(Document);
+    'shallow' ->
+      %% Don't store detailed POIs when "shallow" indexing.
+      %% They will be reloaded and inserted when needed
+      %% by calling els_utils:lookup_document/1
+      ok
+  end,
   %% Mapping from document id to uri
   ModuleItem = els_dt_document_index:new(Id, Uri, Kind),
   ok = els_dt_document_index:insert(ModuleItem),
