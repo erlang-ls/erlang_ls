@@ -85,6 +85,14 @@ handle_request({initialized, _Params}, State) ->
                                               , filename:basename(RootUri)),
   els_distribution_server:start_distribution(NodeName),
   ?LOG_INFO("Started distribution for: [~p]", [NodeName]),
+  case els_config:get(bsp_enabled) of
+    true ->
+      ?LOG_INFO("Starting BSP Client"),
+      RootPath = binary_to_list(els_uri:path(RootUri)),
+      els_bsp_client:start_link(RootPath);
+    false ->
+      ok
+  end,
   case maps:get(<<"indexingEnabled">>, InitOptions, true) of
     true  -> els_indexing:start();
     false -> ?LOG_INFO("Skipping Indexing (disabled via InitOptions)")

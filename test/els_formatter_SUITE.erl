@@ -70,18 +70,14 @@ format_doc(Config) ->
     Uri = ?config(format_input_uri, Config),
     #{result := Result} = els_client:document_formatting(Uri, 8, true),
     ?assertEqual(
-       [ #{newText => <<"-spec main(any()) -> any().\n">>,
-           range =>
-             #{'end' => #{character => 0, line => 5},
-               start => #{character => 0, line => 4}}}
-       , #{newText => <<"        X.\n">>,
-           range =>
-             #{'end' => #{character => 0, line => 7},
-               start => #{character => 0, line => 6}}}
-       , #{newText => <<>>,
-           range =>
-             #{'end' => #{character => 0, line => 9},
-               start => #{character => 0, line => 8}}}
+       [#{newText => <<"-spec main(any()) -> any().\n">>,
+          range =>
+            #{'end' => #{character => 0, line => 5},
+              start => #{character => 0, line => 4}}},
+        #{newText => <<"        X.\n">>,
+          range =>
+            #{'end' => #{character => 0, line => 9},
+              start => #{character => 0, line => 6}}}
        ]
       , Result)
   after
