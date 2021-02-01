@@ -64,6 +64,11 @@ init() ->
 
 -spec handle_request(request(), state()) -> {result(), state()}.
 handle_request({<<"initialize">>, _Params}, State) ->
+  %% quick fix to satisfy els_config initialization
+  {ok, RootPath} = file:get_cwd(),
+  RootUri = els_uri:uri(els_utils:to_binary(RootPath)),
+  InitOptions = #{},
+  ok = els_config:initialize(RootUri, capabilities(), InitOptions),
   {capabilities(), State};
 handle_request({<<"launch">>, Params}, State) ->
   #{<<"cwd">> := Cwd} = Params,
@@ -138,6 +143,7 @@ handle_request( {<<"setBreakpoints">>, Params}
   els_distribution_server:wait_connect_and_monitor(ProjectNode),
 
   %% TODO: Keep a list of interpreted modules, not to re-interpret them
+  els_dap_rpc:no_break(ProjectNode),
   els_dap_rpc:i(ProjectNode, Module),
   [els_dap_rpc:break(ProjectNode, Module, Line) ||
     #{<<"line">> := Line} <- SourceBreakpoints],
@@ -146,6 +152,34 @@ handle_request( {<<"setBreakpoints">>, Params}
   {#{<<"breakpoints">> => Breakpoints}, State};
 handle_request({<<"setExceptionBreakpoints">>, _Params}, State) ->
   {#{}, State};
+handle_request({<<"setFunctionBreakpoints">>, Params}
+              , #{project_node := ProjectNode} = State
+              ) ->
+  FunctionBreakPoints = maps:get(<<"breakpoints">>, Params, []),
+  els_distribution_server:wait_connect_and_monitor(ProjectNode),
+
+  els_dap_rpc:no_break(ProjectNode),
+  MFAs = [
+    begin
+      Spec = {Mod, _, _} = parse_mfa(MFA),
+      els_dap_rpc:i(ProjectNode, Mod),
+      Spec
+      end
+       ||
+    #{<<"name">> := MFA, <<"enabled">>:= Enabled} <- FunctionBreakPoints,
+    Enabled andalso parse_mfa(MFA) =/= error
+  ],
+  [ els_dap_rpc:break_in(ProjectNode, Mod, Func, Arity)
+    || {Mod, Func, Arity} <- MFAs
+  ],
+  Breakpoints =
+    [ #{ <<"verified">> => true
+      ,  <<"line">>     => Line
+      , <<"source">>    => #{ <<"path">> => source(Module, ProjectNode)}}
+    || {{Module, Line}, [Status, _, _, _]}
+        <- els_dap_rpc:all_breaks(ProjectNode)
+    , Status =:= active],
+  {#{<<"breakpoints">> => Breakpoints}, State};
 handle_request({<<"threads">>, _Params}, #{threads := Threads0} = State) ->
   Threads =
     [ #{ <<"id">> => Id
@@ -256,7 +290,8 @@ handle_info( {int_cb, ThreadPid}
 -spec capabilities() -> capabilities().
 capabilities() ->
   #{ <<"supportsConfigurationDoneRequest">> => true
-   , <<"supportsEvaluateForHovers">> => true }.
+   , <<"supportsEvaluateForHovers">> => true
+   , <<"supportsFunctionBreakpoints">> => true}.
 
 %%==============================================================================
 %% Internal Functions
@@ -316,3 +351,24 @@ frame_by_id(FrameId, Threads) ->
 -spec format_mfa(module(), atom(), integer()) -> binary().
 format_mfa(M, F, A) ->
   els_utils:to_binary(io_lib:format("~p:~p/~p", [M, F, A])).
+
+-spec parse_mfa(string()) -> {module(), atom(), non_neg_integer()} | error.
+parse_mfa(MFABinary) ->
+  MFA = unicode:characters_to_list(MFABinary),
+  case erl_scan:string(MFA) of
+    {ok, [ {'fun', _}
+         , {atom, _, Module}
+         , {':', _}
+         , {atom, _, Function}
+         , {'/', _}
+         , {integer, _, Arity}], _} when Arity >= 0 ->
+      {Module, Function, Arity};
+    {ok, [ {atom, _, Module}
+         , {':', _}
+         , {atom, _, Function}
+         , {'/', _}
+         , {integer, _, Arity}], _} when Arity >= 0 ->
+      {Module, Function, Arity};
+    _ ->
+      error
+  end.
