@@ -31,12 +31,17 @@ is_default() ->
 
 -spec run(uri()) -> [els_diagnostics:diagnostic()].
 run(Uri) ->
-  case els_dt_document:lookup(Uri) of
-    {ok, []} ->
-      [];
-    {ok, [Document|_]} ->
-      UnusedMacros = find_unused_macros(Document),
-      [make_diagnostic(POI) || POI <- UnusedMacros ]
+  case filename:extension(Uri) of
+    <<".erl">> ->
+      case els_dt_document:lookup(Uri) of
+        {ok, []} ->
+          [];
+        {ok, [Document|_]} ->
+          UnusedMacros = find_unused_macros(Document),
+          [make_diagnostic(POI) || POI <- UnusedMacros ]
+      end;
+    _ ->
+      []
   end.
 
 -spec source() -> binary().
