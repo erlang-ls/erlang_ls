@@ -66,7 +66,7 @@ init() ->
 handle_request({<<"initialize">>, _Params}, State) ->
   %% quick fix to satisfy els_config initialization
   {ok, RootPath} = file:get_cwd(),
-  RootUri = unicode:characters_to_binary(["file://", RootPath]),
+  RootUri = els_uri:uri(els_utils:to_binary(RootPath)),
   InitOptions = #{},
   ok = els_config:initialize(RootUri, capabilities(), InitOptions),
   {capabilities(), State};
@@ -355,7 +355,6 @@ format_mfa(M, F, A) ->
 -spec parse_mfa(string()) -> {module(), atom(), non_neg_integer()} | error.
 parse_mfa(MFABinary) ->
   MFA = unicode:characters_to_list(MFABinary),
-  ?LOG_DEBUG("tokens for ~p: ~w", [MFA,  erl_scan:string(MFA)]),
   case erl_scan:string(MFA) of
     {ok, [ {'fun', _}
          , {atom, _, Module}
