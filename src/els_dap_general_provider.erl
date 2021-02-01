@@ -48,8 +48,13 @@
 -type state()        :: #{ threads => #{thread_id() => thread()}
                          , project_node => atom()
                          , launch_params => #{}
+                         , scope_bindings =>
+                          #{pos_integer() => {binding_type(), bindings()}}
                          }.
-
+-type bindings()     :: [{varname(), term()}].
+-type varname()      :: atom() | string().
+%% extendable bindings type for customized pretty printing
+-type binding_type() :: generic | map_assoc.
 %%==============================================================================
 %% els_provider functions
 %%==============================================================================
@@ -143,7 +148,6 @@ handle_request( {<<"setBreakpoints">>, Params}
   els_distribution_server:wait_connect_and_monitor(ProjectNode),
 
   %% TODO: Keep a list of interpreted modules, not to re-interpret them
-  els_dap_rpc:no_break(ProjectNode),
   els_dap_rpc:i(ProjectNode, Module),
   [els_dap_rpc:break(ProjectNode, Module, Line) ||
     #{<<"line">> := Line} <- SourceBreakpoints],
@@ -157,8 +161,6 @@ handle_request({<<"setFunctionBreakpoints">>, Params}
               ) ->
   FunctionBreakPoints = maps:get(<<"breakpoints">>, Params, []),
   els_distribution_server:wait_connect_and_monitor(ProjectNode),
-
-  els_dap_rpc:no_break(ProjectNode),
   MFAs = [
     begin
       Spec = {Mod, _, _} = parse_mfa(MFA),
@@ -208,9 +210,19 @@ handle_request({<<"stackTrace">>, Params}, #{threads := Threads} = State) ->
          } <- maps:to_list(Frames)
     ],
   {#{<<"stackFrames">> => StackFrames}, State};
-handle_request({<<"scopes">>, Params}, State) ->
-  #{<<"frameId">> := _FrameId} = Params,
-  {#{<<"scopes">> => []}, State};
+handle_request({<<"scopes">>, #{<<"frameId">> := FrameId} }
+                 , #{ threads := Threads
+                 } = State) ->
+  Frame = frame_by_id(FrameId, maps:values(Threads)),
+  Bindings = maps:get(bindings, Frame),
+  Ref = erlang:unique_integer([positive]),
+  {#{<<"scopes">> => [
+    #{
+      <<"name">> => <<"Locals">>,
+      <<"presentationHint">> => <<"locals">>,
+      <<"variablesReference">> => Ref
+    }
+  ]}, State#{scope_bindings => #{Ref => {generic, Bindings}}}};
 handle_request( {<<"next">>, Params}
               , #{ threads := Threads
                  , project_node := ProjectNode
@@ -260,9 +272,14 @@ handle_request({<<"evaluate">>, #{ <<"context">> := <<"hover">>
   Return = els_dap_rpc:eval(ProjectNode, Input, Bindings),
   Result = els_utils:to_binary(io_lib:format("~p", [Return])),
   {#{<<"result">> => Result}, State};
-handle_request({<<"variables">>, _Params}, State) ->
-  %% TODO: Return variables
-  {#{<<"variables">> => []}, State};
+handle_request({<<"variables">>, #{<<"variablesReference">> := Ref
+                                  } = _Params}
+              , #{ scope_bindings := AllBindings
+                 } = State) ->
+  #{Ref := {Type, Bindings}} = AllBindings,
+  {Variables, MoreBindings} = build_variables(Type, Bindings),
+  { #{<<"variables">> => Variables}
+  , State#{ scope_bindings => maps:merge(AllBindings, MoreBindings)}};
 handle_request({<<"disconnect">>, _Params}, State) ->
   els_utils:halt(0),
   {#{}, State}.
@@ -372,3 +389,99 @@ parse_mfa(MFABinary) ->
     _ ->
       error
   end.
+
+-spec build_variables(binding_type(), bindings()) ->
+  {[any()], #{pos_integer() => bindings()}}.
+build_variables(Type, Bindings) ->
+  build_variables(Type, Bindings, {[], #{}}).
+
+-spec build_variables(binding_type(), bindings(), Acc) -> Acc
+  when Acc :: {[any()], #{pos_integer() => bindings()}}.
+build_variables(_, [], Acc) ->
+  Acc;
+build_variables(generic, [{Name, Value} | Rest], Acc) when is_list(Value) ->
+  build_variables(
+    generic,
+    Rest,
+    add_var_to_acc(Name, Value, build_list_bindings(Value), Acc)
+  );
+build_variables(generic, [{Name, Value} | Rest], Acc) when is_tuple(Value) ->
+  build_variables(
+    generic,
+    Rest,
+    add_var_to_acc(Name, Value, build_tuple_bindings(Value), Acc)
+  );
+build_variables(generic, [{Name, Value} | Rest], Acc) when is_map(Value) ->
+  build_variables(
+    generic,
+    Rest,
+    add_var_to_acc(Name, Value, build_map_bindings(Value), Acc)
+  );
+build_variables(generic, [{Name, Value} | Rest], Acc) ->
+  build_variables(
+    generic,
+    Rest,
+    add_var_to_acc(Name, Value, none, Acc)
+  );
+build_variables(map_assoc, [{Name, Assocs} | Rest], Acc) ->
+  {_, [{'Key', Key}, {'Value', Value}]} = Assocs,
+  build_variables(
+    map_assoc,
+    Rest,
+    add_var_to_acc(Name, {Key, Value}, Assocs, Acc)
+  ).
+
+-spec add_var_to_acc(
+  varname(),
+  term(),
+  none | {binding_type(), bindings()},
+  Acc
+) -> Acc
+  when Acc :: {[any()], #{non_neg_integer() => bindings()}}.
+add_var_to_acc(Name, Value, none, {VarAcc, BindAcc}) ->
+  { [build_variable(Name, Value, 0) | VarAcc]
+  , BindAcc};
+add_var_to_acc(Name, Value, Bindings, {VarAcc, BindAcc}) ->
+  Ref = erlang:unique_integer([positive]),
+  { [build_variable(Name, Value, Ref) | VarAcc]
+  , BindAcc#{ Ref => Bindings}
+  }.
+
+-spec build_variable(varname(), term(), non_neg_integer()) -> any().
+build_variable(Name, Value, Ref) ->
+  %% print whole term to enable copying if the value
+  #{ <<"name">> => unicode:characters_to_binary(io_lib:format("~s", [Name]))
+   , <<"value">> => unicode:characters_to_binary(io_lib:format("~p", [Value]))
+   , <<"variablesReference">> => Ref }.
+
+-spec build_list_bindings(list()) -> {binding_type(), bindings()}.
+build_list_bindings(List) ->
+  {_, Bindings} =
+    lists:foldl(
+      fun (E, {Cnt, Acc}) ->
+        { Cnt + 1
+        , [{erlang:integer_to_list(Cnt), E} | Acc]}
+      end,
+      {0, []}, List),
+  {generic, Bindings}.
+
+-spec build_tuple_bindings(tuple()) -> {binding_type(), bindings()}.
+build_tuple_bindings(Tuple) ->
+  build_list_bindings(erlang:tuple_to_list(Tuple)).
+
+-spec build_map_bindings(map()) -> {binding_type(), bindings()}.
+build_map_bindings(Map) ->
+  {_, Bindings} =
+    lists:foldl(
+      fun ({Key, Value}, {Cnt, Acc}) ->
+        Name =
+          unicode:characters_to_binary(
+            io_lib:format("~p => ~p", [Key, Value])),
+        { Cnt + 1
+        , [{ Name
+           , {generic, [{'Key', Key}, {'Value', Value}]}
+           } | Acc]
+        }
+      end,
+      {0, []}, maps:to_list(Map)),
+  {map_assoc, Bindings}.
