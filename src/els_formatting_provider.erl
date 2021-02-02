@@ -100,7 +100,7 @@ format_document_bsp(Path, RelativePath, _Options) ->
             Params = #{ <<"output">>  => els_utils:to_binary(Dir)
                       , <<"file">> => els_utils:to_binary(RelativePath)
                       },
-            els_bsp_client:custom_format(Params),
+            els_bsp_client:request(<<"custom/format">>, Params),
             OutFile = filename:join(Dir, RelativePath),
             els_text_edit:diff_files(Path, OutFile)
         end,
