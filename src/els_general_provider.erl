@@ -87,9 +87,18 @@ handle_request({initialized, _Params}, State) ->
   ?LOG_INFO("Started distribution for: [~p]", [NodeName]),
   case els_config:get(bsp_enabled) of
     true ->
-      ?LOG_INFO("Starting BSP Client"),
-      RootPath = binary_to_list(els_uri:path(RootUri)),
-      els_bsp_client:start_link(RootPath);
+      ok = els_bsp_client:start_server(RootUri),
+      {ok, Vsn} = application:get_key(erlang_ls, vsn),
+      els_bsp_client:request(
+        <<"build/initialize">>
+          , #{ <<"displayName">>  => <<"Erlang LS BSP Client">>
+             , <<"version">>      => list_to_binary(Vsn)
+             , <<"bspVersion">>   => <<"2.0.0">>
+             , <<"rootUri">>      => RootUri
+             , <<"capabilities">> => #{ <<"languageIds">> => [<<"erlang">>] }
+             , <<"data">>         => #{}
+             }
+       );
     false ->
       ok
   end,
