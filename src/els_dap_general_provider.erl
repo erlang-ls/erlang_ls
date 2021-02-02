@@ -424,7 +424,7 @@ build_variables(generic, [{Name, Value} | Rest], Acc) ->
     add_var_to_acc(Name, Value, none, Acc)
   );
 build_variables(map_assoc, [{Name, Assocs} | Rest], Acc) ->
-  {_, [{'Key', Key}, {'Value', Value}]} = Assocs,
+  {_, [{'Value', Value}, {'Key', Key}]} = Assocs,
   build_variables(
     map_assoc,
     Rest,
@@ -454,16 +454,11 @@ build_variable(Name, Value, Ref) ->
    , <<"value">> => unicode:characters_to_binary(io_lib:format("~p", [Value]))
    , <<"variablesReference">> => Ref }.
 
--spec build_list_bindings(list()) -> {binding_type(), bindings()}.
+-spec build_list_bindings(
+  maybe_improper_list()
+) -> {binding_type(), bindings()}.
 build_list_bindings(List) ->
-  {_, Bindings} =
-    lists:foldl(
-      fun (E, {Cnt, Acc}) ->
-        { Cnt + 1
-        , [{erlang:integer_to_list(Cnt), E} | Acc]}
-      end,
-      {0, []}, List),
-  {generic, Bindings}.
+  build_maybe_improper_list_bindings(List, 0, []).
 
 -spec build_tuple_bindings(tuple()) -> {binding_type(), bindings()}.
 build_tuple_bindings(Tuple) ->
@@ -479,9 +474,23 @@ build_map_bindings(Map) ->
             io_lib:format("~p => ~p", [Key, Value])),
         { Cnt + 1
         , [{ Name
-           , {generic, [{'Key', Key}, {'Value', Value}]}
+           , {generic, [{'Value', Value}, {'Key', Key}]}
            } | Acc]
         }
       end,
       {0, []}, maps:to_list(Map)),
   {map_assoc, Bindings}.
+
+-spec build_maybe_improper_list_bindings(
+  maybe_improper_list(),
+  non_neg_integer(),
+  bindings()
+) -> {binding_type(), bindings()}.
+build_maybe_improper_list_bindings([], _, Acc) ->
+  {generic, Acc};
+build_maybe_improper_list_bindings([E | Tail], Cnt, Acc) ->
+  Binding = {erlang:integer_to_list(Cnt), E},
+  build_maybe_improper_list_bindings(Tail, Cnt + 1, [Binding | Acc]);
+build_maybe_improper_list_bindings(ImproperTail, _Cnt, Acc) ->
+  Binding = {"improper tail", ImproperTail},
+  build_maybe_improper_list_bindings([], 0, [Binding | Acc]).
