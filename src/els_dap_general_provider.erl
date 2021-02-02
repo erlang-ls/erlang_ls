@@ -277,9 +277,10 @@ handle_request({<<"variables">>, #{<<"variablesReference">> := Ref
               , #{ scope_bindings := AllBindings
                  } = State) ->
   #{Ref := {Type, Bindings}} = AllBindings,
+  RestBindings = maps:remove(Ref, AllBindings),
   {Variables, MoreBindings} = build_variables(Type, Bindings),
   { #{<<"variables">> => Variables}
-  , State#{ scope_bindings => maps:merge(AllBindings, MoreBindings)}};
+  , State#{ scope_bindings => maps:merge(RestBindings, MoreBindings)}};
 handle_request({<<"disconnect">>, _Params}, State) ->
   els_utils:halt(0),
   {#{}, State}.
