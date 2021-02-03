@@ -65,7 +65,8 @@ is_enabled() -> true.
 -spec init() -> state().
 init() ->
   #{ threads => #{}
-   , launch_params => #{} }.
+   , launch_params => #{}
+   , scope_bindings => #{}}.
 
 -spec handle_request(request(), state()) -> {result(), state()}.
 handle_request({<<"initialize">>, _Params}, State) ->
@@ -185,7 +186,7 @@ handle_request({<<"setFunctionBreakpoints">>, Params}
 handle_request({<<"threads">>, _Params}, #{threads := Threads0} = State) ->
   Threads =
     [ #{ <<"id">> => Id
-       , <<"name">> => els_utils:to_binary(io_lib:format("~p", [Pid]))
+       , <<"name">> => format_term(Pid)
        } || {Id, #{pid := Pid} = _Thread} <- maps:to_list(Threads0)
     ],
   {#{<<"threads">> => Threads}, State};
@@ -212,17 +213,20 @@ handle_request({<<"stackTrace">>, Params}, #{threads := Threads} = State) ->
   {#{<<"stackFrames">> => StackFrames}, State};
 handle_request({<<"scopes">>, #{<<"frameId">> := FrameId} }
                  , #{ threads := Threads
-                 } = State) ->
-  Frame = frame_by_id(FrameId, maps:values(Threads)),
-  Bindings = maps:get(bindings, Frame),
-  Ref = erlang:unique_integer([positive]),
-  {#{<<"scopes">> => [
-    #{
-      <<"name">> => <<"Locals">>,
-      <<"presentationHint">> => <<"locals">>,
-      <<"variablesReference">> => Ref
-    }
-  ]}, State#{scope_bindings => #{Ref => {generic, Bindings}}}};
+                    , scope_bindings := ExistingScopes} = State) ->
+  case frame_by_id(FrameId, maps:values(Threads)) of
+    undefined -> {#{<<"scopes">> => []}, State};
+    Frame ->
+      Bindings = maps:get(bindings, Frame),
+      Ref = erlang:unique_integer([positive]),
+      {#{<<"scopes">> => [
+        #{
+          <<"name">> => <<"Locals">>,
+          <<"presentationHint">> => <<"locals">>,
+          <<"variablesReference">> => Ref
+        }
+      ]}, State#{scope_bindings => ExistingScopes#{Ref => {generic, Bindings}}}}
+  end;
 handle_request( {<<"next">>, Params}
               , #{ threads := Threads
                  , project_node := ProjectNode
@@ -263,15 +267,41 @@ handle_request({<<"evaluate">>, #{ <<"context">> := <<"hover">>
                                  , <<"frameId">> := FrameId
                                  , <<"expression">> := Input
                                  } = _Params}
+              , #{ threads := Threads } = State
+              ) ->
+  %% hover makes only sense for variables
+  %% use the expression as fallback
+  case frame_by_id(FrameId, maps:values(Threads)) of
+    undefined ->   {#{<<"result">> => <<"not available">>}, State};
+    Frame ->
+      Bindings = maps:get(bindings, Frame),
+      VarName = erlang:list_to_atom(els_utils:to_list(Input)),
+      case proplists:lookup(VarName, Bindings) of
+        {VarName, VarValue} ->
+          build_evaluate_response(VarValue, State);
+        none ->
+          {#{<<"result">> => <<"not available">>}, State}
+      end
+  end;
+handle_request({<<"evaluate">>, #{ <<"context">> := Context
+                                 , <<"frameId">> := FrameId
+                                 , <<"expression">> := Input
+                                 } = _Params}
               , #{ threads := Threads
                  , project_node := ProjectNode
                  } = State
-              ) ->
-  Frame = frame_by_id(FrameId, maps:values(Threads)),
-  Bindings = maps:get(bindings, Frame),
-  Return = els_dap_rpc:eval(ProjectNode, Input, Bindings),
-  Result = els_utils:to_binary(io_lib:format("~p", [Return])),
-  {#{<<"result">> => Result}, State};
+) when Context =:= <<"watch">> orelse Context =:= <<"repl">> ->
+  %% repl and watch can use whole expressions,
+  %% but we still want structured variable scopes
+  case pid_by_frame_id(FrameId, maps:values(Threads)) of
+    undefined ->
+      {#{<<"result">> => <<"not available">>}, State};
+    Pid  ->
+      {ok, Meta} = els_dap_rpc:get_meta(ProjectNode, Pid),
+      Command = els_utils:to_list(Input),
+      Return = els_dap_rpc:meta_eval(ProjectNode, Meta, Command),
+      build_evaluate_response(Return, State)
+  end;
 handle_request({<<"variables">>, #{<<"variablesReference">> := Ref
                                   } = _Params}
               , #{ scope_bindings := AllBindings
@@ -328,19 +358,17 @@ id(Pid) ->
 -spec stack_frames(pid(), atom()) -> #{frame_id() => frame()}.
 stack_frames(Pid, Node) ->
   {ok, Meta} = els_dap_rpc:get_meta(Node, Pid),
-  %% TODO: Also examine rest of list
-  [{_Level, {M, F, A}} | _] =
+  [{Level, {M, F, A}} | Rest] =
     els_dap_rpc:meta(Node, Meta, backtrace, all),
-  Bindings = els_dap_rpc:meta(Node, Meta, bindings, nostack),
+  Bindings = els_dap_rpc:meta(Node, Meta, bindings, Level),
   StackFrameId = erlang:unique_integer([positive]),
   StackFrame = #{ module    => M
                 , function  => F
                 , arguments => A
                 , source    => source(M, Node)
                 , line      => break_line(Pid, Node)
-                , bindings  => Bindings
-                },
-  #{StackFrameId => StackFrame}.
+                , bindings  => Bindings},
+  collect_frames(Node, Meta, Level, Rest, #{StackFrameId => StackFrame}).
 
 -spec break_line(pid(), atom()) -> integer().
 break_line(Pid, Node) ->
@@ -351,6 +379,7 @@ break_line(Pid, Node) ->
 -spec source(atom(), atom()) -> binary().
 source(Module, Node) ->
   CompileOpts = els_dap_rpc:module_info(Node, Module, compile),
+  els_dap_rpc:clear(Node),
   Source = proplists:get_value(source, CompileOpts),
   unicode:characters_to_binary(Source).
 
@@ -359,12 +388,25 @@ to_pid(ThreadId, Threads) ->
   Thread = maps:get(ThreadId, Threads),
   maps:get(pid, Thread).
 
--spec frame_by_id(frame_id(), [thread()]) -> frame().
+-spec frame_by_id(frame_id(), [thread()]) -> frame() | undefined.
 frame_by_id(FrameId, Threads) ->
-  [Frame] = [ maps:get(FrameId, Frames)
-              ||  #{frames := Frames} <- Threads, maps:is_key(FrameId, Frames)
-            ],
-  Frame.
+  case [  maps:get(FrameId, Frames)
+       || #{frames := Frames} <- Threads, maps:is_key(FrameId, Frames)
+       ] of
+      [Frame] -> Frame;
+      _ -> undefined
+  end.
+
+-spec pid_by_frame_id(frame_id(), [thread()]) -> pid() | undefined.
+pid_by_frame_id(FrameId, Threads) ->
+  case [  Pid
+       || #{frames := Frames, pid := Pid} <- Threads
+       ,  maps:is_key(FrameId, Frames)
+       ] of
+    [Proc] -> Proc;
+    _ ->
+      undefined
+  end.
 
 -spec format_mfa(module(), atom(), integer()) -> binary().
 format_mfa(M, F, A) ->
@@ -452,7 +494,7 @@ add_var_to_acc(Name, Value, Bindings, {VarAcc, BindAcc}) ->
 build_variable(Name, Value, Ref) ->
   %% print whole term to enable copying if the value
   #{ <<"name">> => unicode:characters_to_binary(io_lib:format("~s", [Name]))
-   , <<"value">> => unicode:characters_to_binary(io_lib:format("~p", [Value]))
+   , <<"value">> => format_term(Value)
    , <<"variablesReference">> => Ref }.
 
 -spec build_list_bindings(
@@ -472,7 +514,7 @@ build_map_bindings(Map) ->
       fun ({Key, Value}, {Cnt, Acc}) ->
         Name =
           unicode:characters_to_binary(
-            io_lib:format("~p => ~p", [Key, Value])),
+            io_lib:format("~s => ~s", [format_term(Key), format_term(Value)])),
         { Cnt + 1
         , [{ Name
            , {generic, [{'Value', Value}, {'Key', Key}]}
@@ -495,3 +537,65 @@ build_maybe_improper_list_bindings([E | Tail], Cnt, Acc) ->
 build_maybe_improper_list_bindings(ImproperTail, _Cnt, Acc) ->
   Binding = {"improper tail", ImproperTail},
   build_maybe_improper_list_bindings([], 0, [Binding | Acc]).
+
+-spec is_structured(term()) -> boolean().
+is_structured(Term) when
+  is_list(Term) orelse
+  is_map(Term) orelse
+  is_tuple(Term) -> true;
+is_structured(_) -> false.
+
+-spec build_evaluate_response(term(), state()) -> {any(), state()}.
+build_evaluate_response(
+  ResultValue,
+  State = #{scope_bindings := ExistingScopes}
+) ->
+  ResultBinary = format_term(ResultValue),
+  case is_structured(ResultValue) of
+        true ->
+          {_, SubScope} = build_variables(generic, [{undefined, ResultValue}]),
+          %% there is onlye one sub-scope returned
+          [Ref] = maps:keys(SubScope),
+          NewScopes = maps:merge(ExistingScopes, SubScope),
+          { #{<<"result">> => ResultBinary, <<"variablesReference">> => Ref}
+          ,  State#{scope_bindings => NewScopes}
+          };
+        false ->
+          { #{<<"result">> => ResultBinary}
+          ,  State
+          }
+  end.
+
+-spec format_term(term()) -> binary().
+format_term(T) ->
+  %% print on one line and print strings
+  %% as printable characters (if possible)
+  els_utils:to_binary(
+    [  string:trim(Line)
+    || Line <- string:split(io_lib:format("~tp", [T]), "\n", all)]).
+
+-spec collect_frames(node(), pid(), pos_integer(), Backtrace, Acc) -> Acc
+  when Acc       :: #{frame_id() => frame()},
+       Backtrace :: [{pos_integer(), {module(), atom(), non_neg_integer()}}].
+collect_frames(_, _, _, [], Acc) -> Acc;
+collect_frames(Node, Meta, Level, [{NextLevel, {M, F, A}} | Rest], Acc) ->
+  case els_dap_rpc:meta(Node, Meta, stack_frame, {up, Level}) of
+    {NextLevel, {_, Line}, Bindings} ->
+      StackFrameId = erlang:unique_integer([positive]),
+      StackFrame = #{ module    => M
+                    , function  => F
+                    , arguments => A
+                    , source    => source(M, Node)
+                    , line      => Line
+                    , bindings  => Bindings},
+      collect_frames( Node
+                    , Meta
+                    , NextLevel
+                    , Rest
+                    , Acc#{StackFrameId => StackFrame}
+                    );
+    BadFrame ->
+      ?LOG_ERROR( "Received a bad frame: ~p expected level ~p and module ~p"
+                , [BadFrame, NextLevel, M]),
+      Acc
+  end.

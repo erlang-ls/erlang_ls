@@ -4,12 +4,14 @@
         , auto_attach/3
         , break/3
         , break_in/4
+        , clear/1
         , continue/2
         , eval/3
         , get_meta/2
         , i/2
         , load_binary/4
         , meta/4
+        , meta_eval/3
         , module_info/3
         , next/2
         , no_break/1
@@ -34,6 +36,10 @@ break(Node, Module, Line) ->
 -spec break_in(node(), module(), atom(), non_neg_integer()) -> any().
 break_in(Node, Module, Func, Arity) ->
   rpc:call(Node, int, break_in, [ Module, Func, Arity]).
+
+-spec clear(node()) -> ok.
+clear(Node) ->
+  rpc:call(Node, int, clear, []).
 
 -spec continue(node(), pid()) -> any().
 continue(Node, Pid) ->
@@ -61,9 +67,13 @@ i(Node, Module) ->
 load_binary(Node, Module, File, Bin) ->
   rpc:call(Node, code, load_binary, [Module, File, Bin]).
 
--spec meta(node(), pid(), atom(), atom()) -> any().
+-spec meta(node(), pid(), atom(), any()) -> any().
 meta(Node, Meta, Flag, Opt) ->
   rpc:call(Node, int, meta, [Meta, Flag, Opt]).
+
+-spec meta_eval(node(), pid(), string()) -> any().
+meta_eval(Node, Meta, Command) ->
+  rpc:call(Node, els_dap_agent, meta_eval, [Meta, Command]).
 
 -spec next(node(), pid()) -> any().
 next(Node, Pid) ->
