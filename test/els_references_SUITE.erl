@@ -14,6 +14,7 @@
 -export([ application_local/1
         , application_remote/1
         , function_definition/1
+        , function_multiple_clauses/1
         , fun_local/1
         , fun_remote/1
         , export_entry/1
@@ -107,6 +108,18 @@ function_definition(Config) ->
                          }
                       , #{ uri => Uri
                          , range => #{from => {51, 7}, to => {51, 23}}
+                         }
+                      ],
+  assert_locations(Locations, ExpectedLocations),
+  ok.
+
+-spec function_multiple_clauses(config()) -> ok.
+function_multiple_clauses(Config) ->
+  Uri = ?config(hover_docs_uri, Config),
+  UriCaller = ?config(hover_docs_caller_uri, Config),
+  #{result := Locations} = els_client:references(Uri, 7, 1),
+  ExpectedLocations = [ #{ uri => UriCaller
+                         , range => #{from => {15, 3}, to => {15, 30}}
                          }
                       ],
   assert_locations(Locations, ExpectedLocations),
