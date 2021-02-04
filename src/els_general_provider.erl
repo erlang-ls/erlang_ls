@@ -89,16 +89,18 @@ handle_request({initialized, _Params}, State) ->
     true ->
       ok = els_bsp_client:start_server(RootUri),
       {ok, Vsn} = application:get_key(erlang_ls, vsn),
-      els_bsp_client:request(
-        <<"build/initialize">>
-          , #{ <<"displayName">>  => <<"Erlang LS BSP Client">>
-             , <<"version">>      => list_to_binary(Vsn)
-             , <<"bspVersion">>   => <<"2.0.0">>
-             , <<"rootUri">>      => RootUri
-             , <<"capabilities">> => #{ <<"languageIds">> => [<<"erlang">>] }
-             , <<"data">>         => #{}
-             }
-       );
+      Response = els_bsp_client:request(
+                   <<"build/initialize">>
+                     , #{ <<"displayName">>  => <<"Erlang LS BSP Client">>
+                        , <<"version">>      => list_to_binary(Vsn)
+                        , <<"bspVersion">>   => <<"2.0.0">>
+                        , <<"rootUri">>      => RootUri
+                        , <<"capabilities">> =>
+                            #{ <<"languageIds">> => [<<"erlang">>] }
+                        , <<"data">>         => #{}
+                        }
+       ),
+      ?LOG_INFO("BSP Response ~p", [Response]);
     false ->
       ok
   end,
