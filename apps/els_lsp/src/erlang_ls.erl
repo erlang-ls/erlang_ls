@@ -12,7 +12,6 @@
 -include_lib("kernel/include/logger.hrl").
 
 -define(APP, erlang_ls).
--define(FRAMEWORK, els_core).
 -define(DEFAULT_LOGGING_LEVEL, "info").
 
 -spec main([any()]) -> ok.
@@ -20,7 +19,7 @@ main(Args) ->
   application:load(getopt),
   application:load(?APP),
   ok = parse_args(Args),
-  application:set_env(?FRAMEWORK, server, els_dap_server),
+  application:set_env(els_core, server, els_dap_server),
   configure_logging(),
   application:ensure_all_started(?APP),
   patch_logging(),
@@ -98,15 +97,15 @@ set(transport, Name) ->
                 "tcp"   -> els_tcp;
                 "stdio" -> els_stdio
               end,
-  application:set_env(?FRAMEWORK, transport, Transport);
+  application:set_env(els_core, transport, Transport);
 set(port, Port) ->
-  application:set_env(?FRAMEWORK, port, Port);
+  application:set_env(els_core, port, Port);
 set(log_dir, Dir) ->
-  application:set_env(?FRAMEWORK, log_dir, Dir);
+  application:set_env(els_core, log_dir, Dir);
 set(log_level, Level) ->
-  application:set_env(?FRAMEWORK, log_level, list_to_atom(Level));
+  application:set_env(els_core, log_level, list_to_atom(Level));
 set(port_old, Port) ->
-  application:set_env(?FRAMEWORK, port, Port).
+  application:set_env(els_core, port, Port).
 
 %%==============================================================================
 %% Logger configuration
@@ -115,7 +114,7 @@ set(port_old, Port) ->
 -spec configure_logging() -> ok.
 configure_logging() ->
   LogFile = filename:join([log_root(), "server.log"]),
-  {ok, LoggingLevel} = application:get_env(?FRAMEWORK, log_level),
+  {ok, LoggingLevel} = application:get_env(els_core, log_level),
   ok = filelib:ensure_dir(LogFile),
   Handler = #{ config => #{ file => LogFile }
              , level => LoggingLevel
@@ -142,7 +141,7 @@ patch_logging() ->
 
 -spec log_root() -> string().
 log_root() ->
-  {ok, LogDir} = application:get_env(?FRAMEWORK, log_dir),
+  {ok, LogDir} = application:get_env(els_core, log_dir),
   {ok, CurrentDir} = file:get_cwd(),
   Dirname = filename:basename(CurrentDir),
   filename:join([LogDir, Dirname]).
