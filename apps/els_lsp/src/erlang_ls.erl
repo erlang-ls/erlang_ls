@@ -11,17 +11,17 @@
 %%==============================================================================
 -include_lib("kernel/include/logger.hrl").
 
--define(APP, erlang_ls).
+-define(APP, els_lsp).
 -define(DEFAULT_LOGGING_LEVEL, "info").
 
 -spec main([any()]) -> ok.
 main(Args) ->
   application:load(getopt),
-  application:load(?APP),
+  application:load(els_core),
   ok = parse_args(Args),
-  application:set_env(els_core, server, els_dap_server),
+  application:set_env(els_core, server, els_server),
   configure_logging(),
-  application:ensure_all_started(?APP),
+  {ok, _} = application:ensure_all_started(?APP),
   patch_logging(),
   ?LOG_INFO("Started erlang_ls server", []),
   receive _ -> ok end.

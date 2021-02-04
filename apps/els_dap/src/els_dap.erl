@@ -20,12 +20,11 @@
 -spec main([any()]) -> ok.
 main(Args) ->
   application:load(getopt),
-  application:load(?APP),
   application:load(els_core),
   ok = parse_args(Args),
   application:set_env(els_core, server, els_dap_server),
   configure_logging(),
-  application:ensure_all_started(?APP),
+  {ok, _} = application:ensure_all_started(?APP),
   patch_logging(),
   ?LOG_INFO("Started Erlang LS - DAP server", []),
   receive _ -> ok end.
