@@ -59,6 +59,6 @@ jobs:
       with:
         name: edoc
         path: |
-          apps/els_core/doc
-          apps/els_lsp/doc
-          apps/els_dap/doc
+          apps/els_core/doc/
+          apps/els_lsp/doc/
+          apps/els_dap/doc/
