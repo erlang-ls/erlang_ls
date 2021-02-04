@@ -58,7 +58,4 @@ jobs:
       uses: actions/upload-artifact@v1
       with:
         name: edoc
-        path: |
-          apps/els_core/doc/
-          apps/els_lsp/doc/
-          apps/els_dap/doc/
+        path: apps/*/doc/
