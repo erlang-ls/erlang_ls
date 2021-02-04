@@ -40,7 +40,7 @@ jobs:
     - name: Run CT Tests
       run: rebar3 ct
     - name: Store CT Logs
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v2
       with:
         name: ct-logs
         path: _build/test/logs
@@ -55,7 +55,10 @@ jobs:
     - name: Produce Documentation
       run: rebar3 edoc
     - name: Publish Documentation
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v2
       with:
         name: edoc
-        path: apps/*/doc/
+        path: |
+          apps/els_core/doc
+          apps/els_lsp/doc
+          apps/els_dap/doc
