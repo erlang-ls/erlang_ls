@@ -63,6 +63,12 @@ find_references(Uri, #{ kind := Kind
           {M, F, A} -> {M, F, A}
         end,
   find_references_for_id(Kind, Key);
+find_references(Uri, #{ kind := Kind
+                      , id   := Id
+                      }) when Kind =:= function_clause ->
+  {F, A, _Index} = Id,
+  Key = {els_uri:module(Uri), F, A},
+  find_references_for_id(Kind, Key);
 find_references(_Uri, #{kind := Kind, id := Name})
   when Kind =:= record_expr;
        Kind =:= record ->
