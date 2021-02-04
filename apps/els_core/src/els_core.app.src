@@ -1,0 +1,25 @@
+{application, els_core, [
+    {description, "Erlang Language Server Framework"},
+    {vsn, "0.1.0"},
+    {registered, []},
+    {applications, [
+        kernel,
+        stdlib,
+        ranch,
+        jsx,
+        cowlib,
+        yamerl,
+        redbug,
+        ephemeral
+    ]},
+    {env, [
+        {transport, els_tcp},
+        {io_device, standard_io},
+        {server, els_server},
+        {port, 10000}
+    ]},
+    {modules, []},
+
+    {licenses, ["Apache 2.0"]},
+    {links, []}
+]}.
