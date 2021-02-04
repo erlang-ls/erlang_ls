@@ -1,5 +1,5 @@
 apps_dirs:
-    - "apps/*"
+  - "apps/*"
 deps_dirs:
   - "_build/default/lib/*"
   - "_build/test/lib/*"

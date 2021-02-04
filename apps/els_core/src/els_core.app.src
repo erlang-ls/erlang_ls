@@ -1,5 +1,5 @@
 {application, els_core, [
-    {description, "Erlang Language Server Framework"},
+    {description, "Erlang LS - Core"},
     {vsn, "0.1.0"},
     {registered, []},
     {applications, [
@@ -9,8 +9,7 @@
         jsx,
         cowlib,
         yamerl,
-        redbug,
-        ephemeral
+        redbug
     ]},
     {env, [
         {transport, els_tcp},
