@@ -8,7 +8,7 @@ on:
       - opened
       - synchronize
 jobs:
-  build:
+  linux:
     strategy:
       matrix:
         platform: [ubuntu-latest]
@@ -62,3 +62,29 @@ jobs:
           apps/els_core/doc
           apps/els_lsp/doc
           apps/els_dap/doc
+  windows:
+    runs-on: windows-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Install Erlang
+      run: choco install -y erlang --version 22.3
+    - name: Install rebar3
+      run: choco install -y rebar3 --version 3.13.1
+    - name: Compile
+      run: rebar3 compile
+    - name: Generate Dialyzer PLT for usage in CT Tests
+      run: dialyzer --build_plt --apps erts kernel stdlib
+    - name: Run CT Tests
+      run: rebar3 ct
+    - name: Store CT Logs
+      uses: actions/upload-artifact@v2
+      with:
+        name: ct-logs
+        path: _build/test/logs
+    - name: Run PropEr Tests
+      run: rebar3 proper --cover --constraint_tries 100
+    - name: Run Checks
+      run: rebar3 do dialyzer, xref
+    - name: Produce Documentation
+      run: rebar3 edoc
