@@ -13,6 +13,13 @@
         , specs_with_record/1
         , types_with_record/1
         , types_with_types/1
+        , record_def_with_types/1
+        , record_def_with_record_type/1
+        , callback_recursive/1
+        , specs_recursive/1
+        , types_recursive/1
+        , opaque_recursive/1
+        , record_def_recursive/1
         ]).
 
 %%==============================================================================
@@ -20,6 +27,7 @@
 %%==============================================================================
 -include_lib("common_test/include/ct.hrl").
 -include_lib("stdlib/include/assert.hrl").
+-include("els_lsp.hrl").
 
 %%==============================================================================
 %% Types
@@ -45,9 +53,7 @@ all() -> els_test_utils:all(?MODULE).
 -spec specs_location(config()) -> ok.
 specs_location(_Config) ->
   Text = "-spec foo(integer()) -> any(); (atom()) -> pid().",
-  {ok, POIs} = els_parser:parse(Text),
-  Spec = [POI || #{id := {foo, 1}, kind := spec} = POI <- POIs],
-  ?assertEqual(1, length(Spec)),
+  ?assertMatch([_], parse_find_pois(Text, spec, {foo, 1})),
   ok.
 
 %% Issue #170
@@ -73,25 +79,110 @@ underscore_macro(_Config) ->
 -spec specs_with_record(config()) -> ok.
 specs_with_record(_Config) ->
   Text = "-record(bar, {a, b}). -spec foo(#bar{}) -> any().",
-  {ok, POIs} = els_parser:parse(Text),
-  Spec = [POI || #{id := bar, kind := record_expr} = POI <- POIs],
-  ?assertEqual(1, length(Spec)),
+  ?assertMatch([_], parse_find_pois(Text, record_expr, bar)),
   ok.
 
 %% Issue #818
 -spec types_with_record(config()) -> ok.
 types_with_record(_Config) ->
-  Text = "-record(bar, {a, b}). -type foo() :: #bar{}.",
-  {ok, POIs} = els_parser:parse(Text),
-  Spec = [POI || #{id := bar, kind := record_expr} = POI <- POIs],
-  ?assertEqual(1, length(Spec)),
+  Text1 = "-record(bar, {a, b}). -type foo() :: #bar{}.",
+  ?assertMatch([_], parse_find_pois(Text1, record_expr, bar)),
+
+  Text2 = "-record(bar, {a, b}). -type foo() :: #bar{f1 :: t()}.",
+  ?assertMatch([_], parse_find_pois(Text2, record_expr, bar)),
+  ?assertMatch([_], parse_find_pois(Text2, record_field, {bar, f1})),
   ok.
 
 %% Issue #818
 -spec types_with_types(config()) -> ok.
 types_with_types(_Config) ->
   Text = "-type bar() :: {a,b}. -type foo() :: bar().",
-  {ok, POIs} = els_parser:parse(Text),
-  Spec = [POI || #{id := {bar, 0}, kind := type_application} = POI <- POIs],
-  ?assertEqual(1, length(Spec)),
+  ?assertMatch([_], parse_find_pois(Text, type_application, {bar, 0})),
   ok.
+
+-spec record_def_with_types(config()) -> ok.
+record_def_with_types(_Config) ->
+  Text1 = "-record(r1, {f1 :: t1()}).",
+  ?assertMatch([_], parse_find_pois(Text1, type_application, {t1, 0})),
+
+  Text2 = "-record(r1, {f1 = defval :: t2()}).",
+  ?assertMatch([_], parse_find_pois(Text2, type_application, {t2, 0})),
+  %% No redundanct atom POIs
+  ?assertMatch([#{id := defval}], parse_find_pois(Text2, atom)),
+
+  Text3 = "-record(r1, {f1 :: t1(integer())}).",
+  ?assertMatch([_], parse_find_pois(Text3, type_application, {t1, 1})),
+  %% No POI for builtin types like integer()
+  ?assertMatch([#{id := {t1, 1}}], parse_find_pois(Text3, type_application)),
+
+  Text4 = "-record(r1, {f1 :: m:t1(integer())}).",
+  ?assertMatch([_], parse_find_pois(Text4, type_application, {m, t1, 1})),
+  %% No redundanct atom POIs
+  ?assertMatch([], parse_find_pois(Text4, atom)),
+
+  ok.
+
+-spec record_def_with_record_type(config()) -> ok.
+record_def_with_record_type(_Config) ->
+  Text1 = "-record(r1, {f1 :: #r2{}}).",
+  ?assertMatch([_], parse_find_pois(Text1, record_expr, r2)),
+  %% No redundanct atom POIs
+  ?assertMatch([], parse_find_pois(Text1, atom)),
+
+  Text2 = "-record(r1, {f1 :: #r2{f2 :: t2()}}).",
+  ?assertMatch([_], parse_find_pois(Text2, record_expr, r2)),
+  ?assertMatch([_], parse_find_pois(Text2, record_field, {r2, f2})),
+  %% No redundanct atom POIs
+  ?assertMatch([], parse_find_pois(Text2, atom)),
+  ok.
+
+-spec callback_recursive(config()) -> ok.
+callback_recursive(_Config) ->
+  Text = "-callback foo(#r1{f1 :: m:t1(#r2{f2 :: t2(t3())})}) -> any().",
+  assert_recursive_types(Text).
+
+-spec specs_recursive(config()) -> ok.
+specs_recursive(_Config) ->
+  Text = "-spec foo(#r1{f1 :: m:t1(#r2{f2 :: t2(t3())})}) -> any().",
+  assert_recursive_types(Text).
+
+-spec types_recursive(config()) -> ok.
+types_recursive(_Config) ->
+  Text = "-type foo() :: #r1{f1 :: m:t1(#r2{f2 :: t2(t3())})}.",
+  assert_recursive_types(Text).
+
+-spec opaque_recursive(config()) -> ok.
+opaque_recursive(_Config) ->
+  Text = "-opaque foo() :: #r1{f1 :: m:t1(#r2{f2 :: t2(t3())})}.",
+  assert_recursive_types(Text).
+
+-spec record_def_recursive(config()) -> ok.
+record_def_recursive(_Config) ->
+  Text = "-record(foo, {field :: #r1{f1 :: m:t1(#r2{f2 :: t2(t3())})}}).",
+  assert_recursive_types(Text).
+
+assert_recursive_types(Text) ->
+  ?assertMatch([#{id := r1},
+                #{id := r2}],
+               parse_find_pois(Text, record_expr)),
+  ?assertMatch([#{id := {r1, f1}},
+                #{id := {r2, f2}}],
+               parse_find_pois(Text, record_field)),
+  ?assertMatch([#{id := {m, t1, 1}},
+                #{id := {t2, 1}},
+                #{id := {t3, 0}}],
+               parse_find_pois(Text, type_application)),
+  ok.
+
+%%==============================================================================
+%% Helper functions
+%%==============================================================================
+-spec parse_find_pois(string(), poi_kind()) -> [poi()].
+parse_find_pois(Text, Kind) ->
+  {ok, POIs} = els_parser:parse(Text),
+  SortedPOIs = els_poi:sort(POIs),
+  [POI || #{kind := Kind1} = POI <- SortedPOIs, Kind1 =:= Kind].
+
+-spec parse_find_pois(string(), poi_kind(), poi_id()) -> [poi()].
+parse_find_pois(Text, Kind, Id) ->
+  [POI || #{id := Id1} = POI <- parse_find_pois(Text, Kind), Id1 =:= Id].

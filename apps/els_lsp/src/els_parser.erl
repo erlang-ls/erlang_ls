@@ -65,6 +65,9 @@ parse_form(IoDevice, StartLocation, Parser, _Options) ->
     {eof, _EndLocation} = Eof -> Eof
   end.
 
+%% @Doc Find POIs in attributes additionally using tokens to add location info
+%% missing from the syntax tree. Other attributes which don't need tokens are
+%% processed in `attribute/1'.
 -spec find_attribute_pois(erl_syntax:syntaxTree(), [erl_scan:token()]) ->
    [poi()].
 find_attribute_pois(Tree, Tokens) ->
@@ -85,13 +88,11 @@ find_attribute_pois(Tree, Tokens) ->
           [_, _|Atoms] = [T || {atom, _, _} = T <- Tokens],
           [ poi(Pos, import_entry, {M, F, A})
             || {{F, A}, {atom, Pos, _}} <- lists:zip(Imports, Atoms)];
-        {spec, {spec, {{F, A}, FTs}}} ->
+        {spec, {spec, {{F, A}, _FTs}}} ->
           From = erl_syntax:get_pos(Tree),
           To   = erl_scan:location(lists:last(Tokens)),
           Data = pretty_print(Tree),
-          [ poi({From, To}, spec, {F, A}, Data)
-          | lists:flatten([find_spec_points_of_interest(FT) || FT <- FTs])
-          ];
+          [poi({From, To}, spec, {F, A}, Data)];
         {export_type, {export_type, Exports}} ->
           [_ | Atoms] = [T || {atom, _, _} = T <- Tokens],
           ExportTypeEntries =
@@ -99,8 +100,6 @@ find_attribute_pois(Tree, Tokens) ->
               || {{F, A}, {atom, Pos, _}} <- lists:zip(Exports, Atoms)
             ],
           [find_attribute_tokens(Tokens), ExportTypeEntries];
-        {type, Type} ->
-          type_to_poi(Type);
         {compile, {compile, CompileOpts}} ->
           find_compile_options_pois(CompileOpts, Tokens);
         _ -> []
@@ -128,14 +127,6 @@ find_compile_options_pois(CompileOpts, Tokens) when is_list(CompileOpts) ->
 find_compile_options_pois(_CompileOpts, _Tokens) ->
   [].
 
--spec type_to_poi(tree()) -> [poi()].
-type_to_poi({type, {_, {type, Pos, record, [{atom, _, RecordName}]}, _}}) ->
-  [poi(Pos, record_expr, RecordName)];
-type_to_poi({type, {_, {user_type, Pos, Name, Args}, _}}) ->
-  [poi(Pos, type_application, {Name, length(Args)})];
-type_to_poi(_) ->
-  [].
-
 %% @doc Resolve POI for specific sections
 %%
 %% These sections are such things as `export' or `spec' attributes, for which
@@ -157,33 +148,6 @@ find_attribute_tokens([ {'-', Anno}, {atom, _, spec} | [_|_] = Rest]) ->
 find_attribute_tokens(_) ->
   [].
 
-%% @doc Find points of interest in a spec attribute.
--spec find_spec_points_of_interest(tree()) -> [poi()].
-find_spec_points_of_interest(Tree) ->
-  fold(fun do_find_spec_points_of_interest/2, [], Tree).
-
--spec do_find_spec_points_of_interest(tree(), [any()]) -> [poi()].
-do_find_spec_points_of_interest(Tree, Acc) ->
-  Pos = erl_syntax:get_pos(Tree),
-  case {is_type_application(Tree), Tree} of
-    {true, {remote_type, _, [Module, Type, Args]}} ->
-      Id = { erl_syntax:atom_value(Module)
-           , erl_syntax:atom_value(Type)
-           , length(Args)
-           },
-      [poi(Pos, type_application, Id)|Acc];
-    {true, {type, _, {type, Type}, Args}} ->
-      Id = {Type, length(Args)},
-      [poi(Pos, type_application, Id)|Acc];
-    {true, {type, _, record, [{atom, _, Name}]}} ->
-      [poi(Pos, record_expr, Name)|Acc];
-    {true, {user_type, _, Type, Args}} ->
-      Id = {Type, length(Args)},
-      [poi(Pos, type_application, Id)|Acc];
-    _ ->
-      Acc
-  end.
-
 -spec points_of_interest(tree(), erl_anno:location()) -> [poi()].
 points_of_interest(Tree, EndLocation) ->
   FoldFun = fun(T, Acc) -> [do_points_of_interest(T, EndLocation) | Acc] end,
@@ -203,6 +167,10 @@ do_points_of_interest(Tree, EndLocation) ->
       record_expr   -> record_expr(Tree);
       variable      -> variable(Tree);
       atom          -> atom(Tree);
+      Type when Type =:= type_application;
+                Type =:= user_type_application ->
+        type_application(Tree);
+      record_type   -> record_type(Tree);
       _             -> []
     end
   catch throw:syntax_error -> []
@@ -415,7 +383,13 @@ record_expr(Tree) ->
 
 -spec record_field_name(tree(), atom(), poi_kind()) -> [poi()].
 record_field_name(FieldNode, Record, Kind) ->
-  NameNode = erl_syntax:record_field_name(FieldNode),
+  NameNode =
+    case erl_syntax:type(FieldNode) of
+      record_field ->
+        erl_syntax:record_field_name(FieldNode);
+      record_type_field ->
+        erl_syntax:record_type_field_name(FieldNode)
+    end,
   case erl_syntax:type(NameNode) of
     atom ->
       Pos = erl_syntax:get_pos(NameNode),
@@ -449,6 +423,39 @@ record_def_field(FieldTree, Record) ->
       F = erl_syntax:typed_record_field_body(FieldTree),
       record_field_name(F, Record, record_def_field);
     _ ->
+      []
+  end.
+
+-spec record_type(tree()) -> [poi()].
+record_type(Tree) ->
+  RecordNode = erl_syntax:record_type_name(Tree),
+  case erl_syntax:type(RecordNode) of
+    atom ->
+      Record = erl_syntax:atom_value(RecordNode),
+      FieldPois  = lists:append(
+                     [record_field_name(F, Record, record_field)
+                      || F <- erl_syntax:record_type_fields(Tree)]),
+      [ poi(erl_syntax:get_pos(Tree), record_expr, Record)
+      | FieldPois ];
+    _ ->
+      []
+  end.
+
+-spec type_application(tree()) -> [poi()].
+type_application(Tree) ->
+  Pos = erl_syntax:get_pos(Tree),
+  Type = erl_syntax:type(Tree),
+  case erl_syntax_lib:analyze_type_application(Tree) of
+    {Module, {Name, Arity}} ->
+      %% remote type
+      Id = {Module, Name, Arity},
+      [poi(Pos, type_application, Id)];
+    {Name, Arity} when Type =:= user_type_application ->
+      %% user-defined local type
+      Id = {Name, Arity},
+      [poi(Pos, type_application, Id)];
+    {_Name, _Arity} when Type =:= type_application  ->
+      %% No POIs for built-in types
       []
   end.
 
@@ -494,12 +501,6 @@ node_name(Tree) ->
     underscore ->
       '_'
   end.
-
--spec is_type_application(tree()) -> boolean().
-is_type_application(Tree) ->
-  Type  = erl_syntax:type(Tree),
-  Types = [type_application, user_type_application, record_type],
-  lists:member(Type, Types).
 
 -spec poi(pos() | {pos(), pos()}, poi_kind(), any()) -> poi().
 poi(Pos, Kind, Id) ->
@@ -568,13 +569,83 @@ subtrees(Tree, record_field) ->
       V ->
        [V]
     end];
+subtrees(Tree, record_type) ->
+  NameNode = erl_syntax:record_type_name(Tree),
+  [ skip_record_field_atom(NameNode)
+  , erl_syntax:record_type_fields(Tree)
+  ];
+subtrees(Tree, record_type_field) ->
+  NameNode = erl_syntax:record_type_field_name(Tree),
+  [ skip_record_field_atom(NameNode)
+  , [erl_syntax:record_type_field_type(Tree)]
+  ];
+subtrees(Tree, user_type_application) ->
+  NameNode = erl_syntax:user_type_application_name(Tree),
+  [ skip_record_field_atom(NameNode)
+  , erl_syntax:user_type_application_arguments(Tree)
+  ];
+subtrees(Tree, type_application) ->
+  NameNode = erl_syntax:type_application_name(Tree),
+  [ skip_type_name_atom(NameNode)
+  , erl_syntax:type_application_arguments(Tree)
+  ];
 subtrees(Tree, attribute) ->
-  case erl_syntax:attribute_arguments(Tree) of
-    none -> [];
-    [_ | RestArgs] -> [RestArgs]
-  end;
+  NameNode = erl_syntax:attribute_name(Tree),
+  AttrName = case erl_syntax:type(NameNode) of
+               atom -> erl_syntax:atom_value(NameNode);
+               _ -> NameNode
+             end,
+  Args = case erl_syntax:attribute_arguments(Tree) of
+           none -> [];
+           Args0 -> Args0
+         end,
+  attribute_subtrees(AttrName, Args);
 subtrees(Tree, _) ->
   erl_syntax:subtrees(Tree).
+
+%% Note: In erl_parse AST the arguments of a wild attribute are represented as
+%% plain terms. To make response consistent `attribute_arguments/1' returns the
+%% abstract format of those terms. However `erl_syntax' doesn't know that
+%% `callback', `spec', `type' and `opaque' are not wild attributes and have
+%% their arguments in abstract format already. So `erl_syntax' returns the AST
+%% of the AST for these attributes. To fix this we need to convert them back
+%% with `concrete/1' to be able to properly traverse them.
+-spec attribute_subtrees(atom() | tree(), [tree()]) -> [[tree()]].
+attribute_subtrees(AttrName, [Mod])
+  when AttrName =:= module;
+       AttrName =:= behavior;
+       AttrName =:= behaviour ->
+  [skip_record_field_atom(Mod)];
+attribute_subtrees(record, [_RecordName, FieldsTuple]) ->
+  [[FieldsTuple]];
+attribute_subtrees(import, [Mod, Imports]) ->
+  [ skip_record_field_atom(Mod)
+  , [Imports]];
+attribute_subtrees(define, [_Name | Definition]) ->
+  %% The definition can contain commas, in which case it will look like as if
+  %% the attribute would have more than two arguments. Eg.: `-define(M, a, b).'
+  [Definition];
+attribute_subtrees(AttrName, _)
+  when AttrName =:= include;
+       AttrName =:= include_lib ->
+  [];
+attribute_subtrees(AttrName, [Arg])
+  when AttrName =:= callback;
+       AttrName =:= spec ->
+  {_FA, DefinitionClauses} = erl_syntax:concrete(Arg),
+  [DefinitionClauses];
+attribute_subtrees(AttrName, [Arg])
+  when AttrName =:= type;
+       AttrName =:= opaque ->
+  {_TypeName, Definition, TypeArgs} = erl_syntax:concrete(Arg),
+  [TypeArgs, [Definition]];
+attribute_subtrees(AttrName, Args)
+  when is_atom(AttrName) ->
+  %% compile, export, export_type and wild attributes
+      [Args];
+attribute_subtrees(AttrName, Args) ->
+  %% Attribute name not an atom, probably a macro
+  [[AttrName], Args].
 
 %% Skip visiting atoms of record field names as they are already represented as
 %% `record_field' pois
@@ -587,6 +658,18 @@ skip_record_field_atom(NameNode) ->
        [NameNode]
    end.
 
+-spec skip_type_name_atom(tree()) -> [tree()].
+skip_type_name_atom(NameNode) ->
+  case erl_syntax:type(NameNode) of
+     atom ->
+       [];
+    module_qualifier ->
+      skip_record_field_atom(erl_syntax:module_qualifier_body(NameNode))
+        ++
+        skip_record_field_atom(erl_syntax:module_qualifier_argument(NameNode));
+     _ ->
+       [NameNode]
+   end.
 -spec pretty_print(tree()) -> binary().
 pretty_print(Tree) ->
   try
