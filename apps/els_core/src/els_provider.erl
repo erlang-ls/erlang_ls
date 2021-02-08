@@ -62,7 +62,7 @@ start_link(Provider) ->
 
 -spec handle_request(provider(), request()) -> any().
 handle_request(Provider, Request) ->
-  gen_server:call(Provider, {handle_request, Provider, Request}, infinity).
+  gen_server:call(Provider, {handle_request, Request}, infinity).
 
 %%==============================================================================
 %% gen_server callbacks
@@ -81,7 +81,7 @@ init(Provider) ->
 
 -spec handle_call(any(), {pid(), any()}, state()) ->
   {reply, any(), state()}.
-handle_call({handle_request, Provider, Request}, _From, State) ->
+handle_call({handle_request, Request}, _From, State = #{provider := Provider}) ->
   #{internal_state := InternalState} = State,
   {Reply, NewInternalState} = Provider:handle_request(Request, InternalState),
   {reply, Reply, State#{internal_state => NewInternalState}}.

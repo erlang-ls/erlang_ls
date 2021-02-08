@@ -1,0 +1,9 @@
+{application, els_dap_test, [
+    {description, "test application"},
+    {vsn, "0.1.0"},
+    {applications, [
+        kernel,
+        stdlib
+    ]},
+    {modules, []}
+]}.

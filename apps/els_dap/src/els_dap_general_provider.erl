@@ -100,7 +100,16 @@ handle_request({<<"launch">>, Params}, State) ->
     _ ->
       ?LOG_INFO("launching 'rebar3 shell`", []),
       spawn(fun() ->
-                els_utils:cmd("rebar3", ["shell", "--name", ProjectNode]) end)
+                els_utils:cmd(
+                  "rebar3",
+                  [ "shell"
+                  , "--sname"
+                  , ProjectNode
+                  , "--setcookie"
+                  , erlang:atom_to_list(erlang:get_cookie())
+                  ]
+                )
+            end)
   end,
   LocalNode = els_distribution_server:node_name(<<"erlang_ls_dap">>, Name),
   els_distribution_server:start_distribution(LocalNode),
@@ -149,7 +158,7 @@ handle_request( {<<"setBreakpoints">>, Params}
   els_distribution_server:wait_connect_and_monitor(ProjectNode),
 
   %% TODO: Keep a list of interpreted modules, not to re-interpret them
-  els_dap_rpc:i(ProjectNode, Module),
+  {module, Module} = els_dap_rpc:i(ProjectNode, Module),
   [els_dap_rpc:break(ProjectNode, Module, Line) ||
     #{<<"line">> := Line} <- SourceBreakpoints],
   Breakpoints = [#{<<"verified">> => true, <<"line">> => Line} ||

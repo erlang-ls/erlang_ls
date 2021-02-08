@@ -29,12 +29,12 @@
 %% File and module functions
 %%==============================================================================
 
--spec cmd(string(), [string()]) -> integer().
+-spec cmd(string(), [string()]) -> integer() | no_return().
 cmd(Cmd, Args) ->
   cmd(Cmd, Args, []).
 
 % @doc Replacement for os:cmd that allows for spaces in args and paths
--spec cmd(string(), [string()], string()) -> integer().
+-spec cmd(string(), [string()], string()) -> integer() | no_return().
 cmd(Cmd, Args, Path) ->
   ?LOG_INFO("Running OS command [command=~p] [args=~p]", [Cmd, Args]),
   Executable = case filename:basename(Cmd) of

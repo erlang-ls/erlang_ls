@@ -37,6 +37,8 @@ jobs:
       run: rebar3 compile
     - name: Generate Dialyzer PLT for usage in CT Tests
       run: dialyzer --build_plt --apps erts kernel stdlib
+    - name: Start epmd as daemon
+      run: epmd -daemon
     - name: Run CT Tests
       run: rebar3 ct
     - name: Store CT Logs
@@ -75,6 +77,8 @@ jobs:
       run: rebar3 compile
     - name: Generate Dialyzer PLT for usage in CT Tests
       run: dialyzer --build_plt --apps erts kernel stdlib
+    - name: Start epmd as daemon
+      run: erl -sname a -noinput -eval "halt(0)."
     - name: Run CT Tests
       run: rebar3 ct
     - name: Store CT Logs
