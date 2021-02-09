@@ -292,7 +292,12 @@ type_local(Config) ->
 type_remote(Config) ->
   UriTypes = ?config(code_navigation_types_uri, Config),
   Uri = ?config(code_navigation_extra_uri, Config),
-  ExpectedLocations = [ #{ uri   => Uri
+  ExpectedLocations = [ %% local reference from another type definition
+                        #{ uri   => UriTypes
+                         , range => #{from => {11, 24}, to => {11, 30}}
+                         }
+                        %% remote reference from a spec
+                      , #{ uri   => Uri
                          , range => #{from => {11, 38}, to => {11, 66}}
                          }
                       ],
@@ -315,9 +320,9 @@ assert_locations(Locations, ExpectedLocations) ->
   ?assertEqual(length(ExpectedLocations), length(Locations)),
   Pairs = lists:zip(lists:sort(Locations), ExpectedLocations),
   [ begin
-      #{uri := Uri, range := Range} = Location,
+      #{range := Range} = Location,
       #{uri := ExpectedUri, range := ExpectedRange} = Expected,
-      ?assertEqual(ExpectedUri, Uri),
+      ?assertMatch(#{uri := ExpectedUri}, Location),
       ?assertEqual( els_protocol:range(ExpectedRange)
                   , Range
                   )
