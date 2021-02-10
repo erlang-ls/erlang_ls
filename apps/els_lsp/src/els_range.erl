@@ -154,4 +154,4 @@ plus({Line, Column}, String) ->
 
 -spec atom_to_string(atom()) -> string().
 atom_to_string(Atom) ->
-  io_lib:format("~0tp", [Atom]).
+  io_lib:write(Atom).
