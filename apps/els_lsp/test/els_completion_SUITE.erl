@@ -226,6 +226,7 @@ functions_arity(Config) ->
                       , <<"function_m/1">>
                       , <<"function_n/0">>
                       , <<"function_o/0">>
+                      , <<"'PascalCaseFunction'/1">>
                       ],
   ExpectedCompletion = [ #{ label            => FunName
                           , kind             => ?COMPLETION_ITEM_KIND_FUNCTION
@@ -372,6 +373,9 @@ record_fields(Config) ->
                  }
               , #{ kind => ?COMPLETION_ITEM_KIND_FIELD
                  , label => <<"field_b">>
+                 }
+              , #{ kind => ?COMPLETION_ITEM_KIND_FIELD
+                 , label => <<"'Field C'">>
                  }
               ],
   #{result := Completion1} =
