@@ -177,9 +177,9 @@ atoms(Document, Prefix) ->
   Unique = lists:usort(Atoms),
   filter_by_prefix(Prefix, Unique, fun to_binary/1, fun item_kind_atom/1).
 
--spec item_kind_atom(binary()) -> map().
+-spec item_kind_atom(atom()) -> map().
 item_kind_atom(Atom) ->
-  #{ label            => Atom
+  #{ label            => atom_to_label(Atom)
    , kind             => ?COMPLETION_ITEM_KIND_CONSTANT
    , insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
    }.
@@ -299,9 +299,9 @@ find_record_definition(Document, RecordName) ->
   POIs = local_and_included_pois(Document, record),
   [X || X = #{id := Name} <- POIs, Name =:= RecordName].
 
--spec item_kind_field(binary()) -> map().
+-spec item_kind_field(atom()) -> map().
 item_kind_field(Name) ->
-  #{ label => Name
+  #{ label => atom_to_label(Name)
    , kind  => ?COMPLETION_ITEM_KIND_FIELD
    }.
 
@@ -480,3 +480,9 @@ include_file_pois(Name, Kinds) ->
     {error, _} ->
       []
   end.
+
+-spec atom_to_label(atom()) -> binary().
+atom_to_label(Atom) when is_atom(Atom) ->
+  unicode:characters_to_binary(io_lib:write(Atom));
+atom_to_label(Binary) when is_binary(Binary) ->
+  Binary.
