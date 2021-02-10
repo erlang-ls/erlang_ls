@@ -39,8 +39,9 @@
                          , function  := atom()
                          , arguments := [any()]
                          , source    := binary()
-                         , line      := integer()
-                         , bindings  := any()}.
+                         , line      := line()
+                         , bindings  := any()
+                         }.
 -type thread()       :: #{ pid := pid()
                          , frames := #{frame_id() => frame()}
                          }.
@@ -50,11 +51,15 @@
                          , launch_params => #{}
                          , scope_bindings =>
                           #{pos_integer() => {binding_type(), bindings()}}
+                         , breakpoints := breakpoints()
                          }.
 -type bindings()     :: [{varname(), term()}].
 -type varname()      :: atom() | string().
 %% extendable bindings type for customized pretty printing
 -type binding_type() :: generic | map_assoc.
+-type breakpoints() :: #{module() => #{lines => [line()], function => [function_break()]}}.
+-type line()         :: non_neg_integer().
+-type function_break() :: {atom(), non_neg_integer()}.
 %%==============================================================================
 %% els_provider functions
 %%==============================================================================
@@ -66,7 +71,8 @@ is_enabled() -> true.
 init() ->
   #{ threads => #{}
    , launch_params => #{}
-   , scope_bindings => #{}}.
+   , scope_bindings => #{}
+   , breakpoints => #{}}.
 
 -spec handle_request(request(), state()) -> {result(), state()}.
 handle_request({<<"initialize">>, _Params}, State) ->
@@ -122,8 +128,7 @@ handle_request( {<<"configurationDone">>, _Params}
               , #{ project_node := ProjectNode
                  , launch_params := LaunchParams} = State
               ) ->
-  ?LOG_INFO("Connecting to: [~p]", [ProjectNode]),
-  els_distribution_server:wait_connect_and_monitor(ProjectNode),
+   els_distribution_server:wait_connect_and_monitor(ProjectNode),
 
   inject_dap_agent(ProjectNode),
 
@@ -146,52 +151,100 @@ handle_request( {<<"configurationDone">>, _Params}
   end,
   {#{}, State};
 handle_request( {<<"setBreakpoints">>, Params}
-              , #{project_node := ProjectNode} = State
+              , #{ project_node := ProjectNode
+                 , breakpoints := Breakpoints0} = State
               ) ->
   #{<<"source">> := #{<<"path">> := Path}} = Params,
   SourceBreakpoints = maps:get(<<"breakpoints">>, Params, []),
   _SourceModified = maps:get(<<"sourceModified">>, Params, false),
   Module = els_uri:module(els_uri:uri(Path)),
 
-  %% AZ: we should have something like `ensure_connected`
-  ?LOG_INFO("Connecting to: [~p]", [ProjectNode]),
   els_distribution_server:wait_connect_and_monitor(ProjectNode),
 
-  %% TODO: Keep a list of interpreted modules, not to re-interpret them
+
   {module, Module} = els_dap_rpc:i(ProjectNode, Module),
-  [els_dap_rpc:break(ProjectNode, Module, Line) ||
-    #{<<"line">> := Line} <- SourceBreakpoints],
-  Breakpoints = [#{<<"verified">> => true, <<"line">> => Line} ||
-                  #{<<"line">> := Line} <- SourceBreakpoints],
-  {#{<<"breakpoints">> => Breakpoints}, State};
+  Lines = [Line || #{<<"line">> := Line} <- SourceBreakpoints],
+
+  %% purge all breakpoints from the module
+  els_dap_rpc:no_break(ProjectNode, Module),
+  Breakpoints1 = do_line_breakpoints(ProjectNode, Module, Lines, Breakpoints0),
+  BreakpointsRsps = [
+      #{<<"verified">> => true, <<"line">> => Line}
+      || {{_, Line}, _} <- els_dap_rpc:all_breaks(ProjectNode, Module)
+  ],
+
+  FunctionBreaks = get_function_breaks(Module, Breakpoints1),
+  Breakpoints2 = do_function_breaks(ProjectNode, Module, FunctionBreaks, Breakpoints1),
+
+  {#{<<"breakpoints">> => BreakpointsRsps}, State#{ breakpoints => Breakpoints2}};
 handle_request({<<"setExceptionBreakpoints">>, _Params}, State) ->
   {#{}, State};
 handle_request({<<"setFunctionBreakpoints">>, Params}
-              , #{project_node := ProjectNode} = State
+              , #{ project_node := ProjectNode
+                 , breakpoints := Breakpoints0} = State
               ) ->
   FunctionBreakPoints = maps:get(<<"breakpoints">>, Params, []),
   els_distribution_server:wait_connect_and_monitor(ProjectNode),
+
   MFAs = [
-    begin
-      Spec = {Mod, _, _} = parse_mfa(MFA),
-      els_dap_rpc:i(ProjectNode, Mod),
-      Spec
+      begin
+          Spec = {Mod, _, _} = parse_mfa(MFA),
+          els_dap_rpc:i(ProjectNode, Mod),
+          Spec
       end
-       ||
-    #{<<"name">> := MFA, <<"enabled">>:= Enabled} <- FunctionBreakPoints,
-    Enabled andalso parse_mfa(MFA) =/= error
+      || #{<<"name">> := MFA, <<"enabled">> := Enabled} <- FunctionBreakPoints,
+          Enabled andalso parse_mfa(MFA) =/= error
   ],
-  [ els_dap_rpc:break_in(ProjectNode, Mod, Func, Arity)
-    || {Mod, Func, Arity} <- MFAs
+
+  ModFuncBreaks = lists:foldl(
+      fun({M, F, A}, Acc) ->
+          case Acc of
+              #{M := FBreaks} -> Acc#{M => [{F, A} | FBreaks]};
+              _ -> Acc#{M => [{F, A}]}
+          end
+      end,
+      #{},
+      MFAs
+  ),
+
+  els_dap_rpc:no_break(ProjectNode),
+  Breakpoints1 = maps:fold(
+      fun (Mod, Breaks, Acc) ->
+           Acc#{Mod => Breaks#{function => []}}
+      end,
+      #{},
+      Breakpoints0
+  ),
+
+  Breakpoints2 = maps:fold(
+      fun(Module, FunctionBreaks, Acc) ->
+          do_function_breaks(ProjectNode, Module, FunctionBreaks, Acc)
+      end,
+      Breakpoints1,
+      ModFuncBreaks
+  ),
+  BreakpointsRsps = [
+      #{
+          <<"verified">> => true,
+          <<"line">> => Line,
+          <<"source">> => #{<<"path">> => source(Module, ProjectNode)}
+      }
+      || {{Module, Line}, [Status, _, _, _]} <-
+              els_dap_rpc:all_breaks(ProjectNode),
+          Status =:= active
   ],
-  Breakpoints =
-    [ #{ <<"verified">> => true
-      ,  <<"line">>     => Line
-      , <<"source">>    => #{ <<"path">> => source(Module, ProjectNode)}}
-    || {{Module, Line}, [Status, _, _, _]}
-        <- els_dap_rpc:all_breaks(ProjectNode)
-    , Status =:= active],
-  {#{<<"breakpoints">> => Breakpoints}, State};
+
+  %% replay line breaks
+  Breakpoints3 = maps:fold(
+      fun(Module, _, Acc) ->
+          Lines = get_line_breaks(Module, Acc),
+          do_line_breakpoints(ProjectNode, Module, Lines, Acc)
+      end,
+      Breakpoints2,
+      Breakpoints2
+  ),
+
+  {#{<<"breakpoints">> => BreakpointsRsps}, State#{breakpoints => Breakpoints3}};
 handle_request({<<"threads">>, _Params}, #{threads := Threads0} = State) ->
   Threads =
     [ #{ <<"id">> => Id
@@ -607,4 +660,35 @@ collect_frames(Node, Meta, Level, [{NextLevel, {M, F, A}} | Rest], Acc) ->
       ?LOG_ERROR( "Received a bad frame: ~p expected level ~p and module ~p"
                 , [BadFrame, NextLevel, M]),
       Acc
+  end.
+
+%% breakpoint management
+-spec get_function_breaks(module(), breakpoints()) -> [function_break()].
+get_function_breaks(Module, Breaks) ->
+  case Breaks of
+    #{Module := #{function := Functions}} -> Functions;
+    _ -> []
+  end.
+
+-spec get_line_breaks(module(), breakpoints()) -> [line()].
+get_line_breaks(Module, Breaks) ->
+  case Breaks of
+    #{Module := #{line := Lines}} -> Lines;
+    _ -> []
+  end.
+
+-spec do_line_breakpoints(node(), module(), [line()], breakpoints()) -> breakpoints().
+do_line_breakpoints(Node, Module, Lines, Breaks) ->
+  [els_dap_rpc:break(Node, Module, Line) || Line <- Lines],
+  case Breaks of
+    #{Module := ModBreaks} -> Breaks#{ Module => ModBreaks#{line => Lines}};
+    _ -> Breaks#{ Module => #{line => Lines, function => []}}
+  end.
+
+-spec do_function_breaks(node(), module(), [function_break()], breakpoints()) -> breakpoints().
+do_function_breaks(Node, Module, FBreaks, Breaks) ->
+  [els_dap_rpc:break_in(Node, Module, Func, Arity) || {Func, Arity} <- FBreaks],
+  case Breaks of
+    #{Module := ModBreaks} -> Breaks#{ Module => ModBreaks#{function => FBreaks}};
+    _ -> Breaks#{ Module => #{line => [], function => FBreaks}}
   end.
