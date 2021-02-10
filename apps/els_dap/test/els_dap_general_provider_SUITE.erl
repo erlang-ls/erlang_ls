@@ -19,7 +19,8 @@
     configuration_done_with_breakpoint/1,
     frame_variables/1,
     navigation_and_frames/1,
-    set_variable/1
+    set_variable/1,
+    breakpoints/1
 ]).
 
 %% TODO: cleanup after dropping support for OTP 21 and 22
@@ -250,7 +251,7 @@ navigation_and_frames(Config) ->
         request_threads()
     ),
     %% next
-    %% reset meck history, to capture next call
+    %%, reset meck history, to capture next call
     meck:reset([els_dap_server]),
     els_provider:handle_request(Provider, request_next(ThreadId)),
     els_dap_test_utils:wait_until_mock_called(els_dap_server, send_event),
@@ -309,6 +310,7 @@ set_variable(Config) ->
         Provider,
         request_stack_frames(ThreadId)
     ),
+    meck:reset([els_dap_server]),
     Result1 = els_provider:handle_request(
         Provider,
         request_evaluate(<<"repl">>, FrameId1, <<"N=1">>)
@@ -321,6 +323,7 @@ set_variable(Config) ->
         Provider,
         request_stack_frames(ThreadId)
     ),
+    ?assertNotEqual(FrameId1, FrameId2),
     Result2 = els_provider:handle_request(
         Provider,
         request_evaluate(<<"hover">>, FrameId2, <<"N">>)
@@ -350,6 +353,44 @@ set_variable(Config) ->
     ),
     ok.
 
+-spec breakpoints(config()) -> ok.
+breakpoints(Config) ->
+    Provider = ?config(provider, Config),
+    NodeName = ?config(node, Config),
+    Node = binary_to_atom(NodeName),
+    DataDir = ?config(data_dir, Config),
+    els_provider:handle_request(
+        Provider,
+        request_set_breakpoints(path_to_test_module(DataDir, els_dap_test_module), [9])
+    ),
+    ?assertMatch([{{els_dap_test_module, 9}, _}], els_dap_rpc:all_breaks(Node)),
+    els_provider:handle_request(
+        Provider,
+        request_set_function_breakpoints([<<"els_dap_test_module:entry/1">>])
+    ),
+    ?assertMatch(
+        [{{els_dap_test_module, 7}, _}, {{els_dap_test_module, 9}, _}],
+        els_dap_rpc:all_breaks(Node)
+    ),
+    els_provider:handle_request(
+        Provider,
+        request_set_breakpoints(path_to_test_module(DataDir, els_dap_test_module), [])
+    ),
+    ?assertMatch(
+        [{{els_dap_test_module, 7}, _}, {{els_dap_test_module, 9}, _}],
+        els_dap_rpc:all_breaks(Node)
+    ),
+    els_provider:handle_request(
+        Provider,
+        request_set_breakpoints(path_to_test_module(DataDir, els_dap_test_module), [9])
+    ),
+    els_provider:handle_request(
+        Provider,
+        request_set_function_breakpoints([])
+    ),
+    ?assertMatch([{{els_dap_test_module, 9}, _}], els_dap_rpc:all_breaks(Node)),
+    ok.
+
 %%==============================================================================
 %% Requests
 %%==============================================================================
@@ -377,6 +418,11 @@ request_set_breakpoints(File, Lines) ->
         <<"source">> => #{<<"path">> => File},
         <<"sourceModified">> => false,
         <<"breakpoints">> => [#{<<"line">> => Line} || Line <- Lines]
+    }}.
+
+request_set_function_breakpoints(MFAs) ->
+    {<<"setFunctionBreakpoints">>, #{
+        <<"breakpoints">> => [#{<<"name">> => MFA, <<"enabled">> => true} || MFA <- MFAs]
     }}.
 
 request_stack_frames(ThreadId) ->

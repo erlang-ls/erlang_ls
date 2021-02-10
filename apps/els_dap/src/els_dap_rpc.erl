@@ -1,6 +1,7 @@
 -module(els_dap_rpc).
 
 -export([ all_breaks/1
+        , all_breaks/2
         , auto_attach/3
         , break/3
         , break_in/4
@@ -15,15 +16,19 @@
         , module_info/3
         , next/2
         , no_break/1
+        , no_break/2
         , snapshot/1
         , stack_trace/2
         , step/2
         ]).
 
-
 -spec all_breaks(node()) -> any().
 all_breaks(Node) ->
   rpc:call(Node, int, all_breaks, []).
+
+-spec all_breaks(node(), atom()) -> any().
+all_breaks(Node, Module) ->
+  rpc:call(Node, int, all_breaks, [Module]).
 
 -spec auto_attach(node(), [atom()], {module(), atom(), [any()]}) -> any().
 auto_attach(Node, Flags, MFA) ->
@@ -82,6 +87,10 @@ next(Node, Pid) ->
 -spec no_break(node()) -> ok.
 no_break(Node) ->
   rpc:call(Node, int, no_break, []).
+
+-spec no_break(node(), atom()) -> ok.
+no_break(Node, Module) ->
+  rpc:call(Node, int, no_break, [Module]).
 
 -spec module_info(node(), module(), atom()) -> any().
 module_info(Node, Module, What) ->
