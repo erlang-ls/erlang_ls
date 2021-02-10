@@ -18,6 +18,7 @@
         , fun_local/1
         , fun_remote/1
         , atom/1
+        , quoted_atom/1
         , record_def/1
         , record_expr/1
         , record_access/1
@@ -148,6 +149,33 @@ atom(Config) ->
   assert_locations(ExpectedLocations, Locations),
   ok.
 
+-spec quoted_atom(config()) -> ok.
+quoted_atom(Config) ->
+  Uri = ?config(code_navigation_uri, Config),
+  #{result := Locations1} = els_client:document_highlight(Uri, 98, 1),
+  ExpectedLocations1 = [ #{range => #{from => {98, 1}, to => {98, 21}}}
+                       , #{range => #{from => {5, 67}, to => {5, 89}}}
+                       ],
+  assert_locations(ExpectedLocations1, Locations1),
+  #{result := Locations2} = els_client:document_highlight(Uri, 101, 20),
+  ExpectedLocations2 = [ #{range => #{from => {101, 5}, to => {101, 77}}}
+                       ],
+  assert_locations(ExpectedLocations2, Locations2),
+  #{result := Locations3} = els_client:document_highlight(Uri, 99, 18),
+  ExpectedLocations3 = [ #{range => #{from => {99, 18}, to => {99, 27}}}
+                       , #{range => #{from => {16, 38}, to => {16, 47}}}
+                       ],
+  assert_locations(ExpectedLocations3, Locations3),
+  #{result := Locations4} = els_client:document_highlight(Uri, 100, 12),
+  ExpectedLocations4 = [ #{range => #{from => {100, 7}, to => {100, 43}}}
+                       ],
+  assert_locations(ExpectedLocations4, Locations4),
+  #{result := Locations5} = els_client:document_highlight(Uri, 97, 48),
+  ExpectedLocations5 = [ #{range => #{from => {97, 34}, to => {97, 68}}}
+                       ],
+  assert_locations(ExpectedLocations5, Locations5),
+  ok.
+
 -spec record_def(config()) -> ok.
 record_def(Config) ->
   Uri = ?config(code_navigation_uri, Config),
@@ -188,7 +216,7 @@ record_field(Config) ->
 export(Config) ->
   Uri = ?config(code_navigation_uri, Config),
   #{result := Locations} = els_client:document_highlight(Uri, 5, 5),
-  ExpectedLocations = [ #{range => #{from => {5, 1}, to => {5, 68}}}
+  ExpectedLocations = [ #{range => #{from => {5, 1}, to => {5, 92}}}
                       ],
   assert_locations(ExpectedLocations, Locations),
   ok.
@@ -350,6 +378,7 @@ record_uses() ->
   , #{range => #{from => {33, 7}, to => {33, 16}}}
   , #{range => #{from => {34, 9}, to => {34, 18}}}
   , #{range => #{from => {34, 34}, to => {34, 43}}}
+  , #{range => #{from => {99, 8}, to => {99, 17}}}
   ].
 
 -spec macro_uses() -> [map()].

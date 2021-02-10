@@ -2,7 +2,7 @@
 
 -behaviour(behaviour_a).
 -wildattribute(a).
--export([ function_a/0, function_b/0, function_g/1, function_j/0 ]).
+-export([ function_a/0, function_b/0, function_g/1, function_j/0, 'PascalCaseFunction'/1 ]).
 
 %% behaviour_a callbacks
 -export([ callback_a/0 ]).
@@ -13,7 +13,7 @@
 -include_lib("code_navigation/include/code_navigation.hrl").
 -include_lib("stdlib/include/assert.hrl").
 
--record(record_a, {field_a, field_b}).
+-record(record_a, {field_a, field_b, 'Field C'}).
 
 -define(MACRO_A, macro_a).
 -define(MACRO_WITH_ARGS(X), erlang:display(X)).
@@ -92,3 +92,10 @@ function_n() ->
 %% atom highlighting and completion includes record fields
 function_o() ->
   {field_a, incl}.
+
+%% quoted atoms
+-spec 'PascalCaseFunction'(T) -> 'Code.Navigation.Elixirish':'Type'(T).
+'PascalCaseFunction'(R) ->
+  _ = R#record_a.'Field C',
+  F = fun 'Code.Navigation.Elixirish':do/1,
+  F('Atom with whitespaces, "double quotes" and even some \'single quotes\'').
