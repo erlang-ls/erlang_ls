@@ -17,7 +17,9 @@
     launch_mfa/1,
     configuration_done/1,
     configuration_done_with_breakpoint/1,
-    frame_variables/1
+    frame_variables/1,
+    navigation_and_frames/1,
+    set_variable/1
 ]).
 
 %% TODO: cleanup after dropping support for OTP 21 and 22
@@ -239,6 +241,115 @@ frame_variables(Config) ->
     ),
     ok.
 
+-spec navigation_and_frames(config()) -> ok.
+navigation_and_frames(Config) ->
+    %% test next, stepIn, continue and check aginst expeted stack frames
+    Provider = ?config(provider, Config),
+    #{<<"threads">> := [#{<<"id">> := ThreadId}]} = els_provider:handle_request(
+        Provider,
+        request_threads()
+    ),
+    %% next
+    %% reset meck history, to capture next call
+    meck:reset([els_dap_server]),
+    els_provider:handle_request(Provider, request_next(ThreadId)),
+    els_dap_test_utils:wait_until_mock_called(els_dap_server, send_event),
+    %% check
+    #{<<"stackFrames">> := Frames1} = els_provider:handle_request(
+        Provider,
+        request_stack_frames(ThreadId)
+    ),
+    ?assertMatch([#{<<"line">> := 11, <<"name">> := <<"els_dap_test_module:entry/1">>}], Frames1),
+    %% continue
+    meck:reset([els_dap_server]),
+    els_provider:handle_request(Provider, request_continue(ThreadId)),
+    els_dap_test_utils:wait_until_mock_called(els_dap_server, send_event),
+    %% check
+    #{<<"stackFrames">> := Frames2} = els_provider:handle_request(
+        Provider,
+        request_stack_frames(ThreadId)
+    ),
+    ?assertMatch(
+        [
+            #{<<"line">> := 9, <<"name">> := <<"els_dap_test_module:entry/1">>},
+            #{<<"line">> := 11, <<"name">> := <<"els_dap_test_module:entry/1">>}
+        ],
+        Frames2
+    ),
+    %% stepIn
+    meck:reset([els_dap_server]),
+    els_provider:handle_request(Provider, request_step_in(ThreadId)),
+    els_dap_test_utils:wait_until_mock_called(els_dap_server, send_event),
+    %% check
+    #{<<"stackFrames">> := Frames3} = els_provider:handle_request(
+        Provider,
+        request_stack_frames(ThreadId)
+    ),
+    ?assertMatch(
+        [
+            #{
+                <<"line">> := 15,
+                <<"name">> := <<"els_dap_test_module:ds/0">>
+            },
+            #{<<"line">> := 9, <<"name">> := <<"els_dap_test_module:entry/1">>},
+            #{<<"line">> := 11, <<"name">> := <<"els_dap_test_module:entry/1">>}
+        ],
+        Frames3
+    ),
+    ok.
+
+-spec set_variable(config()) -> ok.
+set_variable(Config) ->
+    Provider = ?config(provider, Config),
+    #{<<"threads">> := [#{<<"id">> := ThreadId}]} = els_provider:handle_request(
+        Provider,
+        request_threads()
+    ),
+    #{<<"stackFrames">> := [#{<<"id">> := FrameId1}]} = els_provider:handle_request(
+        Provider,
+        request_stack_frames(ThreadId)
+    ),
+    Result1 = els_provider:handle_request(
+        Provider,
+        request_evaluate(<<"repl">>, FrameId1, <<"N=1">>)
+    ),
+    ?assertEqual(#{<<"result">> => <<"1">>}, Result1),
+
+    %% get variable value through hover evaluate
+    els_dap_test_utils:wait_until_mock_called(els_dap_server, send_event),
+    #{<<"stackFrames">> := [#{<<"id">> := FrameId2}]} = els_provider:handle_request(
+        Provider,
+        request_stack_frames(ThreadId)
+    ),
+    Result2 = els_provider:handle_request(
+        Provider,
+        request_evaluate(<<"hover">>, FrameId2, <<"N">>)
+    ),
+    ?assertEqual(#{<<"result">> => <<"1">>}, Result2),
+    %% get variable value through scopes
+    #{
+        <<"scopes">> := [
+            #{
+                <<"variablesReference">> := VariableRef
+            }
+        ]
+    } = els_provider:handle_request(Provider, request_scope(FrameId2)),
+    %% extract variable
+    #{<<"variables">> := [NVar]} = els_provider:handle_request(
+        Provider,
+        request_variable(VariableRef)
+    ),
+    %% at this point there should be only one variable present
+    ?assertMatch(
+        #{
+            <<"name">> := <<"N">>,
+            <<"value">> := <<"1">>,
+            <<"variablesReference">> := 0
+        },
+        NVar
+    ),
+    ok.
+
 %%==============================================================================
 %% Requests
 %%==============================================================================
@@ -276,3 +387,22 @@ request_scope(FrameId) ->
 
 request_variable(Ref) ->
     {<<"variables">>, #{<<"variablesReference">> => Ref}}.
+
+request_threads() ->
+    {<<"threads">>, #{}}.
+
+request_step_in(ThreadId) ->
+    {<<"stepIn">>, #{<<"threadId">> => ThreadId}}.
+
+request_next(ThreadId) ->
+    {<<"next">>, #{<<"threadId">> => ThreadId}}.
+
+request_continue(ThreadId) ->
+    {<<"continue">>, #{<<"threadId">> => ThreadId}}.
+
+request_evaluate(Context, FrameId, Expression) ->
+    {<<"evaluate">>, #{
+        <<"context">> => Context,
+        <<"frameId">> => FrameId,
+        <<"expression">> => Expression
+    }}.
