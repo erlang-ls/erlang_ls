@@ -147,8 +147,8 @@ find_completion( Prefix
       variables(Document);
     %% Check for "[...] fun atom"
     [{atom, _, _}, {'fun', _} | _] ->
-      bifs(function, _ExportFormat = true)
-        ++ definitions(Document, function, _ExportFormat = true);
+      bifs(function, ExportFormat = true)
+        ++ definitions(Document, function, ExportFormat = true);
     %% Check for "[...] atom"
     [{atom, _, Name} | _] ->
       NameBinary = atom_to_binary(Name, utf8),
