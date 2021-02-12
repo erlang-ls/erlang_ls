@@ -20,6 +20,10 @@
         , types_recursive/1
         , opaque_recursive/1
         , record_def_recursive/1
+        , callback_macro/1
+        , spec_macro/1
+        , type_macro/1
+        , opaque_macro/1
         ]).
 
 %%==============================================================================
@@ -172,6 +176,34 @@ assert_recursive_types(Text) ->
                 #{id := {t2, 1}},
                 #{id := {t3, 0}}],
                parse_find_pois(Text, type_application)),
+  ok.
+
+-spec callback_macro(config()) -> ok.
+callback_macro(_Config) ->
+  Text = "-callback foo() -> ?M().",
+  ?assertMatch([_], parse_find_pois(Text, callback, {foo, 0})),
+  ?assertMatch([_], parse_find_pois(Text, macro, 'M')),
+  ok.
+
+-spec spec_macro(config()) -> ok.
+spec_macro(_Config) ->
+  Text = "-spec foo() -> ?M().",
+  ?assertMatch([_], parse_find_pois(Text, spec, {foo, 0})),
+  ?assertMatch([_], parse_find_pois(Text, macro, 'M')),
+  ok.
+
+-spec type_macro(config()) -> ok.
+type_macro(_Config) ->
+  Text = "-type t() :: ?M(a, b).",
+  ?assertMatch([_], parse_find_pois(Text, type_definition, {t, 0})),
+  ?assertMatch([_], parse_find_pois(Text, macro, 'M')),
+  ok.
+
+-spec opaque_macro(config()) -> ok.
+opaque_macro(_Config) ->
+  Text = "-opaque o() :: ?M(a, b).",
+  ?assertMatch([_], parse_find_pois(Text, type_definition, {o, 0})),
+  ?assertMatch([_], parse_find_pois(Text, macro, 'M')),
   ok.
 
 %%==============================================================================

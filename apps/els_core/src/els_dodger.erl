@@ -877,8 +877,9 @@ rewrite(Node) ->
         _ ->
           Node
       end;
-    tuple ->
-      case erl_syntax:tuple_elements(Node) of
+    Type when Type =:= tuple;
+              Type =:= tuple_type ->
+      case tuple_elements(Node, Type) of
         [MagicWord, A | As] ->
           case erl_syntax:type(MagicWord) of
             atom ->
@@ -899,9 +900,15 @@ rewrite(Node) ->
       rewrite_1(Node)
   end.
 
+-spec tuple_elements(erl_syntax:syntaxTree(), atom()) -> [erl_syntax:syntaxTree()].
+tuple_elements(Node, tuple) ->
+  erl_syntax:tuple_elements(Node);
+tuple_elements(Node, tuple_type) ->
+  erl_syntax:tuple_type_elements(Node).
+
 -spec rewrite_1(erl_syntax:syntaxTree()) -> erl_syntax:syntaxTree().
 rewrite_1(Node) ->
-  case erl_syntax:subtrees(Node) of
+  case subtrees(Node) of
     [] ->
       Node;
     Gs ->
@@ -910,6 +917,67 @@ rewrite_1(Node) ->
                                     || Ts <- Gs]),
       erl_syntax:copy_pos(Node, Node1)
   end.
+
+%% @doc Return the list of all subtrees of a syntax tree with special handling
+%% for type attributes.
+%%
+%% Background: In erl_parse AST the arguments of a wild attribute are
+%% represented as plain terms. To make response consistent
+%% `attribute_arguments/1' returns the abstract format of those terms. However
+%% `erl_syntax' doesn't know that `callback', `spec', `type' and `opaque' are
+%% not wild attributes and have their arguments partially in abstract format
+%% already. So `erl_syntax' returns the AST of the AST for these attributes. To
+%% fix this we need to convert them back with `concrete/1' to be able to
+%% properly traverse them. This is necessary to be able to find and rewrite
+%% special expressions representing macros.
+-spec subtrees(erl_syntax:syntaxTree()) -> [[erl_syntax:syntaxTree()]].
+subtrees(Node) ->
+  case is_type_attribute(Node) of
+    {true, AttrName} ->
+      [[erl_syntax:attribute_name(Node)],
+       type_attribute_arguments(Node, AttrName)];
+    false ->
+      erl_syntax:subtrees(Node)
+  end.
+
+-spec is_type_attribute(erl_syntax:syntaxTree()) -> {true, atom()} | false.
+is_type_attribute(Node) ->
+  case erl_syntax:type(Node) of
+    attribute ->
+      NameNode = erl_syntax:attribute_name(Node),
+      case erl_syntax:type(NameNode) of
+        atom ->
+          AttrName = erl_syntax:atom_value(NameNode),
+          case lists:member(AttrName, [callback, spec, type, opaque]) of
+            true ->
+              {true, AttrName};
+            false ->
+              false
+          end;
+        _ ->
+          false
+      end;
+    _ ->
+      false
+  end.
+
+-spec type_attribute_arguments(erl_syntax:syntaxTree(), atom())
+                              -> [erl_syntax:syntaxTree()].
+type_attribute_arguments(Node, AttrName) when AttrName =:= callback;
+                                              AttrName =:= spec ->
+  [Arg] = erl_syntax:attribute_arguments(Node),
+  {FA, DefinitionClauses} = erl_syntax:concrete(Arg),
+  [erl_syntax:tuple([erl_syntax:abstract(FA),
+                     erl_syntax:list(DefinitionClauses)])];
+type_attribute_arguments(Node, AttrName) when AttrName =:= opaque;
+                                              AttrName =:= type ->
+  [Arg] = erl_syntax:attribute_arguments(Node),
+  {TypeName, Definition, TypeArgs} = erl_syntax:concrete(Arg),
+  [erl_syntax:tuple([erl_syntax:abstract(TypeName),
+                     Definition,
+                     erl_syntax:list(TypeArgs)])].
+
+
 
 %% attempting a rescue operation on a token sequence for a single form
 %% if it could not be parsed after the normal treatment
