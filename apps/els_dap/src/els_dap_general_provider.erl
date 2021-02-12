@@ -272,12 +272,12 @@ handle_request( {<<"stepOut">>, Params}
   Pid = to_pid(ThreadId, Threads),
   ok = els_dap_rpc:next(ProjectNode, Pid),
   {#{}, State};
-handle_request({<<"evaluate">>, #{ <<"context">> := <<"hover">>
+handle_request({<<"evaluate">>, #{ <<"context">> := Context
                                  , <<"frameId">> := FrameId
                                  , <<"expression">> := Input
                                  } = _Params}
               , #{ threads := Threads } = State
-              ) ->
+) when Context =:= <<"watch">> orelse Context =:= <<"hover">> ->
   %% hover makes only sense for variables
   %% use the expression as fallback
   case frame_by_id(FrameId, maps:values(Threads)) of
@@ -292,14 +292,14 @@ handle_request({<<"evaluate">>, #{ <<"context">> := <<"hover">>
           {#{<<"result">> => <<"not available">>}, State}
       end
   end;
-handle_request({<<"evaluate">>, #{ <<"context">> := Context
+handle_request({<<"evaluate">>, #{ <<"context">> := <<"repl">>
                                  , <<"frameId">> := FrameId
                                  , <<"expression">> := Input
                                  } = _Params}
               , #{ threads := Threads
                  , project_node := ProjectNode
                  } = State
-) when Context =:= <<"watch">> orelse Context =:= <<"repl">> ->
+) ->
   %% repl and watch can use whole expressions,
   %% but we still want structured variable scopes
   case pid_by_frame_id(FrameId, maps:values(Threads)) of
