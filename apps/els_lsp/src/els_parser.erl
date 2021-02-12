@@ -65,7 +65,7 @@ parse_form(IoDevice, StartLocation, Parser, _Options) ->
     {eof, _EndLocation} = Eof -> Eof
   end.
 
-%% @Doc Find POIs in attributes additionally using tokens to add location info
+%% @doc Find POIs in attributes additionally using tokens to add location info
 %% missing from the syntax tree. Other attributes which don't need tokens are
 %% processed in `attribute/1'.
 -spec find_attribute_pois(erl_syntax:syntaxTree(), [erl_scan:token()]) ->
@@ -73,7 +73,7 @@ parse_form(IoDevice, StartLocation, Parser, _Options) ->
 find_attribute_pois(Tree, Tokens) ->
   case erl_syntax:type(Tree) of
     attribute ->
-      try erl_syntax_lib:analyze_attribute(Tree) of
+      try analyze_attribute(Tree) of
         {export, Exports} ->
           %% The first atom is the attribute name, so we skip it.
           [_|Atoms] = [T || {atom, _, _} = T <- Tokens],
@@ -109,6 +109,37 @@ find_attribute_pois(Tree, Tokens) ->
       end;
     _ ->
       []
+  end.
+
+%% @doc Analyze an attribute node with special handling for type attributes.
+%%
+%% `erl_syntax_lib:analyze_attribute` can't handle macros in wild attribute
+%% arguments. It also handles `callback', `spec', `type' and `opaque' as wild
+%% attributes. Therefore `els_dodger' has to handle these forms specially and
+%% here we have to adopt to the different output of `els_dodger'.
+%%
+%% @see els_dodger:subtrees/1
+-spec analyze_attribute(tree()) -> {atom(), term()} | preprocessor.
+analyze_attribute(Tree) ->
+  case attribute_name_atom(Tree) of
+    AttrName when AttrName =:= callback;
+                  AttrName =:= spec ->
+      [ArgTuple] = erl_syntax:attribute_arguments(Tree),
+      [FATree | _] = erl_syntax:tuple_elements(ArgTuple),
+      Definition = [], %% ignore definition
+      %% concrete will throw an error if `FATRee' contains any macro
+      {AttrName, {AttrName, {erl_syntax:concrete(FATree), Definition}}};
+    AttrName when AttrName =:= opaque;
+                  AttrName =:= type ->
+      [ArgTuple] = erl_syntax:attribute_arguments(Tree),
+      [TypeTree, _, ArgsListTree] = erl_syntax:tuple_elements(ArgTuple),
+      Definition = [], %% ignore definition
+      %% concrete will throw an error if `TyperTree' is a macro
+      {AttrName, {AttrName, {erl_syntax:concrete(TypeTree),
+                             Definition,
+                             erl_syntax:list_elements(ArgsListTree)}}};
+    _ ->
+      erl_syntax_lib:analyze_attribute(Tree)
   end.
 
 -spec find_compile_options_pois([any()] | tuple(), [erl_scan:token()]) ->
@@ -234,7 +265,7 @@ application_with_variable(Operator, A) ->
 -spec attribute(tree()) -> [poi()].
 attribute(Tree) ->
   Pos = erl_syntax:get_pos(Tree),
-  try erl_syntax_lib:analyze_attribute(Tree) of
+  try analyze_attribute(Tree) of
     %% Yes, Erlang allows both British and American spellings for
     %% keywords.
     {behavior, {behavior, Behaviour}} ->
@@ -590,11 +621,7 @@ subtrees(Tree, type_application) ->
   , erl_syntax:type_application_arguments(Tree)
   ];
 subtrees(Tree, attribute) ->
-  NameNode = erl_syntax:attribute_name(Tree),
-  AttrName = case erl_syntax:type(NameNode) of
-               atom -> erl_syntax:atom_value(NameNode);
-               _ -> NameNode
-             end,
+  AttrName = attribute_name_atom(Tree),
   Args = case erl_syntax:attribute_arguments(Tree) of
            none -> [];
            Args0 -> Args0
@@ -603,13 +630,16 @@ subtrees(Tree, attribute) ->
 subtrees(Tree, _) ->
   erl_syntax:subtrees(Tree).
 
-%% Note: In erl_parse AST the arguments of a wild attribute are represented as
-%% plain terms. To make response consistent `attribute_arguments/1' returns the
-%% abstract format of those terms. However `erl_syntax' doesn't know that
-%% `callback', `spec', `type' and `opaque' are not wild attributes and have
-%% their arguments in abstract format already. So `erl_syntax' returns the AST
-%% of the AST for these attributes. To fix this we need to convert them back
-%% with `concrete/1' to be able to properly traverse them.
+-spec attribute_name_atom(tree()) -> atom() | tree().
+attribute_name_atom(Tree) ->
+  NameNode = erl_syntax:attribute_name(Tree),
+  case erl_syntax:type(NameNode) of
+    atom ->
+      erl_syntax:atom_value(NameNode);
+    _ ->
+      Tree
+  end.
+
 -spec attribute_subtrees(atom() | tree(), [tree()]) -> [[tree()]].
 attribute_subtrees(AttrName, [Mod])
   when AttrName =:= module;
@@ -629,19 +659,8 @@ attribute_subtrees(AttrName, _)
   when AttrName =:= include;
        AttrName =:= include_lib ->
   [];
-attribute_subtrees(AttrName, [Arg])
-  when AttrName =:= callback;
-       AttrName =:= spec ->
-  {_FA, DefinitionClauses} = erl_syntax:concrete(Arg),
-  [DefinitionClauses];
-attribute_subtrees(AttrName, [Arg])
-  when AttrName =:= type;
-       AttrName =:= opaque ->
-  {_TypeName, Definition, TypeArgs} = erl_syntax:concrete(Arg),
-  [TypeArgs, [Definition]];
 attribute_subtrees(AttrName, Args)
   when is_atom(AttrName) ->
-  %% compile, export, export_type and wild attributes
       [Args];
 attribute_subtrees(AttrName, Args) ->
   %% Attribute name not an atom, probably a macro
