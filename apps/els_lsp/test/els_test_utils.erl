@@ -147,6 +147,7 @@ sources() ->
   , code_navigation
   , code_navigation_extra
   , code_navigation_types
+  , 'Code.Navigation.Elixirish'
   , completion
   , completion_caller
   , completion_snippets

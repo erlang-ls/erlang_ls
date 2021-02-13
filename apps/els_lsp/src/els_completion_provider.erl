@@ -175,11 +175,11 @@ atoms(Document, Prefix) ->
   POIs   = local_and_included_pois(Document, atom),
   Atoms  = [Id || #{id := Id} <- POIs],
   Unique = lists:usort(Atoms),
-  filter_by_prefix(Prefix, Unique, fun to_binary/1, fun item_kind_atom/1).
+  filter_by_prefix(Prefix, Unique, fun atom_to_label/1, fun item_kind_atom/1).
 
--spec item_kind_atom(atom()) -> map().
+-spec item_kind_atom(binary()) -> map().
 item_kind_atom(Atom) ->
-  #{ label            => atom_to_label(Atom)
+  #{ label            => Atom
    , kind             => ?COMPLETION_ITEM_KIND_CONSTANT
    , insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
    }.
@@ -192,7 +192,7 @@ item_kind_atom(Atom) ->
 modules(Prefix) ->
   {ok, Items} = els_dt_document_index:find_by_kind(module),
   Modules = [Id || #{id := Id} <- Items],
-  filter_by_prefix(Prefix, Modules, fun to_binary/1, fun item_kind_module/1).
+  filter_by_prefix(Prefix, Modules, fun atom_to_label/1, fun item_kind_module/1).
 
 -spec item_kind_module(binary()) -> map().
 item_kind_module(Module) ->
@@ -281,7 +281,7 @@ all_record_fields(Document, Prefix) ->
                                              , record_field]),
   Fields  = [Id || #{id := {_Record, Id}} <- POIs],
   Unique = lists:usort(Fields),
-  filter_by_prefix(Prefix, Unique, fun to_binary/1, fun item_kind_field/1).
+  filter_by_prefix(Prefix, Unique, fun atom_to_label/1, fun item_kind_field/1).
 
 -spec record_fields(els_dt_document:item(), atom()) -> [map()].
 record_fields(Document, RecordName) ->
@@ -289,7 +289,7 @@ record_fields(Document, RecordName) ->
     [] -> [];
     POIs ->
       [#{data := Fields} | _] = els_poi:sort(POIs),
-      [ item_kind_field(Name)
+      [ item_kind_field(atom_to_label(Name))
         || {Name, _} <- Fields
       ]
   end.
@@ -299,9 +299,9 @@ find_record_definition(Document, RecordName) ->
   POIs = local_and_included_pois(Document, record),
   [X || X = #{id := Name} <- POIs, Name =:= RecordName].
 
--spec item_kind_field(atom()) -> map().
+-spec item_kind_field(binary()) -> map().
 item_kind_field(Name) ->
-  #{ label => atom_to_label(Name)
+  #{ label => Name
    , kind  => ?COMPLETION_ITEM_KIND_FIELD
    }.
 
@@ -384,12 +384,6 @@ filter_by_prefix(Prefix, List, ToBinary, ItemFun) ->
                  end,
   lists:filtermap(FilterMapFun, List).
 
--spec to_binary(any()) -> binary().
-to_binary(X) when is_atom(X) ->
-  atom_to_binary(X, utf8);
-to_binary(X) when is_binary(X) ->
-  X.
-
 %%==============================================================================
 %% Helper functions
 %%==============================================================================
@@ -412,9 +406,11 @@ completion_item(#{kind := Kind, id := {F, A}}, true)
    , kind             => completion_item_kind(Kind)
    , insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
    };
-completion_item(#{kind := Kind, id := Name}, _)
-  when Kind =:= record;
-       Kind =:= define ->
+completion_item(#{kind := Kind = record, id := Name}, _) ->
+  #{ label            => atom_to_label(Name)
+   , kind             => completion_item_kind(Kind)
+   };
+completion_item(#{kind := Kind = define, id := Name}, _) ->
   #{ label            => atom_to_binary(Name, utf8)
    , kind             => completion_item_kind(Kind)
    }.
@@ -424,7 +420,7 @@ snippet_function_call(Function, Args0) ->
   Args    = [ ["${", integer_to_list(N), ":", A, "}"]
               || {N, A} <- Args0
             ],
-  Snippet = [atom_to_list(Function), "(", string:join(Args, ", "), ")"],
+  Snippet = [atom_to_label(Function), "(", string:join(Args, ", "), ")"],
   els_utils:to_binary(Snippet).
 
 -spec is_in(els_dt_document:item(), line(), column(), [poi_kind()]) ->
@@ -483,6 +479,4 @@ include_file_pois(Name, Kinds) ->
 
 -spec atom_to_label(atom()) -> binary().
 atom_to_label(Atom) when is_atom(Atom) ->
-  unicode:characters_to_binary(io_lib:write(Atom));
-atom_to_label(Binary) when is_binary(Binary) ->
-  Binary.
+  unicode:characters_to_binary(io_lib:write(Atom)).
