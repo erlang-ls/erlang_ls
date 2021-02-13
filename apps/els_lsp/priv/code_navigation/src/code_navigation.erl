@@ -82,7 +82,7 @@ function_l(X, Y) ->
 
 %% [#485] atoms referencing a module
 function_m(code_navigation_types) ->
-  code_navigation_extra,
+  code_navigation_extra, 'Code.Navigation.Elixirish',
   function_m(code_navigation_extra).
 
 %% [#386] go to definition of import by module

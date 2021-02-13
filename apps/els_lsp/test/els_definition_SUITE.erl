@@ -117,9 +117,11 @@ atom(Config) ->
   Def0 = els_client:definition(Uri, 84, 20),
   Def1 = els_client:definition(Uri, 85, 20),
   Def2 = els_client:definition(Uri, 86, 20),
+  Def3 = els_client:definition(Uri, 85, 27),
   #{result := #{range := Range0, uri := DefUri0}} = Def0,
   #{result := #{range := Range1, uri := DefUri1}} = Def1,
   #{result := #{range := Range2, uri := DefUri2}} = Def2,
+  #{result := #{range := Range3, uri := DefUri3}} = Def3,
   ?assertEqual(?config(code_navigation_types_uri, Config), DefUri0),
   ?assertEqual( els_protocol:range(#{from => {1, 9}, to => {1, 30}})
               , Range0),
@@ -129,6 +131,9 @@ atom(Config) ->
   ?assertEqual(?config(code_navigation_extra_uri, Config), DefUri2),
   ?assertEqual( els_protocol:range(#{from => {1, 9}, to => {1, 30}})
               , Range2),
+  ?assertEqual(?config('Code.Navigation.Elixirish_uri', Config), DefUri3),
+  ?assertEqual( els_protocol:range(#{from => {1, 9}, to => {1, 36}})
+              , Range3),
   ok.
 
 -spec behaviour(config()) -> ok.
