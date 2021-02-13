@@ -261,11 +261,15 @@ macro_lowercase(Config) ->
 -spec macro_included(config()) -> ok.
 macro_included(Config) ->
   Uri = ?config(code_navigation_uri, Config),
-  Def = els_client:definition(Uri, 53, 19),
-  #{result := #{range := Range, uri := DefUri}} = Def,
-  ?assertEqual(?config(code_navigation_h_uri, Config), DefUri),
+  UriHeader = ?config(code_navigation_h_uri, Config),
+  #{result := #{range := Range1, uri := DefUri1}} = els_client:definition(Uri, 53, 19),
+  ?assertEqual(UriHeader, DefUri1),
   ?assertEqual( els_protocol:range(#{from => {3, 9}, to => {3, 25}})
-              , Range),
+              , Range1),
+  #{result := #{range := RangeQuoted, uri := DefUri2}} = els_client:definition(Uri, 52, 75),
+  ?assertEqual(UriHeader, DefUri2),
+  ?assertEqual( els_protocol:range(#{from => {7, 9}, to => {7, 27}})
+              , RangeQuoted),
   ok.
 
 -spec macro_with_args(config()) -> ok.
