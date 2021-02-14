@@ -1,5 +1,5 @@
 {application, els_lsp, [
-    {description, "The Erlang Language Server"},
+    {description, "Erlang LS - Language Server Protocol"},
     {vsn, git},
     {registered, []},
     {mod, {els_app, []}},
@@ -10,6 +10,7 @@
         elvis_core,
         rebar3_format,
         tdiff,
+        ephemeral,
         uuid,
         getopt,
         els_core
