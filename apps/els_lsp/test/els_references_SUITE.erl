@@ -219,6 +219,9 @@ record(Config) ->
                       , #{ uri => Uri
                          , range => #{from => {34, 34}, to => {34, 43}}
                          }
+                      , #{ uri => Uri
+                         , range => #{from => {99, 8}, to => {99, 17}}
+                         }
                       ],
 
   ct:comment("Find references record_a from a usage"),
@@ -318,7 +321,7 @@ type_remote(Config) ->
 -spec assert_locations([map()], [map()]) -> ok.
 assert_locations(Locations, ExpectedLocations) ->
   ?assertEqual(length(ExpectedLocations), length(Locations)),
-  Pairs = lists:zip(lists:sort(Locations), ExpectedLocations),
+  Pairs = lists:zip(sort_locations(Locations), ExpectedLocations),
   [ begin
       #{range := Range} = Location,
       #{uri := ExpectedUri, range := ExpectedRange} = Expected,
@@ -330,3 +333,11 @@ assert_locations(Locations, ExpectedLocations) ->
     || {Location, Expected} <- Pairs
   ],
   ok.
+
+sort_locations(Locations) ->
+  lists:sort(fun compare_locations/2, Locations).
+
+compare_locations(#{range := R1}, #{range := R2}) ->
+  #{start := #{line := L1, character := C1}} = R1,
+  #{start := #{line := L2, character := C2}} = R2,
+  {L1, C1} < {L2, C2}.

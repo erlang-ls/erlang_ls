@@ -103,6 +103,11 @@ default_completions(Config) ->
                  , kind             => ?COMPLETION_ITEM_KIND_FUNCTION,
                    label => <<"do_4/2">>
                  }
+              , #{ insertText => <<"'DO_LOUDER'()">>
+                 , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+                 , kind             => ?COMPLETION_ITEM_KIND_FUNCTION,
+                   label => <<"'DO_LOUDER'/0">>
+                 }
               ],
 
   Expected1 = [ #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
@@ -117,29 +122,28 @@ default_completions(Config) ->
                  , kind             => ?COMPLETION_ITEM_KIND_MODULE
                  , label            => <<"code_navigation_types">>
                  }
-              | Functions
-                ++ els_completion_provider:keywords()
-                ++ els_completion_provider:bifs(function, false)
-                ++ els_snippets_server:snippets()
-              ],
+              | Functions ],
 
+  DefaultCompletion = els_completion_provider:keywords()
+                        ++ els_completion_provider:bifs(function, false)
+                        ++ els_snippets_server:snippets(),
   #{ result := Completion1
    } = els_client:completion(Uri, 9, 6, TriggerKind, <<"">>),
-  ?assertEqual(lists:sort(Expected1), lists:sort(Completion1)),
+  ?assertEqual(
+    lists:sort(Expected1),
+    filter_completion(Completion1, DefaultCompletion)),
 
   Expected2 = [ #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
                  , kind             => ?COMPLETION_ITEM_KIND_CONSTANT
                  , label            => <<"foo">>
                  }
-              | Functions
-                ++ els_completion_provider:keywords()
-                ++ els_completion_provider:bifs(function, false)
-                ++ els_snippets_server:snippets()
-              ],
+              | Functions ],
 
   #{ result := Completion2
    } = els_client:completion(Uri, 6, 14, TriggerKind, <<"">>),
-  ?assertEqual(lists:sort(Expected2), lists:sort(Completion2)),
+  ?assertEqual(
+    lists:sort(Expected2),
+    filter_completion(Completion2, DefaultCompletion)),
 
   ok.
 
@@ -157,16 +161,26 @@ empty_completions(Config) ->
 exported_functions(Config) ->
   TriggerKind = ?COMPLETION_TRIGGER_KIND_CHARACTER,
   Uri = ?config(code_navigation_uri, Config),
-  ExpectedCompletion = expected_exported_functions(),
+  ExpectedCompletion1 = expected_exported_functions(),
 
   #{result := Completion1} =
     els_client:completion(Uri, 32, 25, TriggerKind, <<":">>),
-  ?assertEqual(lists:sort(ExpectedCompletion), lists:sort(Completion1)),
+  ?assertEqual(lists:sort(ExpectedCompletion1), lists:sort(Completion1)),
 
   #{result := Completion2} =
     els_client:completion(Uri, 52, 34, TriggerKind, <<":">>),
   ExpectedCompletionArity = expected_exported_functions_arity_only(),
   ?assertEqual(lists:sort(ExpectedCompletionArity), lists:sort(Completion2)),
+
+  ExpectedCompletionQuoted = [ #{ label             => <<"do/1">>
+                                , kind             => ?COMPLETION_ITEM_KIND_FUNCTION
+                                , insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+                                }
+                        ],
+
+  #{result := Completion3} =
+    els_client:completion(Uri, 100, 39, TriggerKind, <<":">>),
+  ?assertEqual(lists:sort(ExpectedCompletionQuoted), lists:sort(Completion3)),
 
   ok.
 
@@ -226,6 +240,7 @@ functions_arity(Config) ->
                       , <<"function_m/1">>
                       , <<"function_n/0">>
                       , <<"function_o/0">>
+                      , <<"'PascalCaseFunction'/1">>
                       ],
   ExpectedCompletion = [ #{ label            => FunName
                           , kind             => ?COMPLETION_ITEM_KIND_FUNCTION
@@ -261,14 +276,21 @@ functions_export_list(Config) ->
                           , kind             => ?COMPLETION_ITEM_KIND_FUNCTION
                           , label            => <<"do_4/2">>
                           }
-                       | els_completion_provider:keywords()
-                         ++ els_completion_provider:bifs(function, true)
-                         ++ els_snippets_server:snippets()
+                       , #{ label            => <<"'DO_LOUDER'/0">>
+                          , kind             => ?COMPLETION_ITEM_KIND_FUNCTION
+                          , insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+                          }
                        ],
+
+  DefaultCompletion = els_completion_provider:keywords()
+                         ++ els_completion_provider:bifs(function, true)
+                         ++ els_snippets_server:snippets(),
 
   #{result := Completion} =
     els_client:completion(Uri, 3, 13, TriggerKind, <<"">>),
-  ?assertEqual(lists:sort(ExpectedCompletion), lists:sort(Completion)),
+  ?assertEqual(
+    lists:sort(ExpectedCompletion),
+    filter_completion(Completion, DefaultCompletion)),
 
   ok.
 
@@ -350,6 +372,9 @@ records(Config) ->
              , #{ kind => ?COMPLETION_ITEM_KIND_STRUCT
                 , label => <<"record_a">>
                 }
+             , #{ kind => ?COMPLETION_ITEM_KIND_STRUCT
+                , label => <<"'PascalCaseRecord'">>
+                }
              ],
 
   #{result := Completion1} =
@@ -372,6 +397,9 @@ record_fields(Config) ->
                  }
               , #{ kind => ?COMPLETION_ITEM_KIND_FIELD
                  , label => <<"field_b">>
+                 }
+              , #{ kind => ?COMPLETION_ITEM_KIND_FIELD
+                 , label => <<"'Field C'">>
                  }
               ],
   #{result := Completion1} =
@@ -397,6 +425,17 @@ record_fields(Config) ->
     els_client:completion(Uri, 52, 63, TriggerKindInvoked, <<"">>),
   ?assertEqual(lists:sort(Expected2), lists:sort(Completion4)),
 
+  ExpectedQuoted = [ #{ kind => ?COMPLETION_ITEM_KIND_FIELD
+                      , label => <<"'Field #1'">>
+                      }
+                   , #{ kind => ?COMPLETION_ITEM_KIND_FIELD
+                      , label => <<"'Field #2'">>
+                      }
+                   ],
+  #{result := Completion5} =
+    els_client:completion(Uri, 52, 90, TriggerKindChar, <<".">>),
+  ?assertEqual(lists:sort(ExpectedQuoted), lists:sort(Completion5)),
+
   ok.
 
 -spec types(config()) -> ok.
@@ -413,15 +452,23 @@ types(Config) ->
                 , kind             => ?COMPLETION_ITEM_KIND_TYPE_PARAM
                 , label            => <<"included_type_a/0">>
                 }
-             | els_completion_provider:keywords()
-               ++ els_completion_provider:bifs(type_definition, false)
-               ++ els_snippets_server:snippets()
+             , #{ insertText       => <<"'INCLUDED_TYPE'(${1:T})">>
+                , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+                , kind             => ?COMPLETION_ITEM_KIND_TYPE_PARAM
+                , label            => <<"'INCLUDED_TYPE'/1">>
+                }
              ],
+
+  DefaultCompletion = els_completion_provider:keywords()
+                        ++ els_completion_provider:bifs(type_definition, false)
+                        ++ els_snippets_server:snippets(),
 
   ct:comment("Types defined both in the current file and in includes"),
   #{result := Completion1} =
     els_client:completion(Uri, 55, 27, TriggerKind, <<"">>),
-  ?assertEqual(lists:sort(Expected), lists:sort(Completion1)),
+  ?assertEqual(
+    lists:sort(Expected),
+    filter_completion(Completion1, DefaultCompletion)),
 
   ok.
 
@@ -441,15 +488,18 @@ types_export_list(Config) ->
                 , kind             => ?COMPLETION_ITEM_KIND_TYPE_PARAM
                 , label            => <<"opaque_type_a/0">>
                 }
-             | els_completion_provider:keywords()
-               ++ els_completion_provider:bifs(type_definition, true)
-               ++ els_snippets_server:snippets()
              ],
+
+  DefaultCompletion = els_completion_provider:keywords()
+                        ++ els_completion_provider:bifs(type_definition, true)
+                        ++ els_snippets_server:snippets(),
 
   ct:comment("Types in an export_type section is provided with arity"),
   #{result := Completion1} =
     els_client:completion(Uri, 5, 19, TriggerKind, <<"">>),
-  ?assertEqual(lists:sort(Expected), lists:sort(Completion1)),
+  ?assertEqual(
+    lists:sort(Expected),
+    filter_completion(Completion1, DefaultCompletion)),
 
   ok.
 
@@ -478,6 +528,11 @@ expected_exported_functions() ->
      , insertText       => <<"do_2()">>
      , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
      }
+  , #{ label            => <<"'DO_LOUDER'/0">>
+     , kind             => ?COMPLETION_ITEM_KIND_FUNCTION
+     , insertText       => <<"'DO_LOUDER'()">>
+     , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+     }
   ].
 
 expected_exported_functions_arity_only() ->
@@ -486,6 +541,10 @@ expected_exported_functions_arity_only() ->
      , insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
      }
   , #{ label            => <<"do_2/0">>
+     , kind             => ?COMPLETION_ITEM_KIND_FUNCTION
+     , insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+     }
+  , #{ label            => <<"'DO_LOUDER'/0">>
      , kind             => ?COMPLETION_ITEM_KIND_FUNCTION
      , insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
      }
@@ -523,3 +582,9 @@ snippets(Config) ->
   CustomSnippets = filelib:wildcard("*", CustomSnippetsDir),
   Expected = lists:usort(Snippets ++ CustomSnippets),
   ?assertEqual(length(Expected), length(Completions)).
+
+filter_completion(Completion, ToFilter) ->
+  CompletionSet = ordsets:from_list(Completion),
+  FilterSet = ordsets:from_list(ToFilter),
+  ?assertEqual(FilterSet, ordsets:intersection(CompletionSet, FilterSet)),
+  ordsets:to_list(ordsets:subtract(CompletionSet, FilterSet)).

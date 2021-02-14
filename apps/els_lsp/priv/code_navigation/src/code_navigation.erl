@@ -2,7 +2,7 @@
 
 -behaviour(behaviour_a).
 -wildattribute(a).
--export([ function_a/0, function_b/0, function_g/1, function_j/0 ]).
+-export([ function_a/0, function_b/0, function_g/1, function_j/0, 'PascalCaseFunction'/1 ]).
 
 %% behaviour_a callbacks
 -export([ callback_a/0 ]).
@@ -13,7 +13,7 @@
 -include_lib("code_navigation/include/code_navigation.hrl").
 -include_lib("stdlib/include/assert.hrl").
 
--record(record_a, {field_a, field_b}).
+-record(record_a, {field_a, field_b, 'Field C'}).
 
 -define(MACRO_A, macro_a).
 -define(MACRO_WITH_ARGS(X), erlang:display(X)).
@@ -49,7 +49,7 @@ function_f() ->
 
 function_g(X) ->
   F = fun function_b/0,
-  G = {fun code_navigation_extra:do/1, X#included_record_a.field_b},
+  G = {fun code_navigation_extra:do/1, X#included_record_a.field_b, X#'PascalCaseRecord'.'Field #1'},
   {?INCLUDED_MACRO_A, #included_record_a{included_field_a = a}, F, G}.
 
 -spec function_h() -> type_a() | undefined_type_a() | file:fd().
@@ -82,7 +82,7 @@ function_l(X, Y) ->
 
 %% [#485] atoms referencing a module
 function_m(code_navigation_types) ->
-  code_navigation_extra,
+  code_navigation_extra, 'Code.Navigation.Elixirish',
   function_m(code_navigation_extra).
 
 %% [#386] go to definition of import by module
@@ -92,3 +92,10 @@ function_n() ->
 %% atom highlighting and completion includes record fields
 function_o() ->
   {field_a, incl}.
+
+%% quoted atoms
+-spec 'PascalCaseFunction'(T) -> 'Code.Navigation.Elixirish':'Type'(T).
+'PascalCaseFunction'(R) ->
+  _ = R#record_a.'Field C',
+  F = fun 'Code.Navigation.Elixirish':do/1,
+  F('Atom with whitespaces, "double quotes" and even some \'single quotes\'').

@@ -1,6 +1,6 @@
 -module(code_navigation_extra).
 
--export([ do/1, do_2/0 ]).
+-export([ do/1, do_2/0, 'DO_LOUDER'/0 ]).
 
 do(_Config) ->
   do_4(1, foo).
@@ -18,3 +18,6 @@ do_4(_, _) ->
   code_navigation:function_j().
 
 -opaque opaque_local() :: atom().
+
+'DO_LOUDER'() ->
+  'Code.Navigation.Elixirish':do('Atom').
