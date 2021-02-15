@@ -1,6 +1,6 @@
 {application, els_dap, [
     {description, "Erlang LS - Debug Adapter Protocol"},
-    {vsn, "0.1.0"},
+    {vsn, git},
     {registered, []},
     {mod, {els_dap_app, []}},
     {applications, [
