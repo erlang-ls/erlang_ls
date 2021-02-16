@@ -21,6 +21,7 @@
 main(Args) ->
   application:load(getopt),
   application:load(els_core),
+  application:load(els_dap),
   ok = parse_args(Args),
   application:set_env(els_core, server, els_dap_server),
   configure_logging(),
