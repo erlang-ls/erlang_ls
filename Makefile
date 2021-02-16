@@ -3,10 +3,12 @@
 all:
 	@ echo "Building escript..."
 	@ rebar3 escriptize
+	@ rebar3 as dap escriptize
 
 install: all
 	@ echo "Installing escript..."
 	@ cp _build/default/bin/erlang_ls /usr/local/bin
+	@ cp _build/dap/bin/els_dap /usr/local/bin
 
 $HOME/.dialyzer_plt:
 	dialyzer --build_plt --apps erts kernel stdlib
