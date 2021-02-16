@@ -86,11 +86,26 @@ handle_request({<<"launch">>, Params}, State) ->
   #{<<"cwd">> := Cwd} = Params,
   ok = file:set_cwd(Cwd),
   Name = filename:basename(Cwd),
+
+  %% start distribution
+  LocalNode = els_distribution_server:node_name(<<"erlang_ls_dap">>, Name),
+  els_distribution_server:start_distribution(LocalNode),
+  ?LOG_INFO("Distribution up on: [~p]", [LocalNode]),
+
+  %% get configuration for project node and cookie
   ProjectNode =
     case Params of
-      #{ <<"projectnode">> := Node } -> binary_to_atom(Node, utf8);
+      #{ <<"projectnode">> := ConfNode } -> binary_to_atom(ConfNode, utf8);
       _ -> els_distribution_server:node_name(<<"erlang_ls_dap_project">>, Name)
     end,
+  Cookie =
+     case Params of
+      #{ <<"cookie">> := ConfCookie } -> binary_to_atom(ConfCookie, utf8);
+      _ -> erlang:get_cookie()
+    end,
+  true = erlang:set_cookie(LocalNode, Cookie),
+
+
   case Params of
     #{ <<"runinterminal">> := Cmd
      } ->
@@ -112,14 +127,11 @@ handle_request({<<"launch">>, Params}, State) ->
                   , "--sname"
                   , ProjectNode
                   , "--setcookie"
-                  , erlang:atom_to_list(erlang:get_cookie())
+                  , erlang:atom_to_list(Cookie)
                   ]
                 )
             end)
   end,
-  LocalNode = els_distribution_server:node_name(<<"erlang_ls_dap">>, Name),
-  els_distribution_server:start_distribution(LocalNode),
-  ?LOG_INFO("Distribution up on: [~p]", [LocalNode]),
 
   els_dap_server:send_event(<<"initialized">>, #{}),
 

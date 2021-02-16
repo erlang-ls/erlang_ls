@@ -15,6 +15,7 @@
 -export([
     initialize/1,
     launch_mfa/1,
+    launch_mfa_with_cookie/1,
     configuration_done/1,
     configuration_done_with_breakpoint/1,
     frame_variables/1,
@@ -173,6 +174,19 @@ launch_mfa(Config) ->
     els_dap_test_utils:wait_until_mock_called(els_dap_server, send_event),
     ok.
 
+-spec launch_mfa_with_cookie(config()) -> ok.
+launch_mfa_with_cookie(Config) ->
+    Provider = ?config(provider, Config),
+    DataDir = ?config(data_dir, Config),
+    Node = ?config(node, Config),
+    els_provider:handle_request(Provider, request_initialize(#{})),
+    els_provider:handle_request(
+        Provider,
+        request_launch(DataDir, Node, <<"some_cookie">>, els_dap_test_module, entry, [])
+    ),
+    els_dap_test_utils:wait_until_mock_called(els_dap_server, send_event),
+    ok.
+
 -spec configuration_done(config()) -> ok.
 configuration_done(Config) ->
     Provider = ?config(provider, Config),
@@ -233,7 +247,7 @@ frame_variables(Config) ->
         Provider,
         request_variable(VariableRef)
     ),
-    %% at this point there should be only one variable present
+    %% at this point there should be only one variable present,
     ?assertMatch(
         #{
             <<"name">> := <<"N">>,
@@ -428,6 +442,10 @@ request_launch(AppDir, Node, M, F, A) ->
         <<"function">> => atom_to_binary(F),
         <<"args">> => unicode:characters_to_binary(io_lib:format("~w", [A]))
     }).
+
+request_launch(AppDir, Node, Cookie, M, F, A) ->
+    {<<"launch">>, Params} = request_launch(AppDir, Node, M, F, A),
+    {<<"launch">>, Params#{<<"cookie">> => Cookie}}.
 
 request_configuration_done(Params) ->
     {<<"configurationDone">>, Params}.
