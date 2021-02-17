@@ -158,9 +158,7 @@ handle_request( {<<"setBreakpoints">>, Params}
   SourceBreakpoints = maps:get(<<"breakpoints">>, Params, []),
   _SourceModified = maps:get(<<"sourceModified">>, Params, false),
   Module = els_uri:module(els_uri:uri(Path)),
-
   els_distribution_server:wait_connect_and_monitor(ProjectNode),
-
 
   {module, Module} = els_dap_rpc:i(ProjectNode, Module),
   Lines = [Line || #{<<"line">> := Line} <- SourceBreakpoints],
@@ -377,7 +375,7 @@ handle_request({<<"disconnect">>, _Params}, State) ->
   els_utils:halt(0),
   {#{}, State}.
 
--spec handle_info(any(), state()) -> state().
+-spec handle_info(any(), state()) -> state() | no_return().
 handle_info( {int_cb, ThreadPid}
            , #{ threads := Threads
               , project_node := ProjectNode
@@ -391,7 +389,15 @@ handle_info( {int_cb, ThreadPid}
   els_dap_server:send_event(<<"stopped">>, #{ <<"reason">> => <<"breakpoint">>
                                             , <<"threadId">> => ThreadId
                                             }),
-  State#{threads => maps:put(ThreadId, Thread, Threads)}.
+  State#{threads => maps:put(ThreadId, Thread, Threads)};
+handle_info({nodedown, Node}, State) ->
+  %% the project node is down, there is nothing left to do then to exit
+  ?LOG_NOTICE("project node ~p terminated, ending debug session", [Node]),
+  els_dap_server:send_event(<<"terminated">>, #{}),
+  els_dap_server:send_event(<<"exited">>, #{ <<"exitCode">> => <<"0">>}),
+  ?LOG_NOTICE("terminating debug adapter"),
+  els_utils:halt(0),
+  State.
 
 %%==============================================================================
 %% API

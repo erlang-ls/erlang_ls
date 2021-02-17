@@ -134,13 +134,19 @@ handle_info(Request, State) ->
 %%==============================================================================
 -spec connect_and_monitor(atom()) -> ok | error.
 connect_and_monitor(Node) ->
-  case net_kernel:connect_node(Node) of
+  case lists:member(Node, erlang:nodes(connected)) of
     true ->
-      ?LOG_INFO("Connected to node [node=~p]", [Node]),
-      erlang:monitor_node(Node, true),
+      ?LOG_DEBUG("Already connected to node [node=~p]", [Node]),
       ok;
     false ->
-      error
+      case net_kernel:connect_node(Node) of
+        true ->
+          ?LOG_INFO("Connected to node [node=~p]", [Node]),
+          erlang:monitor_node(Node, true),
+          ok;
+        false ->
+          error
+      end
   end.
 
 -spec start(atom()) -> ok.
@@ -170,7 +176,7 @@ wait_connect_and_monitor(Node, Attempts) ->
     ok ->
       ok;
     error ->
-      ?LOG_WARNING( "Trying to connect to node ~p (~p/~p)"
+      ?LOG_DEBUG( "Trying to connect to node ~p (~p/~p)"
                   , [Node, ?WAIT_ATTEMPTS - Attempts + 1, ?WAIT_ATTEMPTS]),
       wait_connect_and_monitor(Node, Attempts - 1)
   end.

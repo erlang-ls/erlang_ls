@@ -20,7 +20,8 @@
     frame_variables/1,
     navigation_and_frames/1,
     set_variable/1,
-    breakpoints/1
+    breakpoints/1,
+    project_node_exit/1
 ]).
 
 %% TODO: cleanup after dropping support for OTP 21 and 22
@@ -65,6 +66,7 @@ init_per_testcase(TestCase, Config) when
     TestCase =:= undefined orelse
         TestCase =:= initialize orelse
         TestCase =:= launch_mfa orelse
+        TestCase =:= launch_mfa_with_cookie orelse
         TestCase =:= configuration_done orelse
         TestCase =:= configuration_done_with_breakpoint
 ->
@@ -390,6 +392,23 @@ breakpoints(Config) ->
     ),
     ?assertMatch([{{els_dap_test_module, 9}, _}], els_dap_rpc:all_breaks(Node)),
     ok.
+
+-spec project_node_exit(config()) -> ok.
+project_node_exit(Config) ->
+    NodeName = ?config(node, Config),
+    Node = binary_to_atom(NodeName),
+    meck:expect(els_utils, halt, 1, meck:val(ok)),
+    meck:reset(els_dap_server),
+    erlang:monitor_node(Node, true),
+    %% kill node and wait for nodedown message
+    rpc:cast(Node, erlang, halt, []),
+    receive
+        {nodedown, Node} -> ok
+    end,
+    %% wait until els_utils:halt has been called
+    els_dap_test_utils:wait_until_mock_called(els_utils, halt),
+    ?assert(meck:called(els_dap_server, send_event, [<<"terminated">>, '_'])),
+    ?assert(meck:called(els_dap_server, send_event, [<<"exited">>, '_'])).
 
 %%==============================================================================
 %% Requests
