@@ -52,6 +52,7 @@
                          , scope_bindings =>
                           #{pos_integer() => {binding_type(), bindings()}}
                          , breakpoints := breakpoints()
+                         , timeout := timeout()
                          }.
 -type bindings()     :: [{varname(), term()}].
 -type varname()      :: atom() | string().
@@ -72,7 +73,8 @@ init() ->
   #{ threads => #{}
    , launch_params => #{}
    , scope_bindings => #{}
-   , breakpoints => #{}}.
+   , breakpoints => #{}
+   , timeout => 30}.
 
 -spec handle_request(request(), state()) -> {result(), state()}.
 handle_request({<<"initialize">>, _Params}, State) ->
@@ -92,17 +94,20 @@ handle_request({<<"launch">>, Params}, State) ->
   els_distribution_server:start_distribution(LocalNode),
   ?LOG_INFO("Distribution up on: [~p]", [LocalNode]),
 
-  %% get configuration for project node and cookie
-  ProjectNode =
-    case Params of
-      #{ <<"projectnode">> := ConfNode } -> binary_to_atom(ConfNode, utf8);
-      _ -> els_distribution_server:node_name(<<"erlang_ls_dap_project">>, Name)
-    end,
-  Cookie =
-     case Params of
-      #{ <<"cookie">> := ConfCookie } -> binary_to_atom(ConfCookie, utf8);
-      _ -> erlang:get_cookie()
-    end,
+  %% get default and final launch config
+  DefaultConfig = #{
+    <<"projectnode">> =>
+      atom_to_binary(els_distribution_server:node_name(<<"erlang_ls_dap_project">>, Name)),
+    <<"cookie">> => atom_to_binary(erlang:get_cookie()),
+    <<"timeout">> => 30
+  },
+  #{ <<"projectnode">> := ConfProjectNode
+   , <<"cookie">>  := ConfCookie
+   , <<"timeout">> := TimeOut} = maps:merge(DefaultConfig, Params),
+  ProjectNode = binary_to_atom(ConfProjectNode),
+  Cookie = binary_to_atom(ConfCookie),
+
+  %% set cookie
   true = erlang:set_cookie(LocalNode, Cookie),
 
 
@@ -135,15 +140,13 @@ handle_request({<<"launch">>, Params}, State) ->
 
   els_dap_server:send_event(<<"initialized">>, #{}),
 
-  {#{}, State#{project_node => ProjectNode, launch_params => Params}};
+  {#{}, State#{project_node => ProjectNode, launch_params => Params, timeout => TimeOut}};
 handle_request( {<<"configurationDone">>, _Params}
               , #{ project_node := ProjectNode
-                 , launch_params := LaunchParams} = State
+                 , launch_params := LaunchParams
+                 , timeout := Timeout} = State
               ) ->
-   els_distribution_server:wait_connect_and_monitor(ProjectNode),
-
-  inject_dap_agent(ProjectNode),
-
+  ensure_connected(ProjectNode, Timeout),
   %% TODO: Fetch stack_trace mode from Launch Config
   els_dap_rpc:stack_trace(ProjectNode, all),
   MFA = {els_dap_agent, int_cb, [self()]},
@@ -164,13 +167,14 @@ handle_request( {<<"configurationDone">>, _Params}
   {#{}, State};
 handle_request( {<<"setBreakpoints">>, Params}
               , #{ project_node := ProjectNode
-                 , breakpoints := Breakpoints0} = State
+                 , breakpoints := Breakpoints0
+                 , timeout := Timeout} = State
               ) ->
+  ensure_connected(ProjectNode, Timeout),
   #{<<"source">> := #{<<"path">> := Path}} = Params,
   SourceBreakpoints = maps:get(<<"breakpoints">>, Params, []),
   _SourceModified = maps:get(<<"sourceModified">>, Params, false),
   Module = els_uri:module(els_uri:uri(Path)),
-  els_distribution_server:wait_connect_and_monitor(ProjectNode),
 
   {module, Module} = els_dap_rpc:i(ProjectNode, Module),
   Lines = [Line || #{<<"line">> := Line} <- SourceBreakpoints],
@@ -191,11 +195,11 @@ handle_request({<<"setExceptionBreakpoints">>, _Params}, State) ->
   {#{}, State};
 handle_request({<<"setFunctionBreakpoints">>, Params}
               , #{ project_node := ProjectNode
-                 , breakpoints := Breakpoints0} = State
+                 , breakpoints := Breakpoints0
+                 , timeout := Timeout} = State
               ) ->
+  ensure_connected(ProjectNode, Timeout),
   FunctionBreakPoints = maps:get(<<"breakpoints">>, Params, []),
-  els_distribution_server:wait_connect_and_monitor(ProjectNode),
-
   MFAs = [
       begin
           Spec = {Mod, _, _} = parse_mfa(MFA),
@@ -406,10 +410,7 @@ handle_info( {int_cb, ThreadPid}
 handle_info({nodedown, Node}, State) ->
   %% the project node is down, there is nothing left to do then to exit
   ?LOG_NOTICE("project node ~p terminated, ending debug session", [Node]),
-  els_dap_server:send_event(<<"terminated">>, #{}),
-  els_dap_server:send_event(<<"exited">>, #{ <<"exitCode">> => <<"0">>}),
-  ?LOG_NOTICE("terminating debug adapter"),
-  els_utils:halt(0),
+  stop_debugger(),
   State.
 
 %%==============================================================================
@@ -711,3 +712,28 @@ do_function_breaks(Node, Module, FBreaks, Breaks) ->
     #{Module := ModBreaks} -> Breaks#{ Module => ModBreaks#{function => FBreaks}};
     _ -> Breaks#{ Module => #{line => [], function => FBreaks}}
   end.
+
+-spec ensure_connected(node(), timeout()) -> ok.
+ensure_connected(Node, Timeout) ->
+  case is_node_up(Node) of
+    true -> ok;
+    false ->
+      % connect and monitore project node
+      els_distribution_server:wait_connect_and_monitor(Node, Timeout),
+      case is_node_up(Node) of
+        true -> inject_dap_agent(Node);
+        false -> stop_debugger()
+      end
+  end.
+
+-spec stop_debugger() -> no_return().
+stop_debugger() ->
+  %% the project node is down, there is nothing left to do then to exit
+  els_dap_server:send_event(<<"terminated">>, #{}),
+  els_dap_server:send_event(<<"exited">>, #{ <<"exitCode">> => <<"0">>}),
+  ?LOG_NOTICE("terminating debug adapter"),
+  els_utils:halt(0).
+
+-spec is_node_up(node()) -> boolean().
+is_node_up(Node) ->
+  lists:member(Node, erlang:nodes(connected)).

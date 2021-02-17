@@ -134,19 +134,13 @@ handle_info(Request, State) ->
 %%==============================================================================
 -spec connect_and_monitor(atom()) -> ok | error.
 connect_and_monitor(Node) ->
-  case lists:member(Node, erlang:nodes(connected)) of
+  case net_kernel:connect_node(Node) of
     true ->
-      ?LOG_DEBUG("Already connected to node [node=~p]", [Node]),
+      ?LOG_INFO("Connected to node [node=~p]", [Node]),
+      erlang:monitor_node(Node, true),
       ok;
     false ->
-      case net_kernel:connect_node(Node) of
-        true ->
-          ?LOG_INFO("Connected to node [node=~p]", [Node]),
-          erlang:monitor_node(Node, true),
-          ok;
-        false ->
-          error
-      end
+      error
   end.
 
 -spec start(atom()) -> ok.
@@ -166,19 +160,27 @@ wait_connect_and_monitor(Node) ->
   wait_connect_and_monitor(Node, ?WAIT_ATTEMPTS).
 
 -spec wait_connect_and_monitor(Node :: atom(), Attempts :: pos_integer()) -> ok.
-wait_connect_and_monitor(Node, 0) ->
-  ?LOG_ERROR( "Failed to connect to node ~p after ~p attempts"
-            , [Node, ?WAIT_ATTEMPTS]),
-  ok;
 wait_connect_and_monitor(Node, Attempts) ->
+  wait_connect_and_monitor(Node, Attempts, Attempts).
+
+-spec wait_connect_and_monitor(
+  Node :: atom(),
+  Attempts :: pos_integer(),
+  MaxAttempts :: pos_integer()
+) -> ok.
+wait_connect_and_monitor(Node, 0, MaxAttempts) ->
+  ?LOG_ERROR( "Failed to connect to node ~p after ~p attempts"
+            , [Node, MaxAttempts]),
+  error;
+wait_connect_and_monitor(Node, Attempts, MaxAttempts) ->
   timer:sleep(?WAIT_INTERVAL),
   case connect_and_monitor(Node) of
     ok ->
       ok;
     error ->
-      ?LOG_DEBUG( "Trying to connect to node ~p (~p/~p)"
-                  , [Node, ?WAIT_ATTEMPTS - Attempts + 1, ?WAIT_ATTEMPTS]),
-      wait_connect_and_monitor(Node, Attempts - 1)
+      ?LOG_WARNING( "Trying to connect to node ~p (~p/~p)"
+                  , [Node, MaxAttempts - Attempts + 1, MaxAttempts]),
+      wait_connect_and_monitor(Node, Attempts - 1, MaxAttempts)
   end.
 
 %% @doc Ensure the Erlang Port Mapper Daemon (EPMD) is up and running
