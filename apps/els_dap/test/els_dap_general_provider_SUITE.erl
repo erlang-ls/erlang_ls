@@ -25,9 +25,6 @@
     project_node_exit/1
 ]).
 
-%% TODO: cleanup after dropping support for OTP 21 and 22
--compile({no_auto_import, [atom_to_binary/1, binary_to_atom/1]}).
-
 %%==============================================================================
 %% Includes
 %%==============================================================================
@@ -89,7 +86,7 @@ init_per_testcase(_TestCase, Config0) ->
 -spec end_per_testcase(atom(), config()) -> ok.
 end_per_testcase(_TestCase, Config) ->
     NodeName = ?config(node, Config),
-    Node = binary_to_atom(NodeName),
+    Node = binary_to_atom(NodeName, utf8),
     unset_all_env(els_core),
     ok = gen_server:stop(?config(provider, Config)),
     gen_server:stop(els_config),
@@ -126,7 +123,7 @@ path_to_test_module(AppDir, Module) ->
 
 -spec wait_for_break(binary(), module(), non_neg_integer()) -> boolean().
 wait_for_break(NodeName, WantModule, WantLine) ->
-    Node = binary_to_atom(NodeName),
+    Node = binary_to_atom(NodeName, utf8),
     Checker = fun() ->
         Snapshots = rpc:call(Node, int, snapshot, []),
         lists:any(
@@ -142,14 +139,6 @@ wait_for_break(NodeName, WantModule, WantLine) ->
         )
     end,
     els_dap_test_utils:wait_for_fun(Checker, 200, 20).
-
--spec atom_to_binary(atom()) -> binary().
-atom_to_binary(Atom) ->
-    list_to_binary(atom_to_list(Atom)).
-
--spec binary_to_atom(binary()) -> atom().
-binary_to_atom(Binary) ->
-    list_to_atom(binary_to_list(Binary)).
 
 %%==============================================================================
 %% Testcases
@@ -373,7 +362,7 @@ set_variable(Config) ->
 breakpoints(Config) ->
     Provider = ?config(provider, Config),
     NodeName = ?config(node, Config),
-    Node = binary_to_atom(NodeName),
+    Node = binary_to_atom(NodeName, utf8),
     DataDir = ?config(data_dir, Config),
     els_provider:handle_request(
         Provider,
@@ -410,7 +399,7 @@ breakpoints(Config) ->
 -spec project_node_exit(config()) -> ok.
 project_node_exit(Config) ->
     NodeName = ?config(node, Config),
-    Node = binary_to_atom(NodeName),
+    Node = binary_to_atom(NodeName, utf8),
     meck:expect(els_utils, halt, 1, meck:val(ok)),
     meck:reset(els_dap_server),
     erlang:monitor_node(Node, true),
@@ -438,8 +427,8 @@ request_launch(AppDir, Node, M, F, A) ->
     request_launch(#{
         <<"projectnode">> => Node,
         <<"cwd">> => AppDir,
-        <<"module">> => atom_to_binary(M),
-        <<"function">> => atom_to_binary(F),
+        <<"module">> => atom_to_binary(M, utf8),
+        <<"function">> => atom_to_binary(F, utf8),
         <<"args">> => unicode:characters_to_binary(io_lib:format("~w", [A]))
     }).
 

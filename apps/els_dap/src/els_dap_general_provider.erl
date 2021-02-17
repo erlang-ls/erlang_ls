@@ -97,15 +97,18 @@ handle_request({<<"launch">>, Params}, State) ->
   %% get default and final launch config
   DefaultConfig = #{
     <<"projectnode">> =>
-      atom_to_binary(els_distribution_server:node_name(<<"erlang_ls_dap_project">>, Name)),
-    <<"cookie">> => atom_to_binary(erlang:get_cookie()),
+      atom_to_binary(
+        els_distribution_server:node_name(<<"erlang_ls_dap_project">>, Name),
+        utf8
+      ),
+    <<"cookie">> => atom_to_binary(erlang:get_cookie(), utf8),
     <<"timeout">> => 30
   },
   #{ <<"projectnode">> := ConfProjectNode
    , <<"cookie">>  := ConfCookie
    , <<"timeout">> := TimeOut} = maps:merge(DefaultConfig, Params),
-  ProjectNode = binary_to_atom(ConfProjectNode),
-  Cookie = binary_to_atom(ConfCookie),
+  ProjectNode = binary_to_atom(ConfProjectNode, utf8),
+  Cookie = binary_to_atom(ConfCookie, utf8),
 
   %% set cookie
   true = erlang:set_cookie(LocalNode, Cookie),
