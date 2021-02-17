@@ -371,7 +371,8 @@ handle_request({<<"variables">>, #{<<"variablesReference">> := Ref
   {Variables, MoreBindings} = build_variables(Type, Bindings),
   { #{<<"variables">> => Variables}
   , State#{ scope_bindings => maps:merge(RestBindings, MoreBindings)}};
-handle_request({<<"disconnect">>, _Params}, State) ->
+handle_request({<<"disconnect">>, _Params}, State = #{project_node := ProjectNode}) ->
+  els_dap_rpc:halt(ProjectNode),
   els_utils:halt(0),
   {#{}, State}.
 
