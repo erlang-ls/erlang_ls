@@ -155,11 +155,11 @@ start(Node) ->
   wait_connect_and_monitor(Node),
   ok.
 
--spec wait_connect_and_monitor(atom()) -> ok.
+-spec wait_connect_and_monitor(atom()) ->  ok | error.
 wait_connect_and_monitor(Node) ->
   wait_connect_and_monitor(Node, ?WAIT_ATTEMPTS).
 
--spec wait_connect_and_monitor(Node :: atom(), Attempts :: pos_integer()) -> ok.
+-spec wait_connect_and_monitor(Node :: atom(), Attempts :: pos_integer()) ->  ok | error.
 wait_connect_and_monitor(Node, Attempts) ->
   wait_connect_and_monitor(Node, Attempts, Attempts).
 
@@ -167,7 +167,7 @@ wait_connect_and_monitor(Node, Attempts) ->
   Node :: atom(),
   Attempts :: pos_integer(),
   MaxAttempts :: pos_integer()
-) -> ok.
+) -> ok | error.
 wait_connect_and_monitor(Node, 0, MaxAttempts) ->
   ?LOG_ERROR( "Failed to connect to node ~p after ~p attempts"
             , [Node, MaxAttempts]),

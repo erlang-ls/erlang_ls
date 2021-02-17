@@ -718,14 +718,13 @@ do_function_breaks(Node, Module, FBreaks, Breaks) ->
 
 -spec ensure_connected(node(), timeout()) -> ok.
 ensure_connected(Node, Timeout) ->
-  case is_node_up(Node) of
+  case is_node_connected(Node) of
     true -> ok;
     false ->
       % connect and monitore project node
-      els_distribution_server:wait_connect_and_monitor(Node, Timeout),
-      case is_node_up(Node) of
-        true -> inject_dap_agent(Node);
-        false -> stop_debugger()
+      case els_distribution_server:wait_connect_and_monitor(Node, Timeout) of
+        ok -> inject_dap_agent(Node);
+        _ -> stop_debugger()
       end
   end.
 
@@ -737,6 +736,6 @@ stop_debugger() ->
   ?LOG_NOTICE("terminating debug adapter"),
   els_utils:halt(0).
 
--spec is_node_up(node()) -> boolean().
-is_node_up(Node) ->
+-spec is_node_connected(node()) -> boolean().
+is_node_connected(Node) ->
   lists:member(Node, erlang:nodes(connected)).
