@@ -24,6 +24,7 @@
         , spec_macro/1
         , type_macro/1
         , opaque_macro/1
+        , wild_attrbibute_macro/1
         ]).
 
 %%==============================================================================
@@ -204,6 +205,13 @@ opaque_macro(_Config) ->
   Text = "-opaque o() :: ?M(a, b).",
   ?assertMatch([_], parse_find_pois(Text, type_definition, {o, 0})),
   ?assertMatch([_], parse_find_pois(Text, macro, 'M')),
+  ok.
+
+-spec wild_attrbibute_macro(config()) -> ok.
+wild_attrbibute_macro(_Config) ->
+  Text = "-?M(foo).",
+  ?assertMatch([_], parse_find_pois(Text, macro, 'M')),
+  ?assertMatch([_], parse_find_pois(Text, atom, foo)),
   ok.
 
 %%==============================================================================

@@ -637,7 +637,7 @@ attribute_name_atom(Tree) ->
     atom ->
       erl_syntax:atom_value(NameNode);
     _ ->
-      Tree
+      NameNode
   end.
 
 -spec attribute_subtrees(atom() | tree(), [tree()]) -> [[tree()]].
