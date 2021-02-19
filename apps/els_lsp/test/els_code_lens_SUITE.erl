@@ -15,6 +15,7 @@
         , server_info/1
         , ct_run_test/1
         , show_behaviour_usages/1
+        , show_exported_test/1
         ]).
 
 %%==============================================================================
@@ -52,32 +53,53 @@ end_per_suite(Config) ->
   els_test_utils:end_per_suite(Config).
 
 -spec init_per_testcase(atom(), config()) -> config().
-init_per_testcase(server_info, Config) ->
-  meck:new(els_code_lens_server_info, [passthrough, no_link]),
-  meck:expect(els_code_lens_server_info, is_default, 0, true),
-  %% Let's disable the suggest_spec lens to avoid noise
-  meck:new(els_code_lens_suggest_spec, [passthrough, no_link]),
-  meck:expect(els_code_lens_suggest_spec, is_default, 0, false),
-  els_test_utils:init_per_testcase(server_info, Config);
-init_per_testcase(ct_run_test, Config) ->
-  meck:new(els_code_lens_ct_run_test, [passthrough, no_link]),
-  meck:expect(els_code_lens_ct_run_test, is_default, 0, true),
-  els_test_utils:init_per_testcase(server_info, Config);
+init_per_testcase(server_info, Config0) ->
+  Config1 =
+    setup_lenses(
+      [els_code_lens_server_info],
+      [ els_code_lens_show_exported
+      , els_code_lens_suggest_spec], Config0
+    ),
+  els_test_utils:init_per_testcase(server_info, Config1);
+init_per_testcase(ct_run_test, Config0) ->
+  Config1 =
+    setup_lenses(
+      [els_code_lens_ct_run_test],
+      [ els_code_lens_show_exported
+      , els_code_lens_suggest_spec], Config0
+    ),
+  els_test_utils:init_per_testcase(ct_run_test, Config1);
+init_per_testcase(show_exported_test, Config0) ->
+  Config1 =
+    setup_lenses(
+      [els_code_lens_show_exported],
+      [els_code_lens_suggest_spec], Config0
+    ),
+  els_test_utils:init_per_testcase(show_exported_test, Config1);
 init_per_testcase(TestCase, Config) ->
   els_test_utils:init_per_testcase(TestCase, Config).
 
 -spec end_per_testcase(atom(), config()) -> ok.
-end_per_testcase(server_info, Config) ->
-  els_test_utils:end_per_testcase(server_info, Config),
-  meck:unload(els_code_lens_server_info),
-  meck:unload(els_code_lens_suggest_spec),
-  ok;
-end_per_testcase(ct_run_test, Config) ->
-  els_test_utils:end_per_testcase(ct_run_test, Config),
-  meck:unload(els_code_lens_ct_run_test),
-  ok;
 end_per_testcase(TestCase, Config) ->
+  cleanup_lenses(Config),
   els_test_utils:end_per_testcase(TestCase, Config).
+
+%%==============================================================================
+%% helpers
+%%==============================================================================
+-spec setup_lenses(Enabled :: [module()], Disabled :: [module()], Config :: config()) -> config().
+setup_lenses(Enabled, Disabled, Config) ->
+  [ meck:new(Mock, [passthrough, no_link]) || Mock <- Enabled ++ Disabled ],
+  [ meck:expect(Mock, is_default, 0, true) || Mock <- Enabled ],
+  [ meck:expect(Mock, is_default, 0, false) || Mock <- Disabled ],
+  [ {lens_mocks, Enabled ++ Disabled} | Config ].
+
+
+-spec cleanup_lenses(config()) -> ok.
+cleanup_lenses(Config) ->
+  Mocks = proplists:get_value(lens_mocks, Config, []),
+  [meck:unload(Mock) || Mock <- Mocks],
+  ok.
 
 %%==============================================================================
 %% Testcases
@@ -153,4 +175,20 @@ show_behaviour_usages(Config) ->
                     , start => #{character => 8, line => 0}
                     }}],
   ?assertEqual(Expected, Result),
+  ok.
+
+
+-spec show_exported_test(config()) -> ok.
+show_exported_test(Config) ->
+  Uri = ?config(code_navigation_extra_uri, Config),
+  PrefixedCommand = els_command:with_prefix(<<"show-exported">>),
+  #{result := Result} = els_client:document_codelens(Uri),
+  %% match the first function ignoroing the position
+  ?assertMatch(
+    [#{ command :=
+          #{ arguments := [],command := PrefixedCommand
+          , title := <<"exported (2 references)">>}
+      , data := []
+      , range := _} | _],
+    Result),
   ok.

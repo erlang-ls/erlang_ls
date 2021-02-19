@@ -9,11 +9,13 @@
 %%==============================================================================
 
 -callback command(poi()) -> els_command:command_id().
--callback command_args(els_dt_document:item(), poi()) -> [any()].
+-callback command_args(els_dt_document:item(), poi()) -> [map()].
 -callback is_default() -> boolean().
 -callback pois(els_dt_document:item()) -> [poi()].
 -callback precondition(els_dt_document:item()) -> boolean().
--callback title(poi()) -> binary().
+-callback title(els_dt_document:item(), poi()) -> binary().
+
+-optional_callbacks([command/1, command_args/2]).
 
 %%==============================================================================
 %% API
@@ -55,6 +57,7 @@ available_lenses() ->
   , <<"server-info">>
   , <<"show-behaviour-usages">>
   , <<"suggest-spec">>
+  , <<"show-exported">>
   ].
 
 -spec default_lenses() -> [lens_id()].
@@ -85,7 +88,7 @@ lenses(Id, Document) ->
 
 -spec make_lens(atom(), els_dt_document:item(), poi()) -> lens().
 make_lens(CbModule, Document, #{range := Range} = POI) ->
-  Command = els_command:make_command( CbModule:title(POI)
+  Command = els_command:make_command( CbModule:title(Document, POI)
                                     , CbModule:command(POI)
                                     , CbModule:command_args(Document, POI)),
   #{ range   => els_protocol:range(Range)

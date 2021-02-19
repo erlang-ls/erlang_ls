@@ -10,7 +10,7 @@
         , is_default/0
         , pois/1
         , precondition/1
-        , title/1
+        , title/2
         ]).
 
 -include("els_lsp.hrl").
@@ -38,8 +38,8 @@ precondition(Document) ->
 pois(Document) ->
   els_dt_document:pois(Document, [module]).
 
--spec title(poi()) -> binary().
-title(#{ id := Id }) ->
+-spec title(els_dt_document:item(), poi()) -> binary().
+title(_Title, #{ id := Id }) ->
   {ok, Refs} = els_dt_references:find_by_id(behaviour, Id),
   Count = length(Refs),
   Msg = io_lib:format("Behaviour used in ~p place(s)", [Count]),
