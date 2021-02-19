@@ -25,6 +25,8 @@
         , type_macro/1
         , opaque_macro/1
         , wild_attrbibute_macro/1
+        , type_name_macro/1
+        , spec_name_macro/1
         ]).
 
 %%==============================================================================
@@ -212,6 +214,25 @@ wild_attrbibute_macro(_Config) ->
   Text = "-?M(foo).",
   ?assertMatch([_], parse_find_pois(Text, macro, 'M')),
   ?assertMatch([_], parse_find_pois(Text, atom, foo)),
+  ok.
+
+type_name_macro(_Config) ->
+  %% Currently els_dodger cannot parse this type definition
+  %% Verify this does not prevent parsing following forms
+  Text = "-type ?M() -> integer() | t(). -spec f() -> any().",
+  ?assertMatch({ok, [#{kind := spec, id := {f, 0}}]}, els_parser:parse(Text)),
+  ok.
+
+spec_name_macro(_Config) ->
+  %% Currently els_dodger cannot parse this
+  %% We can only find a spec-context
+  Text1 = "-spec ?M() -> integer() | t().",
+  ?assertMatch({ok, [#{kind := spec, id := undefined}]}, els_parser:parse(Text1)),
+
+  %% Verify the parser does not crash on macros in spec function names
+  %% and it still returns POIs from the definition body
+  Text2 = "-spec ?MODULE:b() -> integer() | t().",
+  ?assertMatch([_], parse_find_pois(Text2, type_application, {t, 0})),
   ok.
 
 %%==============================================================================

@@ -128,16 +128,26 @@ analyze_attribute(Tree) ->
       [FATree | _] = erl_syntax:tuple_elements(ArgTuple),
       Definition = [], %% ignore definition
       %% concrete will throw an error if `FATRee' contains any macro
-      {AttrName, {AttrName, {erl_syntax:concrete(FATree), Definition}}};
+      try erl_syntax:concrete(FATree) of
+        FA ->
+          {AttrName, {AttrName, {FA, Definition}}}
+      catch _:_ ->
+          throw(syntax_error)
+      end;
     AttrName when AttrName =:= opaque;
                   AttrName =:= type ->
       [ArgTuple] = erl_syntax:attribute_arguments(Tree),
       [TypeTree, _, ArgsListTree] = erl_syntax:tuple_elements(ArgTuple),
       Definition = [], %% ignore definition
       %% concrete will throw an error if `TyperTree' is a macro
-      {AttrName, {AttrName, {erl_syntax:concrete(TypeTree),
-                             Definition,
-                             erl_syntax:list_elements(ArgsListTree)}}};
+      try erl_syntax:concrete(TypeTree) of
+        TypeName ->
+          {AttrName, {AttrName, {TypeName,
+                                 Definition,
+                                 erl_syntax:list_elements(ArgsListTree)}}}
+      catch _:_ ->
+          throw(syntax_error)
+      end;
     _ ->
       erl_syntax_lib:analyze_attribute(Tree)
   end.
