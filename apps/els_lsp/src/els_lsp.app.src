@@ -13,6 +13,7 @@
         ephemeral,
         uuid,
         getopt,
+        erlfmt,
         els_core
     ]},
     {env, []},
