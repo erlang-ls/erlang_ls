@@ -172,11 +172,21 @@ erlfmt_to_st(Node) ->
                         Pos
                     )
             end;
-        {'try', Pos, {body, _, _} = Body, {clauses, _, Clauses}, {clauses, _, Handlers}, After} ->
+        {'try', Pos, {body, _, _} = Body, Clauses, Handlers, After} ->
             %% TODO: preserving annotations on bodies and clause groups
             Body1 = [erlfmt_to_st(Body)],
-            Clauses1 = [erlfmt_clause_to_st(C) || C <- Clauses],
-            Handlers1 = [erlfmt_clause_to_st(C) || C <- Handlers],
+            Clauses1 = case Clauses of
+                         {clauses, _, CList} ->
+                           [erlfmt_clause_to_st(C) || C <- CList];
+                         none ->
+                           []
+                       end,
+            Handlers1 = case Handlers of
+                          {clauses, _, HList} ->
+                            [erlfmt_clause_to_st(C) || C <- HList];
+                          none ->
+                            []
+                        end,
             After1 = [erlfmt_to_st(E) || E <- After],
             erl_syntax:set_pos(
                 erl_syntax:try_expr(
