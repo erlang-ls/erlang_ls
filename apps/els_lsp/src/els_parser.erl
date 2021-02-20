@@ -719,7 +719,7 @@ pretty_print_clause(Tree) ->
                   _ ->
                     "when " ++ erl_prettypr:format(Guard)
                 end,
-  PrettyClause = io_lib:format( "(~s) ~s"
+  PrettyClause = io_lib:format( "(~ts) ~ts"
                               , [ string:join(PrettyPatterns, ", ")
                                 , PrettyGuard
                                 ]),
