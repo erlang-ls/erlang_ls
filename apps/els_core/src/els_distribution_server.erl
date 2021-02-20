@@ -155,24 +155,32 @@ start(Node) ->
   wait_connect_and_monitor(Node),
   ok.
 
--spec wait_connect_and_monitor(atom()) -> ok.
+-spec wait_connect_and_monitor(atom()) ->  ok | error.
 wait_connect_and_monitor(Node) ->
   wait_connect_and_monitor(Node, ?WAIT_ATTEMPTS).
 
--spec wait_connect_and_monitor(Node :: atom(), Attempts :: pos_integer()) -> ok.
-wait_connect_and_monitor(Node, 0) ->
-  ?LOG_ERROR( "Failed to connect to node ~p after ~p attempts"
-            , [Node, ?WAIT_ATTEMPTS]),
-  ok;
+-spec wait_connect_and_monitor(Node :: atom(), Attempts :: pos_integer()) ->  ok | error.
 wait_connect_and_monitor(Node, Attempts) ->
+  wait_connect_and_monitor(Node, Attempts, Attempts).
+
+-spec wait_connect_and_monitor(
+  Node :: atom(),
+  Attempts :: pos_integer(),
+  MaxAttempts :: pos_integer()
+) -> ok | error.
+wait_connect_and_monitor(Node, 0, MaxAttempts) ->
+  ?LOG_ERROR( "Failed to connect to node ~p after ~p attempts"
+            , [Node, MaxAttempts]),
+  error;
+wait_connect_and_monitor(Node, Attempts, MaxAttempts) ->
   timer:sleep(?WAIT_INTERVAL),
   case connect_and_monitor(Node) of
     ok ->
       ok;
     error ->
       ?LOG_WARNING( "Trying to connect to node ~p (~p/~p)"
-                  , [Node, ?WAIT_ATTEMPTS - Attempts + 1, ?WAIT_ATTEMPTS]),
-      wait_connect_and_monitor(Node, Attempts - 1)
+                  , [Node, MaxAttempts - Attempts + 1, MaxAttempts]),
+      wait_connect_and_monitor(Node, Attempts - 1, MaxAttempts)
   end.
 
 %% @doc Ensure the Erlang Port Mapper Daemon (EPMD) is up and running

@@ -9,6 +9,7 @@
         , continue/2
         , eval/3
         , get_meta/2
+        , halt/1
         , i/2
         , load_binary/4
         , meta/4
@@ -63,6 +64,10 @@ eval(Node, Input, Bindings) ->
 -spec get_meta(node(), pid()) -> {ok, pid()}.
 get_meta(Node, Pid) ->
   rpc:call(Node, dbg_iserver, safe_call, [{get_meta, Pid}]).
+
+-spec halt(node()) -> true.
+halt(Node) ->
+  rpc:cast(Node, erlang, halt, []).
 
 -spec i(node(), module()) -> any().
 i(Node, Module) ->

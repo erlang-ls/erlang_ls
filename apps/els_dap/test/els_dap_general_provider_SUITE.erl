@@ -15,16 +15,15 @@
 -export([
     initialize/1,
     launch_mfa/1,
+    launch_mfa_with_cookie/1,
     configuration_done/1,
     configuration_done_with_breakpoint/1,
     frame_variables/1,
     navigation_and_frames/1,
     set_variable/1,
-    breakpoints/1
+    breakpoints/1,
+    project_node_exit/1
 ]).
-
-%% TODO: cleanup after dropping support for OTP 21 and 22
--compile({no_auto_import, [atom_to_binary/1, binary_to_atom/1]}).
 
 %%==============================================================================
 %% Includes
@@ -65,6 +64,7 @@ init_per_testcase(TestCase, Config) when
     TestCase =:= undefined orelse
         TestCase =:= initialize orelse
         TestCase =:= launch_mfa orelse
+        TestCase =:= launch_mfa_with_cookie orelse
         TestCase =:= configuration_done orelse
         TestCase =:= configuration_done_with_breakpoint
 ->
@@ -86,7 +86,7 @@ init_per_testcase(_TestCase, Config0) ->
 -spec end_per_testcase(atom(), config()) -> ok.
 end_per_testcase(_TestCase, Config) ->
     NodeName = ?config(node, Config),
-    Node = binary_to_atom(NodeName),
+    Node = binary_to_atom(NodeName, utf8),
     unset_all_env(els_core),
     ok = gen_server:stop(?config(provider, Config)),
     gen_server:stop(els_config),
@@ -123,7 +123,7 @@ path_to_test_module(AppDir, Module) ->
 
 -spec wait_for_break(binary(), module(), non_neg_integer()) -> boolean().
 wait_for_break(NodeName, WantModule, WantLine) ->
-    Node = binary_to_atom(NodeName),
+    Node = binary_to_atom(NodeName, utf8),
     Checker = fun() ->
         Snapshots = rpc:call(Node, int, snapshot, []),
         lists:any(
@@ -139,14 +139,6 @@ wait_for_break(NodeName, WantModule, WantLine) ->
         )
     end,
     els_dap_test_utils:wait_for_fun(Checker, 200, 20).
-
--spec atom_to_binary(atom()) -> binary().
-atom_to_binary(Atom) ->
-    list_to_binary(atom_to_list(Atom)).
-
--spec binary_to_atom(binary()) -> atom().
-binary_to_atom(Binary) ->
-    list_to_atom(binary_to_list(Binary)).
 
 %%==============================================================================
 %% Testcases
@@ -167,6 +159,19 @@ launch_mfa(Config) ->
     els_provider:handle_request(
         Provider,
         request_launch(DataDir, Node, els_dap_test_module, entry, [])
+    ),
+    els_dap_test_utils:wait_until_mock_called(els_dap_server, send_event),
+    ok.
+
+-spec launch_mfa_with_cookie(config()) -> ok.
+launch_mfa_with_cookie(Config) ->
+    Provider = ?config(provider, Config),
+    DataDir = ?config(data_dir, Config),
+    Node = ?config(node, Config),
+    els_provider:handle_request(Provider, request_initialize(#{})),
+    els_provider:handle_request(
+        Provider,
+        request_launch(DataDir, Node, <<"some_cookie">>, els_dap_test_module, entry, [])
     ),
     els_dap_test_utils:wait_until_mock_called(els_dap_server, send_event),
     ok.
@@ -231,7 +236,7 @@ frame_variables(Config) ->
         Provider,
         request_variable(VariableRef)
     ),
-    %% at this point there should be only one variable present
+    %% at this point there should be only one variable present,
     ?assertMatch(
         #{
             <<"name">> := <<"N">>,
@@ -357,7 +362,7 @@ set_variable(Config) ->
 breakpoints(Config) ->
     Provider = ?config(provider, Config),
     NodeName = ?config(node, Config),
-    Node = binary_to_atom(NodeName),
+    Node = binary_to_atom(NodeName, utf8),
     DataDir = ?config(data_dir, Config),
     els_provider:handle_request(
         Provider,
@@ -391,6 +396,23 @@ breakpoints(Config) ->
     ?assertMatch([{{els_dap_test_module, 9}, _}], els_dap_rpc:all_breaks(Node)),
     ok.
 
+-spec project_node_exit(config()) -> ok.
+project_node_exit(Config) ->
+    NodeName = ?config(node, Config),
+    Node = binary_to_atom(NodeName, utf8),
+    meck:expect(els_utils, halt, 1, meck:val(ok)),
+    meck:reset(els_dap_server),
+    erlang:monitor_node(Node, true),
+    %% kill node and wait for nodedown message
+    rpc:cast(Node, erlang, halt, []),
+    receive
+        {nodedown, Node} -> ok
+    end,
+    %% wait until els_utils:halt has been called
+    els_dap_test_utils:wait_until_mock_called(els_utils, halt),
+    ?assert(meck:called(els_dap_server, send_event, [<<"terminated">>, '_'])),
+    ?assert(meck:called(els_dap_server, send_event, [<<"exited">>, '_'])).
+
 %%==============================================================================
 %% Requests
 %%==============================================================================
@@ -405,10 +427,14 @@ request_launch(AppDir, Node, M, F, A) ->
     request_launch(#{
         <<"projectnode">> => Node,
         <<"cwd">> => AppDir,
-        <<"module">> => atom_to_binary(M),
-        <<"function">> => atom_to_binary(F),
+        <<"module">> => atom_to_binary(M, utf8),
+        <<"function">> => atom_to_binary(F, utf8),
         <<"args">> => unicode:characters_to_binary(io_lib:format("~w", [A]))
     }).
+
+request_launch(AppDir, Node, Cookie, M, F, A) ->
+    {<<"launch">>, Params} = request_launch(AppDir, Node, M, F, A),
+    {<<"launch">>, Params#{<<"cookie">> => Cookie}}.
 
 request_configuration_done(Params) ->
     {<<"configurationDone">>, Params}.
