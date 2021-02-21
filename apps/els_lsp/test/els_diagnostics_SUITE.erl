@@ -31,6 +31,8 @@
         , escript_warnings/1
         , escript_errors/1
         , crossref/1
+        , crossref_autoimport/1
+        , crossref_autoimport_disabled/1
         , crossref_pseudo_functions/1
         , unused_includes/1
         , unused_macros/1
@@ -82,16 +84,15 @@ init_per_testcase(TestCase, Config) when TestCase =:= code_reload orelse
   mock_rpc(),
   mock_code_reload_enabled(),
   els_test_utils:init_per_testcase(TestCase, Config);
-init_per_testcase(crossref, Config) ->
+init_per_testcase(TestCase, Config)
+     when TestCase =:= crossref orelse
+          TestCase =:= crossref_pseudo_functions orelse
+          TestCase =:= crossref_autoimport orelse
+          TestCase =:= crossref_autoimport_disabled ->
   meck:new(els_crossref_diagnostics, [passthrough, no_link]),
   meck:expect(els_crossref_diagnostics, is_default, 0, true),
   els_mock_diagnostics:setup(),
-  els_test_utils:init_per_testcase(crossref, Config);
-init_per_testcase(crossref_pseudo_functions, Config) ->
-  meck:new(els_crossref_diagnostics, [passthrough, no_link]),
-  meck:expect(els_crossref_diagnostics, is_default, 0, true),
-  els_mock_diagnostics:setup(),
-  els_test_utils:init_per_testcase(crossref_pseudo_functions, Config);
+  els_test_utils:init_per_testcase(TestCase, Config);
 init_per_testcase(unused_includes, Config) ->
   meck:new(els_unused_includes_diagnostics, [passthrough, no_link]),
   meck:expect(els_unused_includes_diagnostics, is_default, 0, true),
@@ -137,14 +138,13 @@ end_per_testcase(TestCase, Config) when TestCase =:= code_reload orelse
   unmock_rpc(),
   unmock_code_reload_enabled(),
   els_test_utils:end_per_testcase(TestCase, Config);
-end_per_testcase(crossref, Config) ->
+end_per_testcase(TestCase, Config)
+     when TestCase =:= crossref orelse
+           TestCase =:= crossref_pseudo_functions orelse
+           TestCase =:= crossref_autoimport orelse
+           TestCase =:= crossref_autoimport_disabled ->
   meck:unload(els_crossref_diagnostics),
-  els_test_utils:end_per_testcase(crossref, Config),
-  els_mock_diagnostics:teardown(),
-  ok;
-end_per_testcase(crossref_pseudo_functions, Config) ->
-  meck:unload(els_crossref_diagnostics),
-  els_test_utils:end_per_testcase(crossref_pseudo_functions, Config),
+  els_test_utils:end_per_testcase(TestCase, Config),
   els_mock_diagnostics:teardown(),
   ok;
 end_per_testcase(unused_includes, Config) ->
@@ -532,12 +532,18 @@ code_reload_sticky_mod(Config) ->
   ?assertNot(meck:called(rpc, call, [NodeName, c, c, [Module]])),
   ok.
 
--spec crossref(config()) -> ok.
-crossref(Config) ->
-  Uri = ?config(diagnostics_xref_uri, Config),
+-spec do_crossref_test(config(), atom(), [map()]) -> ok.
+do_crossref_test(Config, TestModule, ExpectedDiagnostics) ->
+  Uri = ?config(TestModule, Config),
   els_mock_diagnostics:subscribe(),
   ok = els_client:did_save(Uri),
   Diagnostics = els_mock_diagnostics:wait_until_complete(),
+  F = fun(#{message := M1}, #{message := M2}) -> M1 =< M2 end,
+  ?assertEqual(ExpectedDiagnostics, lists:sort(F, Diagnostics)),
+  ok.
+
+-spec crossref(config()) -> ok.
+crossref(Config) ->
   Expected = [ #{ message =>
                     <<"Cannot find definition for function lists:map/3">>
                 , range =>
@@ -561,17 +567,11 @@ crossref(Config) ->
                 , source => <<"Compiler">>
                 }
              ],
-  F = fun(#{message := M1}, #{message := M2}) -> M1 =< M2 end,
-  ?assertEqual(Expected, lists:sort(F, Diagnostics)),
-  ok.
+  do_crossref_test(Config, diagnostics_xref_uri, Expected).
 
 %% #641
 -spec crossref_pseudo_functions(config()) -> ok.
 crossref_pseudo_functions(Config) ->
-  Uri = ?config(diagnostics_xref_pseudo_uri, Config),
-  els_mock_diagnostics:subscribe(),
-  ok = els_client:did_save(Uri),
-  Diagnostics = els_mock_diagnostics:wait_until_complete(),
   Expected =
     [#{message =>
          <<"Cannot find definition for function unknown_module:nonexistent/0">>,
@@ -579,9 +579,25 @@ crossref_pseudo_functions(Config) ->
          #{'end' => #{character => 28, line => 30},
            start => #{character => 2, line => 30}},
        severity => 1, source => <<"CrossRef">>}],
-  F = fun(#{message := M1}, #{message := M2}) -> M1 =< M2 end,
-  ?assertEqual(Expected, lists:sort(F, Diagnostics)),
-  ok.
+  do_crossref_test(Config, diagnostics_xref_pseudo_uri, Expected).
+
+%% #860
+-spec crossref_autoimport(config()) -> ok.
+crossref_autoimport(Config) ->
+  Expected = [],
+  do_crossref_test(Config, diagnostics_autoimport_uri, Expected).
+
+%% #860
+-spec crossref_autoimport_disabled(config()) -> ok.
+crossref_autoimport_disabled(Config) ->
+  Expected =
+    [#{message =>
+         <<"function atom_to_list/1 undefined">>,
+       range =>
+         #{'end' => #{character => 0, line => 7},
+           start => #{character => 0, line => 6}},
+       severity => 1, source => <<"Compiler">>}],
+  do_crossref_test(Config, diagnostics_autoimport_disabled_uri, Expected).
 
 -spec unused_includes(config()) -> ok.
 unused_includes(Config) ->

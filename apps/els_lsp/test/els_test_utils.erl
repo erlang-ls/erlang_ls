@@ -153,6 +153,8 @@ sources() ->
   , completion_snippets
   , diagnostics
   , diagnostics_bound_var_in_pattern
+  , diagnostics_autoimport
+  , diagnostics_autoimport_disabled
   , diagnostics_behaviour
   , diagnostics_behaviour_impl
   , diagnostics_macros
