@@ -15,4 +15,5 @@ call_2() ->
 main() ->
   completion_resolve:call_1(),
   call_1(),
+  completion_resolve_2:call_1(),
   ok.

@@ -61,12 +61,25 @@ handle_request({completion, Params}, State) ->
   Completions = find_completions(Prefix, TriggerKind, Opts),
   {Completions, State};
 handle_request({resolve, CompletionItem}, State) ->
-  %% TODO: Only a stub for now
-  {CompletionItem, State}.
+  {resolve(CompletionItem), State}.
 
 %%==============================================================================
 %% Internal functions
 %%==============================================================================
+-spec resolve(map()) -> map().
+resolve(#{ <<"kind">> := ?COMPLETION_ITEM_KIND_FUNCTION
+         , <<"data">> := #{ <<"module">> := Module
+                          , <<"function">> := Function
+                          , <<"arity">> := Arity
+                          }
+         } = CompletionItem) ->
+  Entries = els_docs:function_docs ( 'remote'
+                                   , binary_to_atom(Module, utf8)
+                                   , binary_to_atom(Function, utf8)
+                                   , Arity),
+  CompletionItem#{documentation => els_markup_content:new(Entries)};
+resolve(CompletionItem) ->
+  CompletionItem.
 
 -spec find_completions(binary(), integer(), options()) -> [any()].
 find_completions( Prefix
@@ -220,17 +233,16 @@ definitions(Document, POIKind, ExportFormat) ->
 -spec definitions(els_dt_document:item(), poi_kind(), boolean(), boolean()) ->
   [map()].
 definitions(Document, POIKind, ExportFormat, ExportedOnly) ->
-  POIs     = local_and_included_pois(Document, POIKind),
-
+  POIs = local_and_included_pois(Document, POIKind),
+  #{uri := Uri} = Document,
   %% Find exported entries when there is an export_entry kind available
-  FAs      = case export_entry_kind(POIKind) of
-               {error, no_export_entry_kind} -> [];
-               ExportKind ->
-                 Exports = local_and_included_pois(Document, ExportKind),
-                 [FA || #{id := FA} <- Exports]
-             end,
-
-  Items = resolve_definitions(POIs, FAs, ExportedOnly, ExportFormat),
+  FAs = case export_entry_kind(POIKind) of
+          {error, no_export_entry_kind} -> [];
+          ExportKind ->
+            Exports = local_and_included_pois(Document, ExportKind),
+            [FA || #{id := FA} <- Exports]
+        end,
+  Items = resolve_definitions(Uri, POIs, FAs, ExportedOnly, ExportFormat),
   lists:usort(Items).
 
 -spec completion_context(els_dt_document:item(), line(), column()) ->
@@ -243,13 +255,22 @@ completion_context(Document, Line, Column) ->
                  end,
   {ExportFormat, POIKind}.
 
--spec resolve_definitions([poi()], [{atom(), arity()}], boolean(), boolean()) ->
-  [map()].
-resolve_definitions(Functions, ExportsFA, ExportedOnly, ArityOnly) ->
-  [ completion_item(POI, ArityOnly)
-    || #{id := FA} = POI <- Functions,
-        not ExportedOnly orelse lists:member(FA, ExportsFA)
+-spec resolve_definitions(uri(), [poi()], [{atom(), arity()}], boolean(), boolean()) ->
+        [map()].
+resolve_definitions(Uri, Functions, ExportsFA, ExportedOnly, ArityOnly) ->
+  [ resolve_definition(Uri, POI, ArityOnly)
+    || #{id := FA} = POI <- Functions, not ExportedOnly orelse lists:member(FA, ExportsFA)
   ].
+
+-spec resolve_definition(uri(), poi(), boolean()) -> map().
+resolve_definition(Uri, #{kind := 'function', id := {F, A}} = POI, ArityOnly) ->
+  Data = #{ <<"module">> => els_uri:module(Uri)
+          , <<"function">> => F
+          , <<"arity">> => A
+          },
+  completion_item(POI, Data, ArityOnly);
+resolve_definition(_Uri, POI, ArityOnly) ->
+  completion_item(POI, ArityOnly).
 
 -spec exported_definitions(module(), poi_kind(), boolean()) -> [map()].
 exported_definitions(Module, POIKind, ExportFormat) ->
@@ -391,9 +412,12 @@ filter_by_prefix(Prefix, List, ToBinary, ItemFun) ->
 %%==============================================================================
 %% Helper functions
 %%==============================================================================
+-spec completion_item(poi(), boolean()) -> map().
+completion_item(POI, ExportFormat) ->
+  completion_item(POI, #{}, ExportFormat).
 
--spec completion_item(poi(), ExportFormat :: boolean()) -> map().
-completion_item(#{kind := Kind, id := {F, A}, data := ArgsNames}, false)
+-spec completion_item(poi(), map(), ExportFormat :: boolean()) -> map().
+completion_item(#{kind := Kind, id := {F, A}, data := ArgsNames}, Data, false)
   when Kind =:= function;
        Kind =:= type_definition ->
   Label = io_lib:format("~p/~p", [F, A]),
@@ -401,22 +425,26 @@ completion_item(#{kind := Kind, id := {F, A}, data := ArgsNames}, false)
    , kind             => completion_item_kind(Kind)
    , insertText       => snippet_function_call(F, ArgsNames)
    , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+   , data             => Data
    };
-completion_item(#{kind := Kind, id := {F, A}}, true)
+completion_item(#{kind := Kind, id := {F, A}}, Data, true)
   when Kind =:= function;
        Kind =:= type_definition ->
   Label = io_lib:format("~p/~p", [F, A]),
   #{ label            => els_utils:to_binary(Label)
    , kind             => completion_item_kind(Kind)
    , insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+   , data             => Data
    };
-completion_item(#{kind := Kind = record, id := Name}, _) ->
+completion_item(#{kind := Kind = record, id := Name}, Data, _) ->
   #{ label            => atom_to_label(Name)
    , kind             => completion_item_kind(Kind)
+   , data             => Data
    };
-completion_item(#{kind := Kind = define, id := Name}, _) ->
+completion_item(#{kind := Kind = define, id := Name}, Data, _) ->
   #{ label            => atom_to_binary(Name, utf8)
    , kind             => completion_item_kind(Kind)
+   , data             => Data
    }.
 
 -spec snippet_function_call(atom(), [{integer(), string()}]) -> binary().
