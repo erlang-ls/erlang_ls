@@ -58,7 +58,8 @@ handle_request({completion, Params}, State) ->
             , line     => Line + 1
             , column   => Character
             },
-  {find_completion(Prefix, TriggerKind, Opts), State};
+  Completions = find_completions(Prefix, TriggerKind, Opts),
+  {Completions, State};
 handle_request({resolve, CompletionItem}, State) ->
   %% TODO: Only a stub for now
   {CompletionItem, State}.
@@ -67,8 +68,8 @@ handle_request({resolve, CompletionItem}, State) ->
 %% Internal functions
 %%==============================================================================
 
--spec find_completion(binary(), integer(), options()) -> [any()].
-find_completion( Prefix
+-spec find_completions(binary(), integer(), options()) -> [any()].
+find_completions( Prefix
                , ?COMPLETION_TRIGGER_KIND_CHARACTER
                , #{ trigger  := <<":">>
                   , document := Document
@@ -85,17 +86,17 @@ find_completion( Prefix
     _ ->
       []
   end;
-find_completion( _Prefix
+find_completions( _Prefix
                , ?COMPLETION_TRIGGER_KIND_CHARACTER
                , #{trigger := <<"?">>, document := Document}
                ) ->
   definitions(Document, define);
-find_completion( _Prefix
+find_completions( _Prefix
                , ?COMPLETION_TRIGGER_KIND_CHARACTER
                , #{trigger := <<"#">>, document := Document}
                ) ->
   definitions(Document, record);
-find_completion( Prefix
+find_completions( Prefix
                , ?COMPLETION_TRIGGER_KIND_CHARACTER
                , #{trigger := <<".">>, document := Document}
                ) ->
@@ -105,7 +106,7 @@ find_completion( Prefix
     _ ->
       []
     end;
-find_completion( Prefix
+find_completions( Prefix
                , ?COMPLETION_TRIGGER_KIND_INVOKED
                , #{ document := Document
                   , line     := Line
@@ -166,7 +167,7 @@ find_completion( Prefix
     _ ->
       []
   end;
-find_completion(_Prefix, _TriggerKind, _Opts) ->
+find_completions(_Prefix, _TriggerKind, _Opts) ->
   [].
 
 %%==============================================================================
