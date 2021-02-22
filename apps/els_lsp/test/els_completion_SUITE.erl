@@ -31,6 +31,8 @@
         , variables/1
         , remote_fun/1
         , snippets/1
+        , resolve_application_local/1
+        , resolve_application_remote/1
         ]).
 
 %%==============================================================================
@@ -588,3 +590,26 @@ filter_completion(Completion, ToFilter) ->
   FilterSet = ordsets:from_list(ToFilter),
   ?assertEqual(FilterSet, ordsets:intersection(CompletionSet, FilterSet)),
   ordsets:to_list(ordsets:subtract(CompletionSet, FilterSet)).
+
+-spec resolve_application_local(config()) -> ok.
+resolve_application_local(Config) ->
+  Uri = ?config(completion_resolve_uri, Config),
+  CompletionKind = ?COMPLETION_TRIGGER_KIND_INVOKED,
+  #{result := CompletionItems} = els_client:completion(Uri, 17, 5, CompletionKind, <<"">>),
+  [Selected] = select_completionitems(CompletionItems),
+  #{result := Result} = els_client:completionitem_resolve(Selected),
+  ?assertEqual(Selected, Result).
+
+-spec resolve_application_remote(config()) -> ok.
+resolve_application_remote(Config) ->
+  Uri = ?config(completion_resolve_uri, Config),
+  CompletionKind = ?COMPLETION_TRIGGER_KIND_INVOKED,
+  #{result := CompletionItems} = els_client:completion(Uri, 16, 23, CompletionKind, <<":">>),
+  [Selected] = select_completionitems(CompletionItems),
+  #{result := Result} = els_client:completionitem_resolve(Selected),
+  ?assertEqual(Selected, Result).
+
+select_completionitems(CompletionItems) ->
+  [CI || #{ kind := ?COMPLETION_ITEM_KIND_FUNCTION
+          , label := <<"call_1/0">>
+          } = CI <- CompletionItems].

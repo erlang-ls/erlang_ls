@@ -58,7 +58,10 @@ handle_request({completion, Params}, State) ->
             , line     => Line + 1
             , column   => Character
             },
-  {find_completion(Prefix, TriggerKind, Opts), State}.
+  {find_completion(Prefix, TriggerKind, Opts), State};
+handle_request({resolve, CompletionItem}, State) ->
+  %% TODO: Only a stub for now
+  {CompletionItem, State}.
 
 %%==============================================================================
 %% Internal functions

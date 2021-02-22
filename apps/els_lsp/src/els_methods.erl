@@ -8,6 +8,7 @@
         , initialized/2
         , shutdown/2
         , textdocument_completion/2
+        , completionitem_resolve/2
         , textdocument_didopen/2
         , textdocument_didchange/2
         , textdocument_didsave/2
@@ -247,6 +248,16 @@ textdocument_hover(Params, State) ->
 textdocument_completion(Params, State) ->
   Provider = els_completion_provider,
   Response = els_provider:handle_request(Provider, {completion, Params}),
+  {response, Response, State}.
+
+%%==============================================================================
+%% completionItem/resolve
+%%==============================================================================
+
+-spec completionitem_resolve(params(), state()) -> result().
+completionitem_resolve(Params, State) ->
+  Provider = els_completion_provider,
+  Response = els_provider:handle_request(Provider, {resolve, Params}),
   {response, Response, State}.
 
 %%==============================================================================
