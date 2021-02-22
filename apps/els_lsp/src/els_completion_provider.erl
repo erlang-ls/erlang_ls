@@ -67,7 +67,7 @@ handle_request({resolve, CompletionItem}, State) ->
 %% Internal functions
 %%==============================================================================
 
--spec find_completion(binary(), integer(), options()) -> any().
+-spec find_completion(binary(), integer(), options()) -> [any()].
 find_completion( Prefix
                , ?COMPLETION_TRIGGER_KIND_CHARACTER
                , #{ trigger  := <<":">>
@@ -83,7 +83,7 @@ find_completion( Prefix
       {ExportFormat, TypeOrFun} = completion_context(Document, Line, Column),
       exported_definitions(Module, TypeOrFun, ExportFormat);
     _ ->
-      null
+      []
   end;
 find_completion( _Prefix
                , ?COMPLETION_TRIGGER_KIND_CHARACTER
@@ -164,10 +164,10 @@ find_completion( Prefix
         ++ definitions(Document, POIKind, ExportFormat)
         ++ els_snippets_server:snippets();
     _ ->
-      null
+      []
   end;
 find_completion(_Prefix, _TriggerKind, _Opts) ->
-  null.
+  [].
 
 %%==============================================================================
 %% Atoms
