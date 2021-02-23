@@ -149,7 +149,12 @@ handle_info(_Request, State) ->
 
 -spec terminate(any(), state()) -> ok.
 terminate(_Reason, #state{port = Port} = _State) ->
-  true = port_close(Port),
+  case Port of
+    undefined ->
+      ok;
+    _ ->
+      port_close(Port)
+  end,
   ok.
 
 %%==============================================================================

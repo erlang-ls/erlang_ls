@@ -150,6 +150,8 @@ sources() ->
   , 'Code.Navigation.Elixirish'
   , completion
   , completion_caller
+  , completion_resolve
+  , completion_resolve_2
   , completion_snippets
   , diagnostics
   , diagnostics_bound_var_in_pattern

@@ -6,7 +6,9 @@
 %%==============================================================================
 %% Exports
 %%==============================================================================
--export([ docs/2 ]).
+-export([ docs/2
+        , function_docs/4
+        ]).
 
 %%==============================================================================
 %% Includes
@@ -38,7 +40,7 @@
 %%==============================================================================
 %% API
 %%==============================================================================
--spec docs(atom(), poi()) -> [els_hover_provider:doc_entry()].
+-spec docs(atom(), poi()) -> [els_markup_content:doc_entry()].
 docs(_M, #{kind := application, id := {M, F, A}}) ->
   function_docs('remote', M, F, A);
 docs(M, #{kind := Kind, id := {F, A}})
@@ -52,7 +54,7 @@ docs(_M, _POI) ->
 %% Internal Functions
 %%==============================================================================
 -spec function_docs(application_type(), atom(), atom(), non_neg_integer()) ->
-        [els_hover_provider:doc_entry()].
+        [els_markup_content:doc_entry()].
 function_docs(Type, M, F, A) ->
   Signature = signature(Type, M, F, A),
   Clauses = function_clauses(M, F, A),
@@ -138,7 +140,7 @@ shell_docs(_M, _F, _A) ->
 -endif.
 
 -spec specs(atom(), atom(), non_neg_integer()) ->
-        [els_hover_provider:doc_entry()].
+        [els_markup_content:doc_entry()].
 specs(M, F, A) ->
   case els_dt_signatures:lookup({M, F, A}) of
     {ok, [#{spec := Spec}]} ->
@@ -148,7 +150,7 @@ specs(M, F, A) ->
   end.
 
 -spec function_clauses(atom(), atom(), non_neg_integer()) ->
-        [els_hover_provider:doc_entry()].
+        [els_markup_content:doc_entry()].
 function_clauses(_Module, _Function, 0) ->
   [];
 function_clauses(Module, Function, Arity) ->
@@ -167,8 +169,8 @@ function_clauses(Module, Function, Arity) ->
       []
   end.
 
--spec truncate_lines([els_hover_provider:doc_entry()]) ->
-        [els_hover_provider:doc_entry()].
+-spec truncate_lines([els_markup_content:doc_entry()]) ->
+        [els_markup_content:doc_entry()].
 truncate_lines(Lines) when length(Lines) =< ?MAX_CLAUSES ->
   Lines;
 truncate_lines(Lines0) ->
@@ -176,7 +178,7 @@ truncate_lines(Lines0) ->
   lists:append(Lines, [{code_block_line, "[...]"}]).
 
 -spec edoc(atom(), atom(), non_neg_integer()) ->
-          [els_hover_provider:doc_entry()].
+          [els_markup_content:doc_entry()].
 edoc(M, F, A) ->
   try
     {ok, Uri} = els_utils:find_module(M),
@@ -198,7 +200,7 @@ edoc(M, F, A) ->
       []
   end.
 
--spec format_edoc(none | map()) -> [els_hover_provider:doc_entry()].
+-spec format_edoc(none | map()) -> [els_markup_content:doc_entry()].
 format_edoc(none) ->
   [];
 format_edoc(Desc) when is_map(Desc) ->
@@ -208,7 +210,7 @@ format_edoc(Desc) when is_map(Desc) ->
   [{text, FormattedDoc}].
 
 -spec web_links(atom(), atom(), non_neg_integer()) ->
-        [els_hover_provider:doc_entry()].
+        [els_markup_content:doc_entry()].
 web_links(M, F, A) ->
   case els_utils:find_module(M) of
     {ok, Uri} ->

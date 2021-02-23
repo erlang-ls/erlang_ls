@@ -31,6 +31,9 @@
         , variables/1
         , remote_fun/1
         , snippets/1
+        , resolve_application_local/1
+        , resolve_application_remote_self/1
+        , resolve_application_remote_external/1
         ]).
 
 %%==============================================================================
@@ -85,28 +88,48 @@ default_completions(Config) ->
   Uri = ?config(code_navigation_extra_uri, Config),
   Functions = [ #{ insertText => <<"do_3(${1:Arg1}, ${2:Arg2})">>
                  , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
-                 , kind             => ?COMPLETION_ITEM_KIND_FUNCTION,
-                   label => <<"do_3/2">>
+                 , kind => ?COMPLETION_ITEM_KIND_FUNCTION
+                 , label => <<"do_3/2">>
+                 , data => #{ module => <<"code_navigation_extra">>
+                            , function => <<"do_3">>
+                            , arity => 2
+                            }
                  }
               , #{ insertText => <<"do_2()">>
                  , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
-                 , kind             => ?COMPLETION_ITEM_KIND_FUNCTION,
-                   label => <<"do_2/0">>
+                 , kind => ?COMPLETION_ITEM_KIND_FUNCTION
+                 , label => <<"do_2/0">>
+                 , data => #{ module => <<"code_navigation_extra">>
+                            , function => <<"do_2">>
+                            , arity => 0
+                            }
                  }
               , #{ insertText => <<"do(${1:_Config})">>
                  , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
-                 , kind             => ?COMPLETION_ITEM_KIND_FUNCTION,
-                   label => <<"do/1">>
+                 , kind             => ?COMPLETION_ITEM_KIND_FUNCTION
+                 , label => <<"do/1">>
+                 , data => #{ module => <<"code_navigation_extra">>
+                            , function => <<"do">>
+                            , arity => 1
+                            }
                  }
               , #{ insertText => <<"do_4(${1:Arg1}, ${2:Arg2})">>
                  , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
-                 , kind             => ?COMPLETION_ITEM_KIND_FUNCTION,
-                   label => <<"do_4/2">>
+                 , kind             => ?COMPLETION_ITEM_KIND_FUNCTION
+                 , label => <<"do_4/2">>
+                 , data => #{ module => <<"code_navigation_extra">>
+                            , function => <<"do_4">>
+                            , arity => 2
+                            }
                  }
               , #{ insertText => <<"'DO_LOUDER'()">>
                  , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
-                 , kind             => ?COMPLETION_ITEM_KIND_FUNCTION,
-                   label => <<"'DO_LOUDER'/0">>
+                 , kind             => ?COMPLETION_ITEM_KIND_FUNCTION
+                 , label => <<"'DO_LOUDER'/0">>
+                 , data => #{ module => <<"code_navigation_extra">>
+                            , function => <<"DO_LOUDER">>
+                            , arity => 0
+                            }
                  }
               ],
 
@@ -154,7 +177,7 @@ empty_completions(Config) ->
 
   #{ result := Completion
    } = els_client:completion(Uri, 5, 1, TriggerKind, <<"">>),
-  ?assertEqual(null, Completion),
+  ?assertEqual([], Completion),
   ok.
 
 -spec exported_functions(config()) -> ok.
@@ -172,9 +195,14 @@ exported_functions(Config) ->
   ExpectedCompletionArity = expected_exported_functions_arity_only(),
   ?assertEqual(lists:sort(ExpectedCompletionArity), lists:sort(Completion2)),
 
-  ExpectedCompletionQuoted = [ #{ label             => <<"do/1">>
+  ExpectedCompletionQuoted = [ #{ label            => <<"do/1">>
                                 , kind             => ?COMPLETION_ITEM_KIND_FUNCTION
                                 , insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+                                , data             =>
+                                    #{ module => <<"Code.Navigation.Elixirish">>
+                                     , function => <<"do">>
+                                     , arity => 1
+                                     }
                                 }
                         ],
 
@@ -208,6 +236,7 @@ exported_types(Config) ->
                 , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
                 , kind => ?COMPLETION_ITEM_KIND_TYPE_PARAM
                 , label => <<T/binary, "/0">>
+                , data => #{}
                 }
                || T <- Types
              ],
@@ -224,29 +253,34 @@ exported_types(Config) ->
 functions_arity(Config) ->
   TriggerKind = ?COMPLETION_TRIGGER_KIND_INVOKED,
   Uri = ?config(code_navigation_uri, Config),
-  ExportedFunctions = [ <<"callback_a/0">>
-                      , <<"function_a/0">>
-                      , <<"function_b/0">>
-                      , <<"function_c/0">>
-                      , <<"function_d/0">>
-                      , <<"function_e/0">>
-                      , <<"function_f/0">>
-                      , <<"function_g/1">>
-                      , <<"function_h/0">>
-                      , <<"function_i/0">>
-                      , <<"function_j/0">>
-                      , <<"function_k/0">>
-                      , <<"function_l/2">>
-                      , <<"function_m/1">>
-                      , <<"function_n/0">>
-                      , <<"function_o/0">>
-                      , <<"'PascalCaseFunction'/1">>
+  ExportedFunctions = [ {<<"callback_a">>, 0}
+                      , {<<"function_a">>, 0}
+                      , {<<"function_b">>, 0}
+                      , {<<"function_c">>, 0}
+                      , {<<"function_d">>, 0}
+                      , {<<"function_e">>, 0}
+                      , {<<"function_f">>, 0}
+                      , {<<"function_g">>, 1}
+                      , {<<"function_h">>, 0}
+                      , {<<"function_i">>, 0}
+                      , {<<"function_j">>, 0}
+                      , {<<"function_k">>, 0}
+                      , {<<"function_l">>, 2}
+                      , {<<"function_m">>, 1}
+                      , {<<"function_n">>, 0}
+                      , {<<"function_o">>, 0}
+                      , {<<"'PascalCaseFunction'">>, 1}
                       ],
-  ExpectedCompletion = [ #{ label            => FunName
-                          , kind             => ?COMPLETION_ITEM_KIND_FUNCTION
+  ExpectedCompletion = [ #{ label =>
+                              <<FunName/binary, "/", (integer_to_binary(Arity))/binary>>
+                          , kind => ?COMPLETION_ITEM_KIND_FUNCTION
                           , insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+                          , data => #{ module => <<"code_navigation">>
+                                     , function => string:trim(FunName, both, [$'])
+                                     , arity => Arity
+                                     }
                           }
-                         || FunName <- ExportedFunctions
+                         || {FunName, Arity} <- ExportedFunctions
                        ] ++ els_completion_provider:bifs(function, true),
 
   #{result := Completion} =
@@ -263,22 +297,47 @@ functions_export_list(Config) ->
   ExpectedCompletion = [ #{ label            => <<"do/1">>
                           , kind             => ?COMPLETION_ITEM_KIND_FUNCTION
                           , insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+                          , data             =>
+                              #{ module => <<"code_navigation_extra">>
+                               , function => <<"do">>
+                               , arity => 1
+                               }
                           }
                        , #{ label            => <<"do_2/0">>
                           , kind             => ?COMPLETION_ITEM_KIND_FUNCTION
                           , insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+                          , data             =>
+                              #{ module => <<"code_navigation_extra">>
+                               , function => <<"do_2">>
+                               , arity => 0
+                               }
                           }
                        ,  #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
                            , kind             => ?COMPLETION_ITEM_KIND_FUNCTION
                            , label            => <<"do_3/2">>
+                           , data             =>
+                               #{ module => <<"code_navigation_extra">>
+                                , function => <<"do_3">>
+                                , arity => 2
+                                }
                            }
                        , #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
                           , kind             => ?COMPLETION_ITEM_KIND_FUNCTION
                           , label            => <<"do_4/2">>
+                          , data             =>
+                              #{ module => <<"code_navigation_extra">>
+                               , function => <<"do_4">>
+                               , arity => 2
+                               }
                           }
                        , #{ label            => <<"'DO_LOUDER'/0">>
                           , kind             => ?COMPLETION_ITEM_KIND_FUNCTION
                           , insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+                          , data             =>
+                              #{ module => <<"code_navigation_extra">>
+                               , function => <<"DO_LOUDER">>
+                               , arity => 0
+                               }
                           }
                        ],
 
@@ -301,11 +360,11 @@ handle_empty_lines(Config) ->
 
   #{ result := Completion1
    } = els_client:completion(Uri, 32, 1, TriggerKind, <<"">>),
-  ?assertEqual(null, Completion1),
+  ?assertEqual([], Completion1),
 
   #{ result := Completion2
    } = els_client:completion(Uri, 32, 2, TriggerKind, <<":">>),
-  ?assertEqual(null, Completion2),
+  ?assertEqual([], Completion2),
 
   ok.
 
@@ -316,7 +375,7 @@ handle_colon_inside_string(Config) ->
 
   #{ result := Completion
    } = els_client:completion(Uri, 76, 10, TriggerKind, <<":">>),
-  ?assertEqual(null, Completion),
+  ?assertEqual([], Completion),
 
   ok.
 
@@ -327,15 +386,19 @@ macros(Config) ->
   TriggerKindInvoked = ?COMPLETION_TRIGGER_KIND_INVOKED,
   Expected = [ #{ kind => ?COMPLETION_ITEM_KIND_CONSTANT
                 , label => <<"INCLUDED_MACRO_A">>
+                , data => #{}
                 }
              , #{ kind => ?COMPLETION_ITEM_KIND_CONSTANT
                 , label => <<"MACRO_A">>
+                , data => #{}
                 }
              , #{ kind => ?COMPLETION_ITEM_KIND_CONSTANT
                 , label => <<"MACRO_WITH_ARGS">>
+                , data => #{}
                 }
              , #{ kind => ?COMPLETION_ITEM_KIND_CONSTANT
                 , label => <<"macro_A">>
+                , data => #{}
                 }
              ],
 
@@ -368,12 +431,15 @@ records(Config) ->
   TriggerKindInvoked = ?COMPLETION_TRIGGER_KIND_INVOKED,
   Expected = [ #{ kind => ?COMPLETION_ITEM_KIND_STRUCT
                 , label => <<"included_record_a">>
+                , data => #{}
                 }
              , #{ kind => ?COMPLETION_ITEM_KIND_STRUCT
                 , label => <<"record_a">>
+                , data => #{}
                 }
              , #{ kind => ?COMPLETION_ITEM_KIND_STRUCT
                 , label => <<"'PascalCaseRecord'">>
+                , data => #{}
                 }
              ],
 
@@ -446,16 +512,19 @@ types(Config) ->
                 , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
                 , kind             => ?COMPLETION_ITEM_KIND_TYPE_PARAM
                 , label            => <<"type_a/0">>
+                , data             => #{}
                 }
              , #{ insertText       => <<"included_type_a()">>
                 , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
                 , kind             => ?COMPLETION_ITEM_KIND_TYPE_PARAM
                 , label            => <<"included_type_a/0">>
+                , data             => #{}
                 }
              , #{ insertText       => <<"'INCLUDED_TYPE'(${1:T})">>
                 , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
                 , kind             => ?COMPLETION_ITEM_KIND_TYPE_PARAM
                 , label            => <<"'INCLUDED_TYPE'/1">>
+                , data             => #{}
                 }
              ],
 
@@ -479,14 +548,17 @@ types_export_list(Config) ->
   Expected = [ #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
                 , kind             => ?COMPLETION_ITEM_KIND_TYPE_PARAM
                 , label            => <<"user_type_a/0">>
+                , data             => #{}
                 }
              , #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
                 , kind             => ?COMPLETION_ITEM_KIND_TYPE_PARAM
                 , label            => <<"type_a/0">>
+                , data             => #{}
                 }
              , #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
                 , kind             => ?COMPLETION_ITEM_KIND_TYPE_PARAM
                 , label            => <<"opaque_type_a/0">>
+                , data             => #{}
                 }
              ],
 
@@ -522,16 +594,28 @@ expected_exported_functions() ->
      , kind             => ?COMPLETION_ITEM_KIND_FUNCTION
      , insertText       => <<"do(${1:_Config})">>
      , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+     , data             => #{ module => <<"code_navigation_extra">>
+                            , function => <<"do">>
+                            , arity => 1
+                            }
      }
   , #{ label            => <<"do_2/0">>
      , kind             => ?COMPLETION_ITEM_KIND_FUNCTION
      , insertText       => <<"do_2()">>
      , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+     , data             => #{ module => <<"code_navigation_extra">>
+                            , function => <<"do_2">>
+                            , arity => 0
+                            }
      }
   , #{ label            => <<"'DO_LOUDER'/0">>
      , kind             => ?COMPLETION_ITEM_KIND_FUNCTION
      , insertText       => <<"'DO_LOUDER'()">>
      , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+     , data             => #{ module => <<"code_navigation_extra">>
+                            , function => <<"DO_LOUDER">>
+                            , arity => 0
+                            }
      }
   ].
 
@@ -539,14 +623,26 @@ expected_exported_functions_arity_only() ->
   [ #{ label            => <<"do/1">>
      , kind             => ?COMPLETION_ITEM_KIND_FUNCTION
      , insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+     , data             => #{ module => <<"code_navigation_extra">>
+                            , function => <<"do">>
+                            , arity => 1
+                            }
      }
   , #{ label            => <<"do_2/0">>
      , kind             => ?COMPLETION_ITEM_KIND_FUNCTION
      , insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+     , data             => #{ module => <<"code_navigation_extra">>
+                            , function => <<"do_2">>
+                            , arity => 0
+                            }
      }
   , #{ label            => <<"'DO_LOUDER'/0">>
      , kind             => ?COMPLETION_ITEM_KIND_FUNCTION
      , insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+     , data             => #{ module => <<"code_navigation_extra">>
+                            , function => <<"DO_LOUDER">>
+                            , arity => 0
+                            }
      }
   ].
 
@@ -558,10 +654,18 @@ remote_fun(Config) ->
   ExpectedCompletion = [ #{ label            => <<"complete_1/0">>
                           , kind             => ?COMPLETION_ITEM_KIND_FUNCTION
                           , insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+                          , data             => #{ module => <<"completion">>
+                                                 , function => <<"complete_1">>
+                                                 , arity => 0
+                                                 }
                           }
                        , #{ label            => <<"complete_2/0">>
                           , kind             => ?COMPLETION_ITEM_KIND_FUNCTION
                           , insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+                          , data             => #{ module => <<"completion">>
+                                                 , function => <<"complete_2">>
+                                                 , arity => 0
+                                                 }
                           }
                        ],
   #{result := Completion} =
@@ -588,3 +692,53 @@ filter_completion(Completion, ToFilter) ->
   FilterSet = ordsets:from_list(ToFilter),
   ?assertEqual(FilterSet, ordsets:intersection(CompletionSet, FilterSet)),
   ordsets:to_list(ordsets:subtract(CompletionSet, FilterSet)).
+
+-spec resolve_application_local(config()) -> ok.
+resolve_application_local(Config) ->
+  Uri = ?config(completion_resolve_uri, Config),
+  CompletionKind = ?COMPLETION_TRIGGER_KIND_INVOKED,
+  #{result := CompletionItems} = els_client:completion(Uri, 17, 5, CompletionKind, <<"">>),
+  [Selected] = select_completionitems(CompletionItems),
+  #{result := Result} = els_client:completionitem_resolve(Selected),
+  Expected = Selected#{ documentation =>
+                          #{ kind => <<"markdown">>
+                           , value =>
+                               <<"## completion_resolve:call_1/0\n\n```erlang\n\n```">>
+                           }
+                      },
+  ?assertEqual(Expected, Result).
+
+-spec resolve_application_remote_self(config()) -> ok.
+resolve_application_remote_self(Config) ->
+  Uri = ?config(completion_resolve_uri, Config),
+  CompletionKind = ?COMPLETION_TRIGGER_KIND_INVOKED,
+  #{result := CompletionItems} = els_client:completion(Uri, 16, 23, CompletionKind, <<":">>),
+  [Selected] = select_completionitems(CompletionItems),
+  #{result := Result} = els_client:completionitem_resolve(Selected),
+  Expected = Selected#{ documentation =>
+                          #{ kind => <<"markdown">>
+                           , value =>
+                               <<"## completion_resolve:call_1/0\n\n```erlang\n\n```">>
+                           }
+                      },
+  ?assertEqual(Expected, Result).
+
+-spec resolve_application_remote_external(config()) -> ok.
+resolve_application_remote_external(Config) ->
+  Uri = ?config(completion_resolve_uri, Config),
+  CompletionKind = ?COMPLETION_TRIGGER_KIND_INVOKED,
+  #{result := CompletionItems} = els_client:completion(Uri, 18, 25, CompletionKind, <<":">>),
+  [Selected] = select_completionitems(CompletionItems),
+  #{result := Result} = els_client:completionitem_resolve(Selected),
+  Expected = Selected#{ documentation =>
+                          #{ kind => <<"markdown">>
+                           , value =>
+                               <<"## completion_resolve_2:call_1/0\n\n```erlang\n\n```">>
+                           }
+                      },
+  ?assertEqual(Expected, Result).
+
+select_completionitems(CompletionItems) ->
+  [CI || #{ kind := ?COMPLETION_ITEM_KIND_FUNCTION
+          , label := <<"call_1/0">>
+          } = CI <- CompletionItems].
