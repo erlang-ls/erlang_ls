@@ -46,12 +46,10 @@ range({_Line, _Column} = From, atom, Name, _Data) ->
   #{ from => From, to => To };
 range({Line, Column}, application, {_, F, A}, #{imported := true} = Data) ->
   range({Line, Column}, application, {F, A}, Data);
-range({Line, Column}, application, {M, F, _A}, _Data) ->
-  %% Column indicates the position of the :
-  CFrom = Column - string:length(atom_to_string(M)),
-  From = {Line, CFrom},
+range({Line, Column} = From, application, {M, F, _A}, _Data) ->
   %% module:function
-  CTo = Column + string:length(atom_to_string(F)) + 1,
+  CTo = Column + string:length(atom_to_string(M)) +
+        string:length(atom_to_string(F)) + 1,
   To = {Line, CTo},
   #{ from => From, to => To };
 range({Line, Column}, application, {F, _A}, _Data) ->
