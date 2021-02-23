@@ -703,7 +703,10 @@ resolve_application_local(Config) ->
   Expected = Selected#{ documentation =>
                           #{ kind => <<"markdown">>
                            , value =>
-                               <<"## completion_resolve:call_1/0\n\n```erlang\n\n```">>
+                               <<"## completion_resolve:call_1/0\n\n"
+                                 "```erlang\n"
+                                 "-spec call_1() -> 'ok'.\n"
+                                 "```">>
                            }
                       },
   ?assertEqual(Expected, Result).
@@ -718,7 +721,10 @@ resolve_application_remote_self(Config) ->
   Expected = Selected#{ documentation =>
                           #{ kind => <<"markdown">>
                            , value =>
-                               <<"## completion_resolve:call_1/0\n\n```erlang\n\n```">>
+                               <<"## completion_resolve:call_1/0\n\n"
+                                 "```erlang\n"
+                                 "-spec call_1() -> 'ok'.\n"
+                                 "```">>
                            }
                       },
   ?assertEqual(Expected, Result).
@@ -733,7 +739,10 @@ resolve_application_remote_external(Config) ->
   Expected = Selected#{ documentation =>
                           #{ kind => <<"markdown">>
                            , value =>
-                               <<"## completion_resolve_2:call_1/0\n\n```erlang\n\n```">>
+                               <<"## completion_resolve_2:call_1/0\n\n"
+                                 "```erlang\n"
+                                 "-spec call_1() -> 'ok'.\n"
+                                 "```">>
                            }
                       },
   ?assertEqual(Expected, Result).

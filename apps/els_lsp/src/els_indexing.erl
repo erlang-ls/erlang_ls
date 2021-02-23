@@ -81,10 +81,14 @@ do_index(#{uri := Uri, id := Id, kind := Kind} = Document, Mode) ->
   index_references(Document, Mode).
 
 -spec index_signatures(els_dt_document:item()) -> ok.
-index_signatures(#{id := Id} = Document) ->
+index_signatures(#{id := Id, text := Text} = Document) ->
   Specs  = els_dt_document:pois(Document, [spec]),
-  [ els_dt_signatures:insert(#{ mfa => {Id, F, A}, spec => Spec})
-    || #{id := {F, A}, data := Spec} <- Specs
+  [ begin
+      #{from := From, to := To} = Range,
+      Spec = els_text:range(Text, From, To),
+      els_dt_signatures:insert(#{ mfa => {Id, F, A} , spec => Spec})
+    end
+    || #{id := {F, A}, range := Range} <- Specs
   ],
   ok.
 

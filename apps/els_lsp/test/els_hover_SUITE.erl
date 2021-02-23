@@ -84,6 +84,10 @@ local_call_with_args(Config) ->
   Value = <<"## local_call/2\n\n"
             "```erlang\n\n"
             "  local_call(Arg1, Arg2) \n\n"
+            "```\n\n"
+            "```erlang\n"
+            "-spec local_call(integer(), any()) -> tuple();\n"
+            "                (float(), any()) -> tuple().\n"
             "```">>,
   Expected = #{ kind  => <<"markdown">>
               , value => Value

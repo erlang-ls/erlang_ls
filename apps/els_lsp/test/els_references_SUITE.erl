@@ -246,8 +246,8 @@ record(Config) ->
 purge_references(_Config) ->
   els_db:clear_tables(),
   Uri   = <<"file:///tmp/foo.erl">>,
-  Text0 = "-spec foo(integer()) -> ok.\nfoo(_X) -> ok.\nbar() -> foo(1).",
-  Text1 = "\n-spec foo(integer()) -> ok.\nfoo(_X)-> ok.\nbar() -> foo(1).",
+  Text0 = <<"-spec foo(integer()) -> ok.\nfoo(_X) -> ok.\nbar() -> foo(1).">>,
+  Text1 = <<"\n-spec foo(integer()) -> ok.\nfoo(_X)-> ok.\nbar() -> foo(1).">>,
   Doc0  = els_dt_document:new(Uri, Text0),
   Doc1  = els_dt_document:new(Uri, Text1),
 
