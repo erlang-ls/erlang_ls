@@ -27,9 +27,9 @@ range({{Line, Column}, {ToLine, ToColumn}}, Name, _, _Data)
   when Name =:= folding_range;
        Name =:= spec ->
   %% -1 as we include the "-" before spec.
-  From = {Line, Column - 1},
+  From = {Line, Column},
   %% +1 as we include the . after the spec
-  To = {ToLine, ToColumn - 1 + 1},
+  To = {ToLine, ToColumn + 1},
   #{ from => From, to => To };
 range({{_Line, _Column} = From, {_ToLine, _ToColumn} = To}, Name, _, _Data)
   when Name =:= export;

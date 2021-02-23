@@ -89,7 +89,9 @@ find_attribute_pois(Tree, Tokens) ->
           [ poi(Pos, import_entry, {M, F, A})
             || {{F, A}, {atom, Pos, _}} <- lists:zip(Imports, Atoms)];
         {spec, {spec, {{F, A}, _FTs}}} ->
-          From = erl_syntax:get_pos(Tree),
+          %% This location has to match that of spec in
+          %% find_attribute_tokens/1
+          From = erl_scan:location(hd(Tokens)),
           To   = erl_scan:location(lists:last(Tokens)),
           [poi({From, To}, spec, {F, A})];
         {export_type, {export_type, Exports}} ->
@@ -138,7 +140,7 @@ analyze_attribute(Tree) ->
       [ArgTuple] = erl_syntax:attribute_arguments(Tree),
       [TypeTree, _, ArgsListTree] = erl_syntax:tuple_elements(ArgTuple),
       Definition = [], %% ignore definition
-      %% concrete will throw an error if `TyperTree' is a macro
+      %% concrete will throw an error if `TypeTree' is a macro
       try erl_syntax:concrete(TypeTree) of
         TypeName ->
           {AttrName, {AttrName, {TypeName,
