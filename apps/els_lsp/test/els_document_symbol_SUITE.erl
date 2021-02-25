@@ -66,7 +66,7 @@ end_per_testcase(TestCase, Config) ->
 functions(Config) ->
   Uri = ?config(code_navigation_uri, Config),
   #{result := Symbols} = els_client:document_symbol(Uri),
-  Expected = [ #{ kind => ?SYMBOLKIND_FUNCTION,
+  Expected = [ #{ kind => Kind,
                   location =>
                     #{ range =>
                          #{ 'end' => #{character => ToC, line => ToL},
@@ -75,8 +75,8 @@ functions(Config) ->
                        uri => Uri
                      },
                   name => Name
-                } || {Name, {FromL, FromC}, {ToL, ToC}}
-                       <- lists:append([functions()])],
+                } || {Name, Kind, {FromL, FromC}, {ToL, ToC}}
+                       <- functions()],
   ?assertEqual(length(Expected), length(Symbols)),
   Pairs = lists:zip(lists:sort(Expected), lists:sort(Symbols)),
   [?assertEqual(E, S) || {E, S} <- Pairs],
@@ -86,22 +86,22 @@ functions(Config) ->
 %% Internal Functions
 %%==============================================================================
 functions() ->
-  [ {<<"function_a/0">>, {20, 0}, {20, 10}}
-  , {<<"function_b/0">>, {24, 0}, {24, 10}}
-  , {<<"callback_a/0">>, {27, 0}, {27, 10}}
-  , {<<"function_c/0">>, {30, 0}, {30, 10}}
-  , {<<"function_d/0">>, {38, 0}, {38, 10}}
-  , {<<"function_e/0">>, {41, 0}, {41, 10}}
-  , {<<"function_f/0">>, {46, 0}, {46, 10}}
-  , {<<"function_g/1">>, {49, 0}, {49, 10}}
-  , {<<"function_h/0">>, {55, 0}, {55, 10}}
-  , {<<"function_i/0">>, {59, 0}, {59, 10}}
-  , {<<"function_i/0">>, {61, 0}, {61, 10}}
-  , {<<"function_j/0">>, {66, 0}, {66, 10}}
-  , {<<"function_k/0">>, {73, 0}, {73, 10}}
-  , {<<"function_l/2">>, {78, 0}, {78, 10}}
-  , {<<"function_m/1">>, {83, 0}, {83, 10}}
-  , {<<"function_n/0">>, {88, 0}, {88, 10}}
-  , {<<"function_o/0">>, {92, 0}, {92, 10}}
-  , {<<"'PascalCaseFunction'/1">>, {97, 0}, {97, 20}}
+  [ {<<"function_a/0">>, ?SYMBOLKIND_INTERFACE, {20, 0}, {20, 10}}
+  , {<<"function_b/0">>, ?SYMBOLKIND_INTERFACE, {24, 0}, {24, 10}}
+  , {<<"callback_a/0">>, ?SYMBOLKIND_INTERFACE, {27, 0}, {27, 10}}
+  , {<<"function_c/0">>, ?SYMBOLKIND_FUNCTION, {30, 0}, {30, 10}}
+  , {<<"function_d/0">>, ?SYMBOLKIND_FUNCTION, {38, 0}, {38, 10}}
+  , {<<"function_e/0">>, ?SYMBOLKIND_FUNCTION, {41, 0}, {41, 10}}
+  , {<<"function_f/0">>, ?SYMBOLKIND_FUNCTION, {46, 0}, {46, 10}}
+  , {<<"function_g/1">>, ?SYMBOLKIND_INTERFACE, {49, 0}, {49, 10}}
+  , {<<"function_h/0">>, ?SYMBOLKIND_FUNCTION, {55, 0}, {55, 10}}
+  , {<<"function_i/0">>, ?SYMBOLKIND_FUNCTION, {59, 0}, {59, 10}}
+  , {<<"function_i/0">>, ?SYMBOLKIND_FUNCTION, {61, 0}, {61, 10}}
+  , {<<"function_j/0">>, ?SYMBOLKIND_INTERFACE, {66, 0}, {66, 10}}
+  , {<<"function_k/0">>, ?SYMBOLKIND_FUNCTION, {73, 0}, {73, 10}}
+  , {<<"function_l/2">>, ?SYMBOLKIND_FUNCTION, {78, 0}, {78, 10}}
+  , {<<"function_m/1">>, ?SYMBOLKIND_FUNCTION, {83, 0}, {83, 10}}
+  , {<<"function_n/0">>, ?SYMBOLKIND_FUNCTION, {88, 0}, {88, 10}}
+  , {<<"function_o/0">>, ?SYMBOLKIND_FUNCTION, {92, 0}, {92, 10}}
+  , {<<"'PascalCaseFunction'/1">>, ?SYMBOLKIND_INTERFACE, {97, 0}, {97, 20}}
   ].
