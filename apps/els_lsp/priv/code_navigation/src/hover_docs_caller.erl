@@ -17,5 +17,7 @@ remote_call_multiple_clauses() ->
 local_call() ->
   ok.
 
+-spec local_call(integer(), any()) -> tuple();
+                (float(), any()) -> tuple().
 local_call(Arg1, Arg2) ->
   {Arg1, Arg2}.

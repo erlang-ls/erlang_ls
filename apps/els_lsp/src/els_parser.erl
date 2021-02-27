@@ -91,8 +91,7 @@ find_attribute_pois(Tree, Tokens) ->
         {spec, {spec, {{F, A}, _FTs}}} ->
           From = erl_syntax:get_pos(Tree),
           To   = erl_scan:location(lists:last(Tokens)),
-          Data = pretty_print(Tree),
-          [poi({From, To}, spec, {F, A}, Data)];
+          [poi({From, To}, spec, {F, A})];
         {export_type, {export_type, Exports}} ->
           [_ | Atoms] = [T || {atom, _, _} = T <- Tokens],
           ExportTypeEntries =
@@ -699,14 +698,6 @@ skip_type_name_atom(NameNode) ->
      _ ->
        [NameNode]
    end.
--spec pretty_print(tree()) -> binary().
-pretty_print(Tree) ->
-  try
-    els_utils:to_binary(erl_prettypr:format(Tree))
- catch
-   _:_:_ ->
-     <<>>
- end.
 
 -spec pretty_print_clause(tree()) -> binary().
 pretty_print_clause(Tree) ->

@@ -6,6 +6,7 @@
 -export([ last_token/1
         , line/2
         , line/3
+        , range/3
         , tokens/1
         ]).
 
@@ -26,6 +27,14 @@ line(Text, LineNum, ColumnNum) ->
   Line = line(Text, LineNum),
   binary:part(Line, {0, ColumnNum}).
 
+%% @doc Extract a snippet from a text, from start location to end location.
+-spec range(text(), {line_num(), column_num()}, {line_num(), column_num()}) -> text().
+range(Text, StartLoc, EndLoc) ->
+  LineStarts = line_starts(Text),
+  StartPos = pos(LineStarts, StartLoc),
+  EndPos = pos(LineStarts, EndLoc),
+  binary:part(Text, StartPos, EndPos - StartPos + 1).
+
 %% @doc Return tokens from text.
 -spec tokens(text()) -> [any()].
 tokens(Text) ->
@@ -41,3 +50,16 @@ last_token(Text) ->
     [] -> {error, empty};
     Tokens -> lists:last(Tokens)
   end.
+
+%%==============================================================================
+%% Internal functions
+%%==============================================================================
+
+-spec line_starts(text()) -> [{integer(), any()}].
+line_starts(Text) ->
+  [{-1, 1} | binary:matches(Text, <<"\n">>)].
+
+-spec pos([{integer(), any()}], {line_num(), column_num()}) -> non_neg_integer().
+pos(LineStarts, {LineNum, ColumnNum}) ->
+  {LinePos, _} = lists:nth(LineNum, LineStarts),
+  LinePos + ColumnNum.
