@@ -5,23 +5,21 @@
 -module(els_code_lens_show_behaviour_usages).
 
 -behaviour(els_code_lens).
--export([ command/1
-        , command_args/2
+-export([ command/3
         , is_default/0
         , pois/1
         , precondition/1
-        , title/1
         ]).
 
 -include("els_lsp.hrl").
 
--spec command(poi()) -> els_command:command_id().
-command(_POI) ->
-  <<"show-behaviour-usages">>.
-
--spec command_args(els_dt_document:item(), poi()) -> [any()].
-command_args(_Document, _POI) ->
-  [].
+-spec command(els_dt_document:item(), poi(), els_code_lens:state()) ->
+        els_command:command().
+command(_Document, POI, _State) ->
+  Title = title(POI),
+  CommandId = <<"show-behaviour-usages">>,
+  CommandArgs = [],
+  els_command:make_command(Title, CommandId, CommandArgs).
 
 -spec is_default() -> boolean().
 is_default() ->
@@ -39,7 +37,7 @@ pois(Document) ->
   els_dt_document:pois(Document, [module]).
 
 -spec title(poi()) -> binary().
-title(#{ id := Id }) ->
+title(#{id := Id} = _POI) ->
   {ok, Refs} = els_dt_references:find_by_id(behaviour, Id),
   Count = length(Refs),
   Msg = io_lib:format("Behaviour used in ~p place(s)", [Count]),
