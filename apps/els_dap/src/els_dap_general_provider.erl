@@ -417,7 +417,7 @@ handle_info( {int_cb, ThreadPid}
     {log, Expression} ->
       Return = safe_eval(ProjectNode, ThreadPid, Expression, no_update),
       LogMessage = unicode:characters_to_binary(
-        io_lib:format("@~s:~b -> ~w~n", [Module, Line, Return])
+        io_lib:format("~s:~b - ~w~n", [source(Module, ProjectNode), Line, Return])
       ),
       els_dap_server:send_event(<<"output">>, #{ <<"output">> => LogMessage }),
       els_dap_rpc:continue(ProjectNode, ThreadPid)
