@@ -142,21 +142,16 @@ parse_escript(Uri) ->
         [els_diagnostics:diagnostic()].
 diagnostics(Path, List, Severity) ->
   Uri = els_uri:uri(els_utils:to_binary(Path)),
-  case els_dt_document:lookup(Uri) of
-    {ok, [Document]} ->
-      lists:flatten([[ diagnostic( Path
-                                 , MessagePath
-                                 , range(Anno)
-                                 , Document
-                                 , Module
-                                 , Desc
-                                 , Severity)
-                       || {Anno, Module, Desc} <- Info]
-                     || {MessagePath, Info} <- List]);
-    Error ->
-      ?LOG_INFO("diagnostics doc lookup failed [Error=~p]", [Error]),
-      []
-  end.
+  {ok, Document} = els_utils:lookup_document(Uri),
+  lists:flatten([[ diagnostic( Path
+                             , MessagePath
+                             , range(Anno)
+                             , Document
+                             , Module
+                             , Desc
+                             , Severity)
+                   || {Anno, Module, Desc} <- Info]
+                 || {MessagePath, Info} <- List]).
 
 -spec diagnostic( string()
                 , string()

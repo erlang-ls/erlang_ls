@@ -31,28 +31,23 @@ included_uris(Document) ->
 dependencies([], Acc, _AlreadyProcessed) ->
   Acc;
 dependencies([Uri|Uris], Acc, AlreadyProcessed) ->
-  case els_dt_document:lookup(Uri) of
-    {ok, [Document]} ->
-      Behaviours = els_dt_document:pois(Document, [behaviour]),
-      ParseTransforms = els_dt_document:pois(Document, [parse_transform]),
-      IncludedUris = included_uris(Document),
-      FilteredIncludedUris = exclude_already_processed( IncludedUris
-                                                      , AlreadyProcessed
-                                                      ),
-      PTUris = lists:usort(
-                 lists:flatten(
-                   [pt_deps(Id) || #{id := Id} <- ParseTransforms])),
-      FilteredPTUris = exclude_already_processed( PTUris
-                                                , AlreadyProcessed
-                                                ),
-      dependencies( Uris ++ FilteredIncludedUris ++ FilteredPTUris
-                  , Acc ++ [Id || #{id := Id} <- Behaviours ++ ParseTransforms]
-                    ++ [els_uri:module(FPTUri) || FPTUri <- FilteredPTUris]
-                  , sets:add_element(Uri, AlreadyProcessed));
-    Error ->
-      ?LOG_INFO("Lookup failed [Error=~p]", [Error]),
-      []
-  end.
+  {ok, Document} = els_utils:lookup_document(Uri),
+  Behaviours = els_dt_document:pois(Document, [behaviour]),
+  ParseTransforms = els_dt_document:pois(Document, [parse_transform]),
+  IncludedUris = included_uris(Document),
+  FilteredIncludedUris = exclude_already_processed( IncludedUris
+                                                  , AlreadyProcessed
+                                                  ),
+  PTUris = lists:usort(
+             lists:flatten(
+               [pt_deps(Id) || #{id := Id} <- ParseTransforms])),
+  FilteredPTUris = exclude_already_processed( PTUris
+                                            , AlreadyProcessed
+                                            ),
+  dependencies( Uris ++ FilteredIncludedUris ++ FilteredPTUris
+              , Acc ++ [Id || #{id := Id} <- Behaviours ++ ParseTransforms]
+                ++ [els_uri:module(FPTUri) || FPTUri <- FilteredPTUris]
+              , sets:add_element(Uri, AlreadyProcessed)).
 
 -spec exclude_already_processed([uri()], sets:set()) -> [uri()].
 exclude_already_processed(Uris, AlreadyProcessed) ->
@@ -62,16 +57,11 @@ exclude_already_processed(Uris, AlreadyProcessed) ->
 pt_deps(Module) ->
   case els_utils:find_module(Module) of
     {ok, Uri} ->
-      case els_dt_document:lookup(Uri) of
-        {ok, [Document]} ->
-          Applications = els_dt_document:pois(Document, [ application
-                                                        , implicit_fun
-                                                        ]),
-          applications_to_uris(Applications);
-        Error ->
-          ?LOG_INFO("Lookup failed [Error=~p]", [Error]),
-          []
-      end;
+      {ok, Document} = els_utils:lookup_document(Uri),
+      Applications = els_dt_document:pois(Document, [ application
+                                                    , implicit_fun
+                                                    ]),
+      applications_to_uris(Applications);
     {error, Error} ->
       ?LOG_INFO("Find module failed [module=~p] [error=~p]", [Module, Error]),
       []

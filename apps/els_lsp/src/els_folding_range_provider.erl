@@ -26,7 +26,7 @@ is_enabled() ->
 -spec handle_request(tuple(), state()) -> {folding_range_result(), state()}.
 handle_request({document_foldingrange, Params}, State) ->
   #{ <<"textDocument">> := #{<<"uri">> := Uri} } = Params,
-  {ok, [Document]} = els_dt_document:lookup(Uri),
+  {ok, Document} = els_utils:lookup_document(Uri),
   POIs = els_dt_document:pois(Document, [folding_range]),
   Response = case [folding_range(Range) || #{range := Range} <- POIs] of
                []     -> null;

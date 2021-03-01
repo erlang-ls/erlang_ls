@@ -117,12 +117,8 @@ find([Uri|Uris0], Kind, Data, AlreadyVisited) ->
       find(Uris0, Kind, Data, AlreadyVisited);
     false ->
       AlreadyVisited2 = sets:add_element(Uri, AlreadyVisited),
-      case els_dt_document:lookup(Uri) of
-        {ok, [Document]} ->
-          find_in_document([Uri|Uris0], Document, Kind, Data, AlreadyVisited2);
-        {ok, []} ->
-          find(Uris0, Kind, Data, AlreadyVisited2)
-      end
+      {ok, Document} = els_utils:lookup_document(Uri),
+      find_in_document([Uri|Uris0], Document, Kind, Data, AlreadyVisited2)
   end;
 find(Uri, Kind, Data, AlreadyVisited) ->
   find([Uri], Kind, Data, AlreadyVisited).

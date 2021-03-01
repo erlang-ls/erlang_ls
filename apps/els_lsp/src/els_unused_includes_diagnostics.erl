@@ -32,19 +32,15 @@ is_default() ->
 
 -spec run(uri()) -> [els_diagnostics:diagnostic()].
 run(Uri) ->
-  case els_dt_document:lookup(Uri) of
-    {ok, []} ->
-      [];
-    {ok, [Document|_]} ->
-      Includes = els_dt_document:pois(Document, [include, include_lib]),
-      UnusedIncludes = find_unused_includes(Document, Includes),
-      [ els_diagnostics:make_diagnostic(
-          els_protocol:range(inclusion_range(UI, Document))
-         , <<"Unused file: ", (filename:basename(UI))/binary>>
-            , ?DIAGNOSTIC_WARNING
-         , source()
-         ) || UI <- UnusedIncludes ]
-  end.
+  {ok, Document} = els_utils:lookup_document(Uri),
+  Includes = els_dt_document:pois(Document, [include, include_lib]),
+  UnusedIncludes = find_unused_includes(Document, Includes),
+  [ els_diagnostics:make_diagnostic(
+      els_protocol:range(inclusion_range(UI, Document))
+     , <<"Unused file: ", (filename:basename(UI))/binary>>
+        , ?DIAGNOSTIC_WARNING
+     , source()
+     ) || UI <- UnusedIncludes ].
 
 -spec source() -> binary().
 source() ->
@@ -87,26 +83,21 @@ expand_includes(Uri) ->
 expand_includes([], Graph, _Visited) ->
   Graph;
 expand_includes([Uri|Uris], Graph, Visited) ->
-  case els_dt_document:lookup(Uri) of
-    {ok, [Document]} ->
-      IncludedUris = els_diagnostics_utils:included_uris(Document),
-      NonVisitedIncludedUris = [U || U <- IncludedUris
-                                       , not sets:is_element(U, Visited)],
-      Dest = digraph:add_vertex(Graph, Uri),
-      NewGraph = lists:foldl(fun(U, G) ->
-                                 Src = digraph:add_vertex(G, U),
-                                 digraph:add_edge(G, Src, Dest),
-                                 G
-                             end
-                            , Graph
-                            , IncludedUris),
-      expand_includes( Uris ++ NonVisitedIncludedUris
-                     , NewGraph
-                     , sets:add_element(Uri, Visited));
-    {ok, []} ->
-      ?LOG_WARNING("Failed lookup while expanding includes [uri=~p]", [Uri]),
-      []
-  end.
+  {ok, Document} = els_utils:lookup_document(Uri),
+  IncludedUris = els_diagnostics_utils:included_uris(Document),
+  NonVisitedIncludedUris = [U || U <- IncludedUris
+                                   , not sets:is_element(U, Visited)],
+  Dest = digraph:add_vertex(Graph, Uri),
+  NewGraph = lists:foldl(fun(U, G) ->
+                             Src = digraph:add_vertex(G, U),
+                             digraph:add_edge(G, Src, Dest),
+                             G
+                         end
+                        , Graph
+                        , IncludedUris),
+  expand_includes( Uris ++ NonVisitedIncludedUris
+                 , NewGraph
+                 , sets:add_element(Uri, Visited)).
 
 -spec inclusion_range(uri(), els_dt_document:item()) -> poi_range().
 inclusion_range(Uri, Document) ->
