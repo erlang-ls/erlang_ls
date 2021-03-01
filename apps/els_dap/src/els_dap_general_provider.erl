@@ -53,6 +53,7 @@
                           #{pos_integer() => {binding_type(), bindings()}}
                          , breakpoints := els_dap_breakpoints:breakpoints()
                          , timeout := timeout()
+                         , status := undefined | running | stepping
                          }.
 -type bindings()     :: [{varname(), term()}].
 -type varname()      :: atom() | string().
@@ -73,7 +74,8 @@ init() ->
    , launch_params => #{}
    , scope_bindings => #{}
    , breakpoints => #{}
-   , timeout => 30}.
+   , timeout => 30
+   , mode => undefined}.
 
 -spec handle_request(request(), state()) -> {result(), state()}.
 handle_request({<<"initialize">>, _Params}, State) ->
@@ -166,7 +168,7 @@ handle_request( {<<"configurationDone">>, _Params}
       rpc:cast(ProjectNode, M, F, A);
     _ -> ok
   end,
-  {#{}, State};
+  {#{}, State#{mode => running}};
 handle_request( {<<"setBreakpoints">>, Params}
               , #{ project_node := ProjectNode
                  , breakpoints := Breakpoints0
@@ -319,7 +321,7 @@ handle_request( {<<"continue">>, Params}
   #{<<"threadId">> := ThreadId} = Params,
   Pid = to_pid(ThreadId, Threads),
   ok = els_dap_rpc:continue(ProjectNode, Pid),
-  {#{}, State};
+  {#{}, State#{mode => running}};
 handle_request( {<<"stepIn">>, Params}
               , #{ threads := Threads
                  , project_node := ProjectNode
@@ -399,6 +401,7 @@ handle_info( {int_cb, ThreadPid}
            , #{ threads := Threads
               , project_node := ProjectNode
               , breakpoints := Breakpoints
+              , mode := Mode0
               } = State
            ) ->
   ?LOG_DEBUG("Int CB called. thread=~p", [ThreadPid]),
@@ -409,22 +412,33 @@ handle_info( {int_cb, ThreadPid}
   {Module, Line} = break_module_line(ThreadPid, ProjectNode),
 
   %% handle breakpoints
-  case els_dap_breakpoints:type(Breakpoints, Module, Line) of
-    regular ->
-      els_dap_server:send_event(<<"stopped">>, #{ <<"reason">> => <<"breakpoint">>
-                                                , <<"threadId">> => ThreadId
-                                                });
-    {log, Expression} ->
-      Return = safe_eval(ProjectNode, ThreadPid, Expression, no_update),
-      LogMessage = unicode:characters_to_binary(
-        io_lib:format("~s:~b - ~w~n", [source(Module, ProjectNode), Line, Return])
-      ),
-      els_dap_server:send_event(<<"output">>, #{ <<"output">> => LogMessage }),
-      els_dap_rpc:continue(ProjectNode, ThreadPid)
-  end,
+  Mode1 =
+    case els_dap_breakpoints:type(Breakpoints, Module, Line) of
+      regular ->
+        els_dap_server:send_event(<<"stopped">>, #{ <<"reason">> => <<"breakpoint">>
+                                                  , <<"threadId">> => ThreadId
+                                                  }),
+        stepping;
+      {log, Expression} ->
+        Return = safe_eval(ProjectNode, ThreadPid, Expression, no_update),
+        LogMessage = unicode:characters_to_binary(
+          io_lib:format("~s:~b - ~w~n", [source(Module, ProjectNode), Line, Return])
+        ),
+        els_dap_server:send_event(<<"output">>, #{ <<"output">> => LogMessage }),
+        case Mode0 of
+          running ->
+            els_dap_rpc:continue(ProjectNode, ThreadPid);
+          _ ->
+            els_dap_server:send_event(<<"stopped">>, #{ <<"reason">> => <<"breakpoint">>
+                                                   , <<"threadId">> => ThreadId
+                                                   })
+        end,
+        %% logpoints don't change the mode
+        Mode0
+    end,
 
 
-  State#{threads => maps:put(ThreadId, Thread, Threads)};
+  State#{threads => maps:put(ThreadId, Thread, Threads), mode => Mode1};
 handle_info({nodedown, Node}, State) ->
   %% the project node is down, there is nothing left to do then to exit
   ?LOG_NOTICE("project node ~p terminated, ending debug session", [Node]),
@@ -712,7 +726,7 @@ ensure_connected(Node, Timeout) ->
     true -> ok;
     false ->
       % connect and monitore project node
-      case els_distribution_server:wait_connect_and_monitor(Node, Timeout) of
+      case els_distribution_server:wait_connect_and_monitor(Node, Timeout, hidden) of
         ok -> inject_dap_agent(Node);
         _ -> stop_debugger()
       end
