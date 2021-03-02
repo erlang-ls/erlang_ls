@@ -27,6 +27,7 @@
         , wild_attrbibute_macro/1
         , type_name_macro/1
         , spec_name_macro/1
+        , unicode_clause_pattern/1
         ]).
 
 %%==============================================================================
@@ -233,6 +234,14 @@ spec_name_macro(_Config) ->
   %% and it still returns POIs from the definition body
   Text2 = "-spec ?MODULE:b() -> integer() | t().",
   ?assertMatch([_], parse_find_pois(Text2, type_application, {t, 0})),
+  ok.
+
+-spec unicode_clause_pattern(config()) -> ok.
+unicode_clause_pattern(_Config) ->
+  %% From OTP compiler's bs_utf_SUITE.erl
+  Text = "match_literal(<<\"Мастер и Маргарита\"/utf8>>) -> mm_utf8.",
+  ?assertMatch([#{data := <<"(<<\"", _/binary>>}],
+               parse_find_pois(Text, function_clause, {match_literal, 1, 1})),
   ok.
 
 %%==============================================================================
