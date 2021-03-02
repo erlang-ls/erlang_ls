@@ -12,7 +12,7 @@
         , start_distribution/1
         , connect/0
         , wait_connect_and_monitor/1
-        , wait_connect_and_monitor/2
+        , wait_connect_and_monitor/3
         , rpc_call/3
         , rpc_call/4
         , node_name/2
@@ -99,7 +99,7 @@ init(unused) ->
         {reply, any(), state()} | {noreply, state()}.
 handle_call({connect}, _From, State) ->
   Node = els_config_runtime:get_node_name(),
-  case connect_and_monitor(Node) of
+  case connect_and_monitor(Node, not_hidden) of
     ok ->
       ok;
     error ->
@@ -132,9 +132,9 @@ handle_info(Request, State) ->
 %%==============================================================================
 %% Internal Functions
 %%==============================================================================
--spec connect_and_monitor(atom()) -> ok | error.
-connect_and_monitor(Node) ->
-  case net_kernel:connect_node(Node) of
+-spec connect_and_monitor(atom(), hidden | not_hidden) -> ok | error.
+connect_and_monitor(Node, Type) ->
+  case connect_node(Node, Type) of
     true ->
       ?LOG_INFO("Connected to node [node=~p]", [Node]),
       erlang:monitor_node(Node, true),
@@ -157,30 +157,35 @@ start(Node) ->
 
 -spec wait_connect_and_monitor(atom()) ->  ok | error.
 wait_connect_and_monitor(Node) ->
-  wait_connect_and_monitor(Node, ?WAIT_ATTEMPTS).
-
--spec wait_connect_and_monitor(Node :: atom(), Attempts :: pos_integer()) ->  ok | error.
-wait_connect_and_monitor(Node, Attempts) ->
-  wait_connect_and_monitor(Node, Attempts, Attempts).
+  wait_connect_and_monitor(Node, ?WAIT_ATTEMPTS, not_hidden).
 
 -spec wait_connect_and_monitor(
   Node :: atom(),
   Attempts :: pos_integer(),
+  Type :: hidden | not_hidden
+) ->  ok | error.
+wait_connect_and_monitor(Node, Attempts, Type) ->
+  wait_connect_and_monitor(Node, Type, Attempts, Attempts).
+
+-spec wait_connect_and_monitor(
+  Node :: atom(),
+  Type :: hidden | not_hidden,
+  Attempts :: pos_integer(),
   MaxAttempts :: pos_integer()
 ) -> ok | error.
-wait_connect_and_monitor(Node, 0, MaxAttempts) ->
+wait_connect_and_monitor(Node, _, 0, MaxAttempts) ->
   ?LOG_ERROR( "Failed to connect to node ~p after ~p attempts"
             , [Node, MaxAttempts]),
   error;
-wait_connect_and_monitor(Node, Attempts, MaxAttempts) ->
+wait_connect_and_monitor(Node, Type, Attempts, MaxAttempts) ->
   timer:sleep(?WAIT_INTERVAL),
-  case connect_and_monitor(Node) of
+  case connect_and_monitor(Node, Type) of
     ok ->
       ok;
     error ->
       ?LOG_WARNING( "Trying to connect to node ~p (~p/~p)"
                   , [Node, MaxAttempts - Attempts + 1, MaxAttempts]),
-      wait_connect_and_monitor(Node, Attempts - 1, MaxAttempts)
+      wait_connect_and_monitor(Node, Type, Attempts - 1, MaxAttempts)
   end.
 
 %% @doc Ensure the Erlang Port Mapper Daemon (EPMD) is up and running
@@ -201,3 +206,9 @@ node_name(Prefix, Name) ->
       Domain = proplists:get_value(domain, inet:get_rc(), ""),
       list_to_atom(Id ++ "@" ++ Hostname ++ "." ++ Domain)
   end.
+
+-spec connect_node(node(),  hidden | not_hidden) -> boolean() | ignored.
+connect_node(Node, not_hidden) ->
+  net_kernel:connect_node(Node);
+connect_node(Node, hidden) ->
+  net_kernel:hidden_connect_node(Node).

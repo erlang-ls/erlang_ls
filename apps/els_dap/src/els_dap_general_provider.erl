@@ -722,7 +722,7 @@ ensure_connected(Node, Timeout) ->
     true -> ok;
     false ->
       % connect and monitore project node
-      case els_distribution_server:wait_connect_and_monitor(Node, Timeout) of
+      case els_distribution_server:wait_connect_and_monitor(Node, Timeout, hidden) of
         ok -> inject_dap_agent(Node);
         _ -> stop_debugger()
       end
