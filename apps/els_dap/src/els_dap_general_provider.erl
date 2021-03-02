@@ -53,7 +53,7 @@
                           #{pos_integer() => {binding_type(), bindings()}}
                          , breakpoints := els_dap_breakpoints:breakpoints()
                          , timeout := timeout()
-                         , status := undefined | running | stepping
+                         , mode := undefined | running | stepping
                          }.
 -type bindings()     :: [{varname(), term()}].
 -type varname()      :: atom() | string().
