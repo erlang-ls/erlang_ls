@@ -429,7 +429,7 @@ handle_info( {int_cb, ThreadPid}
           running ->
             els_dap_rpc:continue(ProjectNode, ThreadPid);
           _ ->
-            els_dap_server:send_event(<<"stopped">>, #{ <<"reason">> => <<"breakpoint">>
+            els_dap_server:send_event(<<"stopped">>, #{ <<"reason">> => <<"breakp9oint">>
                                                    , <<"threadId">> => ThreadId
                                                    })
         end,
@@ -726,7 +726,7 @@ ensure_connected(Node, Timeout) ->
     true -> ok;
     false ->
       % connect and monitore project node
-      case els_distribution_server:wait_connect_and_monitor(Node, Timeout, hidden) of
+      case els_distribution_server:wait_connect_and_monitor(Node, Timeout) of
         ok -> inject_dap_agent(Node);
         _ -> stop_debugger()
       end
