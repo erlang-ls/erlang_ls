@@ -33,9 +33,13 @@ is_default() ->
 run(Uri) ->
   case filename:extension(Uri) of
     <<".erl">> ->
-      {ok, Document} = els_utils:lookup_document(Uri),
-      UnusedMacros = find_unused_macros(Document),
-      [make_diagnostic(POI) || POI <- UnusedMacros ];
+      case els_utils:lookup_document(Uri) of
+        {error, _Error} ->
+          [];
+        {ok, Document} ->
+          UnusedMacros = find_unused_macros(Document),
+          [make_diagnostic(POI) || POI <- UnusedMacros ]
+      end;
     _ ->
       []
   end.

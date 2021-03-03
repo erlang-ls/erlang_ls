@@ -142,16 +142,20 @@ parse_escript(Uri) ->
         [els_diagnostics:diagnostic()].
 diagnostics(Path, List, Severity) ->
   Uri = els_uri:uri(els_utils:to_binary(Path)),
-  {ok, Document} = els_utils:lookup_document(Uri),
-  lists:flatten([[ diagnostic( Path
-                             , MessagePath
-                             , range(Anno)
-                             , Document
-                             , Module
-                             , Desc
-                             , Severity)
-                   || {Anno, Module, Desc} <- Info]
-                 || {MessagePath, Info} <- List]).
+  case els_utils:lookup_document(Uri) of
+    {ok, Document} ->
+      lists:flatten([[ diagnostic( Path
+                                 , MessagePath
+                                 , range(Anno)
+                                 , Document
+                                 , Module
+                                 , Desc
+                                 , Severity)
+                       || {Anno, Module, Desc} <- Info]
+                     || {MessagePath, Info} <- List]);
+    {error, _Error} ->
+      []
+  end.
 
 -spec diagnostic( string()
                 , string()
