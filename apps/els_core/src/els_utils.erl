@@ -132,8 +132,13 @@ lookup_document(Uri) ->
     {ok, []} ->
       Path = els_uri:path(Uri),
       {ok, Uri} = els_indexing:index_file(Path),
-      {ok, [Document]} = els_dt_document:lookup(Uri),
-      {ok, Document}
+      case els_dt_document:lookup(Uri) of
+        {ok, [Document]} ->
+          {ok, Document};
+        Error ->
+          ?LOG_INFO("Document lookup failed [error=~p] [uri=~p]", [Error, Uri]),
+          {error, Error}
+      end
   end.
 
 -spec macro_string_to_term(list()) -> any().
