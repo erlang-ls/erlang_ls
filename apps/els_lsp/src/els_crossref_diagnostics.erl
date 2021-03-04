@@ -33,10 +33,10 @@ is_default() ->
 
 -spec run(uri()) -> [els_diagnostics:diagnostic()].
 run(Uri) ->
-  case els_dt_document:lookup(Uri) of
-    {ok, []} ->
+  case els_utils:lookup_document(Uri) of
+    {error, _Error} ->
       [];
-    {ok, [Document|_]} ->
+    {ok, Document} ->
       POIs = els_dt_document:pois(Document, [ application
                                             , implicit_fun
                                             , import_entry

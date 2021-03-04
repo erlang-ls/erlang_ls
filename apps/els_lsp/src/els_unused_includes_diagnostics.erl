@@ -32,10 +32,10 @@ is_default() ->
 
 -spec run(uri()) -> [els_diagnostics:diagnostic()].
 run(Uri) ->
-  case els_dt_document:lookup(Uri) of
-    {ok, []} ->
+  case els_utils:lookup_document(Uri) of
+    {error, _Error} ->
       [];
-    {ok, [Document|_]} ->
+    {ok, Document} ->
       Includes = els_dt_document:pois(Document, [include, include_lib]),
       UnusedIncludes = find_unused_includes(Document, Includes),
       [ els_diagnostics:make_diagnostic(
@@ -87,8 +87,8 @@ expand_includes(Uri) ->
 expand_includes([], Graph, _Visited) ->
   Graph;
 expand_includes([Uri|Uris], Graph, Visited) ->
-  case els_dt_document:lookup(Uri) of
-    {ok, [Document]} ->
+  case els_utils:lookup_document(Uri) of
+    {ok, Document} ->
       IncludedUris = els_diagnostics_utils:included_uris(Document),
       NonVisitedIncludedUris = [U || U <- IncludedUris
                                        , not sets:is_element(U, Visited)],
@@ -103,7 +103,7 @@ expand_includes([Uri|Uris], Graph, Visited) ->
       expand_includes( Uris ++ NonVisitedIncludedUris
                      , NewGraph
                      , sets:add_element(Uri, Visited));
-    {ok, []} ->
+    {error, _Error} ->
       ?LOG_WARNING("Failed lookup while expanding includes [uri=~p]", [Uri]),
       []
   end.
