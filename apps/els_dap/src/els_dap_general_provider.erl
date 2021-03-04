@@ -51,16 +51,16 @@
                          , launch_params => #{}
                          , scope_bindings =>
                           #{pos_integer() => {binding_type(), bindings()}}
-                         , breakpoints := breakpoints()
+                         , breakpoints := els_dap_breakpoints:breakpoints()
                          , timeout := timeout()
+                         , mode := undefined | running | stepping
                          }.
 -type bindings()     :: [{varname(), term()}].
 -type varname()      :: atom() | string().
 %% extendable bindings type for customized pretty printing
 -type binding_type() :: generic | map_assoc.
--type breakpoints() :: #{module() => #{lines => [line()], function => [function_break()]}}.
--type line()         :: non_neg_integer().
--type function_break() :: {atom(), non_neg_integer()}.
+-type line()           :: non_neg_integer().
+
 %%==============================================================================
 %% els_provider functions
 %%==============================================================================
@@ -74,7 +74,8 @@ init() ->
    , launch_params => #{}
    , scope_bindings => #{}
    , breakpoints => #{}
-   , timeout => 30}.
+   , timeout => 30
+   , mode => undefined}.
 
 -spec handle_request(request(), state()) -> {result(), state()}.
 handle_request({<<"initialize">>, _Params}, State) ->
@@ -167,31 +168,28 @@ handle_request( {<<"configurationDone">>, _Params}
       rpc:cast(ProjectNode, M, F, A);
     _ -> ok
   end,
-  {#{}, State};
+  {#{}, State#{mode => running}};
 handle_request( {<<"setBreakpoints">>, Params}
               , #{ project_node := ProjectNode
                  , breakpoints := Breakpoints0
                  , timeout := Timeout} = State
               ) ->
   ensure_connected(ProjectNode, Timeout),
-  #{<<"source">> := #{<<"path">> := Path}} = Params,
-  SourceBreakpoints = maps:get(<<"breakpoints">>, Params, []),
-  _SourceModified = maps:get(<<"sourceModified">>, Params, false),
-  Module = els_uri:module(els_uri:uri(Path)),
+  {Module, LineBreaks} = els_dap_breakpoints:build_source_breakpoints(Params),
+
 
   {module, Module} = els_dap_rpc:i(ProjectNode, Module),
-  Lines = [Line || #{<<"line">> := Line} <- SourceBreakpoints],
 
   %% purge all breakpoints from the module
   els_dap_rpc:no_break(ProjectNode, Module),
-  Breakpoints1 = do_line_breakpoints(ProjectNode, Module, Lines, Breakpoints0),
+  Breakpoints1 = els_dap_breakpoints:do_line_breakpoints(ProjectNode, Module, LineBreaks, Breakpoints0),
   BreakpointsRsps = [
       #{<<"verified">> => true, <<"line">> => Line}
       || {{_, Line}, _} <- els_dap_rpc:all_breaks(ProjectNode, Module)
   ],
 
-  FunctionBreaks = get_function_breaks(Module, Breakpoints1),
-  Breakpoints2 = do_function_breaks(ProjectNode, Module, FunctionBreaks, Breakpoints1),
+  FunctionBreaks = els_dap_breakpoints:get_function_breaks(Module, Breakpoints1),
+  Breakpoints2 = els_dap_breakpoints:do_function_breaks(ProjectNode, Module, FunctionBreaks, Breakpoints1),
 
   {#{<<"breakpoints">> => BreakpointsRsps}, State#{ breakpoints => Breakpoints2}};
 handle_request({<<"setExceptionBreakpoints">>, _Params}, State) ->
@@ -235,7 +233,7 @@ handle_request({<<"setFunctionBreakpoints">>, Params}
 
   Breakpoints2 = maps:fold(
       fun(Module, FunctionBreaks, Acc) ->
-          do_function_breaks(ProjectNode, Module, FunctionBreaks, Acc)
+          els_dap_breakpoints:do_function_breaks(ProjectNode, Module, FunctionBreaks, Acc)
       end,
       Breakpoints1,
       ModFuncBreaks
@@ -254,8 +252,8 @@ handle_request({<<"setFunctionBreakpoints">>, Params}
   %% replay line breaks
   Breakpoints3 = maps:fold(
       fun(Module, _, Acc) ->
-          Lines = get_line_breaks(Module, Acc),
-          do_line_breakpoints(ProjectNode, Module, Lines, Acc)
+          Lines = els_dap_breakpoints:get_line_breaks(Module, Acc),
+          els_dap_breakpoints:do_line_breakpoints(ProjectNode, Module, Lines, Acc)
       end,
       Breakpoints2,
       Breakpoints2
@@ -323,7 +321,7 @@ handle_request( {<<"continue">>, Params}
   #{<<"threadId">> := ThreadId} = Params,
   Pid = to_pid(ThreadId, Threads),
   ok = els_dap_rpc:continue(ProjectNode, Pid),
-  {#{}, State};
+  {#{}, State#{mode => running}};
 handle_request( {<<"stepIn">>, Params}
               , #{ threads := Threads
                  , project_node := ProjectNode
@@ -342,12 +340,12 @@ handle_request( {<<"stepOut">>, Params}
   Pid = to_pid(ThreadId, Threads),
   ok = els_dap_rpc:next(ProjectNode, Pid),
   {#{}, State};
-handle_request({<<"evaluate">>, #{ <<"context">> := Context
+handle_request({<<"evaluate">>, #{ <<"context">> := <<"hover">>
                                  , <<"frameId">> := FrameId
                                  , <<"expression">> := Input
                                  } = _Params}
               , #{ threads := Threads } = State
-) when Context =:= <<"watch">> orelse Context =:= <<"hover">> ->
+) ->
   %% hover makes only sense for variables
   %% use the expression as fallback
   case frame_by_id(FrameId, maps:values(Threads)) of
@@ -362,23 +360,26 @@ handle_request({<<"evaluate">>, #{ <<"context">> := Context
           {#{<<"result">> => <<"not available">>}, State}
       end
   end;
-handle_request({<<"evaluate">>, #{ <<"context">> := <<"repl">>
+handle_request({<<"evaluate">>, #{ <<"context">> := Context
                                  , <<"frameId">> := FrameId
                                  , <<"expression">> := Input
                                  } = _Params}
               , #{ threads := Threads
                  , project_node := ProjectNode
                  } = State
-) ->
+) when Context =:= <<"watch">> orelse Context =:= <<"repl">> ->
   %% repl and watch can use whole expressions,
   %% but we still want structured variable scopes
   case pid_by_frame_id(FrameId, maps:values(Threads)) of
     undefined ->
       {#{<<"result">> => <<"not available">>}, State};
     Pid  ->
-      {ok, Meta} = els_dap_rpc:get_meta(ProjectNode, Pid),
-      Command = els_utils:to_list(Input),
-      Return = els_dap_rpc:meta_eval(ProjectNode, Meta, Command),
+      Update =
+        case Context of
+          <<"watch">> -> no_update;
+          <<"repl">> -> update
+        end,
+      Return = safe_eval(ProjectNode, Pid, Input, Update),
       build_evaluate_response(Return, State)
   end;
 handle_request({<<"variables">>, #{<<"variablesReference">> := Ref
@@ -399,6 +400,8 @@ handle_request({<<"disconnect">>, _Params}, State = #{project_node := ProjectNod
 handle_info( {int_cb, ThreadPid}
            , #{ threads := Threads
               , project_node := ProjectNode
+              , breakpoints := Breakpoints
+              , mode := Mode0
               } = State
            ) ->
   ?LOG_DEBUG("Int CB called. thread=~p", [ThreadPid]),
@@ -406,10 +409,36 @@ handle_info( {int_cb, ThreadPid}
   Thread = #{ pid    => ThreadPid
             , frames => stack_frames(ThreadPid, ProjectNode)
             },
-  els_dap_server:send_event(<<"stopped">>, #{ <<"reason">> => <<"breakpoint">>
-                                            , <<"threadId">> => ThreadId
-                                            }),
-  State#{threads => maps:put(ThreadId, Thread, Threads)};
+  {Module, Line} = break_module_line(ThreadPid, ProjectNode),
+
+  %% handle breakpoints
+  Mode1 =
+    case els_dap_breakpoints:type(Breakpoints, Module, Line) of
+      regular ->
+        els_dap_server:send_event(<<"stopped">>, #{ <<"reason">> => <<"breakpoint">>
+                                                  , <<"threadId">> => ThreadId
+                                                  }),
+        stepping;
+      {log, Expression} ->
+        Return = safe_eval(ProjectNode, ThreadPid, Expression, no_update),
+        LogMessage = unicode:characters_to_binary(
+          io_lib:format("~s:~b - ~w~n", [source(Module, ProjectNode), Line, Return])
+        ),
+        els_dap_server:send_event(<<"output">>, #{ <<"output">> => LogMessage }),
+        case Mode0 of
+          running ->
+            els_dap_rpc:continue(ProjectNode, ThreadPid);
+          _ ->
+            els_dap_server:send_event(<<"stopped">>, #{ <<"reason">> => <<"breakp9oint">>
+                                                   , <<"threadId">> => ThreadId
+                                                   })
+        end,
+        %% logpoints don't change the mode
+        Mode0
+    end,
+
+
+  State#{threads => maps:put(ThreadId, Thread, Threads), mode => Mode1};
 handle_info({nodedown, Node}, State) ->
   %% the project node is down, there is nothing left to do then to exit
   ?LOG_NOTICE("project node ~p terminated, ending debug session", [Node]),
@@ -424,7 +453,8 @@ handle_info({nodedown, Node}, State) ->
 capabilities() ->
   #{ <<"supportsConfigurationDoneRequest">> => true
    , <<"supportsEvaluateForHovers">> => true
-   , <<"supportsFunctionBreakpoints">> => true}.
+   , <<"supportsFunctionBreakpoints">> => true
+   , <<"supportsLogPoints">> => true}.
 
 %%==============================================================================
 %% Internal Functions
@@ -455,10 +485,15 @@ stack_frames(Pid, Node) ->
                 , bindings  => Bindings},
   collect_frames(Node, Meta, Level, Rest, #{StackFrameId => StackFrame}).
 
+-spec break_module_line(pid(), atom()) -> {module(), integer()}.
+break_module_line(Pid, Node) ->
+  Snapshots = els_dap_rpc:snapshot(Node),
+  {Pid, _Function, break, Location} = lists:keyfind(Pid, 1, Snapshots),
+  Location.
+
 -spec break_line(pid(), atom()) -> integer().
 break_line(Pid, Node) ->
-  Snapshots = els_dap_rpc:snapshot(Node),
-  {Pid, _Function, break, {_Module, Line}} = lists:keyfind(Pid, 1, Snapshots),
+  {_, Line} = break_module_line(Pid, Node),
   Line.
 
 -spec source(atom(), atom()) -> binary().
@@ -685,37 +720,6 @@ collect_frames(Node, Meta, Level, [{NextLevel, {M, F, A}} | Rest], Acc) ->
       Acc
   end.
 
-%% breakpoint management
--spec get_function_breaks(module(), breakpoints()) -> [function_break()].
-get_function_breaks(Module, Breaks) ->
-  case Breaks of
-    #{Module := #{function := Functions}} -> Functions;
-    _ -> []
-  end.
-
--spec get_line_breaks(module(), breakpoints()) -> [line()].
-get_line_breaks(Module, Breaks) ->
-  case Breaks of
-    #{Module := #{line := Lines}} -> Lines;
-    _ -> []
-  end.
-
--spec do_line_breakpoints(node(), module(), [line()], breakpoints()) -> breakpoints().
-do_line_breakpoints(Node, Module, Lines, Breaks) ->
-  [els_dap_rpc:break(Node, Module, Line) || Line <- Lines],
-  case Breaks of
-    #{Module := ModBreaks} -> Breaks#{ Module => ModBreaks#{line => Lines}};
-    _ -> Breaks#{ Module => #{line => Lines, function => []}}
-  end.
-
--spec do_function_breaks(node(), module(), [function_break()], breakpoints()) -> breakpoints().
-do_function_breaks(Node, Module, FBreaks, Breaks) ->
-  [els_dap_rpc:break_in(Node, Module, Func, Arity) || {Func, Arity} <- FBreaks],
-  case Breaks of
-    #{Module := ModBreaks} -> Breaks#{ Module => ModBreaks#{function => FBreaks}};
-    _ -> Breaks#{ Module => #{line => [], function => FBreaks}}
-  end.
-
 -spec ensure_connected(node(), timeout()) -> ok.
 ensure_connected(Node, Timeout) ->
   case is_node_connected(Node) of
@@ -739,3 +743,17 @@ stop_debugger() ->
 -spec is_node_connected(node()) -> boolean().
 is_node_connected(Node) ->
   lists:member(Node, erlang:nodes(connected)).
+
+-spec safe_eval(node(), pid(), string(), update | no_update) -> term().
+safe_eval(ProjectNode, Debugged, Expression, Update) ->
+  {ok, Meta} = els_dap_rpc:get_meta(ProjectNode, Debugged),
+  Command = els_utils:to_list(Expression),
+  Return = els_dap_rpc:meta_eval(ProjectNode, Meta, Command),
+  case Update of
+    update -> ok;
+    no_update ->
+      receive
+        {int_cb, Debugged} -> ok
+      end
+  end,
+  Return.
