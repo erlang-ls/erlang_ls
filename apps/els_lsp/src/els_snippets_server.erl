@@ -29,7 +29,6 @@
 %%==============================================================================
 -define(SERVER, ?MODULE).
 -define(TABLE, snippets).
--define(CUSTOM_DIR, ).
 
 %%==============================================================================
 %% Type Definitions
@@ -116,7 +115,7 @@ snippets_from_escript() ->
   Name = escript:script_name(),
   {ok, Sections} = escript:extract(Name, []),
   Archive = proplists:get_value(archive, Sections),
-  Fun = fun("erlang_ls/priv/snippets/" ++ N, _GetInfo, GetBin, Acc) ->
+  Fun = fun("els_lsp/priv/snippets/" ++ N, _GetInfo, GetBin, Acc) ->
             [{N, GetBin()}|Acc];
            (_Name, _GetInfo, _GetBin, Acc) ->
             Acc
