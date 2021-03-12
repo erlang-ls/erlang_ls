@@ -548,8 +548,8 @@
                                }.
 
 -type document_ontypeformatting_options() :: false |
-       #{ first_trigger_character := string()
-        , more_trigger_character  => string()
+       #{ firstTriggerCharacter := binary()
+        , moreTriggerCharacter  => [binary()]
         }.
 
 %%------------------------------------------------------------------------------
@@ -612,7 +612,8 @@
                    | {atom(), atom()} %% record_def_field, record_field
                    | string() %% include, include_lib
                    | {atom(), arity()}
-                   | {module(), atom(), arity()}.
+                   | {module(), atom(), arity()}
+                   | pos().
 -type poi()       :: #{ kind  := poi_kind()
                       , id    := poi_id()
                       , data  := any()
