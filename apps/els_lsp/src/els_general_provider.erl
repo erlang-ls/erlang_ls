@@ -102,8 +102,16 @@ handle_request({initialized, _Params}, State) ->
       ?LOG_INFO("BSP Response to initialize: ~p~n", [Resp]),
       #{result := #{targets := Targets}} = els_bsp_client:request(<<"workspace/buildTargets">>, #{}),
       ?LOG_INFO("BSP Targets: ~p~n", [Targets]),
-      Sources = els_bsp_client:request(<<"buildTarget/sources">>, #{targets => [TargetId || #{id := TargetId} <- Targets]}),
-      ?LOG_INFO("BSP Sources: ~p~n", [Sources]);
+      #{result := #{items := AppSources}} = els_bsp_client:request(
+        <<"buildTarget/sources">>, #{targets => [TargetId || #{id := TargetId} <- Targets]}),
+      #{result := #{items := DepSources}} = els_bsp_client:request(
+        <<"buildTarget/dependencySources">>, #{targets => [TargetId || #{id := TargetId} <- Targets]}),
+      ?LOG_INFO("BSP AppSources: ~p~n", [AppSources]),
+      ?LOG_INFO("BSP DepSources: ~p~n", [DepSources]),
+      SrcDirs = [filename:join(A, "src") || A <- AppSources],
+      DepDirs = [filename:join(D, "src") || D <- DepSources],
+      els_config:set(apps_paths, SrcDirs),
+      els_config:set(deps_paths, DepDirs);
     false ->
       ok
   end,
