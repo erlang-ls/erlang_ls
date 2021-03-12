@@ -88,8 +88,8 @@ handle_request({initialized, _Params}, State) ->
   case els_config:get(bsp_enabled) of
     true ->
       ok = els_bsp_client:start_server(RootUri),
-      {ok, Vsn} = application:get_key(erlang_ls, vsn),
-      els_bsp_client:request(
+      {ok, Vsn} = application:get_key(els_lsp, vsn),
+      Resp = els_bsp_client:request(
         <<"build/initialize">>
           , #{ <<"displayName">>  => <<"Erlang LS BSP Client">>
              , <<"version">>      => list_to_binary(Vsn)
