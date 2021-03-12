@@ -98,7 +98,10 @@ handle_request({initialized, _Params}, State) ->
              , <<"capabilities">> => #{ <<"languageIds">> => [<<"erlang">>] }
              , <<"data">>         => #{}
              }
-       );
+       ),
+      ?LOG_INFO("BSP Response to initialize: ~p~n", [Resp]),
+      Targets = els_bsp_client:request(<<"workspace/buildTargets">>, #{}),
+      ?LOG_INFO("BSP Targets: ~p~n", [Targets]);
     false ->
       ok
   end,
