@@ -23,4 +23,5 @@ current_counterexample.eqc
 *.coverdata
 *.log
 *.log.*
+erlang_ls.config
 doc

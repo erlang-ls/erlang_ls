@@ -100,8 +100,10 @@ handle_request({initialized, _Params}, State) ->
              }
        ),
       ?LOG_INFO("BSP Response to initialize: ~p~n", [Resp]),
-      Targets = els_bsp_client:request(<<"workspace/buildTargets">>, #{}),
-      ?LOG_INFO("BSP Targets: ~p~n", [Targets]);
+      #{result := #{targets := Targets}} = els_bsp_client:request(<<"workspace/buildTargets">>, #{}),
+      ?LOG_INFO("BSP Targets: ~p~n", [Targets]),
+      Sources = els_bsp_client:request(<<"buildTarget/sources">>, #{targets => [TargetId || #{id := TargetId} <- Targets]}),
+      ?LOG_INFO("BSP Sources: ~p~n", [Sources]);
     false ->
       ok
   end,
