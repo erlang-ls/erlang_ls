@@ -128,7 +128,13 @@ initialize_diagnostics_custom(Config) ->
   ConfigPath = filename:join(DataDir, "diagnostics_custom.config"),
   InitOpts = #{ <<"erlang">> => #{ <<"config_path">> => ConfigPath }},
   els_client:initialize(RootUri, InitOpts),
-  Expected = [<<"compiler">>, <<"crossref">>, <<"dialyzer">>],
+  Expected = [ <<"bound_var_in_pattern">>
+             , <<"compiler">>
+             , <<"crossref">>
+             , <<"dialyzer">>
+             , <<"unused_includes">>
+             , <<"unused_macros">>
+             ],
   Result = els_diagnostics:enabled_diagnostics(),
   ?assertEqual(Expected, Result),
   ok.
@@ -141,10 +147,13 @@ initialize_diagnostics_invalid(Config) ->
   InitOpts = #{ <<"erlang">> => #{ <<"config_path">> => ConfigPath }},
   els_client:initialize(RootUri, InitOpts),
   Result = els_diagnostics:enabled_diagnostics(),
-  Expected = [ <<"compiler">>
+  Expected = [ <<"bound_var_in_pattern">>
+             , <<"compiler">>
              , <<"crossref">>
              , <<"dialyzer">>
              , <<"elvis">>
+             , <<"unused_includes">>
+             , <<"unused_macros">>
              ],
   ?assertEqual(Expected, Result),
   ok.

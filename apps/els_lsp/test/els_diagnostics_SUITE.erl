@@ -74,11 +74,6 @@ end_per_suite(Config) ->
   els_test_utils:end_per_suite(Config).
 
 -spec init_per_testcase(atom(), config()) -> config().
-init_per_testcase(bound_var_in_pattern, Config) ->
-  meck:new(els_bound_var_in_pattern_diagnostics, [passthrough, no_link]),
-  meck:expect(els_bound_var_in_pattern_diagnostics, is_default, 0, true),
-  els_mock_diagnostics:setup(),
-  els_test_utils:init_per_testcase(bound_var_in_pattern, Config);
 init_per_testcase(TestCase, Config) when TestCase =:= code_reload orelse
                                          TestCase =:= code_reload_sticky_mod ->
   mock_rpc(),
@@ -93,16 +88,6 @@ init_per_testcase(TestCase, Config)
   meck:expect(els_crossref_diagnostics, is_default, 0, true),
   els_mock_diagnostics:setup(),
   els_test_utils:init_per_testcase(TestCase, Config);
-init_per_testcase(unused_includes, Config) ->
-  meck:new(els_unused_includes_diagnostics, [passthrough, no_link]),
-  meck:expect(els_unused_includes_diagnostics, is_default, 0, true),
-  els_mock_diagnostics:setup(),
-  els_test_utils:init_per_testcase(unused_includes, Config);
-init_per_testcase(unused_macros, Config) ->
-  meck:new(els_unused_macros_diagnostics, [passthrough, no_link]),
-  meck:expect(els_unused_macros_diagnostics, is_default, 0, true),
-  els_mock_diagnostics:setup(),
-  els_test_utils:init_per_testcase(unused_includes, Config);
 init_per_testcase(code_path_extra_dirs, Config) ->
   meck:new(yamerl, [passthrough, no_link]),
   Content = <<"code_path_extra_dirs:\n",
@@ -128,11 +113,6 @@ init_per_testcase(TestCase, Config) ->
   els_test_utils:init_per_testcase(TestCase, Config).
 
 -spec end_per_testcase(atom(), config()) -> ok.
-end_per_testcase(bound_var_in_pattern, Config) ->
-  meck:unload(els_bound_var_in_pattern_diagnostics),
-  els_test_utils:end_per_testcase(bound_var_in_pattern, Config),
-  els_mock_diagnostics:teardown(),
-  ok;
 end_per_testcase(TestCase, Config) when TestCase =:= code_reload orelse
                                         TestCase =:= code_reload_sticky_mod ->
   unmock_rpc(),
@@ -145,16 +125,6 @@ end_per_testcase(TestCase, Config)
            TestCase =:= crossref_autoimport_disabled ->
   meck:unload(els_crossref_diagnostics),
   els_test_utils:end_per_testcase(TestCase, Config),
-  els_mock_diagnostics:teardown(),
-  ok;
-end_per_testcase(unused_includes, Config) ->
-  meck:unload(els_unused_includes_diagnostics),
-  els_test_utils:end_per_testcase(unused_includes, Config),
-  els_mock_diagnostics:teardown(),
-  ok;
-end_per_testcase(unused_macros, Config) ->
-  meck:unload(els_unused_macros_diagnostics),
-  els_test_utils:end_per_testcase(unused_macros, Config),
   els_mock_diagnostics:teardown(),
   ok;
 end_per_testcase(TestCase, Config)
@@ -214,14 +184,16 @@ compiler(Config) ->
   els_mock_diagnostics:subscribe(),
   ok = els_client:did_save(Uri),
   Diagnostics = els_mock_diagnostics:wait_until_complete(),
-  ?assertEqual(4, length(Diagnostics)),
+  ?assertEqual(5, length(Diagnostics)),
   Warnings = [D || #{severity := ?DIAGNOSTIC_WARNING} = D <- Diagnostics],
   Errors   = [D || #{severity := ?DIAGNOSTIC_ERROR}   = D <- Diagnostics],
-  ?assertEqual(1, length(Warnings)),
+  ?assertEqual(2, length(Warnings)),
   ?assertEqual(3, length(Errors)),
   WarningRanges = [ Range || #{range := Range} <- Warnings],
   ExpectedWarningRanges = [ #{'end' => #{character => 0, line => 7},
                               start => #{character => 0, line => 6}}
+                          , #{'end' => #{character => 35, line => 3},
+                              start => #{character => 0, line => 3}}
                           ],
   ?assertEqual(ExpectedWarningRanges, WarningRanges),
   ErrorRanges = [ Range || #{range := Range} <- Errors],
@@ -337,12 +309,14 @@ compiler_with_parse_transform_included(Config) ->
   els_mock_diagnostics:subscribe(),
   ok = els_client:did_save(Uri),
   Diagnostics = els_mock_diagnostics:wait_until_complete(),
-  ?assertEqual(1, length(Diagnostics)),
+  ?assertEqual(2, length(Diagnostics)),
   Warnings = [D || #{severity := ?DIAGNOSTIC_WARNING} = D <- Diagnostics],
-  ?assertEqual(1, length(Warnings)),
+  ?assertEqual(2, length(Warnings)),
   WarningRanges = [ Range || #{range := Range} <- Warnings],
   ExpectedWarningsRanges = [ #{ 'end' => #{character => 0, line => 7}
                               , start => #{character => 0, line => 6}}
+                           , #{ 'end' => #{character => 32, line => 4}
+                              , start => #{character => 0, line => 4}}
                            ],
   ?assertEqual(ExpectedWarningsRanges, WarningRanges),
   ok.
