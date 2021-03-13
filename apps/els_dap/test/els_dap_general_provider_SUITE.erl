@@ -66,8 +66,7 @@ init_per_testcase(TestCase, Config) when
     TestCase =:= launch_mfa_with_cookie orelse
     TestCase =:= configuration_done orelse
     TestCase =:= configuration_done_with_breakpoint orelse
-    TestCase =:= log_points
-->
+    TestCase =:= log_points ->
   {ok, DAPProvider} = els_provider:start_link(els_dap_general_provider),
   els_config:start_link(),
   meck:expect(els_dap_server, send_event, 2, meck:val(ok)),
