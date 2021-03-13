@@ -172,7 +172,8 @@ launch_mfa_with_cookie(Config) ->
   els_provider:handle_request(Provider, request_initialize(#{})),
   els_provider:handle_request(
     Provider,
-    request_launch(DataDir, Node, <<"some_cookie">>, els_dap_test_module, entry, [])
+    request_launch(DataDir, Node, <<"some_cookie">>,
+                   els_dap_test_module, entry, [])
   ),
   els_dap_test_utils:wait_until_mock_called(els_dap_server, send_event),
   ok.
@@ -205,7 +206,8 @@ configuration_done_with_breakpoint(Config) ->
 
   els_provider:handle_request(
     Provider,
-    request_set_breakpoints(path_to_test_module(DataDir, els_dap_test_module), [9, 29])
+    request_set_breakpoints( path_to_test_module(DataDir, els_dap_test_module)
+                           , [9, 29])
   ),
   els_provider:handle_request(Provider, request_configuration_done(#{})),
   ?assertEqual(ok, wait_for_break(Node, els_dap_test_module, 9)),
@@ -255,7 +257,8 @@ navigation_and_frames(Config) ->
     els_provider:handle_request( Provider
                                , request_stack_frames(ThreadId)
                                ),
-  ?assertMatch([#{<<"line">> := 11, <<"name">> := <<"els_dap_test_module:entry/1">>}], Frames1),
+  ?assertMatch([#{ <<"line">> := 11
+                 , <<"name">> := <<"els_dap_test_module:entry/1">>}], Frames1),
   %% continue
   meck:reset([els_dap_server]),
   els_provider:handle_request(Provider, request_continue(ThreadId)),
@@ -265,8 +268,10 @@ navigation_and_frames(Config) ->
     els_provider:handle_request( Provider
                                , request_stack_frames(ThreadId)
                                ),
-  ?assertMatch( [ #{<<"line">> := 9, <<"name">> := <<"els_dap_test_module:entry/1">>}
-                , #{<<"line">> := 11, <<"name">> := <<"els_dap_test_module:entry/1">>}
+  ?assertMatch( [ #{ <<"line">> := 9
+                   , <<"name">> := <<"els_dap_test_module:entry/1">>}
+                , #{ <<"line">> := 11
+                   , <<"name">> := <<"els_dap_test_module:entry/1">>}
                 ]
               , Frames2
               ),
@@ -305,7 +310,10 @@ set_variable(Config) ->
   meck:reset([els_dap_server]),
   Result1 =
     els_provider:handle_request( Provider
-                               , request_evaluate(<<"repl">>, FrameId1, <<"N=1">>)
+                               , request_evaluate( <<"repl">>
+                                                 , FrameId1
+                                                 , <<"N=1">>
+                                                 )
                                ),
   ?assertEqual(#{<<"result">> => <<"1">>}, Result1),
 
@@ -318,7 +326,10 @@ set_variable(Config) ->
   ?assertNotEqual(FrameId1, FrameId2),
   Result2 =
     els_provider:handle_request( Provider
-                               , request_evaluate(<<"hover">>, FrameId2, <<"N">>)
+                               , request_evaluate( <<"hover">>
+                                                 , FrameId2
+                                                 , <<"N">>
+                                                 )
                                ),
   ?assertEqual(#{<<"result">> => <<"1">>}, Result2),
   %% get variable value through scopes
@@ -346,7 +357,8 @@ breakpoints(Config) ->
   DataDir = ?config(data_dir, Config),
   els_provider:handle_request(
     Provider,
-    request_set_breakpoints(path_to_test_module(DataDir, els_dap_test_module), [9])
+    request_set_breakpoints( path_to_test_module(DataDir, els_dap_test_module)
+                           , [9])
   ),
   ?assertMatch([{{els_dap_test_module, 9}, _}], els_dap_rpc:all_breaks(Node)),
   els_provider:handle_request(
@@ -359,7 +371,8 @@ breakpoints(Config) ->
   ),
   els_provider:handle_request(
     Provider,
-    request_set_breakpoints(path_to_test_module(DataDir, els_dap_test_module), [])
+    request_set_breakpoints(path_to_test_module(DataDir, els_dap_test_module)
+                           , [])
   ),
   ?assertMatch(
     [{{els_dap_test_module, 7}, _}, {{els_dap_test_module, 9}, _}],
@@ -367,7 +380,8 @@ breakpoints(Config) ->
   ),
   els_provider:handle_request(
     Provider,
-    request_set_breakpoints(path_to_test_module(DataDir, els_dap_test_module), [9])
+    request_set_breakpoints(path_to_test_module(DataDir, els_dap_test_module)
+                           , [9])
   ),
   els_provider:handle_request(
     Provider,
@@ -450,7 +464,8 @@ request_set_breakpoints(File, Specs) ->
      , <<"sourceModified">> => false
      , <<"breakpoints">> =>
          [  case Spec of
-              {Line, Message} -> #{<<"line">> => Line, <<"logMessage">> => Message};
+              {Line, Message} -> #{ <<"line">> => Line
+                                  , <<"logMessage">> => Message};
               Line -> #{<<"line">> => Line}
             end
          || Spec <- Specs
@@ -459,7 +474,8 @@ request_set_breakpoints(File, Specs) ->
 
 request_set_function_breakpoints(MFAs) ->
   {<<"setFunctionBreakpoints">>, #{
-    <<"breakpoints">> => [#{<<"name">> => MFA, <<"enabled">> => true} || MFA <- MFAs]
+    <<"breakpoints">> => [#{ <<"name">> => MFA
+                           , <<"enabled">> => true} || MFA <- MFAs]
   }}.
 
 request_stack_frames(ThreadId) ->
