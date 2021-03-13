@@ -29,7 +29,7 @@
 
 -spec is_default() -> boolean().
 is_default() ->
-  false.
+  true.
 
 -spec run(uri()) -> [els_diagnostics:diagnostic()].
 run(Uri) ->
