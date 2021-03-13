@@ -209,7 +209,8 @@ item_kind_atom(Atom) ->
 modules(Prefix) ->
   {ok, Items} = els_dt_document_index:find_by_kind(module),
   Modules = [Id || #{id := Id} <- Items],
-  filter_by_prefix(Prefix, Modules, fun atom_to_label/1, fun item_kind_module/1).
+  filter_by_prefix(Prefix, Modules,
+                   fun atom_to_label/1, fun item_kind_module/1).
 
 -spec item_kind_module(binary()) -> map().
 item_kind_module(Module) ->
@@ -255,11 +256,13 @@ completion_context(Document, Line, Column) ->
                  end,
   {ExportFormat, POIKind}.
 
--spec resolve_definitions(uri(), [poi()], [{atom(), arity()}], boolean(), boolean()) ->
+-spec resolve_definitions(uri(), [poi()], [{atom(), arity()}],
+                          boolean(), boolean()) ->
         [map()].
 resolve_definitions(Uri, Functions, ExportsFA, ExportedOnly, ArityOnly) ->
   [ resolve_definition(Uri, POI, ArityOnly)
-    || #{id := FA} = POI <- Functions, not ExportedOnly orelse lists:member(FA, ExportsFA)
+    || #{id := FA} = POI <- Functions,
+       not ExportedOnly orelse lists:member(FA, ExportsFA)
   ].
 
 -spec resolve_definition(uri(), poi(), boolean()) -> map().

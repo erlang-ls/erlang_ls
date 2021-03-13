@@ -560,21 +560,21 @@ poi(Pos, Kind, Id, Data) ->
 fold(F, S, Tree) ->
   case subtrees(Tree, erl_syntax:type(Tree)) of
     [] -> F(Tree, S);
-    Gs -> F(Tree, fold_1(F, S, Gs))
+    Gs -> F(Tree, fold1(F, S, Gs))
   end.
 
--spec fold_1(fun((tree(), term()) -> term()), term(), [[tree()]]) ->
+-spec fold1(fun((tree(), term()) -> term()), term(), [[tree()]]) ->
   term().
-fold_1(F, S, [L | Ls]) ->
-  fold_1(F, fold_2(F, S, L), Ls);
-fold_1(_, S, []) ->
+fold1(F, S, [L | Ls]) ->
+  fold1(F, fold2(F, S, L), Ls);
+fold1(_, S, []) ->
   S.
 
--spec fold_2(fun((tree(), term()) -> term()), term(), [tree()]) ->
+-spec fold2(fun((tree(), term()) -> term()), term(), [tree()]) ->
   term().
-fold_2(F, S, [T | Ts]) ->
-  fold_2(F, fold(F, S, T), Ts);
-fold_2(_, S, []) ->
+fold2(F, S, [T | Ts]) ->
+  fold2(F, fold(F, S, T), Ts);
+fold2(_, S, []) ->
   S.
 
 -spec subtrees(tree(), atom()) -> [[tree()]].

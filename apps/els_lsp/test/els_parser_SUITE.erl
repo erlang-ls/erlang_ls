@@ -228,7 +228,8 @@ spec_name_macro(_Config) ->
   %% Currently els_dodger cannot parse this
   %% We can only find a spec-context
   Text1 = "-spec ?M() -> integer() | t().",
-  ?assertMatch({ok, [#{kind := spec, id := undefined}]}, els_parser:parse(Text1)),
+  ?assertMatch({ok, [#{kind := spec, id := undefined}]},
+               els_parser:parse(Text1)),
 
   %% Verify the parser does not crash on macros in spec function names
   %% and it still returns POIs from the definition body
