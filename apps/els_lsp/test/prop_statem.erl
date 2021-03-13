@@ -353,7 +353,7 @@ setup() ->
   HaltFun = fun(_X) -> Self ! halt_called, ok end,
   meck:expect(els_utils, halt, HaltFun),
   application:ensure_all_started(els_lsp),
-  file:write_file("/tmp/els_lsp.config", <<"">>),
+  file:write_file("/tmp/erlang_ls.config", <<"">>),
   ok.
 
 %%==============================================================================
