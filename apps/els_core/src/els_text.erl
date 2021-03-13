@@ -28,7 +28,8 @@ line(Text, LineNum, ColumnNum) ->
   binary:part(Line, {0, ColumnNum}).
 
 %% @doc Extract a snippet from a text, from start location to end location.
--spec range(text(), {line_num(), column_num()}, {line_num(), column_num()}) -> text().
+-spec range(text(), {line_num(), column_num()}, {line_num(), column_num()}) ->
+        text().
 range(Text, StartLoc, EndLoc) ->
   LineStarts = line_starts(Text),
   StartPos = pos(LineStarts, StartLoc),
@@ -59,7 +60,8 @@ last_token(Text) ->
 line_starts(Text) ->
   [{-1, 1} | binary:matches(Text, <<"\n">>)].
 
--spec pos([{integer(), any()}], {line_num(), column_num()}) -> non_neg_integer().
+-spec pos([{integer(), any()}], {line_num(), column_num()}) ->
+        non_neg_integer().
 pos(LineStarts, {LineNum, ColumnNum}) ->
   {LinePos, _} = lists:nth(LineNum, LineStarts),
   LinePos + ColumnNum.

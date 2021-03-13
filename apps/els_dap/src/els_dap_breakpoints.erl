@@ -44,15 +44,18 @@ type(Breakpoints, Module, Line) ->
   end.
 
 %% @doc build regular and log breakpoints from setBreakpoint request
--spec build_source_breakpoints(Params :: map()) -> {module(), #{line() => line_breaks()}}.
+-spec build_source_breakpoints(Params :: map()) ->
+        {module(), #{line() => line_breaks()}}.
 build_source_breakpoints(Params) ->
   #{<<"source">> := #{<<"path">> := Path}} = Params,
   Module = els_uri:module(els_uri:uri(Path)),
   SourceBreakpoints = maps:get(<<"breakpoints">>, Params, []),
   _SourceModified = maps:get(<<"sourceModified">>, Params, false),
-  {Module, maps:from_list(lists:map(fun build_source_breakpoint/1, SourceBreakpoints))}.
+  {Module, maps:from_list(lists:map(fun build_source_breakpoint/1,
+                                    SourceBreakpoints))}.
 
--spec build_source_breakpoint(map()) -> {line(), 'regular' | {'log', expression()}}.
+-spec build_source_breakpoint(map()) ->
+        {line(), 'regular' | {'log', expression()}}.
 build_source_breakpoint(#{<<"line">> := Line, <<"logMessage">> := LogExpr}) ->
   {Line, {log, LogExpr}};
 build_source_breakpoint(#{<<"line">> := Line}) ->
@@ -72,7 +75,8 @@ get_line_breaks(Module, Breaks) ->
     _ -> []
   end.
 
--spec do_line_breakpoints(node(), module(), #{line() => line_breaks()}, breakpoints()) ->
+-spec do_line_breakpoints(node(), module(),
+                          #{line() => line_breaks()}, breakpoints()) ->
   breakpoints().
 do_line_breakpoints(Node, Module, LineBreakPoints, Breaks) ->
   maps:map(
@@ -83,14 +87,19 @@ do_line_breakpoints(Node, Module, LineBreakPoints, Breaks) ->
     LineBreakPoints
   ),
   case Breaks of
-    #{Module := ModBreaks} -> Breaks#{Module => ModBreaks#{line => LineBreakPoints}};
-    _ -> Breaks#{Module => #{line => LineBreakPoints, function => []}}
+    #{Module := ModBreaks} ->
+      Breaks#{Module => ModBreaks#{line => LineBreakPoints}};
+    _ ->
+      Breaks#{Module => #{line => LineBreakPoints, function => []}}
   end.
 
--spec do_function_breaks(node(), module(), [function_break()], breakpoints()) -> breakpoints().
+-spec do_function_breaks(node(), module(), [function_break()], breakpoints()) ->
+        breakpoints().
 do_function_breaks(Node, Module, FBreaks, Breaks) ->
   [els_dap_rpc:break_in(Node, Module, Func, Arity) || {Func, Arity} <- FBreaks],
   case Breaks of
-    #{Module := ModBreaks} -> Breaks#{Module => ModBreaks#{function => FBreaks}};
-    _ -> Breaks#{Module => #{line => #{}, function => FBreaks}}
+    #{Module := ModBreaks} ->
+      Breaks#{Module => ModBreaks#{function => FBreaks}};
+    _ ->
+      Breaks#{Module => #{line => #{}, function => FBreaks}}
   end.

@@ -81,8 +81,8 @@ init(Provider) ->
 
 -spec handle_call(any(), {pid(), any()}, state()) ->
   {reply, any(), state()}.
-handle_call({handle_request, Request}, _From, State = #{provider := Provider}) ->
-  #{internal_state := InternalState} = State,
+handle_call({handle_request, Request}, _From, State) ->
+  #{internal_state := InternalState, provider := Provider} = State,
   {Reply, NewInternalState} = Provider:handle_request(Request, InternalState),
   {reply, Reply, State#{internal_state => NewInternalState}}.
 

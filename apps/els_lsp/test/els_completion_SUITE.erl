@@ -195,17 +195,17 @@ exported_functions(Config) ->
   ExpectedCompletionArity = expected_exported_functions_arity_only(),
   ?assertEqual(lists:sort(ExpectedCompletionArity), lists:sort(Completion2)),
 
-  ExpectedCompletionQuoted = [ #{ label            => <<"do/1">>
-                                , kind             => ?COMPLETION_ITEM_KIND_FUNCTION
-                                , insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
-                                , data             =>
-                                    #{ module => <<"Code.Navigation.Elixirish">>
-                                     , function => <<"do">>
-                                     , arity => 1
-                                     }
-                                }
-                        ],
-
+  ExpectedCompletionQuoted =
+    [ #{ label            => <<"do/1">>
+       , kind             => ?COMPLETION_ITEM_KIND_FUNCTION
+       , insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+       , data             =>
+           #{ module => <<"Code.Navigation.Elixirish">>
+            , function => <<"do">>
+            , arity => 1
+            }
+       }
+    ],
   #{result := Completion3} =
     els_client:completion(Uri, 100, 39, TriggerKind, <<":">>),
   ?assertEqual(lists:sort(ExpectedCompletionQuoted), lists:sort(Completion3)),
@@ -271,18 +271,18 @@ functions_arity(Config) ->
                       , {<<"function_o">>, 0}
                       , {<<"'PascalCaseFunction'">>, 1}
                       ],
-  ExpectedCompletion = [ #{ label =>
-                              <<FunName/binary, "/", (integer_to_binary(Arity))/binary>>
-                          , kind => ?COMPLETION_ITEM_KIND_FUNCTION
-                          , insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
-                          , data => #{ module => <<"code_navigation">>
-                                     , function => string:trim(FunName, both, [$'])
-                                     , arity => Arity
-                                     }
-                          }
-                         || {FunName, Arity} <- ExportedFunctions
-                       ] ++ els_completion_provider:bifs(function, true),
-
+  ExpectedCompletion =
+    [ #{ label =>
+           <<FunName/binary, "/", (integer_to_binary(Arity))/binary>>
+       , kind => ?COMPLETION_ITEM_KIND_FUNCTION
+       , insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+       , data => #{ module => <<"code_navigation">>
+                  , function => string:trim(FunName, both, [$'])
+                  , arity => Arity
+                  }
+       }
+      || {FunName, Arity} <- ExportedFunctions
+    ] ++ els_completion_provider:bifs(function, true),
   #{result := Completion} =
     els_client:completion(Uri, 51, 17, TriggerKind, <<"">>),
   ?assertEqual(lists:sort(ExpectedCompletion), lists:sort(Completion)),
@@ -697,7 +697,8 @@ filter_completion(Completion, ToFilter) ->
 resolve_application_local(Config) ->
   Uri = ?config(completion_resolve_uri, Config),
   CompletionKind = ?COMPLETION_TRIGGER_KIND_INVOKED,
-  #{result := CompletionItems} = els_client:completion(Uri, 17, 5, CompletionKind, <<"">>),
+  #{result := CompletionItems} =
+    els_client:completion(Uri, 17, 5, CompletionKind, <<"">>),
   [Selected] = select_completionitems(CompletionItems),
   #{result := Result} = els_client:completionitem_resolve(Selected),
   Expected = Selected#{ documentation =>
@@ -715,7 +716,8 @@ resolve_application_local(Config) ->
 resolve_application_remote_self(Config) ->
   Uri = ?config(completion_resolve_uri, Config),
   CompletionKind = ?COMPLETION_TRIGGER_KIND_INVOKED,
-  #{result := CompletionItems} = els_client:completion(Uri, 16, 23, CompletionKind, <<":">>),
+  #{result := CompletionItems} =
+    els_client:completion(Uri, 16, 23, CompletionKind, <<":">>),
   [Selected] = select_completionitems(CompletionItems),
   #{result := Result} = els_client:completionitem_resolve(Selected),
   Expected = Selected#{ documentation =>
@@ -733,7 +735,8 @@ resolve_application_remote_self(Config) ->
 resolve_application_remote_external(Config) ->
   Uri = ?config(completion_resolve_uri, Config),
   CompletionKind = ?COMPLETION_TRIGGER_KIND_INVOKED,
-  #{result := CompletionItems} = els_client:completion(Uri, 18, 25, CompletionKind, <<":">>),
+  #{result := CompletionItems} =
+    els_client:completion(Uri, 18, 25, CompletionKind, <<":">>),
   [Selected] = select_completionitems(CompletionItems),
   #{result := Result} = els_client:completionitem_resolve(Selected),
   Expected = Selected#{ documentation =>

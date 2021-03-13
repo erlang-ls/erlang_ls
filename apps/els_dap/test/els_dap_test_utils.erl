@@ -105,8 +105,8 @@ wait_for(Message, Timeout) ->
   after 10 -> wait_for(Message, Timeout - 10)
   end.
 
--spec wait_for_fun(term(), non_neg_integer(), non_neg_integer())
--> {ok, any()} | ok | timeout.
+-spec wait_for_fun(term(), non_neg_integer(), non_neg_integer()) ->
+        {ok, any()} | ok | timeout.
 wait_for_fun(_CheckFun, _WaitTime, 0) ->
   timeout;
 wait_for_fun(CheckFun, WaitTime, Retries) ->

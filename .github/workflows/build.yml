@@ -35,6 +35,8 @@ jobs:
           ${{ runner.os }}-dialyzer-
     - name: Compile
       run: rebar3 compile
+    - name: Lint
+      run: rebar3 lint
     - name: Generate Dialyzer PLT for usage in CT Tests
       run: dialyzer --build_plt --apps erts kernel stdlib
     - name: Start epmd as daemon
@@ -75,6 +77,8 @@ jobs:
       run: choco install -y rebar3 --version 3.13.1
     - name: Compile
       run: rebar3 compile
+    - name: Lint
+      run: rebar3 lint
     - name: Generate Dialyzer PLT for usage in CT Tests
       run: dialyzer --build_plt --apps erts kernel stdlib
     - name: Start epmd as daemon
