@@ -29,7 +29,7 @@ split(Data, DecodeOpts) ->
 
 -spec split(binary(), [any()], [map()]) -> {[map()], binary()}.
 split(Data, DecodeOpts, Responses) ->
-  try cow_http:parse_headers(Data) of
+  try els_http_utils:parse_headers(Data) of
     {Headers, Data1} ->
       BinLength     = proplists:get_value(<<"content-length">>, Headers),
       Length        = binary_to_integer(BinLength),
