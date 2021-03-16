@@ -12,7 +12,7 @@
 
 -type text()       :: binary().
 -type line_num()   :: non_neg_integer().
--type column_num() :: non_neg_integer().
+-type column_num() :: pos_integer().
 -type token()      :: erl_scan:token().
 
 %% @doc Extract the N-th line from a text.
@@ -27,14 +27,14 @@ line(Text, LineNum, ColumnNum) ->
   Line = line(Text, LineNum),
   binary:part(Line, {0, ColumnNum}).
 
-%% @doc Extract a snippet from a text, from start location to end location.
+%% @doc Extract a snippet from a text, from [StartLoc..EndLoc).
 -spec range(text(), {line_num(), column_num()}, {line_num(), column_num()}) ->
         text().
 range(Text, StartLoc, EndLoc) ->
   LineStarts = line_starts(Text),
   StartPos = pos(LineStarts, StartLoc),
   EndPos = pos(LineStarts, EndLoc),
-  binary:part(Text, StartPos, EndPos - StartPos + 1).
+  binary:part(Text, StartPos, EndPos - StartPos).
 
 %% @doc Return tokens from text.
 -spec tokens(text()) -> [any()].
@@ -61,7 +61,7 @@ line_starts(Text) ->
   [{-1, 1} | binary:matches(Text, <<"\n">>)].
 
 -spec pos([{integer(), any()}], {line_num(), column_num()}) ->
-        non_neg_integer().
+        pos_integer().
 pos(LineStarts, {LineNum, ColumnNum}) ->
   {LinePos, _} = lists:nth(LineNum, LineStarts),
   LinePos + ColumnNum.
