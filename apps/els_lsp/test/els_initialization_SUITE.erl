@@ -165,9 +165,9 @@ initialize_lenses_default(Config) ->
   ConfigPath = filename:join(DataDir, "lenses_default.config"),
   InitOpts = #{ <<"erlang">> => #{ <<"config_path">> => ConfigPath }},
   els_client:initialize(RootUri, InitOpts),
-  Expected = els_code_lens:default_lenses(),
+  Expected = lists:sort(els_code_lens:default_lenses()),
   Result = els_code_lens:enabled_lenses(),
-  ?assertEqual(Expected, Result),
+  ?assertEqual(Expected, lists:sort(Result)),
   ok.
 
 -spec initialize_lenses_custom(config()) -> ok.
@@ -177,7 +177,10 @@ initialize_lenses_custom(Config) ->
   ConfigPath = filename:join(DataDir, "lenses_custom.config"),
   InitOpts = #{ <<"erlang">> => #{ <<"config_path">> => ConfigPath }},
   els_client:initialize(RootUri, InitOpts),
-  Expected = [<<"server-info">>, <<"suggest-spec">>],
+  Expected = [ <<"function-references">>
+             , <<"server-info">>
+             , <<"suggest-spec">>
+             ],
   Result = els_code_lens:enabled_lenses(),
   ?assertEqual(Expected, Result),
   ok.
@@ -191,6 +194,7 @@ initialize_lenses_invalid(Config) ->
   els_client:initialize(RootUri, InitOpts),
   Result = els_code_lens:enabled_lenses(),
   Expected = [ <<"ct-run-test">>
+             , <<"function-references">>
              , <<"show-behaviour-usages">>
              , <<"suggest-spec">>
              ],

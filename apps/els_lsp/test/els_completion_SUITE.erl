@@ -135,6 +135,10 @@ default_completions(Config) ->
 
   Expected1 = [ #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
                  , kind             => ?COMPLETION_ITEM_KIND_MODULE
+                 , label            => <<"code_lens_function_references">>
+                 }
+              , #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+                 , kind             => ?COMPLETION_ITEM_KIND_MODULE
                  , label            => <<"code_navigation_extra">>
                  }
               , #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT

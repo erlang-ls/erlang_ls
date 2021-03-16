@@ -8,7 +8,6 @@
         , command/3
         , is_default/0
         , pois/1
-        , precondition/1
         ]).
 
 %%==============================================================================
@@ -63,10 +62,6 @@ pois(Document) ->
   Specs = els_dt_document:pois(Document, [spec]),
   SpecsIds = [Id || #{id := Id} <- Specs],
   [POI || #{id := Id} = POI <- Functions, not lists:member(Id, SpecsIds)].
-
--spec precondition(els_dt_document:item()) -> boolean().
-precondition(_Document) ->
-  true.
 
 %%==============================================================================
 %% Internal functions

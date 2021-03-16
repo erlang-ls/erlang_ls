@@ -14,7 +14,9 @@
 -callback is_default() -> boolean().
 -callback pois(els_dt_document:item()) -> [poi()].
 -callback precondition(els_dt_document:item()) -> boolean().
--optional_callbacks([init/1]).
+-optional_callbacks([ init/1
+                    , precondition/1
+                    ]).
 
 %%==============================================================================
 %% API
@@ -58,6 +60,7 @@ available_lenses() ->
   , <<"server-info">>
   , <<"show-behaviour-usages">>
   , <<"suggest-spec">>
+  , <<"function-references">>
   ].
 
 -spec default_lenses() -> [lens_id()].
@@ -75,7 +78,7 @@ enabled_lenses() ->
 -spec lenses(lens_id(), els_dt_document:item()) -> [lens()].
 lenses(Id, Document) ->
   CbModule = cb_module(Id),
-  case CbModule:precondition(Document) of
+  case precondition(CbModule, Document) of
     true ->
       State = case erlang:function_exported(CbModule, init, 1) of
                 true ->
@@ -132,3 +135,12 @@ valid(Ids0) ->
                                     })
   end,
   Valid.
+
+-spec precondition(atom(), els_dt_document:item()) -> boolean().
+precondition(CbModule, Document) ->
+  case erlang:function_exported(CbModule, precondition, 1) of
+    true ->
+      CbModule:precondition(Document);
+    false ->
+      true
+  end.

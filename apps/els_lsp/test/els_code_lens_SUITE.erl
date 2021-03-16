@@ -15,6 +15,7 @@
         , server_info/1
         , ct_run_test/1
         , show_behaviour_usages/1
+        , function_references/1
         ]).
 
 %%==============================================================================
@@ -89,8 +90,11 @@ default_lenses(Config) ->
   #{result := Result} = els_client:document_codelens(Uri),
   Commands = [els_command:without_prefix(Command) ||
                #{command := #{command := Command }} <- Result],
-  ?assertEqual([<<"suggest-spec">>], lists:usort(Commands)),
-  ?assertEqual(15, length(Commands)),
+  ?assertEqual([ <<"function-references">>
+               , <<"suggest-spec">>
+               ]
+              , lists:usort(Commands)),
+  ?assertEqual(33, length(Commands)),
   ok.
 
 -spec server_info(config()) -> ok.
@@ -98,6 +102,8 @@ server_info(Config) ->
   Uri = ?config(code_navigation_uri, Config),
   #{result := Result} = els_client:document_codelens(Uri),
   PrefixedCommand = els_command:with_prefix(<<"server-info">>),
+  FilteredResult = [L || #{ command := #{ command := Command }} = L
+                           <- Result, Command =:= PrefixedCommand],
   Title = <<"Erlang LS (in code_navigation) info">>,
   Expected =
     [ #{ command => #{ arguments => []
@@ -110,7 +116,7 @@ server_info(Config) ->
              start => #{character => 0, line => 0}}
        }
     ],
-  ?assertEqual(Expected, Result),
+  ?assertEqual(Expected, FilteredResult),
   ok.
 
 -spec ct_run_test(config()) -> ok.
@@ -118,6 +124,8 @@ ct_run_test(Config) ->
   Uri = ?config(sample_SUITE_uri, Config),
   PrefixedCommand = els_command:with_prefix(<<"ct-run-test">>),
   #{result := Result} = els_client:document_codelens(Uri),
+  FilteredResult = [L || #{ command := #{ command := Command }} = L
+                           <- Result, Command =:= PrefixedCommand],
   Expected = [ #{ command => #{ arguments => [ #{ arity => 1
                                                 , function => <<"one">>
                                                 , line => 58
@@ -134,7 +142,7 @@ ct_run_test(Config) ->
                             , start => #{ character => 0
                                         , line => 57
                                         }}}],
-  ?assertEqual(Expected, Result),
+  ?assertEqual(Expected, FilteredResult),
   ok.
 
 -spec show_behaviour_usages(config()) -> ok.
@@ -154,3 +162,30 @@ show_behaviour_usages(Config) ->
                     }}],
   ?assertEqual(Expected, Result),
   ok.
+
+-spec function_references(config()) -> ok.
+function_references(Config) ->
+  Uri = ?config(code_lens_function_references_uri, Config),
+  #{result := Result} = els_client:document_codelens(Uri),
+  Expected = [ lens(5, 0)
+             , lens(10, 1)
+             , lens(14, 2)
+             ],
+  ?assertEqual(Expected, Result),
+  ok.
+
+-spec lens(number(), number()) -> map().
+lens(Line, Usages) ->
+  Title = unicode:characters_to_binary(
+            io_lib:format("Used ~p times", [Usages])),
+  #{ command =>
+       #{ arguments => []
+        , command => els_command:with_prefix(<<"function-references">>)
+        , title => Title
+        }
+   , data => []
+   , range =>
+       #{ 'end' => #{character => 1, line => Line}
+        , start => #{character => 0, line => Line}
+        }
+   }.
