@@ -144,6 +144,7 @@ get_group(Config) ->
 sources() ->
   [ 'diagnostics.new'
   , behaviour_a
+  , code_lens_function_references
   , code_navigation
   , code_navigation_extra
   , code_navigation_types
