@@ -142,10 +142,9 @@ suggest_spec(Config) ->
     = els_client:workspace_executecommand(
         PrefixedCommand
        , [#{ uri => Uri
-           , module => execute_command_suggest_spec
-           , function => without_spec
-           , arity => 2
            , line => 12
+           , spec => <<"-spec without_spec(number(),binary()) -> "
+                       "{number(),binary()}.">>
            }]),
   Expected = [],
   ?assertEqual(Expected, Result),

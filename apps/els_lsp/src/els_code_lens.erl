@@ -8,12 +8,13 @@
 %% Callback Functions
 %%==============================================================================
 
--callback command(poi()) -> els_command:command_id().
--callback command_args(els_dt_document:item(), poi()) -> [any()].
+-callback init(els_dt_document:item()) -> state().
+-callback command(els_dt_document:item(), poi(), state()) ->
+  els_command:command().
 -callback is_default() -> boolean().
 -callback pois(els_dt_document:item()) -> [poi()].
 -callback precondition(els_dt_document:item()) -> boolean().
--callback title(poi()) -> binary().
+-optional_callbacks([init/1]).
 
 %%==============================================================================
 %% API
@@ -41,8 +42,10 @@
                  , data    => any()
                  }.
 -type lens_id() :: binary().
+-type state() :: any().
 -export_type([ lens/0
              , lens_id/0
+             , state/0
              ]).
 
 %%==============================================================================
@@ -74,7 +77,14 @@ lenses(Id, Document) ->
   CbModule = cb_module(Id),
   case CbModule:precondition(Document) of
     true ->
-      [make_lens(CbModule, Document, POI) || POI <- CbModule:pois(Document)];
+      State = case erlang:function_exported(CbModule, init, 1) of
+                true ->
+                  CbModule:init(Document);
+                false ->
+                  'state_not_initialized'
+              end,
+      [make_lens(CbModule, Document, POI, State) ||
+        POI <- CbModule:pois(Document)];
     false ->
       []
   end.
@@ -83,13 +93,10 @@ lenses(Id, Document) ->
 %% Constructors
 %%==============================================================================
 
--spec make_lens(atom(), els_dt_document:item(), poi()) -> lens().
-make_lens(CbModule, Document, #{range := Range} = POI) ->
-  Command = els_command:make_command( CbModule:title(POI)
-                                    , CbModule:command(POI)
-                                    , CbModule:command_args(Document, POI)),
+-spec make_lens(atom(), els_dt_document:item(), poi(), state()) -> lens().
+make_lens(CbModule, Document, #{range := Range} = POI, State) ->
   #{ range   => els_protocol:range(Range)
-   , command => Command
+   , command => CbModule:command(Document, POI, State)
    , data    => []
    }.
 

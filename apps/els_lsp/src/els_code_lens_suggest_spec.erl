@@ -4,28 +4,54 @@
 -module(els_code_lens_suggest_spec).
 
 -behaviour(els_code_lens).
--export([ command/1
-        , command_args/2
+-export([ init/1
+        , command/3
         , is_default/0
         , pois/1
         , precondition/1
-        , title/1
         ]).
 
+%%==============================================================================
+%% Includes
+%%==============================================================================
 -include("els_lsp.hrl").
+-include_lib("kernel/include/logger.hrl").
 
--spec command(poi()) -> els_command:command_id().
-command(_POI) ->
-  <<"suggest-spec">>.
+%%==============================================================================
+%% Type Definitions
+%%==============================================================================
+-type state() :: #{'info' => els_typer:info() | 'no_info'}.
 
--spec command_args(els_dt_document:item(), poi()) -> [any()].
-command_args( #{uri := Uri} = _Document
-            , #{id := {F, A}, range := #{from := {Line, _}}} = _POI) ->
-  [#{ function => F
-    , arity => A
-    , uri => Uri
-    , line => Line
-    }].
+%%==============================================================================
+%% Callback functions for the els_code_lens behaviour
+%%==============================================================================
+-spec init(els_dt_document:item()) -> state().
+init(#{uri := Uri} = _Document) ->
+  try els_typer:get_info(Uri) of
+    Info ->
+      #{info => Info}
+  catch C:E:S ->
+      Fmt =
+        "Cannot extract typer info.~n"
+        "Class: ~p~n"
+        "Exception: ~p~n"
+        "Stacktrace: ~p~n",
+      ?LOG_WARNING(Fmt, [C, E, S]),
+      #{info => 'no_info'}
+  end.
+
+-spec command(els_dt_document:item(), poi(), state()) -> els_command:command().
+command(Document, #{range := #{from := {Line, _}}} = POI, #{info := Info}) ->
+  #{uri := Uri} = Document,
+  Spec = get_type_spec(POI, Info),
+  Title = Spec,
+  CommandId = <<"suggest-spec">>,
+  CommandArgs = [ #{ uri => Uri
+                   , line => Line
+                   , spec => Spec
+                   }
+                ],
+  els_command:make_command(Title, CommandId, CommandArgs).
 
 -spec is_default() -> boolean().
 is_default() ->
@@ -42,6 +68,16 @@ pois(Document) ->
 precondition(_Document) ->
   true.
 
--spec title(poi()) -> binary().
-title(_POI) ->
-  <<"Add spec">>.
+%%==============================================================================
+%% Internal functions
+%%==============================================================================
+-spec get_type_spec(poi(), els_typer:info() | 'no_info') -> binary().
+get_type_spec(POI, Info) ->
+  case Info of
+    'no_info' ->
+      <<"Cannot extract specs (check logs for details)">>;
+    _ ->
+      #{id := {Function, Arity}} = POI,
+      Spec = els_typer:get_type_spec(Function, Arity, Info),
+      re:replace(Spec, ",", ", ", [global, {return, binary}])
+  end.

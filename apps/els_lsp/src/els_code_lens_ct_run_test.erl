@@ -5,29 +5,28 @@
 -module(els_code_lens_ct_run_test).
 
 -behaviour(els_code_lens).
--export([ command/1
-        , command_args/2
+-export([ command/3
         , is_default/0
         , pois/1
         , precondition/1
-        , title/1
         ]).
 
 -include("els_lsp.hrl").
 
--spec command(poi()) -> els_command:command_id().
-command(_POI) ->
-  <<"ct-run-test">>.
-
--spec command_args(els_dt_document:item(), poi()) -> [any()].
-command_args( #{uri := Uri} = _Document
-            , #{id := {F, A}, range := #{from := {Line, _}}} = _POI) ->
-  [#{ module => els_uri:module(Uri)
-    , function => F
-    , arity => A
-    , uri => Uri
-    , line => Line
-    }].
+-spec command(els_dt_document:item(), poi(), els_code_lens:state()) ->
+        els_command:command().
+command(#{uri := Uri} = _Document, POI, _State) ->
+  #{id := {F, A}, range := #{from := {Line, _}}} = POI,
+  Title = <<"Run test">>,
+  CommandId = <<"ct-run-test">>,
+  CommandArgs =   [ #{ module => els_uri:module(Uri)
+                     , function => F
+                     , arity => A
+                     , uri => Uri
+                     , line => Line
+                     }
+                  ],
+  els_command:make_command(Title, CommandId, CommandArgs).
 
 -spec is_default() -> boolean().
 is_default() ->
@@ -48,14 +47,9 @@ precondition(Document) ->
       true
   end.
 
--spec title(poi()) -> binary().
-title(_POI) ->
-  <<"Run test">>.
-
 %%==============================================================================
 %% Internal Functions
 %%==============================================================================
-
 -spec is_blacklisted(atom()) -> boolean().
 is_blacklisted(Function) ->
   lists:member(Function, [init_per_suite, end_per_suite, group]).

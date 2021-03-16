@@ -45,8 +45,8 @@ start_link() ->
 -spec init([]) -> {ok, {supervisor:sup_flags(), [supervisor:child_spec()]}}.
 init([]) ->
   SupFlags = #{ strategy  => one_for_one
-              , intensity => 1
-              , period    => 5
+              , intensity => 5
+              , period    => 60
               },
   ChildSpecs = [provider_specs(P) || P <- els_provider:enabled_providers()],
   {ok, {SupFlags, ChildSpecs}}.

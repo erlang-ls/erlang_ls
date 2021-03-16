@@ -30,7 +30,7 @@
 
 -module(els_typer).
 
--export([ suggest/3 ]).
+-export([ get_info/1, get_type_spec/3 ]).
 
 -include("els_lsp.hrl").
 
@@ -61,9 +61,11 @@
 -record(info, {records = maps:new() :: erl_types:type_table(),
                functions = []       :: [func_info()],
                types = map__new()   :: map_dict()}).
+-opaque info() :: #info{}.
+-export_type([ info/0 ]).
 
--spec suggest(uri(), atom(), arity()) -> string().
-suggest(Uri, Function, Arity) ->
+-spec get_info(uri()) -> #info{}.
+get_info(Uri) ->
   Path = binary_to_list(els_uri:path(Uri)),
   Macros = els_compiler_diagnostics:macro_options(),
   Includes = els_compiler_diagnostics:include_options(),
@@ -76,8 +78,7 @@ suggest(Uri, Function, Arity) ->
   Analysis4 = collect_info(Analysis3),
   Analysis5 = get_type_info(Analysis4),
   [{File, Module}] = Analysis5#analysis.fms,
-  Info = get_final_info(File, Module, Analysis5),
-  get_type_string(Function, Arity, Info).
+  get_final_info(File, Module, Analysis5).
 
 %%--------------------------------------------------------------------
 
@@ -157,8 +158,6 @@ get_external(Exts, Plt) ->
 %% Showing type information or annotating files with such information.
 %%--------------------------------------------------------------------
 
--define(TYPER_ANN_DIR, "typer_ann").
-
 -type fa()        :: {atom(), arity()}.
 -type func_info() :: {non_neg_integer(), atom(), arity()}.
 
@@ -229,8 +228,8 @@ remove_module_info(FunInfoList) ->
       end,
   lists:filter(F, FunInfoList).
 
--spec get_type_string(atom(), arity(), #info{}) -> string().
-get_type_string(F, A, Info) ->
+-spec get_type_spec(atom(), arity(), #info{}) -> string().
+get_type_spec(F, A, Info) ->
   Type = get_type_info({F,A}, Info#info.types),
   TypeStr =
     case Type of

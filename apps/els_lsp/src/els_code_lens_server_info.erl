@@ -5,23 +5,21 @@
 -module(els_code_lens_server_info).
 
 -behaviour(els_code_lens).
--export([ command/1
-        , command_args/2
+-export([ command/3
         , is_default/0
         , pois/1
         , precondition/1
-        , title/1
         ]).
 
 -include("els_lsp.hrl").
 
--spec command(poi()) -> els_command:command_id().
-command(_POI) ->
-  <<"server-info">>.
-
--spec command_args(els_dt_document:item(), poi()) -> [any()].
-command_args(_Document, _POI) ->
-  [].
+-spec command(els_dt_document:item(), poi(), els_code_lens:state()) ->
+        els_command:command().
+command(_Document, _POI, _State) ->
+  Title = title(),
+  CommandId = <<"server-info">>,
+  CommandArgs = [],
+  els_command:make_command(Title, CommandId, CommandArgs).
 
 -spec is_default() -> boolean().
 is_default() ->
@@ -36,7 +34,7 @@ pois(_Document) ->
   %% Return a dummy POI on the first line
   [els_poi:new(#{from => {1, 1}, to => {2, 1}}, dummy, dummy)].
 
--spec title(poi()) -> binary().
-title(_POI) ->
+-spec title() -> binary().
+title() ->
   Root = filename:basename(els_uri:path(els_config:get(root_uri))),
   <<"Erlang LS (in ", Root/binary, ") info">>.
