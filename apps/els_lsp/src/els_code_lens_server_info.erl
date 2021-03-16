@@ -8,7 +8,6 @@
 -export([ command/3
         , is_default/0
         , pois/1
-        , precondition/1
         ]).
 
 -include("els_lsp.hrl").
@@ -24,10 +23,6 @@ command(_Document, _POI, _State) ->
 -spec is_default() -> boolean().
 is_default() ->
   false.
-
--spec precondition(els_dt_document:item()) -> boolean().
-precondition(_Document) ->
-  true.
 
 -spec pois(els_dt_document:item()) -> [poi()].
 pois(_Document) ->
