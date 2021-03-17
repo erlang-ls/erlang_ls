@@ -112,9 +112,11 @@ find_attribute_pois(Tree, Tokens) ->
       []
   end.
 
--spec find_compile_options_pois([any()] | tuple(), [erl_scan:token()]) ->
-        [poi()].
-find_compile_options_pois(CompileOpts, Tokens) when is_tuple(CompileOpts) ->
+-spec find_compile_options_pois([any()] | tuple() | atom(),
+                                [erl_scan:token()]) -> [poi()].
+find_compile_options_pois(CompileOpts, Tokens)
+   when is_tuple(CompileOpts);
+        is_atom(CompileOpts) ->
   find_compile_options_pois([CompileOpts], Tokens);
 find_compile_options_pois(CompileOpts, Tokens) when is_list(CompileOpts) ->
   Fun = fun({parse_transform, PT}, Acc) ->
