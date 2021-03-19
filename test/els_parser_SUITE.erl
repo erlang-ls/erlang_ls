@@ -13,6 +13,7 @@
         , specs_with_record/1
         , types_with_record/1
         , types_with_types/1
+        , parse_compile_export_all/1
         ]).
 
 %%==============================================================================
@@ -94,4 +95,11 @@ types_with_types(_Config) ->
   {ok, POIs} = els_parser:parse(Text),
   Spec = [POI || #{id := {bar, 0}, kind := type_application} = POI <- POIs],
   ?assertEqual(1, length(Spec)),
+  ok.
+
+%% Issue #948
+-spec parse_compile_export_all(config()) -> ok.
+parse_compile_export_all(_Config) ->
+  Text = "-compile(export_all).",
+  {ok, _POIs} = els_parser:parse(Text),
   ok.
