@@ -689,8 +689,8 @@ attribute_subtrees(AttrName, Args) ->
   %% Attribute name not an atom, probably a macro
   [[AttrName], Args].
 
-%% Skip visiting atoms of record field names as they are already represented as
-%% `record_field' pois
+%% Skip visiting atoms of record and record field names as they are already
+%% represented as `record_expr' or `record_field' pois
 -spec skip_record_field_atom(tree()) -> [tree()].
 skip_record_field_atom(NameNode) ->
   case erl_syntax:type(NameNode) of
@@ -703,8 +703,8 @@ skip_record_field_atom(NameNode) ->
 -spec skip_type_name_atom(tree()) -> [tree()].
 skip_type_name_atom(NameNode) ->
   case erl_syntax:type(NameNode) of
-     atom ->
-       [];
+    atom ->
+      [];
     module_qualifier ->
       skip_record_field_atom(erl_syntax:module_qualifier_body(NameNode))
         ++
