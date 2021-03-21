@@ -146,9 +146,10 @@ handle_request(#{ <<"method">> := <<"$/cancelRequest">>
       ?LOG_DEBUG("Trying to cancel not existing request [params=~p]",
                  [Params]),
       State0;
-    Pid ->
-      ?LOG_DEBUG("[SERVER] Cancelling request [id=~p]", [Id]),
-      els_background_job:stop(Pid),
+    Job ->
+      ?LOG_DEBUG("[SERVER] Cancelling request [id=~p] [job=~p]",
+                 [Id, Job]),
+      els_background_job:stop(Job),
       State0#state{pending = lists:keydelete(Id, 1, Pending)}
   end;
 handle_request(#{ <<"method">> := _ReqMethod } = Request
