@@ -21,7 +21,8 @@
 %% Exports
 %%==============================================================================
 %% API
--export([ '$_cancelrequest'/1
+-export([ '$_cancelrequest'/0
+        , '$_cancelrequest'/1
         , '$_settracenotification'/0
         , '$_unexpectedrequest'/0
         , completion/5
@@ -92,6 +93,10 @@
 %%==============================================================================
 %% API
 %%==============================================================================
+-spec '$_cancelrequest'() -> ok.
+'$_cancelrequest'() ->
+  gen_server:call(?SERVER, {'$_cancelrequest'}).
+
 -spec '$_cancelrequest'(request_id()) -> ok.
 '$_cancelrequest'(Id) ->
   gen_server:call(?SERVER, {'$_cancelrequest', Id}).
@@ -277,12 +282,12 @@ handle_call({shutdown}, From, State) ->
   {noreply, State#state{ request_id = RequestId + 1
                        , pending    = [{RequestId, From} | State#state.pending]
                        }};
+handle_call({'$_cancelrequest'}, _From, State) ->
+  #state{request_id = Id} = State,
+  do_cancel_request(Id - 1, State),
+  {reply, ok, State};
 handle_call({'$_cancelrequest', Id}, _From, State) ->
-  #state{transport_cb = Cb, transport_server = Server} = State,
-  Method = <<"$/cancelRequest">>,
-  Params = #{id => Id},
-  Content = els_protocol:notification(Method, Params),
-  Cb:send(Server, Content),
+  do_cancel_request(Id, State),
   {reply, ok, State};
 handle_call({'$_settracenotification'}, _From, State) ->
   #state{transport_cb = Cb, transport_server = Server} = State,
@@ -496,3 +501,11 @@ is_response(#{method := _Method}) ->
   false;
 is_response(_) ->
   true.
+
+-spec do_cancel_request(request_id(), state()) -> ok.
+do_cancel_request(Id, State) ->
+  #state{transport_cb = Cb, transport_server = Server} = State,
+  Method = <<"$/cancelRequest">>,
+  Params = #{id => Id},
+  Content = els_protocol:notification(Method, Params),
+  Cb:send(Server, Content).
