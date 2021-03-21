@@ -54,7 +54,7 @@ handle_info({lenses, Lenses, Job}, State) ->
 %%==============================================================================
 %% Internal Functions
 %%==============================================================================
--spec run_lenses_job(uri()) -> [els_code_lens:lens()].
+-spec run_lenses_job(uri()) -> pid().
 run_lenses_job(Uri) ->
   {ok, Document} = els_utils:lookup_document(Uri),
   Config = #{ task =>
