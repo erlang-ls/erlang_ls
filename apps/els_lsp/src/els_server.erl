@@ -35,7 +35,6 @@
 %%==============================================================================
 %% Includes
 %%==============================================================================
--include("els_lsp.hrl").
 -include_lib("kernel/include/logger.hrl").
 
 %%==============================================================================
@@ -50,6 +49,7 @@
                , connection     :: any()
                , request_id     :: number()
                , internal_state :: map()
+               , pending        :: [{pos_integer(), pid()}]
                }).
 
 %%==============================================================================
@@ -101,6 +101,7 @@ init(Transport) ->
   State = #state{ transport      = Transport
                 , request_id     = 0
                 , internal_state = #{}
+                , pending        = []
                 },
   {ok, State}.
 
@@ -127,8 +128,25 @@ handle_cast(_, State) ->
 %% Internal Functions
 %%==============================================================================
 -spec handle_request(map(), state()) -> state().
+handle_request(#{ <<"method">> := <<"$/cancelRequest">>
+                , <<"params">> := Params
+                }, State0) ->
+  #{<<"id">> := Id} = Params,
+  #state{pending = Pending} = State0,
+  case proplists:get_value(Id, Pending) of
+    undefined ->
+      ?LOG_DEBUG("Trying to cancel not existing request [params=~p]",
+                 [Params]),
+      State0;
+    Pid ->
+      ?LOG_DEBUG("[SERVER] Cancelling request [id=~p]", [Id]),
+      els_background_job:stop(Pid),
+      State0#state{pending = lists:keydelete(Id, 1, Pending)}
+  end;
 handle_request(#{ <<"method">> := _ReqMethod } = Request
-              , #state{internal_state = InternalState} = State0) ->
+              , #state{ internal_state = InternalState
+                      , pending = Pending
+                      } = State0) ->
   Method = maps:get(<<"method">>, Request),
   Params = maps:get(<<"params">>, Request),
   Type = case maps:is_key(<<"id">>, Request) of
@@ -153,6 +171,18 @@ handle_request(#{ <<"method">> := _ReqMethod } = Request
     {noresponse, NewInternalState} ->
       ?LOG_DEBUG("[SERVER] No response", []),
       State0#state{internal_state = NewInternalState};
+    {noresponse, NewInternalState, Pid} ->
+      ?LOG_DEBUG("[SERVER] No response with pending [pid=~p]", [Pid]),
+      case Type of
+        notification ->
+          State0#state{ internal_state = NewInternalState };
+        request ->
+          RequestId = maps:get(<<"id">>, Request),
+          NewPending = [{RequestId, Pid}| Pending],
+          State0#state{ internal_state = NewInternalState
+                      , pending = NewPending
+                      }
+      end;
     {notification, M, P, NewInternalState} ->
       do_send_notification(M, P, State0),
       State0#state{internal_state = NewInternalState}
