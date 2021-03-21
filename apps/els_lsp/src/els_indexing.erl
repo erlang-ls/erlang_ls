@@ -58,13 +58,13 @@ index(Uri, Text, Mode) ->
   case els_dt_document:lookup(Uri) of
     {ok, [#{md5 := MD5}]} ->
       ok;
-    _ ->
+    {ok, LookupResult} ->
       Document = els_dt_document:new(Uri, Text),
-      do_index(Document, Mode)
+      do_index(Document, Mode, LookupResult =/= [])
   end.
 
--spec do_index(els_dt_document:item(), mode()) -> ok.
-do_index(#{uri := Uri, id := Id, kind := Kind} = Document, Mode) ->
+-spec do_index(els_dt_document:item(), mode(), boolean()) -> ok.
+do_index(#{uri := Uri, id := Id, kind := Kind} = Document, Mode, Reset) ->
   case Mode of
     'deep' ->
       ok = els_dt_document:insert(Document);
@@ -78,7 +78,7 @@ do_index(#{uri := Uri, id := Id, kind := Kind} = Document, Mode) ->
   ModuleItem = els_dt_document_index:new(Id, Uri, Kind),
   ok = els_dt_document_index:insert(ModuleItem),
   index_signatures(Document),
-  index_references(Document, Mode).
+  index_references(Document, Mode, Reset).
 
 -spec index_signatures(els_dt_document:item()) -> ok.
 index_signatures(#{id := Id, text := Text} = Document) ->
@@ -92,8 +92,12 @@ index_signatures(#{id := Id, text := Text} = Document) ->
   ],
   ok.
 
--spec index_references(els_dt_document:item(), mode()) -> ok.
-index_references(#{uri := Uri} = Document, 'deep') ->
+-spec index_references(els_dt_document:item(), mode(), boolean()) -> ok.
+index_references(#{uri := Uri} = Document, 'deep', true) ->
+  %% Optimization to only do (non-optimized) match_delete when necessary
+  ok = els_dt_references:delete_by_uri(Uri),
+  index_references(Document, 'deep', false);
+index_references(#{uri := Uri} = Document, 'deep', false) ->
   %% References
   POIs  = els_dt_document:pois(Document, [ application
                                          , behaviour
@@ -102,10 +106,9 @@ index_references(#{uri := Uri} = Document, 'deep') ->
                                          , record_expr
                                          , type_application
                                          ]),
-  ok = els_dt_references:delete_by_uri(Uri),
   [register_reference(Uri, POI) || POI <- POIs],
   ok;
-index_references(_Document, 'shallow') ->
+index_references(_Document, 'shallow', _) ->
   ok.
 
 -spec start() -> ok.
