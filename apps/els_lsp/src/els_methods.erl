@@ -44,6 +44,7 @@
 -type result()       :: {response, params() | null, state()}
                       | {error, params(), state()}
                       | {noresponse, state()}
+                      | {noresponse, pid(), state()}
                       | {notification, binary(), params(), state()}.
 -type request_type() :: notification | request.
 
@@ -373,8 +374,8 @@ textdocument_codeaction(Params, State) ->
 -spec textdocument_codelens(params(), state()) -> result().
 textdocument_codelens(Params, State) ->
   Provider = els_code_lens_provider,
-  Response = els_provider:handle_request(Provider, {document_codelens, Params}),
-  {response, Response, State}.
+  Job = els_provider:handle_request(Provider, {document_codelens, Params}),
+  {noresponse, Job, State}.
 
 %%==============================================================================
 %% textDocument/rename

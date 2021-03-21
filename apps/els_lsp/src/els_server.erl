@@ -26,6 +26,7 @@
         , set_connection/1
         , send_notification/2
         , send_request/2
+        , send_response/2
         ]).
 
 %% Testing
@@ -49,7 +50,7 @@
                , connection     :: any()
                , request_id     :: number()
                , internal_state :: map()
-               , pending        :: [{pos_integer(), pid()}]
+               , pending        :: [{number(), pid()}]
                }).
 
 %%==============================================================================
@@ -84,6 +85,10 @@ send_notification(Method, Params) ->
 -spec send_request(binary(), map()) -> ok.
 send_request(Method, Params) ->
   gen_server:cast(?SERVER, {request, Method, Params}).
+
+-spec send_response(pid(), any()) -> ok.
+send_response(Job, Result) ->
+  gen_server:cast(?SERVER, {response, Job, Result}).
 
 %%==============================================================================
 %% Testing
@@ -120,6 +125,9 @@ handle_cast({notification, Method, Params}, State) ->
   {noreply, State};
 handle_cast({request, Method, Params}, State0) ->
   State = do_send_request(Method, Params, State0),
+  {noreply, State};
+handle_cast({response, Job, Result}, State0) ->
+  State = do_send_response(Job, Result, State0),
   {noreply, State};
 handle_cast(_, State) ->
   {noreply, State}.
@@ -171,18 +179,14 @@ handle_request(#{ <<"method">> := _ReqMethod } = Request
     {noresponse, NewInternalState} ->
       ?LOG_DEBUG("[SERVER] No response", []),
       State0#state{internal_state = NewInternalState};
-    {noresponse, NewInternalState, Pid} ->
-      ?LOG_DEBUG("[SERVER] No response with pending [pid=~p]", [Pid]),
-      case Type of
-        notification ->
-          State0#state{ internal_state = NewInternalState };
-        request ->
-          RequestId = maps:get(<<"id">>, Request),
-          NewPending = [{RequestId, Pid}| Pending],
-          State0#state{ internal_state = NewInternalState
-                      , pending = NewPending
-                      }
-      end;
+    {noresponse, BackgroundJob, NewInternalState} ->
+      RequestId = maps:get(<<"id">>, Request),
+      ?LOG_DEBUG("[SERVER] Suspending response [background_job=~p]",
+                 [BackgroundJob]),
+      NewPending = [{RequestId, BackgroundJob}| Pending],
+      State0#state{ internal_state = NewInternalState
+                  , pending = NewPending
+                  };
     {notification, M, P, NewInternalState} ->
       do_send_notification(M, P, State0),
       State0#state{internal_state = NewInternalState}
@@ -210,6 +214,25 @@ do_send_request(Method, Params, #state{request_id = RequestId0} = State0) ->
             ),
   send(Request, State0),
   State0#state{request_id = RequestId}.
+
+-spec do_send_response(pid(), any(), state()) -> state().
+do_send_response(Job, Result, State0) ->
+  #state{pending = Pending0} = State0,
+  case lists:keyfind(Job, 2, Pending0) of
+    false ->
+      ?LOG_DEBUG(
+         "[SERVER] Sending delayed response, but no request found [job=~p]",
+         [Job]),
+      State0;
+    {RequestId, J} when J =:= Job ->
+      Response = els_protocol:response(RequestId, Result),
+      ?LOG_DEBUG( "[SERVER] Sending delayed response [job=~p] [response=~p]"
+                , [Job, Response]
+                ),
+      send(Response, State0),
+      Pending = lists:keydelete(RequestId, 1, Pending0),
+      State0#state{pending = Pending}
+  end.
 
 -spec send(binary(), state()) -> ok.
 send(Payload, #state{transport = T, connection = C}) ->
