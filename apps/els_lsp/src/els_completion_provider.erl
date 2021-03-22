@@ -170,13 +170,19 @@ find_completions( Prefix
     [{atom, _, Name} | _] ->
       NameBinary = atom_to_binary(Name, utf8),
       {ExportFormat, POIKind} = completion_context(Document, Line, Column),
-      keywords()
-        ++ bifs(POIKind, ExportFormat)
-        ++ atoms(Document, NameBinary)
-        ++ all_record_fields(Document, NameBinary)
-        ++ modules(NameBinary)
-        ++ definitions(Document, POIKind, ExportFormat)
-        ++ els_snippets_server:snippets();
+      case ExportFormat of
+        true ->
+          %% Only complete unexported definitions when in export
+          unexported_definitions(Document, POIKind);
+        false ->
+          keywords()
+            ++ bifs(POIKind, ExportFormat)
+            ++ atoms(Document, NameBinary)
+            ++ all_record_fields(Document, NameBinary)
+            ++ modules(NameBinary)
+            ++ definitions(Document, POIKind, ExportFormat)
+            ++ els_snippets_server:snippets()
+      end;
     _ ->
       []
   end;
@@ -222,6 +228,11 @@ item_kind_module(Module) ->
 %%==============================================================================
 %% Functions, Types, Macros and Records
 %%==============================================================================
+-spec unexported_definitions(els_dt_document:item(), poi_kind()) -> [map()].
+unexported_definitions(Document, POIKind) ->
+  AllDefs      = definitions(Document, POIKind, true, false),
+  ExportedDefs = definitions(Document, POIKind, true, true),
+  AllDefs -- ExportedDefs.
 
 -spec definitions(els_dt_document:item(), poi_kind()) -> [map()].
 definitions(Document, POIKind) ->
