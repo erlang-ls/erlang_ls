@@ -22,6 +22,30 @@
 
 -spec goto_definition(uri(), poi()) ->
    {ok, uri(), poi()} | {error, any()}.
+goto_definition( Uri
+               , Var = #{kind := variable, id := VarId, range := VarRange}
+               ) ->
+  %% This will naively try to find the definition of a variable by finding the
+  %% first occurrence of the variable in the function clause.
+  {ok, [Document]} = els_dt_document:lookup(Uri),
+  FunPOIs = els_poi:sort(els_dt_document:pois(Document, [function_clause])),
+  VarPOIs = els_poi:sort(els_dt_document:pois(Document, [variable])),
+  %% Find the function clause we are in
+  case [Range || #{range := Range} <- FunPOIs,
+                 els_range:compare(Range, VarRange)] of
+    [] -> {error, not_in_function_clause};
+    FunRanges ->
+      FunRange = lists:last(FunRanges),
+      %% Find the first occurance of the variable in the function clause
+      [POI|_] = [P || P = #{range := Range, id := Id} <- VarPOIs,
+                      els_range:compare(Range, VarRange),
+                      els_range:compare(FunRange, Range),
+                      Id =:= VarId],
+      case POI of
+        Var -> {error, already_at_definition};
+        POI -> {ok, Uri, POI}
+      end
+  end;
 goto_definition( _Uri
                , #{ kind := Kind, id := {M, F, A} }
                ) when Kind =:= application;

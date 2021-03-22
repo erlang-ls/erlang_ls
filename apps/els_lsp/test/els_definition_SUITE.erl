@@ -42,6 +42,7 @@
         , type_application_remote/1
         , type_application_undefined/1
         , type_application_user/1
+        , variable/1
         , opaque_application_remote/1
         , opaque_application_user/1
         ]).
@@ -399,6 +400,30 @@ type_application_user(Config) ->
   ?assertEqual( els_protocol:range(#{from => {37, 7}, to => {37, 13}})
               , Range),
   ok.
+
+-spec variable(config()) -> ok.
+variable(Config) ->
+  Uri = ?config(code_navigation_uri, Config),
+  Def0 = els_client:definition(Uri, 104, 9),
+  Def1 = els_client:definition(Uri, 105, 10),
+  Def2 = els_client:definition(Uri, 107, 10),
+  Def3 = els_client:definition(Uri, 108, 10),
+  #{result := #{range := Range0, uri := DefUri0}} = Def0,
+  #{result := #{range := Range1, uri := DefUri0}} = Def1,
+  #{result := #{range := Range2, uri := DefUri0}} = Def2,
+  #{result := #{range := Range3, uri := DefUri0}} = Def3,
+
+  ?assertEqual(?config(code_navigation_uri, Config), DefUri0),
+  ?assertEqual( els_protocol:range(#{from => {103, 12}, to => {103, 15}})
+              , Range0),
+  ?assertEqual( els_protocol:range(#{from => {104, 3}, to => {104, 6}})
+              , Range1),
+  ?assertEqual( els_protocol:range(#{from => {106, 12}, to => {106, 15}})
+              , Range2),
+  ?assertEqual( els_protocol:range(#{from => {106, 12}, to => {106, 15}})
+              , Range3),
+  ok.
+
 
 -spec opaque_application_remote(config()) -> ok.
 opaque_application_remote(Config) ->
