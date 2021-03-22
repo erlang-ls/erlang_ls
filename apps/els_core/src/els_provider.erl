@@ -5,6 +5,7 @@
         , start_link/1
         , available_providers/0
         , enabled_providers/0
+        , cancel_request/2
         ]).
 
 -behaviour(gen_server).
@@ -23,7 +24,8 @@
 -callback init() -> any().
 -callback handle_request(request(), any()) -> {any(), any()}.
 -callback handle_info(any(), any()) -> any().
--optional_callbacks([init/0, handle_info/2]).
+-callback cancel_request(pid(), any()) -> any().
+-optional_callbacks([init/0, handle_info/2, cancel_request/2]).
 
 -type config()   :: any().
 -type provider() :: els_completion_provider
@@ -64,6 +66,10 @@ start_link(Provider) ->
 handle_request(Provider, Request) ->
   gen_server:call(Provider, {handle_request, Request}, infinity).
 
+-spec cancel_request(provider(), pid()) -> any().
+cancel_request(Provider, Job) ->
+  gen_server:call(Provider, {cancel_request, Job}).
+
 %%==============================================================================
 %% gen_server callbacks
 %%==============================================================================
@@ -84,7 +90,16 @@ init(Provider) ->
 handle_call({handle_request, Request}, _From, State) ->
   #{internal_state := InternalState, provider := Provider} = State,
   {Reply, NewInternalState} = Provider:handle_request(Request, InternalState),
-  {reply, Reply, State#{internal_state => NewInternalState}}.
+  {reply, Reply, State#{internal_state => NewInternalState}};
+handle_call({cancel_request, Job}, _From, State) ->
+  #{internal_state := InternalState, provider := Provider} = State,
+  case erlang:function_exported(Provider, cancel_request, 2) of
+    true ->
+      NewInternalState = Provider:cancel_request(Job, InternalState),
+      {reply, ok, State#{internal_state => NewInternalState}};
+    false ->
+      {reply, ok, State}
+  end.
 
 -spec handle_cast(any(), state()) ->
   {noreply, state()}.

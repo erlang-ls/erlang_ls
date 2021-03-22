@@ -26,6 +26,7 @@
         , set_connection/1
         , send_notification/2
         , send_request/2
+        , send_response/2
         ]).
 
 %% Testing
@@ -35,7 +36,6 @@
 %%==============================================================================
 %% Includes
 %%==============================================================================
--include("els_lsp.hrl").
 -include_lib("kernel/include/logger.hrl").
 
 %%==============================================================================
@@ -50,6 +50,7 @@
                , connection     :: any()
                , request_id     :: number()
                , internal_state :: map()
+               , pending        :: [{number(), els_provider:provider(), pid()}]
                }).
 
 %%==============================================================================
@@ -85,6 +86,10 @@ send_notification(Method, Params) ->
 send_request(Method, Params) ->
   gen_server:cast(?SERVER, {request, Method, Params}).
 
+-spec send_response(pid(), any()) -> ok.
+send_response(Job, Result) ->
+  gen_server:cast(?SERVER, {response, Job, Result}).
+
 %%==============================================================================
 %% Testing
 %%==============================================================================
@@ -101,6 +106,7 @@ init(Transport) ->
   State = #state{ transport      = Transport
                 , request_id     = 0
                 , internal_state = #{}
+                , pending        = []
                 },
   {ok, State}.
 
@@ -120,6 +126,9 @@ handle_cast({notification, Method, Params}, State) ->
 handle_cast({request, Method, Params}, State0) ->
   State = do_send_request(Method, Params, State0),
   {noreply, State};
+handle_cast({response, Job, Result}, State0) ->
+  State = do_send_response(Job, Result, State0),
+  {noreply, State};
 handle_cast(_, State) ->
   {noreply, State}.
 
@@ -127,8 +136,26 @@ handle_cast(_, State) ->
 %% Internal Functions
 %%==============================================================================
 -spec handle_request(map(), state()) -> state().
+handle_request(#{ <<"method">> := <<"$/cancelRequest">>
+                , <<"params">> := Params
+                }, State0) ->
+  #{<<"id">> := Id} = Params,
+  #state{pending = Pending} = State0,
+  case lists:keyfind(Id, 1, Pending) of
+    false ->
+      ?LOG_DEBUG("Trying to cancel not existing request [params=~p]",
+                 [Params]),
+      State0;
+    {RequestId, Provider, Job} when RequestId =:= Id ->
+      ?LOG_DEBUG("[SERVER] Cancelling request [id=~p] [provider=~p] [job=~p]",
+                 [Id, Provider, Job]),
+      els_provider:cancel_request(Provider, Job),
+      State0#state{pending = lists:keydelete(Id, 1, Pending)}
+  end;
 handle_request(#{ <<"method">> := _ReqMethod } = Request
-              , #state{internal_state = InternalState} = State0) ->
+              , #state{ internal_state = InternalState
+                      , pending = Pending
+                      } = State0) ->
   Method = maps:get(<<"method">>, Request),
   Params = maps:get(<<"params">>, Request),
   Type = case maps:is_key(<<"id">>, Request) of
@@ -153,6 +180,14 @@ handle_request(#{ <<"method">> := _ReqMethod } = Request
     {noresponse, NewInternalState} ->
       ?LOG_DEBUG("[SERVER] No response", []),
       State0#state{internal_state = NewInternalState};
+    {noresponse, {Provider, BackgroundJob}, NewInternalState} ->
+      RequestId = maps:get(<<"id">>, Request),
+      ?LOG_DEBUG("[SERVER] Suspending response [background_job=~p]",
+                 [BackgroundJob]),
+      NewPending = [{RequestId, Provider, BackgroundJob}| Pending],
+      State0#state{ internal_state = NewInternalState
+                  , pending = NewPending
+                  };
     {notification, M, P, NewInternalState} ->
       do_send_notification(M, P, State0),
       State0#state{internal_state = NewInternalState}
@@ -180,6 +215,25 @@ do_send_request(Method, Params, #state{request_id = RequestId0} = State0) ->
             ),
   send(Request, State0),
   State0#state{request_id = RequestId}.
+
+-spec do_send_response(pid(), any(), state()) -> state().
+do_send_response(Job, Result, State0) ->
+  #state{pending = Pending0} = State0,
+  case lists:keyfind(Job, 3, Pending0) of
+    false ->
+      ?LOG_DEBUG(
+         "[SERVER] Sending delayed response, but no request found [job=~p]",
+         [Job]),
+      State0;
+    {RequestId, _Provider, J} when J =:= Job ->
+      Response = els_protocol:response(RequestId, Result),
+      ?LOG_DEBUG( "[SERVER] Sending delayed response [job=~p] [response=~p]"
+                , [Job, Response]
+                ),
+      send(Response, State0),
+      Pending = lists:keydelete(RequestId, 1, Pending0),
+      State0#state{pending = Pending}
+  end.
 
 -spec send(binary(), state()) -> ok.
 send(Payload, #state{transport = T, connection = C}) ->
