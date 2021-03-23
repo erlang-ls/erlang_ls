@@ -45,7 +45,7 @@ run(Uri) ->
           [return_errors]) of
         Errors ->
             lists:flatmap(
-              fun({_Path,Error}) ->
+              fun({_Path, Error}) ->
                       FmtError = gradualizer_fmt:format_type_error(
                                    Error
                                   , [{fmt_location, brief}, {color, never}]),
@@ -57,13 +57,14 @@ run(Uri) ->
                               Col = binary_to_integer(BinCol),
                               Range = case
                                           els_dt_document:get_element_at_pos(
-                                            Document, Line-1, Col)
+                                            Document, Line, Col)
                                       of
-                                          [#{ range := R } | _] = Pois ->
+                                          %% The poi check does not work great yet
+                                          [#{ range := R } | _] when false ->
                                               els_protocol:range(R);
-                                          []        ->
+                                          _ ->
                                               els_protocol:range(
-                                                #{ from => {Line,1},
+                                                #{ from => {Line, 1},
                                                    to => {Line + 1, 1} })
                                       end,
                               [#{ range => Range,
