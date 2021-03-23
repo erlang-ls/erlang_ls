@@ -55,18 +55,19 @@ run(Uri) ->
                           {match, [BinLine, BinCol, Msg]} ->
                               Line = binary_to_integer(BinLine),
                               Col = binary_to_integer(BinCol),
-                              Range = case
-                                          els_dt_document:get_element_at_pos(
-                                            Document, Line, Col)
-                                      of
-                                          %% The poi check does not work great yet
-                                          [#{ range := R } | _] when false ->
-                                              els_protocol:range(R);
-                                          _ ->
+                              Range = %% case
+                                      %%     els_dt_document:get_element_at_pos(
+                                      %%       Document, Line, Col)
+                                      %% of
+                                      %%     %% The poi check does not work great yet
+                                      %%     [#{ range := R } | _] when false ->
+                                      %%         els_protocol:range(R);
+                                      %%     _ ->
                                               els_protocol:range(
                                                 #{ from => {Line, 1},
                                                    to => {Line + 1, 1} })
-                                      end,
+                                      %% end
+,
                               [#{ range => Range,
                                  message => Msg,
                                  severity => ?DIAGNOSTIC_WARNING,
