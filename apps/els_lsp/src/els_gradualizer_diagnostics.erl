@@ -25,8 +25,8 @@
 %%==============================================================================
 %% Type Definitions
 %%==============================================================================
--type macro_config() :: #{string() => string()}.
--type macro_option() :: {atom()} | {atom(), any()}.
+%% -type macro_config() :: #{string() => string()}.
+%% -type macro_option() :: {atom()} | {atom(), any()}.
 
 %%==============================================================================
 %% Callback Functions
@@ -38,7 +38,21 @@ is_default() ->
 
 -spec run(uri()) -> [els_diagnostics:diagnostic()].
 run(Uri) ->
-    [].
+    Path = els_uri:path(Uri),
+    ?LOG_ERROR("Path: ~p",[Path]),
+    try gradualizer:type_check_file(
+          unicode:characters_to_list(Path),
+          [return_errors]) of
+        Errors ->
+            ?LOG_ERROR("Errors: ~p",[Errors]),
+            [#{ range => els_protocol:range(#{ from => {5, 1}, to => {6, 1} }),
+                message => <<"error">>,
+                severity => ?DIAGNOSTIC_WARNING,
+                source => source() }]
+    catch E:R:ST ->
+            ?LOG_ERROR("Errors: ~p",[{E,R,ST}]),
+            []
+    end.
 
 -spec source() -> binary().
 source() ->
