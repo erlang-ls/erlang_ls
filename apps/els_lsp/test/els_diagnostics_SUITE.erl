@@ -169,7 +169,9 @@ bound_var_in_pattern(Config) ->
   Uri = ?config(diagnostics_bound_var_in_pattern_uri, Config),
   els_mock_diagnostics:subscribe(),
   ok = els_client:did_save(Uri),
-  Diagnostics = els_mock_diagnostics:wait_until_complete(),
+  Diagnostics = lists:filter(fun (#{source := <<"BoundVarInPattern">>}) -> true;
+                                 (_) -> false end,
+                             els_mock_diagnostics:wait_until_complete()),
   Expected =
     [ #{message => <<"Bound variable in pattern: Var1">>,
         range =>
