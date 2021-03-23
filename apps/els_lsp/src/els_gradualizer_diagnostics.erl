@@ -66,7 +66,15 @@ start_and_load() ->
                               filelib:wildcard(filename:join(Dir, "*.erl"))
                       end,
                       els_config:get(apps_paths) ++ els_config:get(deps_paths)),
-            ok = gradualizer_db:import_erl_files(Files),
+            case erlang:function_exported(
+                   gradualizer_db, import_erl_files, 2) of
+                true ->
+                    ok = gradualizer_db:import_erl_files(
+                           Files,
+                           els_config:get(include_paths));
+                false ->
+                    ok = gradualizer_db:import_erl_files(Files)
+            end,
             true;
         _ ->
             false
@@ -98,8 +106,3 @@ analyzer_error({_Path, Error}) ->
         _ ->
             []
     end.
-
-%% -spec dep_path(module()) -> string().
-%% dep_path(Module) ->
-%%   {ok, Uri} = els_utils:find_module(Module),
-%%   els_utils:to_list(els_uri:path(Uri)).
