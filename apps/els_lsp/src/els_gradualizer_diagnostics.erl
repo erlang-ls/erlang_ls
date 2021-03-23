@@ -38,36 +38,25 @@ is_default() ->
 
 -spec run(uri()) -> [els_diagnostics:diagnostic()].
 run(Uri) ->
-    Path = els_uri:path(Uri),
-    {ok, Document} = els_utils:lookup_document(Uri),
-    try gradualizer:type_check_file(
-          unicode:characters_to_list(Path),
-          [return_errors]) of
-        Errors ->
+
+    try application:ensure_all_started(gradualizer) of
+        {ok, _} ->
+            Path = unicode:characters_to_list(els_uri:path(Uri)),
+            load_dependencies(),
+            Errors = gradualizer:type_check_files([Path], [return_errors]),
             lists:flatmap(
-              fun({_Path, Error}) ->
+              fun({ErrorPath, Error}) when Path =:= ErrorPath ->
                       FmtError = gradualizer_fmt:format_type_error(
                                    Error
                                   , [{fmt_location, brief}, {color, never}]),
                       case re:run(
-                             FmtError, "([0-9]+):([0-9]+): (.*)",
+                             FmtError, "([0-9]+):([0-9]+:)? (.*)",
                              [{capture, all_but_first, binary}]) of
-                          {match, [BinLine, BinCol, Msg]} ->
+                          {match, [BinLine, _BinCol, Msg]} ->
                               Line = binary_to_integer(BinLine),
-                              Col = binary_to_integer(BinCol),
-                              Range = %% case
-                                      %%     els_dt_document:get_element_at_pos(
-                                      %%       Document, Line, Col)
-                                      %% of
-                                      %%     %% The poi check does not work great yet
-                                      %%     [#{ range := R } | _] when false ->
-                                      %%         els_protocol:range(R);
-                                      %%     _ ->
-                                              els_protocol:range(
-                                                #{ from => {Line, 1},
-                                                   to => {Line + 1, 1} })
-                                      %% end
-,
+                              Range = els_protocol:range(
+                                        #{ from => {Line, 1},
+                                           to => {Line + 1, 1} }),
                               [#{ range => Range,
                                  message => Msg,
                                  severity => ?DIAGNOSTIC_WARNING,
@@ -77,7 +66,7 @@ run(Uri) ->
                       end
               end, Errors)
     catch E:R:ST ->
-            ?LOG_ERROR("Errors: ~p",[{E,R,ST}]),
+            ?LOG_ERROR("Errors: ~p", [{E, R, ST}]),
             []
     end.
 
@@ -88,3 +77,15 @@ source() ->
 %%==============================================================================
 %% Internal Functions
 %%==============================================================================
+
+-spec load_dependencies() -> ok.
+load_dependencies() ->
+    Files = lists:flatmap(
+              fun(Dir) -> filelib:wildcard(filename:join(Dir, "*.erl")) end,
+              els_config:get(apps_paths) ++ els_config:get(deps_paths)),
+    ok = gradualizer_db:import_erl_files(Files).
+
+%% -spec dep_path(module()) -> string().
+%% dep_path(Module) ->
+%%   {ok, Uri} = els_utils:find_module(Module),
+%%   els_utils:to_list(els_uri:path(Uri)).
