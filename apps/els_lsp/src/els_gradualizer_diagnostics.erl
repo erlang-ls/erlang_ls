@@ -43,7 +43,9 @@ run(Uri) ->
         {ok, _} ->
             Path = unicode:characters_to_list(els_uri:path(Uri)),
             load_dependencies(),
-            Errors = gradualizer:type_check_files([Path], [return_errors]),
+            Includes = [{i, I} || I <- els_config:get(include_paths)],
+            Opts = [return_errors] ++ Includes,
+            Errors = gradualizer:type_check_files([Path], Opts),
             lists:flatmap(
               fun({ErrorPath, Error}) when Path =:= ErrorPath ->
                       FmtError = gradualizer_fmt:format_type_error(
