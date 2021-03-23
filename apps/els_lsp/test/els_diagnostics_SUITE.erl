@@ -39,6 +39,7 @@
         , exclude_unused_includes/1
         , unused_macros/1
         , unused_record_fields/1
+        , gradualizer/1
         ]).
 
 %%==============================================================================
@@ -776,6 +777,20 @@ unused_record_fields(Config) ->
                 , source => <<"UnusedRecordFields">>
                 }
              ],
+  F = fun(#{message := M1}, #{message := M2}) -> M1 =< M2 end,
+  ?assertEqual(Expected, lists:sort(F, Diagnostics)),
+  ok.
+
+-spec gradualizer(config()) -> ok.
+gradualizer(Config) ->
+  Uri = ?config(diagnostics_gradualizer_uri, Config),
+  els_mock_diagnostics:subscribe(),
+  ok = els_client:did_save(Uri),
+  Diagnostics = els_mock_diagnostics:wait_until_complete(),
+  Diagnostics == []
+    andalso ct:fail("Diagnostics should not be empty - is Gradualizer "
+                    "available in the code path?"),
+  Expected = [],
   F = fun(#{message := M1}, #{message := M2}) -> M1 =< M2 end,
   ?assertEqual(Expected, lists:sort(F, Diagnostics)),
   ok.
