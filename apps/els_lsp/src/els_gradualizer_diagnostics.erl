@@ -76,6 +76,8 @@ start_and_load() ->
                     ok = gradualizer_db:import_erl_files(Files)
             end,
             true;
+        {ok, []} ->
+            true;
         _ ->
             false
     catch E:R ->
