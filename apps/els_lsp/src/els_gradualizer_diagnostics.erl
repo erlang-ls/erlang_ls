@@ -45,10 +45,24 @@ run(Uri) ->
           [return_errors]) of
         Errors ->
             ?LOG_ERROR("Errors: ~p",[Errors]),
-            [#{ range => els_protocol:range(#{ from => {5, 1}, to => {6, 1} }),
-                message => <<"error">>,
-                severity => ?DIAGNOSTIC_WARNING,
-                source => source() }]
+            FmtErrors = [gradualizer_fmt:format_type_error(Error,[{fmt_location,brief}])
+             || {_Path,Error} <- Errors],
+            ?LOG_ERROR("FmtErrors: ~p",[FmtErrors]),
+            lists:flatten(
+              [ case re:run(
+                     Str, "([0-9]+):([0-9]+)(.*)",
+                     [{capture,all_but_first,binary}]) of
+                  {match, [Line,Col,Msg]} ->
+                      #{ range => els_protocol:range(
+                                    #{ from => {binary_to_integer(Line),
+                                                binary_to_integer(Col)},
+                                       to => {binary_to_integer(Line) + 1, 1} }),
+                         message => Msg,
+                         severity => ?DIAGNOSTIC_WARNING,
+                         source => source() };
+                  _ ->
+                      []
+              end || Str <- FmtErrors])
     catch E:R:ST ->
             ?LOG_ERROR("Errors: ~p",[{E,R,ST}]),
             []
