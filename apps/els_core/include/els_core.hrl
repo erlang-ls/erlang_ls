@@ -304,6 +304,7 @@
                             , kind => completion_item_kind()
                             , insertText => binary()
                             , insertTextFormat => insert_text_format()
+                            , data => map()
                             }.
 
 -type client_capabilities() ::

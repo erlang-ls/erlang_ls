@@ -1,7 +1,4 @@
 -module(els_completion_SUITE).
-
--include("els_lsp.hrl").
-
 %% CT Callbacks
 -export([ suite/0
         , init_per_suite/1
@@ -13,7 +10,13 @@
         ]).
 
 %% Test cases
--export([ default_completions/1
+-export([ attributes/1
+        , attribute_behaviour/1
+        , attribute_include/1
+        , attribute_include_lib/1
+        , attribute_export/1
+        , attribute_export_type/1
+        , default_completions/1
         , empty_completions/1
         , exported_functions/1
         , exported_functions_arity/1
@@ -39,6 +42,7 @@
 %%==============================================================================
 %% Includes
 %%==============================================================================
+-include_lib("els_core/include/els_core.hrl").
 -include_lib("common_test/include/ct.hrl").
 -include_lib("stdlib/include/assert.hrl").
 
@@ -81,6 +85,230 @@ end_per_testcase(TestCase, Config) ->
 %%==============================================================================
 %% Testcases
 %%==============================================================================
+-spec attributes(config()) -> ok.
+attributes(Config) ->
+  Uri = ?config(completion_attributes_uri, Config),
+  TriggerKindChar = ?COMPLETION_TRIGGER_KIND_CHARACTER,
+  Expected = [ #{ insertText => <<"behaviour(${1:Behaviour}).">>
+                , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+                , kind => ?COMPLETION_ITEM_KIND_SNIPPET
+                , label => <<"-behaviour().">>
+                }
+             , #{ insertText => <<"define(${1:MACRO}, ${2:Value}).">>
+                , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+                , kind => ?COMPLETION_ITEM_KIND_SNIPPET
+                , label => <<"-define().">>
+                }
+             , #{ insertText => <<"export([${1:}]).">>
+                , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+                , kind => ?COMPLETION_ITEM_KIND_SNIPPET
+                , label => <<"-export().">>
+                }
+             , #{ insertText => <<"export_type([${1:}]).">>
+                , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+                , kind => ?COMPLETION_ITEM_KIND_SNIPPET
+                , label => <<"-export_type().">>
+                }
+             , #{ insertText => <<"if(${1:Pred}).\n${2:}\n-endif.">>
+                , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+                , kind => ?COMPLETION_ITEM_KIND_SNIPPET
+                , label => <<"-if().">>
+                }
+             , #{ insertText => <<"ifdef(${1:VAR}).\n${2:}\n-endif.">>
+                , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+                , kind => ?COMPLETION_ITEM_KIND_SNIPPET
+                , label => <<"-ifdef().">>
+                }
+             , #{ insertText => <<"ifndef(${1:VAR}).\n${2:}\n-endif.">>
+                , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+                , kind => ?COMPLETION_ITEM_KIND_SNIPPET
+                , label => <<"-ifndef().">>
+                }
+             , #{ insertText => <<"include(\"${1:}\").">>
+                , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+                , kind => ?COMPLETION_ITEM_KIND_SNIPPET
+                , label => <<"-include().">>
+                }
+             , #{ insertText => <<"include_lib(\"${1:}\").">>
+                , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+                , kind => ?COMPLETION_ITEM_KIND_SNIPPET
+                , label => <<"-include_lib().">>
+                }
+             , #{ insertText => <<"opaque ${1:name}() :: ${2:definition}.">>
+                , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+                , kind => ?COMPLETION_ITEM_KIND_SNIPPET
+                , label => <<"-opaque name() :: definition.">>
+                }
+             , #{ insertText => <<"record(${1:name}, {${2:field} = ${3:Value} "
+                                  ":: ${4:Type}()}).">>
+                , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+                , kind => ?COMPLETION_ITEM_KIND_SNIPPET
+                , label => <<"-record().">>
+                }
+             , #{ insertText => <<"type ${1:name}() :: ${2:definition}.">>
+                , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+                , kind => ?COMPLETION_ITEM_KIND_SNIPPET
+                , label => <<"-type name() :: definition.">>
+                }
+             , #{ insertText => <<"dialyzer(${1:}).">>
+                , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+                , kind => ?COMPLETION_ITEM_KIND_SNIPPET
+                , label => <<"-dialyzer().">>
+                }
+             , #{ insertText => <<"compile(${1:}).">>
+                , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+                , kind => ?COMPLETION_ITEM_KIND_SNIPPET
+                , label => <<"-compile().">>
+                }
+             , #{ insertText => <<"import(${1:Module}, [${2:}]).">>
+                , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+                , kind => ?COMPLETION_ITEM_KIND_SNIPPET
+                , label => <<"-import().">>
+                }
+             , #{ insertText =>
+                    <<"callback ${1:name}(${2:Args}) -> ${3:return()}.">>
+                , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+                , kind => ?COMPLETION_ITEM_KIND_SNIPPET
+                , label => <<"-callback name(Args) -> return().">>
+                }
+             , #{ insertText => <<"on_load(${1:Function}).">>
+                , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+                , kind => ?COMPLETION_ITEM_KIND_SNIPPET
+                , label => <<"-on_load().">>
+                }
+             , #{ insertText => <<"vsn(${1:Version}).">>
+                , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+                , kind => ?COMPLETION_ITEM_KIND_SNIPPET
+                , label => <<"-vsn(Version).">>}
+             ],
+  #{result := Completions} =
+    els_client:completion(Uri, 5, 2, TriggerKindChar, <<"-">>),
+  ?assertEqual([], Completions -- Expected),
+  ?assertEqual([], Expected -- Completions),
+  ok.
+
+-spec attribute_behaviour(config()) -> ok.
+attribute_behaviour(Config) ->
+  Uri = ?config(completion_attributes_uri, Config),
+  TriggerKindInvoked = ?COMPLETION_TRIGGER_KIND_INVOKED,
+  Expected = [ #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+                , kind => ?COMPLETION_ITEM_KIND_MODULE
+                , label => <<"gen_event">>}
+             , #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+                , kind => ?COMPLETION_ITEM_KIND_MODULE
+                , label => <<"gen_server">>}
+             , #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+                , kind => ?COMPLETION_ITEM_KIND_MODULE
+                , label => <<"gen_statem">>}
+             , #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+                , kind => ?COMPLETION_ITEM_KIND_MODULE
+                , label => <<"supervisor">>}
+             , #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+                , kind => ?COMPLETION_ITEM_KIND_MODULE
+                , label => <<"behaviour_a">>}
+             ],
+  #{result := Completions} =
+    els_client:completion(Uri, 2, 12, TriggerKindInvoked, <<"">>),
+  [?assert(lists:member(E, Completions)) || E <- Expected],
+  ok.
+
+-spec attribute_include(config()) -> ok.
+attribute_include(Config) ->
+  Uri = ?config(completion_attributes_uri, Config),
+  TriggerKindInvoked = ?COMPLETION_TRIGGER_KIND_INVOKED,
+  Expected = [#{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+                , kind => ?COMPLETION_ITEM_KIND_FILE
+                , label => <<"code_navigation.hrl">>
+                }
+             ],
+  #{result := Completions} =
+    els_client:completion(Uri, 3, 11, TriggerKindInvoked, <<"">>),
+  [?assert(lists:member(E, Completions)) || E <- Expected],
+  ok.
+
+-spec attribute_include_lib(config()) -> ok.
+attribute_include_lib(Config) ->
+  Uri = ?config(completion_attributes_uri, Config),
+  TriggerKindInvoked = ?COMPLETION_TRIGGER_KIND_INVOKED,
+  Expected = [ #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+                , kind => ?COMPLETION_ITEM_KIND_FILE
+                , label => <<"code_navigation/include/rename.hrl">>
+                }
+             , #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+                , kind => ?COMPLETION_ITEM_KIND_FILE
+                , label => <<"code_navigation/include/code_navigation.hrl">>
+                }
+             , #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+                , kind => ?COMPLETION_ITEM_KIND_FILE
+                , label => <<"code_navigation/include/diagnostics.hrl">>
+                }
+             ],
+  #{result := Completions} =
+    els_client:completion(Uri, 4, 15, TriggerKindInvoked, <<"">>),
+  [?assert(lists:member(E, Completions)) || E <- Expected],
+  ok.
+
+-spec attribute_export(config()) -> ok.
+attribute_export(Config) ->
+  Uri = ?config(completion_attributes_uri, Config),
+  TriggerKindInvoked = ?COMPLETION_TRIGGER_KIND_INVOKED,
+  Expected = [#{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+               , kind => ?COMPLETION_ITEM_KIND_FUNCTION
+               , label => <<"unexported_function/0">>
+               , data =>
+                   #{ arity => 0
+                    , function => <<"unexported_function">>
+                    , module => <<"completion_attributes">>
+                    }
+               }
+             ],
+  NotExpected = [#{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+                  , kind => ?COMPLETION_ITEM_KIND_FUNCTION
+                  , label => <<"exported_function/0">>
+                  , data =>
+                      #{ arity => 0
+                       , function => <<"exported_function">>
+                       , module => <<"completion_attributes">>
+                       }
+                  }
+                ],
+  #{result := Completions} =
+    els_client:completion(Uri, 5, 10, TriggerKindInvoked, <<"">>),
+  [?assert(lists:member(E, Completions)) || E <- Expected],
+  [?assertNot(lists:member(E, Completions)) || E <- NotExpected],
+  ok.
+
+-spec attribute_export_type(config()) -> ok.
+attribute_export_type(Config) ->
+  Uri = ?config(completion_attributes_uri, Config),
+  TriggerKindInvoked = ?COMPLETION_TRIGGER_KIND_INVOKED,
+  Expected = [ #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+                , kind => ?COMPLETION_ITEM_KIND_TYPE_PARAM
+                , label => <<"unexported_type/0">>
+                , data => #{}
+                }
+             , #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+                , kind => ?COMPLETION_ITEM_KIND_TYPE_PARAM
+                , label => <<"unexported_opaque/0">>
+                , data => #{}
+                }
+             ],
+  NotExpected = [ #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+                   , kind => ?COMPLETION_ITEM_KIND_TYPE_PARAM
+                   , label => <<"exported_type/0">>
+                   , data => #{}
+                   }
+                , #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+                   , kind => ?COMPLETION_ITEM_KIND_TYPE_PARAM
+                   , label => <<"exported_opaque/0">>
+                   , data => #{}
+                   }
+                ],
+  #{result := Completions} =
+    els_client:completion(Uri, 6, 15, TriggerKindInvoked, <<"">>),
+  [?assert(lists:member(E, Completions)) || E <- Expected],
+  [?assertNot(lists:member(E, Completions)) || E <- NotExpected],
+  ok.
 
 -spec default_completions(config()) -> ok.
 default_completions(Config) ->

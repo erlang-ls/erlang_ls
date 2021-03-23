@@ -154,6 +154,7 @@ sources() ->
   , completion_resolve
   , completion_resolve_2
   , completion_snippets
+  , completion_attributes
   , diagnostics
   , diagnostics_bound_var_in_pattern
   , diagnostics_autoimport
