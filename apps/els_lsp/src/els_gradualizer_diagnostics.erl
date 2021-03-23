@@ -50,16 +50,17 @@ run(Uri) ->
                                    Error
                                   , [{fmt_location, brief}, {color, never}]),
                       case re:run(
-                             FmtError, "([0-9]+):([0-9]+)(.*)",
+                             FmtError, "([0-9]+):([0-9]+): (.*)",
                              [{capture, all_but_first, binary}]) of
                           {match, [BinLine, BinCol, Msg]} ->
                               Line = binary_to_integer(BinLine),
                               Col = binary_to_integer(BinCol),
-                              ?LOG_ERROR("Get element at pos: ~p",[{Line,Col}]),
                               Range = case
-                                          els_dt_document:get_element_at_pos(Document, Line, Col)
+                                          els_dt_document:get_element_at_pos(
+                                            Document, Line-1, Col)
                                       of
-                                          [#{ range := R } | _] -> R;
+                                          [#{ range := R } | _] = Pois ->
+                                              els_protocol:range(R);
                                           []        ->
                                               els_protocol:range(
                                                 #{ from => {Line,1},
