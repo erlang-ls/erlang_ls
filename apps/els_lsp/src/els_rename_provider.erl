@@ -45,6 +45,8 @@ handle_request({rename, Params}, State) ->
 -spec workspace_edits(uri(), [poi()], binary()) -> null | [any()].
 workspace_edits(_Uri, [], _NewName) ->
   null;
+workspace_edits(Uri, [#{kind := variable} = POI| _], NewName) ->
+  #{changes => changes(Uri, POI, NewName)};
 workspace_edits(Uri, [#{kind := 'define'} = POI| _], NewName) ->
   #{changes => changes(Uri, POI, NewName)};
 workspace_edits(Uri, [#{kind := 'macro'} = POI| _], NewName) ->
@@ -115,6 +117,20 @@ editable_range(macro, #{range := Range}) ->
   els_protocol:range(Range#{ from := {FromL, EditFromC} }).
 
 -spec changes(uri(), poi(), binary()) -> #{uri() => [text_edit()]} | null.
+changes(Uri, #{kind := variable, id := VarId, range := VarRange}, NewName) ->
+  %% Rename variable in function clause scope
+  case els_utils:lookup_document(Uri) of
+    {ok, Document} ->
+      FunRange = function_clause_range(VarRange, Document),
+      Changes = [#{range => editable_range(POI), newText => NewName} ||
+                  POI <- els_dt_document:pois(Document, [variable]),
+                  maps:get(id, POI) =:= VarId,
+                  els_range:in(maps:get(range, POI), FunRange)
+                ],
+      #{Uri => Changes};
+    {error, _} ->
+      null
+  end;
 changes(Uri, #{kind := 'define', id := Id} = POI, NewName) ->
   Self = #{range => editable_range(POI), newText => NewName},
   {ok, Refs} = els_dt_references:find_by_id(macro, Id),
@@ -132,3 +148,18 @@ changes(Uri, #{kind := 'define', id := Id} = POI, NewName) ->
     end, #{Uri => [Self]}, Refs);
 changes(_Uri, _POI, _NewName) ->
   null.
+
+-spec function_clause_range(poi_range(), els_dt_document:item()) -> poi_range().
+function_clause_range(VarRange, Document) ->
+  FunPOIs = els_poi:sort(els_dt_document:pois(Document, [function_clause])),
+  %% Find beginning of first function clause before VarRange
+  From = case [R || #{range := R} <- FunPOIs, els_range:compare(R, VarRange)] of
+           []        -> {0, 0}; % Beginning of document
+           FunRanges -> maps:get(from, lists:last(FunRanges))
+         end,
+  %% Find beginning of first function clause after VarRange
+  To = case [R || #{range := R} <- FunPOIs, els_range:compare(VarRange, R)] of
+        []                 -> {999999999, 999999999}; % End of document
+        [#{from := End}|_] -> End
+       end,
+  #{from => From, to => To}.
