@@ -77,7 +77,7 @@ pt_deps(Module) ->
 
 -spec applications_to_uris([poi()]) -> [uri()].
 applications_to_uris(Applications) ->
-  Modules = [M|| #{id := {M, _F, _A}} <- Applications],
+  Modules = [M || #{id := {M, _F, _A}} <- Applications],
   Fun = fun(M, Acc) ->
             case els_utils:find_module(M) of
               {ok, Uri} ->
