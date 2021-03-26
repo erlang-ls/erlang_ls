@@ -299,64 +299,28 @@ functions_arity(Config) ->
 functions_export_list(Config) ->
   TriggerKind = ?COMPLETION_TRIGGER_KIND_INVOKED,
   Uri = ?config(code_navigation_extra_uri, Config),
-  ExpectedCompletion = [ #{ label            => <<"do/1">>
-                          , kind             => ?COMPLETION_ITEM_KIND_FUNCTION
-                          , insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
-                          , data             =>
-                              #{ module => <<"code_navigation_extra">>
-                               , function => <<"do">>
-                               , arity => 1
-                               }
-                          }
-                       , #{ label            => <<"do_2/0">>
-                          , kind             => ?COMPLETION_ITEM_KIND_FUNCTION
-                          , insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
-                          , data             =>
-                              #{ module => <<"code_navigation_extra">>
-                               , function => <<"do_2">>
-                               , arity => 0
-                               }
-                          }
-                       ,  #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
-                           , kind             => ?COMPLETION_ITEM_KIND_FUNCTION
-                           , label            => <<"do_3/2">>
-                           , data             =>
-                               #{ module => <<"code_navigation_extra">>
-                                , function => <<"do_3">>
-                                , arity => 2
-                                }
-                           }
-                       , #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
-                          , kind             => ?COMPLETION_ITEM_KIND_FUNCTION
-                          , label            => <<"do_4/2">>
-                          , data             =>
-                              #{ module => <<"code_navigation_extra">>
-                               , function => <<"do_4">>
-                               , arity => 2
-                               }
-                          }
-                       , #{ label            => <<"'DO_LOUDER'/0">>
-                          , kind             => ?COMPLETION_ITEM_KIND_FUNCTION
-                          , insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
-                          , data             =>
-                              #{ module => <<"code_navigation_extra">>
-                               , function => <<"DO_LOUDER">>
-                               , arity => 0
-                               }
-                          }
-                       ],
-
-  DefaultCompletion = els_completion_provider:keywords()
-                         ++ els_completion_provider:bifs(function, true)
-                         ++ els_snippets_server:snippets(),
-
+  Expected = [ #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+                , kind             => ?COMPLETION_ITEM_KIND_FUNCTION
+                , label            => <<"do_3/2">>
+                , data             =>
+                    #{ module => <<"code_navigation_extra">>
+                     , function => <<"do_3">>
+                     , arity => 2
+                     }
+                }
+             , #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+                , kind             => ?COMPLETION_ITEM_KIND_FUNCTION
+                , label            => <<"do_4/2">>
+                , data             =>
+                    #{ module => <<"code_navigation_extra">>
+                     , function => <<"do_4">>
+                     , arity => 2
+                     }
+                }
+             ],
   #{result := Completion} =
     els_client:completion(Uri, 3, 13, TriggerKind, <<"">>),
-  ?assertEqual(
-    lists:sort(ExpectedCompletion),
-    filter_completion(Completion, DefaultCompletion)),
-
-  ok.
+  ?assertEqual(Expected, Completion).
 
 -spec handle_empty_lines(config()) -> ok.
 handle_empty_lines(Config) ->
@@ -555,29 +519,11 @@ types_export_list(Config) ->
                 , label            => <<"user_type_a/0">>
                 , data             => #{}
                 }
-             , #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
-                , kind             => ?COMPLETION_ITEM_KIND_TYPE_PARAM
-                , label            => <<"type_a/0">>
-                , data             => #{}
-                }
-             , #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
-                , kind             => ?COMPLETION_ITEM_KIND_TYPE_PARAM
-                , label            => <<"opaque_type_a/0">>
-                , data             => #{}
-                }
              ],
-
-  DefaultCompletion = els_completion_provider:keywords()
-                        ++ els_completion_provider:bifs(type_definition, true)
-                        ++ els_snippets_server:snippets(),
-
   ct:comment("Types in an export_type section is provided with arity"),
-  #{result := Completion1} =
+  #{result := Completion} =
     els_client:completion(Uri, 5, 19, TriggerKind, <<"">>),
-  ?assertEqual(
-    lists:sort(Expected),
-    filter_completion(Completion1, DefaultCompletion)),
-
+  ?assertEqual(Expected, Completion),
   ok.
 
 -spec variables(config()) -> ok.
