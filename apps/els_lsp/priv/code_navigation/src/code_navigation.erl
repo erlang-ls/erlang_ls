@@ -99,3 +99,10 @@ function_o() ->
   _ = R#record_a.'Field C',
   F = fun 'Code.Navigation.Elixirish':do/1,
   F('Atom with whitespaces, "double quotes" and even some \'single quotes\'').
+
+function_p(Foo) ->
+  Bar = Foo,
+  _Baz = Bar;
+function_p(Foo) ->
+  _Bar = Foo,
+  _Baz = Foo.
