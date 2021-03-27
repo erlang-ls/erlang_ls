@@ -105,6 +105,7 @@ kind_to_category(Kind) when Kind =:= application;
                             Kind =:= export_entry;
                             Kind =:= function;
                             Kind =:= function_clause;
+                            Kind =:= import_entry;
                             Kind =:= implicit_fun ->
   function;
 kind_to_category(Kind) when Kind =:= export_type_entry;

@@ -15,6 +15,7 @@
 %% Test cases
 -export([ rename_behaviour_callback/1
         , rename_macro/1
+        , rename_function/1
         , rename_parametrized_macro/1
         , rename_macro_from_usage/1
         ]).
@@ -144,6 +145,33 @@ rename_macro(Config) ->
                },
   assert_changes(Expected, Result).
 
+-spec rename_function(config()) -> ok.
+rename_function(Config) ->
+  Uri = ?config(rename_function_uri, Config),
+  ImportUri = ?config(rename_function_import_uri, Config),
+  Line = 4,
+  Char = 2,
+  NewName = <<"new_function">>,
+  #{result := Result} = els_client:document_rename(Uri, Line, Char, NewName),
+  Expected = #{changes =>
+                 #{binary_to_atom(Uri) =>
+                     [ change(NewName, {12, 23}, {12, 26})
+                     , change(NewName, {13, 10}, {13, 13})
+                     , change(NewName, {15, 27}, {15, 30})
+                     , change(NewName, {19, 2}, {19, 5})
+                     , change(NewName, {9, 2}, {9, 5})
+                     , change(NewName, {1, 9}, {1, 12})
+                     , change(NewName, {3, 6}, {3, 9})
+                     , change(NewName, {4, 0}, {4, 3})
+                     ],
+                   binary_to_atom(ImportUri) =>
+                     [ change(NewName, {7, 18}, {7, 21})
+                     , change(NewName, {2, 26}, {2, 29})
+                     , change(NewName, {6, 2}, {6, 5})
+                     ]}},
+  assert_changes(Expected, Result).
+
+
 -spec rename_parametrized_macro(config()) -> ok.
 rename_parametrized_macro(Config) ->
   Uri = ?config(rename_h_uri, Config),
@@ -224,3 +252,8 @@ assert_changes(#{ changes := ExpectedChanges }, #{ changes := Changes }) ->
     || {{Key, Change}, {ExpectedKey, Expected}} <- Pairs
   ],
   ok.
+
+change(NewName, {FromL, FromC}, {ToL, ToC}) ->
+  #{ newText => NewName
+   , range => #{ start => #{character => FromC, line => FromL}
+               , 'end' => #{character => ToC, line => ToL}}}.

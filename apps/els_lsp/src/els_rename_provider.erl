@@ -10,6 +10,7 @@
 %% Includes
 %%==============================================================================
 -include("els_lsp.hrl").
+-include_lib("kernel/include/logger.hrl").
 
 %%==============================================================================
 %% Defines
@@ -45,6 +46,8 @@ handle_request({rename, Params}, State) ->
 -spec workspace_edits(uri(), [poi()], binary()) -> null | [any()].
 workspace_edits(_Uri, [], _NewName) ->
   null;
+workspace_edits(Uri, [#{kind := function} = POI| _], NewName) ->
+  #{changes => changes(Uri, POI, NewName)};
 workspace_edits(Uri, [#{kind := 'define'} = POI| _], NewName) ->
   #{changes => changes(Uri, POI, NewName)};
 workspace_edits(Uri, [#{kind := 'macro'} = POI| _], NewName) ->
@@ -105,6 +108,28 @@ editable_range(#{kind := spec, id := {F, _A}, range := Range}) ->
   EditToC = EditFromC + length(atom_to_list(F)),
   els_protocol:range(Range#{ from := {FromL, EditFromC}
                            , to := {FromL, EditToC} });
+editable_range(#{kind := implicit_fun, id := {M, F, _A}, range := Range}) ->
+  #{ from := {FromL, FromC}, to := {_ToL, _ToC} } = Range,
+  EditFromC = FromC + length("fun " ++ atom_to_list(M) ++ ":"),
+  EditToC = EditFromC + length(atom_to_list(F)),
+  els_protocol:range(#{ from => {FromL, EditFromC}
+                      , to => {FromL, EditToC} });
+editable_range(#{kind := implicit_fun, id := {F, _A}, range := Range}) ->
+  #{ from := {FromL, FromC}, to := {_ToL, _ToC} } = Range,
+  EditFromC = FromC + length("fun "),
+  EditToC = EditFromC + length(atom_to_list(F)),
+  els_protocol:range(#{ from => {FromL, EditFromC}
+                      , to => {FromL, EditToC} });
+editable_range(#{kind := import_entry, id := {_M, F, _A}, range := Range}) ->
+  #{ from := {FromL, FromC} } = Range,
+  EditToC = FromC + length(atom_to_list(F)),
+  els_protocol:range(Range#{ to := {FromL, EditToC} });
+editable_range(#{kind := application, id := {M, F, _A}, range := Range}) ->
+  #{ from := {FromL, FromC}, to := {_ToL, _ToC} } = Range,
+  EditFromC = FromC + length(atom_to_list(M) ++ ":"),
+  EditToC = EditFromC + length(atom_to_list(F)),
+  els_protocol:range(#{ from => {FromL, EditFromC}
+                      , to => {FromL, EditToC} });
 editable_range(#{kind := _Kind, range := Range}) ->
   els_protocol:range(Range).
 
@@ -115,20 +140,83 @@ editable_range(macro, #{range := Range}) ->
   els_protocol:range(Range#{ from := {FromL, EditFromC} }).
 
 -spec changes(uri(), poi(), binary()) -> #{uri() => [text_edit()]} | null.
+changes(Uri, #{kind := function, id := {F, A}}, NewName) ->
+  ?LOG_INFO("Renaming function ~p/~p to ~s", [F, A, NewName]),
+  {ok, Doc} = els_utils:lookup_document(Uri),
+  SelfChanges = [change(P, NewName) ||
+                  P <- els_dt_document:pois(Doc, [ export_entry
+                                                 , function
+                                                 , spec
+                                                 ]),
+                  maps:get(id, P) =:= {F, A}],
+  Key = {els_uri:module(Uri), F, A},
+  {ok, Refs} = els_dt_references:find_by_id(function, Key),
+  RefPOIs = refs2pois(Refs, [ application
+                            , implicit_fun
+                            , import_entry
+                            ]),
+  Changes =
+    lists:foldl(
+    fun({RefUri, RefPOI}, Acc) ->
+        ImportChanges = import_changes(RefUri, RefPOI, NewName),
+        Changes = [change(RefPOI, NewName)] ++ ImportChanges,
+        maps:update_with(RefUri, fun(V) -> Changes ++ V end, Changes, Acc)
+    end, #{Uri => SelfChanges}, RefPOIs),
+  ?LOG_INFO("Done renaming function ~p/~p to ~s. ~p changes in ~p files.",
+            [F, A, NewName, length(lists:flatten(maps:values(Changes))),
+             length(maps:keys(Changes))]),
+  Changes;
 changes(Uri, #{kind := 'define', id := Id} = POI, NewName) ->
-  Self = #{range => editable_range(POI), newText => NewName},
+ Self = #{range => editable_range(POI), newText => NewName},
   {ok, Refs} = els_dt_references:find_by_id(macro, Id),
   lists:foldl(
     fun(#{uri := U} = Ref, Acc) ->
         Change = #{ range => editable_range(macro, Ref)
                   , newText => NewName
                   },
-        case maps:is_key(U, Acc) of
-          false ->
-            maps:put(U, [Change], Acc);
-          true ->
-            maps:put(U, [Change|maps:get(U, Acc)], Acc)
-        end
+        maps:update_with(U, fun(V) -> [Change|V] end, [Change], Acc)
     end, #{Uri => [Self]}, Refs);
 changes(_Uri, _POI, _NewName) ->
   null.
+
+-spec refs2pois([els_dt_references:item()], [poi_kind()]) -> [{uri(), poi()}].
+refs2pois(Refs, Kinds) ->
+  UriPOIs = lists:foldl(fun(#{uri := Uri}, Acc) when is_map_key(Uri, Acc) ->
+                            Acc;
+                           (#{uri := Uri}, Acc) ->
+                            POIs = case els_utils:lookup_document(Uri) of
+                                     {ok, Doc} ->
+                                       els_dt_document:pois(Doc, Kinds);
+                                     {error, _} ->
+                                       []
+                                   end,
+                            maps:put(Uri, POIs, Acc)
+                        end, #{}, Refs),
+  lists:map(fun(#{uri := Uri, range := #{from := Pos}}) ->
+                POIs = maps:get(Uri, UriPOIs),
+                {Uri, hd(els_poi:match_pos(POIs, Pos))}
+            end, Refs).
+
+%% @doc Find all uses of imported function in Uri
+-spec import_changes(uri(), poi(), binary()) -> [text_edit()].
+import_changes(Uri, #{kind := import_entry, id := {_M, F, A}}, NewName) ->
+  case els_utils:lookup_document(Uri) of
+    {ok, Doc} ->
+      [change(P, NewName) || P <- els_dt_document:pois(Doc, [ application
+                                                            , implicit_fun
+                                                            ]),
+                             maps:get(id, P) =:= {F, A}];
+    {error, _} ->
+      []
+  end;
+import_changes(_Uri, _POI, _NewName) ->
+  [].
+
+-spec change(poi(), binary()) -> text_edit().
+change(POI, NewName) ->
+  %% TODO: editable_range expects only `fun foo/0' in source so
+  %% so for example if `fun   foo/0' is in the source it will result in invalid
+  %% changes as the text that the POI corresponds to is lost.
+  %% This is a deep fundamental flaw in how POIs are parsed and need to be
+  %% addressed in the parser
+  #{range => editable_range(POI), newText => NewName}.
