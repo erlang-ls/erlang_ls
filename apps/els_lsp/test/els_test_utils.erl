@@ -181,6 +181,8 @@ sources() ->
   , hover_docs_caller
   , my_gen_server
   , rename
+  , rename_function
+  , rename_function_import
   , rename_usage1
   , rename_usage2
   , rename_variable
