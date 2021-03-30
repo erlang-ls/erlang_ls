@@ -54,6 +54,7 @@ workspace_edits(Uri, [#{kind := Kind} = POI| _], NewName)
        Kind =:= record;
        Kind =:= record_def_field;
        Kind =:= function;
+       Kind =:= type_definition;
        Kind =:= variable ->
   #{changes => changes(Uri, POI, NewName)};
 workspace_edits(Uri, [#{kind := Kind} = POI| _], NewName)
@@ -63,7 +64,9 @@ workspace_edits(Uri, [#{kind := Kind} = POI| _], NewName)
        Kind =:= application;
        Kind =:= implicit_fun;
        Kind =:= export_entry;
-       Kind =:= import_entry ->
+       Kind =:= import_entry;
+       Kind =:= export_type_entry;
+       Kind =:= type_application ->
   case els_code_navigation:goto_definition(Uri, POI) of
     {ok, DefUri, DefPOI} ->
       #{changes => changes(DefUri, DefPOI, NewName)};
@@ -115,6 +118,10 @@ editable_range(#{kind := export_entry, id := {F, _A}, range := Range}) ->
   #{ from := {FromL, FromC} } = Range,
   EditToC = FromC + string:length(atom_to_string(F)),
   els_protocol:range(Range#{ to := {FromL, EditToC} });
+editable_range(#{kind := export_type_entry, id := {T, _A}, range := Range}) ->
+  #{ from := {FromL, FromC} } = Range,
+  EditToC = FromC + length(atom_to_string(T)),
+  els_protocol:range(Range#{ to := {FromL, EditToC} });
 editable_range(#{kind := spec, id := {F, _A}, range := Range}) ->
   #{ from := {FromL, FromC}, to := {_ToL, _ToC} } = Range,
   EditFromC = FromC + string:length("-spec "),
@@ -143,6 +150,12 @@ editable_range(#{kind := application, id := {M, F, _A}, range := Range}) ->
   EditToC = EditFromC + length(atom_to_string(F)),
   els_protocol:range(#{ from => {FromL, EditFromC}
                       , to => {FromL, EditToC} });
+editable_range(#{kind := type_application, id := {M, T, _A}, range := Range}) ->
+  #{ from := {FromL, FromC}, to := {_ToL, _ToC} } = Range,
+  EditFromC = FromC + length(atom_to_string(M) ++ ":"),
+  EditToC = EditFromC + length(atom_to_string(T)),
+  els_protocol:range(#{ from => {FromL, EditFromC}
+                      , to => {FromL, EditToC} });
 editable_range(#{kind := _Kind, range := Range}) ->
   els_protocol:range(Range).
 
@@ -161,6 +174,29 @@ changes(Uri, #{kind := variable, id := VarId, range := VarRange}, NewName) ->
     {error, _} ->
       null
   end;
+changes(Uri, #{kind := type_definition, id := {Name, A}}, NewName) ->
+  ?LOG_INFO("Renaming type ~p/~p to ~s", [Name, A, NewName]),
+  {ok, Doc} = els_utils:lookup_document(Uri),
+  SelfChanges = [change(P, NewName) ||
+                  P <- els_dt_document:pois(Doc, [ type_definition
+                                                 , export_type_entry
+                                                 ]),
+                  maps:get(id, P) =:= {Name, A}
+                ],
+  Key = {els_uri:module(Uri), Name, A},
+  {ok, Refs} = els_dt_references:find_by_id(type_application, Key),
+  RefPOIs = convert_references_to_pois(Refs, [ type_application
+                                             ]),
+  Changes =
+    lists:foldl(
+    fun({RefUri, RefPOI}, Acc) ->
+        Change = change(RefPOI, NewName),
+        maps:update_with(RefUri, fun(V) -> [Change|V] end, [Change], Acc)
+    end, #{Uri => SelfChanges}, RefPOIs),
+  ?LOG_INFO("Done renaming type ~p/~p to ~s. ~p changes in ~p files.",
+            [Name, A, NewName, length(lists:flatten(maps:values(Changes))),
+             length(maps:keys(Changes))]),
+  Changes;
 changes(Uri, #{kind := function, id := {F, A}}, NewName) ->
   ?LOG_INFO("Renaming function ~p/~p to ~s", [F, A, NewName]),
   {ok, Doc} = els_utils:lookup_document(Uri),
