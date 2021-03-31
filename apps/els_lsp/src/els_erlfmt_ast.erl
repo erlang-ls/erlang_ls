@@ -1081,7 +1081,7 @@ literal_text(Node) ->
         integer -> erl_syntax:integer_literal(Node);
         operator -> erl_syntax:operator_literal(Node);
         string -> erl_syntax:string_literal(Node);
-        text -> erl_syntax:text_literal(Node);
+        text -> erl_syntax:text_string(Node);
         variable -> erl_syntax:variable_literal(Node);
         _ -> undefined
     end.
