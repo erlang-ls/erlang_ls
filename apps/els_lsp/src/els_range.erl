@@ -3,6 +3,7 @@
 -include("els_lsp.hrl").
 
 -export([ compare/2
+        , in/2
         , range/4
         ]).
 
@@ -16,6 +17,10 @@ compare( #{from := FromA, to := ToA}
   true;
 compare(_, _) ->
   false.
+
+-spec in(poi_range(), poi_range()) -> boolean().
+in(#{from := FromA, to := ToA}, #{from := FromB, to := ToB}) ->
+  FromA >= FromB andalso ToA =< ToB.
 
 -spec range(pos() | {pos(), pos()}, poi_kind(), any(), any()) -> poi_range().
 range({{Line, Column}, {ToLine, ToColumn}}, Name, _, _Data)

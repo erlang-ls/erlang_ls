@@ -15,6 +15,7 @@
 %% Test cases
 -export([ rename_behaviour_callback/1
         , rename_macro/1
+        , rename_variable/1
         , rename_parametrized_macro/1
         , rename_macro_from_usage/1
         ]).
@@ -109,6 +110,34 @@ rename_behaviour_callback(Config) ->
                    }
                },
   assert_changes(Expected, Result).
+
+-spec rename_variable(config()) -> ok.
+rename_variable(Config) ->
+  Uri = ?config(rename_variable_uri, Config),
+  UriAtom = binary_to_atom(Uri, utf8),
+  NewName = <<"NewAwesomeName">>,
+  #{result := Result1} = els_client:document_rename(Uri, 3, 3, NewName),
+  Expected1 = #{changes => #{UriAtom => [ change(NewName, {3, 2}, {3, 5})
+                                        , change(NewName, {2, 4}, {2, 7})
+                                        ]}},
+  #{result := Result2} = els_client:document_rename(Uri, 2, 5, NewName),
+  Expected2 = #{changes => #{UriAtom => [ change(NewName, {3, 2}, {3, 5})
+                                        , change(NewName, {2, 4}, {2, 7})
+                                        ]}},
+  #{result := Result3} = els_client:document_rename(Uri, 6, 3, NewName),
+  Expected3 = #{changes => #{UriAtom => [ change(NewName, {6, 18}, {6, 21})
+                                        , change(NewName, {6, 2}, {6, 5})
+                                        , change(NewName, {5, 9}, {5, 12})
+                                        , change(NewName, {4, 4}, {4, 7})
+                                        ]}},
+  #{result := Result4} = els_client:document_rename(Uri, 11, 3, NewName),
+  Expected4 = #{changes => #{UriAtom => [ change(NewName, {11, 2}, {11, 5})
+                                        , change(NewName, {10, 4}, {10, 7})
+                                        ]}},
+  assert_changes(Expected1, Result1),
+  assert_changes(Expected2, Result2),
+  assert_changes(Expected3, Result3),
+  assert_changes(Expected4, Result4).
 
 -spec rename_macro(config()) -> ok.
 rename_macro(Config) ->
@@ -224,3 +253,8 @@ assert_changes(#{ changes := ExpectedChanges }, #{ changes := Changes }) ->
     || {{Key, Change}, {ExpectedKey, Expected}} <- Pairs
   ],
   ok.
+
+change(NewName, {FromL, FromC}, {ToL, ToC}) ->
+  #{ newText => NewName
+   , range => #{ start => #{character => FromC, line => FromL}
+               , 'end' => #{character => ToC, line => ToL}}}.
