@@ -100,7 +100,8 @@ goto_definition(_Uri, #{ kind := type_application, id := {M, T, A} }) ->
     {ok, Uri}      -> find(Uri, type_definition, {T, A});
     {error, Error} -> {error, Error}
   end;
-goto_definition(Uri, #{ kind := type_application, id := {T, A} }) ->
+goto_definition(Uri, #{ kind := Kind, id := {T, A} })
+  when Kind =:= type_application; Kind =:= export_type_entry ->
   find(Uri, type_definition, {T, A});
 goto_definition(_Uri, #{ kind := parse_transform, id := Module }) ->
   case els_utils:find_module(Module) of
