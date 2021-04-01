@@ -548,10 +548,22 @@ crossref(Config) ->
 crossref_pseudo_functions(Config) ->
   Expected =
     [#{message =>
+         <<"Cannot find definition for function unknown_module:module_info/0">>,
+       range =>
+         #{'end' => #{character => 28, line => 12},
+           start => #{character => 2, line => 12}},
+       severity => 1, source => <<"CrossRef">>},
+     #{message =>
+         <<"Cannot find definition for function unknown_module:module_info/1">>,
+       range =>
+         #{'end' => #{character => 28, line => 13},
+           start => #{character => 2, line => 13}},
+       severity => 1, source => <<"CrossRef">>},
+     #{message =>
          <<"Cannot find definition for function unknown_module:nonexistent/0">>,
        range =>
-         #{'end' => #{character => 28, line => 30},
-           start => #{character => 2, line => 30}},
+         #{'end' => #{character => 28, line => 34},
+           start => #{character => 2, line => 34}},
        severity => 1, source => <<"CrossRef">>}],
   do_crossref_test(Config, diagnostics_xref_pseudo_uri, Expected).
 

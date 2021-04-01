@@ -73,6 +73,10 @@ has_definition(#{ kind := application
 has_definition(#{ kind := application
                 , id := {module_info, 1} }, _) -> true;
 has_definition(#{ kind := application
+                , id := {Module, module_info, Arity}
+                }, _) when Arity =:= 0; Arity =:= 1 ->
+  {ok, []} =/= els_dt_document_index:lookup(Module);
+has_definition(#{ kind := application
                 , id := {record_info, 2} }, _) -> true;
 has_definition(#{ kind := application
                 , id := {behaviour_info, 1} }, _) -> true;
