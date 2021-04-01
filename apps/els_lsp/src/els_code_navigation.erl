@@ -164,7 +164,7 @@ find_in_document([Uri|Uris0], Document, Kind, Data, AlreadyVisited) ->
           find(lists:usort(include_uris(Document) ++ Uris0), Kind, Data,
                AlreadyVisited);
         {error, Other} ->
-          ?LOG_INFO("find_in_document: [{Uri, error}]", [{Uri, Other}]),
+          ?LOG_INFO("find_in_document: [uri=~p] [error=~p]", [Uri, Other]),
           {error, not_found}
       end;
     Definitions ->
