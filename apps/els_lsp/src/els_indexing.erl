@@ -105,6 +105,7 @@ index_references(#{uri := Uri} = Document, 'deep', false) ->
                                          , macro
                                          , record_expr
                                          , type_application
+                                         , import_entry
                                          ]),
   [register_reference(Uri, POI) || POI <- POIs],
   ok;
@@ -158,6 +159,7 @@ register_reference(Uri, #{kind := Kind, id := Id, range := Range})
        %% Function
        Kind =:= application;
        Kind =:= implicit_fun;
+       Kind =:= import_entry;
        %% Type
        Kind =:= type_application;
        %% Behaviour
