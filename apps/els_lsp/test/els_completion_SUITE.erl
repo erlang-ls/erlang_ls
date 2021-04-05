@@ -369,6 +369,10 @@ macros(Config) ->
                 , label => <<"macro_A">>
                 , data => #{}
                 }
+             , #{ kind => ?COMPLETION_ITEM_KIND_CONSTANT
+                , label => <<"MACRO_FOR_TRANSITIVE_INCLUSION">>
+                , data => #{}
+                }
              ],
 
   #{result := Completion1} =

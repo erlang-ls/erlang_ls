@@ -518,7 +518,9 @@ include_file_pois(Name, Kinds) ->
   case els_utils:find_header(H) of
     {ok, Uri} ->
       {ok, IncludeDocument} = els_utils:lookup_document(Uri),
-      els_dt_document:pois(IncludeDocument, Kinds);
+      %% NB: Recursive call to support includes in the include file
+      IncludedInHeader = lists:flatten(included_pois(IncludeDocument, Kinds)),
+      els_dt_document:pois(IncludeDocument, Kinds) ++ IncludedInHeader;
     {error, _} ->
       []
   end.

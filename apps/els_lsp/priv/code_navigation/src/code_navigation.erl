@@ -8,7 +8,7 @@
 -export([ callback_a/0 ]).
 
 -import(code_navigation_extra, [ do/1 ]).
-
+-include("transitive.hrl").
 -include("code_navigation.hrl").
 -include_lib("code_navigation/include/code_navigation.hrl").
 -include_lib("stdlib/include/assert.hrl").
