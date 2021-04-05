@@ -50,6 +50,9 @@ workspace_edits(Uri, [#{kind := variable} = POI| _], NewName) ->
   #{changes => changes(Uri, POI, NewName)};
 workspace_edits(Uri, [#{kind := function} = POI| _], NewName) ->
   #{changes => changes(Uri, POI, NewName)};
+workspace_edits(Uri, [#{kind := function_clause} = POI| _], NewName) ->
+  #{id := {F, A, _}} = POI,
+  #{changes => changes(Uri, POI#{kind => function, id => {F, A}}, NewName)};
 workspace_edits(Uri, [#{kind := 'define'} = POI| _], NewName) ->
   #{changes => changes(Uri, POI, NewName)};
 workspace_edits(Uri, [#{kind := 'macro'} = POI| _], NewName) ->
