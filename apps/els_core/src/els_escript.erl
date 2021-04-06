@@ -182,17 +182,21 @@ epp_open(File, Fd, StartLine, IncludePath, PreDefMacros) ->
         true ->
             epp:open(File, Fd, StartLine, IncludePath, PreDefMacros);
         false ->
-            epp:open([{fd, Fd}, {name, File}, {location, StartLine},
-                      {includes, IncludePath}, {macros, PreDefMacros}])
+            epp_open24(File, Fd, StartLine, IncludePath, PreDefMacros)
     end.
 -else.
 %% This is compiled with 24 or later, so has no chance of working
 %% with earlier releases that 24 so we can just use the new way of
 %% opening an escript.
 epp_open(File, Fd, StartLine, IncludePath, PreDefMacros) ->
+    epp_open24(File, Fd, StartLine, IncludePath, PreDefMacros).
+-endif.
+
+%% Extracted out in order to not break dont_repeat_yourself rule
+-spec epp_open24(_, _, pos_integer(), _, _) -> {ok, term()}.
+epp_open24(File, Fd, StartLine, IncludePath, PreDefMacros) ->
     epp:open([{fd, Fd}, {name, File}, {location, StartLine},
               {includes, IncludePath}, {macros, PreDefMacros}]).
--endif.
 
 
 
