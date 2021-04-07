@@ -159,6 +159,6 @@ pois(Item, Kinds) ->
 -spec get_element_at_pos(item(), non_neg_integer(), non_neg_integer()) ->
   [poi()].
 get_element_at_pos(Item, Line, Column) ->
-  POIs = maps:get(pois, Item),
+  POIs = pois(Item),
   MatchedPOIs = els_poi:match_pos(POIs, {Line, Column}),
   els_poi:sort(MatchedPOIs).

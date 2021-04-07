@@ -149,17 +149,7 @@ parse_source(S, File, Fd, StartLine, HeaderSz) ->
   _ = io:get_line(Fd, ''),
   Encoding = epp:set_encoding(Fd),
   {ok, _} = file:position(Fd, HeaderSz),
-  {ok, Epp} =
-        case erlang:function_exported(epp, open, 5) of
-            true ->
-                %% Pre OTP-24 function to call for escripts
-                %% Done via apply in order to silence dialyzer
-                apply(epp, open, [File, Fd, StartLine,
-                                  IncludePath, PreDefMacros]);
-            false ->
-                epp:open([{fd, Fd}, {name, File}, {location, StartLine},
-                          {includes, IncludePath}, {macros, PreDefMacros}])
-        end,
+  {ok, Epp} = epp_open(File, Fd, StartLine, IncludePath, PreDefMacros),
   _ = [io:setopts(Fd, [{encoding, Encoding}]) || Encoding =/= none],
   {ok, FileForm} = epp:parse_erl_form(Epp),
   OptModRes = epp:parse_erl_form(Epp),
@@ -180,6 +170,37 @@ parse_source(S, File, Fd, StartLine, HeaderSz) ->
   ok = epp:close(Epp),
   ok = file:close(Fd),
   check_source(S2).
+
+-spec epp_open(_, _, pos_integer(), _, _) -> {ok, term()}.
+-if(?OTP_RELEASE < 24).
+%% If the environment used to compile is < 24 we should test
+%% if the eep:open/5 function is available, and if it is we use that.
+%% We to the check as we want the a version compiled with 23 to
+%% work with 24.
+epp_open(File, Fd, StartLine, IncludePath, PreDefMacros) ->
+    case erlang:function_exported(epp, open, 5) of
+        true ->
+            epp:open(File, Fd, StartLine, IncludePath, PreDefMacros);
+        false ->
+            epp_open24(File, Fd, StartLine, IncludePath, PreDefMacros)
+    end.
+-else.
+%% This is compiled with 24 or later, so has no chance of working
+%% with earlier releases that 24 so we can just use the new way of
+%% opening an escript.
+epp_open(File, Fd, StartLine, IncludePath, PreDefMacros) ->
+    epp_open24(File, Fd, StartLine, IncludePath, PreDefMacros).
+-endif.
+
+%% Extracted out in order to not break dont_repeat_yourself rule
+-spec epp_open24(_, _, pos_integer(), _, _) -> {ok, term()}.
+epp_open24(File, Fd, StartLine, IncludePath, PreDefMacros) ->
+    %% We use apply in order to fool dialyzer not not analyze this path
+    apply(epp, open,
+          [[{fd, Fd}, {name, File}, {location, StartLine},
+            {includes, IncludePath}, {macros, PreDefMacros}]]).
+
+
 
 -spec check_source(state()) -> state().
 check_source(S) ->

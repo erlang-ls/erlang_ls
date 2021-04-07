@@ -27,9 +27,9 @@ range({{Line, Column}, {ToLine, ToColumn}}, Name, _, _Data)
   when Name =:= folding_range;
        Name =:= spec ->
   %% -1 as we include the "-" before spec.
-  From = {Line, Column - 1},
+  From = {Line, Column},
   %% +1 as we include the . after the spec
-  To = {ToLine, ToColumn - 1 + 1},
+  To = {ToLine, ToColumn + 1},
   #{ from => From, to => To };
 range({{_Line, _Column} = From, {_ToLine, _ToColumn} = To}, Name, _, _Data)
   when Name =:= export;
@@ -46,12 +46,10 @@ range({_Line, _Column} = From, atom, Name, _Data) ->
   #{ from => From, to => To };
 range({Line, Column}, application, {_, F, A}, #{imported := true} = Data) ->
   range({Line, Column}, application, {F, A}, Data);
-range({Line, Column}, application, {M, F, _A}, _Data) ->
-  %% Column indicates the position of the :
-  CFrom = Column - string:length(atom_to_string(M)),
-  From = {Line, CFrom},
+range({Line, Column} = From, application, {M, F, _A}, _Data) ->
   %% module:function
-  CTo = Column + string:length(atom_to_string(F)) + 1,
+  CTo = Column + string:length(atom_to_string(M)) +
+        string:length(atom_to_string(F)) + 1,
   To = {Line, CTo},
   #{ from => From, to => To };
 range({Line, Column}, application, {F, _A}, _Data) ->

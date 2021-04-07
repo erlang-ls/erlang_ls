@@ -89,7 +89,9 @@ find_attribute_pois(Tree, Tokens) ->
           [ poi(Pos, import_entry, {M, F, A})
             || {{F, A}, {atom, Pos, _}} <- lists:zip(Imports, Atoms)];
         {spec, {spec, {{F, A}, _FTs}}} ->
-          From = erl_syntax:get_pos(Tree),
+          %% This location has to match that of spec in
+          %% find_attribute_tokens/1
+          From = erl_scan:location(hd(Tokens)),
           To   = erl_scan:location(lists:last(Tokens)),
           [poi({From, To}, spec, {F, A})];
         {export_type, {export_type, Exports}} ->
@@ -138,7 +140,7 @@ analyze_attribute(Tree) ->
       [ArgTuple] = erl_syntax:attribute_arguments(Tree),
       [TypeTree, _, ArgsListTree] = erl_syntax:tuple_elements(ArgTuple),
       Definition = [], %% ignore definition
-      %% concrete will throw an error if `TyperTree' is a macro
+      %% concrete will throw an error if `TypeTree' is a macro
       try erl_syntax:concrete(TypeTree) of
         TypeName ->
           {AttrName, {AttrName, {TypeName,
@@ -220,25 +222,37 @@ do_points_of_interest(Tree, EndLocation) ->
 application(Tree) ->
   case application_mfa(Tree) of
     undefined -> [];
-    {F, A} ->
-      Pos = erl_syntax:get_pos(Tree),
+    {{F, A}, Pos} ->
       case erl_internal:bif(F, A) of
         %% Call to a function from the `erlang` module
         true -> [poi(Pos, application, {erlang, F, A}, #{imported => true})];
         %% Local call
         false -> [poi(Pos, application, {F, A})]
       end;
-    MFA ->
-      [poi(erl_syntax:get_pos(Tree), application, MFA)]
+    {MFA, Pos} ->
+      [poi(Pos, application, MFA)]
   end.
 
 -spec application_mfa(tree()) ->
-  {module(), atom(), arity()} | {atom(), arity()} | undefined.
+  {{module(), atom(), arity()}, pos()} | {{atom(), arity()}, pos()} | undefined.
 application_mfa(Tree) ->
   case erl_syntax_lib:analyze_application(Tree) of
     %% Remote call
-    {M, {F, A}} -> {M, F, A};
-    {F, A} -> {F, A};
+    {M, {F, A}} ->
+          %% For remote calls we use the column position of the
+          %% module part. In OTP-24+ this is the same as doing
+          %% erl_syntax:get_pos(Tree), but in OTP-23 and earlier
+          %% the position of the tree is the ':' of the application.
+          Operator = erl_syntax:application_operator(Tree),
+          Pos = case erl_syntax:type(Operator) of
+                    module_qualifier ->
+                        erl_syntax:get_pos(
+                          erl_syntax:module_qualifier_argument(Operator));
+                    _ ->
+                        erl_syntax:get_pos(Tree)
+                end,
+          {{M, F, A}, Pos};
+    {F, A} -> {{F, A}, erl_syntax:get_pos(Tree)};
     A when is_integer(A) ->
       %% If the function is not explicitly named (e.g. a variable is
       %% used as the module qualifier or the function name), only the
@@ -265,7 +279,7 @@ application_with_variable(Operator, A) ->
       ModuleName   = node_name(Module),
       FunctionName = node_name(Function),
       case {ModuleName, FunctionName} of
-        {'MODULE', F} -> {F, A};
+        {'MODULE', F} -> {{F, A}, erl_syntax:get_pos(Module)};
         _ -> undefined
       end;
     _ -> undefined

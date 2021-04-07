@@ -67,7 +67,11 @@ groups() ->
 
 -spec init_per_suite(config()) -> config().
 init_per_suite(Config) ->
-  els_test_utils:init_per_suite(Config).
+  %% If epp:open/5 is exported we know that columns are not
+  %% returned by the compiler warnings and errors.
+  %% Should find a better heuristic for this.
+  [{columns, not erlang:function_exported(epp, open, 5)} |
+   els_test_utils:init_per_suite(Config)].
 
 -spec end_per_suite(config()) -> ok.
 end_per_suite(Config) ->
@@ -190,20 +194,23 @@ compiler(Config) ->
   ?assertEqual(2, length(Warnings)),
   ?assertEqual(3, length(Errors)),
   WarningRanges = [ Range || #{range := Range} <- Warnings],
-  ExpectedWarningRanges = [ #{'end' => #{character => 0, line => 7},
-                              start => #{character => 0, line => 6}}
-                          , #{'end' => #{character => 35, line => 3},
-                              start => #{character => 0, line => 3}}
-                          ],
+  ExpectedWarningRanges =
+        fixcolumns(
+          [ #{'end' => #{character => 4, line => 6}
+             , start => #{character => 0, line => 6}}], Config) ++
+        [#{'end' => #{character => 35, line => 3},
+           start => #{character => 0, line => 3}}
+        ],
   ?assertEqual(ExpectedWarningRanges, WarningRanges),
   ErrorRanges = [ Range || #{range := Range} <- Errors],
-  ExpectedErrorRanges = [ #{'end' => #{character => 35, line => 3},
-                            start => #{character => 0, line => 3}},
-                          #{'end' => #{character => 35, line => 3},
-                            start => #{character => 0, line => 3}},
-                          #{'end' => #{character => 0, line => 6},
-                            start => #{character => 0, line => 5}}
-                        ],
+  ExpectedErrorRanges =
+        [ #{'end' => #{character => 35, line => 3}
+           , start => #{character => 0,  line => 3}},
+          #{'end' => #{character => 35, line => 3}
+           , start => #{character => 0,  line => 3}}] ++
+        fixcolumns(
+          [ #{'end' => #{character => 44, line => 5}
+             , start => #{character => 30, line => 5}}], Config),
   ?assertEqual(ExpectedErrorRanges, ErrorRanges),
   ok.
 
@@ -217,11 +224,13 @@ compiler_with_behaviour(Config) ->
   Warnings = [D || #{severity := ?DIAGNOSTIC_WARNING} = D <- Diagnostics],
   ?assertEqual(2, length(Warnings)),
   ErrorRanges = [ Range || #{range := Range} <- Warnings],
-  ExpectedErrorRanges = [ #{ 'end' => #{character => 0, line => 3}
-                           , start => #{character => 0, line => 2}}
-                        , #{ 'end' => #{character => 0, line => 3}
-                           , start => #{character => 0, line => 2}}
-                        ],
+  ExpectedErrorRanges =
+        fixcolumns(
+          [#{ 'end' => #{character => 34, line => 2}
+            , start => #{character => 0, line => 2}},
+           #{ 'end' => #{character => 34, line => 2}
+            , start => #{character => 0, line => 2}}],
+          Config),
   ?assertEqual(ExpectedErrorRanges, ErrorRanges),
   ok.
 
@@ -239,18 +248,19 @@ compiler_with_broken_behaviour(Config) ->
   ?assertEqual(6, length(Errors)),
   [BehaviourError | _ ] = Errors,
   ExpectedError =
-    #{message =>
-        <<"Issue in included file (5): syntax error before: ">>,
-      range =>
-        #{'end' => #{character => 24, line => 2},
-          start => #{character => 0, line => 2}},
-      severity => 1,
-      source => <<"Compiler">>},
+        #{message =>
+              <<"Issue in included file (5): syntax error before: ">>
+         , range =>
+              #{'end' => #{character => 24, line => 2}
+               , start => #{character => 0, line => 2}}
+         , severity => 1
+         , source => <<"Compiler">>},
   ?assertEqual(ExpectedError, BehaviourError),
   ok.
 
 -spec compiler_with_custom_macros(config()) -> ok.
 compiler_with_custom_macros(Config) ->
+  %% This test uses priv/code_navigation/erlang_ls.config to define some macros.
   Uri = ?config(diagnostics_macros_uri, Config),
   els_mock_diagnostics:subscribe(),
   ok = els_client:did_save(Uri),
@@ -258,11 +268,21 @@ compiler_with_custom_macros(Config) ->
   ?assertEqual(1, length(Diagnostics)),
   Errors   = [D || #{severity := ?DIAGNOSTIC_ERROR}   = D <- Diagnostics],
   ?assertEqual(1, length(Errors)),
-  ErrorRanges = [ Range || #{range := Range} <- Errors],
-  ExpectedErrorRanges = [ #{ 'end' => #{character => 0, line => 9}
-                           , start => #{character => 0, line => 8}}
-                        ],
-  ?assertEqual(ExpectedErrorRanges, ErrorRanges),
+  [ErrorRange] = [ Range || #{range := Range} <- Errors],
+  ExpectedErrorRange =
+        case ?config(columns, Config) of
+            true ->
+                %% diagnostic_macro has a spec with no '.' at the end
+                %% which causes the poi for the spec to becomes the
+                %% entire spec + function. So this range here is 8
+                %% lines long.
+                #{ 'end' => #{character => 6, line => 10},
+                    start => #{character => 0, line => 2}};
+            false ->
+                #{ 'end' => #{character => 0, line => 9},
+                    start => #{character => 0, line => 8}}
+        end,
+  ?assertEqual(ExpectedErrorRange, ErrorRange),
   ok.
 
 -spec compiler_with_parse_transform(config()) -> ok.
@@ -277,9 +297,10 @@ compiler_with_parse_transform(Config) ->
   Warnings = [D || #{severity := ?DIAGNOSTIC_WARNING} = D <- Diagnostics],
   ?assertEqual(1, length(Warnings)),
   WarningRanges = [ Range || #{range := Range} <- Warnings],
-  ExpectedWarningsRanges = [ #{ 'end' => #{character => 0, line => 7}
-                              , start => #{character => 0, line => 6}}
-                           ],
+  ExpectedWarningsRanges = fixcolumns(
+                             [ #{ 'end' => #{character => 9, line => 6}
+                                , start => #{character => 5, line => 6}}
+                             ], Config),
   ?assertEqual(ExpectedWarningsRanges, WarningRanges),
   ok.
 
@@ -295,9 +316,10 @@ compiler_with_parse_transform_list(Config) ->
   Warnings = [D || #{severity := ?DIAGNOSTIC_WARNING} = D <- Diagnostics],
   ?assertEqual(1, length(Warnings)),
   WarningRanges = [ Range || #{range := Range} <- Warnings],
-  ExpectedWarningsRanges = [ #{ 'end' => #{character => 0, line => 7}
-                              , start => #{character => 0, line => 6}}
-                           ],
+  ExpectedWarningsRanges = fixcolumns(
+                             [ #{ 'end' => #{character => 9, line => 6}
+                                , start => #{character => 5, line => 6}}
+                             ], Config),
   ?assertEqual(ExpectedWarningsRanges, WarningRanges),
   ok.
 
@@ -313,11 +335,13 @@ compiler_with_parse_transform_included(Config) ->
   Warnings = [D || #{severity := ?DIAGNOSTIC_WARNING} = D <- Diagnostics],
   ?assertEqual(2, length(Warnings)),
   WarningRanges = [ Range || #{range := Range} <- Warnings],
-  ExpectedWarningsRanges = [ #{ 'end' => #{character => 0, line => 7}
-                              , start => #{character => 0, line => 6}}
-                           , #{ 'end' => #{character => 32, line => 4}
-                              , start => #{character => 0, line => 4}}
-                           ],
+  ExpectedWarningsRanges =
+        fixcolumns(
+          [ #{ 'end' => #{character => 9, line => 6}
+             , start => #{character => 5, line => 6}}], Config) ++
+        [#{ 'end' => #{character => 32, line => 4}
+          , start => #{character => 0, line => 4}}
+        ],
   ?assertEqual(ExpectedWarningsRanges, WarningRanges),
   ok.
 
@@ -352,8 +376,10 @@ compiler_with_parse_transform_deps(Config) ->
   Errors = [D || #{severity := ?DIAGNOSTIC_ERROR} = D <- Diagnostics],
   ?assertEqual(0, length(Errors)),
   WarningsRanges = [ Range || #{range := Range} <- Warnings],
-  ExpectedWarningsRanges = [#{'end' => #{character => 0, line => 5},
-                              start => #{character => 0, line => 4}}],
+  ExpectedWarningsRanges = fixcolumns(
+                             [#{'end' => #{character => 6, line => 4},
+                                start => #{character => 0, line => 4}}],
+                             Config),
   ?assertEqual(ExpectedWarningsRanges, WarningsRanges),
   ok.
 
@@ -506,16 +532,6 @@ code_reload_sticky_mod(Config) ->
   ?assertNot(meck:called(rpc, call, [NodeName, c, c, [Module]])),
   ok.
 
--spec do_crossref_test(config(), atom(), [map()]) -> ok.
-do_crossref_test(Config, TestModule, ExpectedDiagnostics) ->
-  Uri = ?config(TestModule, Config),
-  els_mock_diagnostics:subscribe(),
-  ok = els_client:did_save(Uri),
-  Diagnostics = els_mock_diagnostics:wait_until_complete(),
-  F = fun(#{message := M1}, #{message := M2}) -> M1 =< M2 end,
-  ?assertEqual(ExpectedDiagnostics, lists:sort(F, Diagnostics)),
-  ok.
-
 -spec crossref(config()) -> ok.
 crossref(Config) ->
   Expected = [ #{ message =>
@@ -531,17 +547,29 @@ crossref(Config) ->
                      , start => #{character => 2, line => 6}}
                 , severity => 1
                 , source => <<"CrossRef">>
-                }
-             , #{ message =>
-                    <<"function non_existing/0 undefined">>
-                , range =>
-                    #{ 'end' => #{character => 0, line => 7}
-                     , start => #{character => 0, line => 6}}
-                , severity => 1
-                , source => <<"Compiler">>
-                }
-             ],
+                }] ++
+             fixcolumns(
+               [#{ message =>
+                       <<"function non_existing/0 undefined">>
+                 , range =>
+                       #{ 'end' => #{character => 14, line => 6}
+                        , start => #{character => 2, line => 6}}
+                 , severity => 1
+                 , source => <<"Compiler">>
+                 }
+               ], Config),
   do_crossref_test(Config, diagnostics_xref_uri, Expected).
+
+
+-spec do_crossref_test(config(), atom(), [map()]) -> ok.
+do_crossref_test(Config, TestModule, ExpectedDiagnostics) ->
+  Uri = ?config(TestModule, Config),
+  els_mock_diagnostics:subscribe(),
+  ok = els_client:did_save(Uri),
+  Diagnostics = els_mock_diagnostics:wait_until_complete(),
+  F = fun(#{message := M1}, #{message := M2}) -> M1 =< M2 end,
+  ?assertEqual(ExpectedDiagnostics, lists:sort(F, Diagnostics)),
+  ok.
 
 %% #641
 -spec crossref_pseudo_functions(config()) -> ok.
@@ -570,19 +598,28 @@ crossref_pseudo_functions(Config) ->
 %% #860
 -spec crossref_autoimport(config()) -> ok.
 crossref_autoimport(Config) ->
+
+  %% This testcase cannot be run from an Erlang source tree version,
+  %% it needs a released version.
+
   Expected = [],
   do_crossref_test(Config, diagnostics_autoimport_uri, Expected).
 
 %% #860
 -spec crossref_autoimport_disabled(config()) -> ok.
 crossref_autoimport_disabled(Config) ->
+
+  %% This testcase cannot be run from an Erlang source tree version,
+  %% it needs a released version.
+
   Expected =
-    [#{message =>
+    fixcolumns(
+      [#{message =>
          <<"function atom_to_list/1 undefined">>,
        range =>
-         #{'end' => #{character => 0, line => 7},
-           start => #{character => 0, line => 6}},
-       severity => 1, source => <<"Compiler">>}],
+         #{'end' => #{character => 22, line => 6},
+           start => #{character => 4, line => 6}},
+       severity => 1, source => <<"Compiler">>}], Config),
   do_crossref_test(Config, diagnostics_autoimport_disabled_uri, Expected).
 
 -spec unused_includes(config()) -> ok.
@@ -634,6 +671,30 @@ unused_macros(Config) ->
 %%==============================================================================
 %% Internal Functions
 %%==============================================================================
+
+-spec fixcolumns([range()], config()) -> [range()].
+fixcolumns(Ranges, Config) ->
+    case ?config(columns, Config) of
+        true ->
+            Ranges;
+        _ ->
+            lists:map(
+              fun F(#{ start := #{ character := StartCol
+                                 , line := StartLine }
+                     , 'end' := #{ character := EndCol
+                                 , line := EndLine }
+                     } = Range)
+                    when EndCol =/= 0; StartCol =/= 0 ->
+                      Range#{ 'end' => #{ character => 0
+                                        , line => EndLine + 1 },
+                              start => #{ character => 0
+                                        , line => StartLine } };
+                  F(#{ range := Range } = Message) ->
+                      Message#{ range := F(Range) };
+                  F(Range) ->
+                      Range
+              end, Ranges)
+    end.
 
 mock_rpc() ->
   meck:new(rpc, [passthrough, no_link, unstick]),

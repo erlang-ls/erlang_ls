@@ -313,7 +313,8 @@ macro(Config) ->
 spec(Config) ->
   Uri = ?config(code_navigation_uri, Config),
   #{result := Locations} = els_client:document_highlight(Uri, 55, 11),
-  ExpectedLocations = [ #{range => #{from => {55, 1}, to => {55, 64}}}
+  %% The entire "-spec ... ." is part of the poi range
+  ExpectedLocations = [ #{range => #{from => {55, 1}, to => {55, 65}}}
                       ],
   assert_locations(ExpectedLocations, Locations),
   ok.
@@ -344,10 +345,20 @@ callback(Config) ->
 assert_locations(null, null) ->
   ok;
 assert_locations(ExpectedLocations, Locations) ->
-  ExpectedProtoLocs = lists:sort(protocol_ranges(ExpectedLocations)),
-  SortedLocations = lists:sort(Locations),
-  ct:log("ExpectedLocations:~n ~p~nLocations:~n ~p~n",
-         [ExpectedProtoLocs, SortedLocations]),
+  SortFun = fun(#{ range := #{ start := #{ line := StartLineA,
+                                           character := StartCharA },
+                               'end' := #{ line := EndLineA,
+                                           character := EndCharA } } },
+                #{ range := #{ start := #{ line := StartLineB,
+                                           character := StartCharB },
+                               'end' := #{ line := EndLineB,
+                                           character := EndCharB } } }) ->
+                    {{StartLineA, StartCharA}, {EndLineA, EndCharA}}
+                        =<
+                    {{StartLineB, StartCharB}, {EndLineB, EndCharB}}
+            end,
+  ExpectedProtoLocs = lists:sort(SortFun, protocol_ranges(ExpectedLocations)),
+  SortedLocations = lists:sort(SortFun, Locations),
   ?assertEqual(length(ExpectedLocations), length(Locations)),
   Pairs = lists:zip(SortedLocations, ExpectedProtoLocs),
   [ begin

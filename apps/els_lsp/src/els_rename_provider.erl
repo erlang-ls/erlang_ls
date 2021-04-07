@@ -101,16 +101,16 @@ workspace_edits(_Uri, _POIs, _NewName) ->
 -spec editable_range(poi()) -> range().
 editable_range(#{kind := callback, range := Range}) ->
   #{ from := {FromL, FromC} } = Range,
-  EditFromC = FromC + length("-callback "),
+  EditFromC = FromC + string:length("-callback "),
   els_protocol:range(Range#{ from := {FromL, EditFromC } });
 editable_range(#{kind := export_entry, id := {F, _A}, range := Range}) ->
   #{ from := {FromL, FromC} } = Range,
-  EditToC = FromC + length(atom_to_string(F)),
+  EditToC = FromC + string:length(atom_to_string(F)),
   els_protocol:range(Range#{ to := {FromL, EditToC} });
 editable_range(#{kind := spec, id := {F, _A}, range := Range}) ->
   #{ from := {FromL, FromC}, to := {_ToL, _ToC} } = Range,
-  EditFromC = FromC + length("-spec "),
-  EditToC = EditFromC + length(atom_to_string(F)),
+  EditFromC = FromC + string:length("-spec "),
+  EditToC = EditFromC + string:length(atom_to_string(F)),
   els_protocol:range(Range#{ from := {FromL, EditFromC}
                            , to := {FromL, EditToC} });
 editable_range(#{kind := implicit_fun, id := {M, F, _A}, range := Range}) ->
@@ -141,7 +141,7 @@ editable_range(#{kind := _Kind, range := Range}) ->
 -spec editable_range(poi_kind(), els_dt_references:item()) -> range().
 editable_range(macro, #{range := Range}) ->
   #{ from := {FromL, FromC} } = Range,
-  EditFromC = FromC + length("?"),
+  EditFromC = FromC + string:length("?"),
   els_protocol:range(Range#{ from := {FromL, EditFromC} }).
 
 -spec changes(uri(), poi(), binary()) -> #{uri() => [text_edit()]} | null.
