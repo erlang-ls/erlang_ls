@@ -195,8 +195,10 @@ epp_open(File, Fd, StartLine, IncludePath, PreDefMacros) ->
 %% Extracted out in order to not break dont_repeat_yourself rule
 -spec epp_open24(_, _, pos_integer(), _, _) -> {ok, term()}.
 epp_open24(File, Fd, StartLine, IncludePath, PreDefMacros) ->
-    epp:open([{fd, Fd}, {name, File}, {location, StartLine},
-              {includes, IncludePath}, {macros, PreDefMacros}]).
+    %% We use apply in order to fool dialyzer not not analyze this path
+    apply(epp, open,
+          [[{fd, Fd}, {name, File}, {location, StartLine},
+            {includes, IncludePath}, {macros, PreDefMacros}]]).
 
 
 
