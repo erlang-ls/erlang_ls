@@ -438,6 +438,7 @@ erlfmt_to_st(Node) ->
 
 %% assuming erl_parse format, compatible with erl_syntax
 %% TODO: should convert erlfmt anno to erl_syntax pos+annotation
+-spec erlfmt_to_st_1(_) -> any().
 erlfmt_to_st_1(Node) ->
     case erl_syntax:subtrees(Node) of
         [] ->
@@ -449,6 +450,7 @@ erlfmt_to_st_1(Node) ->
             erl_syntax:update_tree(Node, Groups1)
     end.
 
+-spec erlfmt_subtrees_to_st([[any()]]) -> [[any()]].
 erlfmt_subtrees_to_st(Groups) ->
     [
         [
@@ -458,6 +460,7 @@ erlfmt_subtrees_to_st(Groups) ->
         || Group <- Groups
     ].
 
+-spec get_function_name(maybe_improper_list()) -> any().
 get_function_name([{clause, _, {call, _, Name, _}, _, _} | _]) ->
     %% take the name node of the first clause with a call shape
     %% TODO: this loses info if not all clauses have the same name
@@ -479,6 +482,7 @@ get_function_name([]) ->
 %%    and simple `catch` clauses without `:`.
 
 %% TODO: can we preserve CPos/APos annotations here somehow?
+-spec erlfmt_clause_to_st(_) -> any().
 erlfmt_clause_to_st({clause, Pos, empty, Guard, Body}) ->
     erlfmt_clause_to_st(Pos, [], Guard, Body);
 erlfmt_clause_to_st({clause, Pos, {call, _CPos, _, Args}, Guard, Body}) ->
@@ -502,6 +506,7 @@ erlfmt_clause_to_st(Other) ->
     %% might be a macro call
     erlfmt_to_st(Other).
 
+-spec erlfmt_clause_to_st(_,[any()],_,[any()]) -> any().
 erlfmt_clause_to_st(Pos, Patterns, Guard, Body) ->
     Groups = [
         Patterns,
@@ -514,6 +519,7 @@ erlfmt_clause_to_st(Pos, Patterns, Guard, Body) ->
 %% are introduced to support annotating guard sequences, instead of a plain
 %% nested list of lists structure.
 
+-spec erlfmt_guard_to_st(_) -> any().
 erlfmt_guard_to_st(empty) ->
     none;
 erlfmt_guard_to_st({guard_or, Pos, List}) ->
@@ -535,9 +541,11 @@ erlfmt_guard_to_st({guard_and, Pos, List}) ->
 erlfmt_guard_to_st(Other) ->
     erlfmt_to_st(Other).
 
+-spec fold_arity_qualifiers(_) -> any().
 fold_arity_qualifiers(Tree) ->
     erl_syntax_lib:map(fun fold_arity_qualifier/1, Tree).
 
+-spec fold_arity_qualifier(_) -> any().
 fold_arity_qualifier(Node) ->
     case erl_syntax:type(Node) of
         infix_expr ->
@@ -568,10 +576,12 @@ fold_arity_qualifier(Node) ->
             Node
     end.
 
+-spec dummy_anno() -> map().
 dummy_anno() ->
     erlfmt_anno(0).
 
 %% assumes that if the annotation is a map, it came from erlfmt_scan
+-spec erlfmt_anno(_) -> map().
 erlfmt_anno(Map) when is_map(Map) ->
     Map;
 erlfmt_anno(Line) ->
@@ -584,8 +594,10 @@ erlfmt_anno(Line) ->
 
 %% erlfmt ast utilities
 
+-spec get_anno(tuple()) -> any().
 get_anno(Node) ->
     element(2, Node).
 
+-spec set_anno(tuple(),map()) -> tuple().
 set_anno(Node, Loc) ->
     setelement(2, Node, Loc).
