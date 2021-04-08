@@ -50,7 +50,8 @@
                | root_uri
                | search_paths
                | code_reload
-               | elvis_config_path.
+               | elvis_config_path
+               | parse_transforms.
 
 -type path()  :: file:filename().
 -type state() :: #{ apps_dirs        => [path()]
@@ -68,6 +69,7 @@
                   , root_uri         => uri()
                   , search_paths     => [path()]
                   , code_reload      => map() | 'disabled'
+                  , parse_transforms => [string()]
                   }.
 
 %%==============================================================================
@@ -106,6 +108,7 @@ do_initialize(RootUri, Capabilities, {ConfigPath, Config}) ->
   ok = add_code_paths(CodePathExtraDirs, RootPath),
   ElvisConfigPath = maps:get("elvis_config_path", Config, undefined),
   BSPEnabled = maps:get("bsp_enabled", Config, false),
+  ParseTransforms = maps:get("parse_transforms", Config, []),
 
   %% Passed by the LSP client
   ok = set(root_uri       , RootUri),
@@ -125,6 +128,7 @@ do_initialize(RootUri, Capabilities, {ConfigPath, Config}) ->
                                     , CtRunTest)),
   ok = set(elvis_config_path, ElvisConfigPath),
   ok = set(bsp_enabled, BSPEnabled),
+  ok = set(parse_transforms, ParseTransforms),
   %% Calculated from the above
   ok = set(apps_paths     , project_paths(RootPath, AppsDirs, false)),
   ok = set(deps_paths     , project_paths(RootPath, DepsDirs, false)),
