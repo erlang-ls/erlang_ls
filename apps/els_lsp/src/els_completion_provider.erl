@@ -7,6 +7,7 @@
 
 -export([ handle_request/2
         , is_enabled/0
+        , trigger_characters/0
         ]).
 
 %% Exported to ease testing.
@@ -31,6 +32,10 @@
 -spec is_enabled() -> boolean().
 is_enabled() ->
   true.
+
+-spec trigger_characters() -> [binary()].
+trigger_characters() ->
+  [<<":">>, <<"#">>, <<"?">>, <<".">>, <<"-">>, <<"\"">>].
 
 -spec handle_request(els_provider:request(), state()) -> {any(), state()}.
 handle_request({completion, Params}, State) ->
@@ -118,6 +123,16 @@ find_completions( _Prefix
                , #{trigger := <<"#">>, document := Document}
                ) ->
   definitions(Document, record);
+find_completions( <<"-include_lib(">>
+                , ?COMPLETION_TRIGGER_KIND_CHARACTER
+                , #{trigger := <<"\"">>}
+                ) ->
+  [item_kind_file(Path) || Path <- paths_include_lib()];
+find_completions( <<"-include(">>
+                , ?COMPLETION_TRIGGER_KIND_CHARACTER
+                , #{trigger := <<"\"">>, document := Document}
+                ) ->
+  [item_kind_file(Path) || Path <- paths_include(Document)];
 find_completions( Prefix
                , ?COMPLETION_TRIGGER_KIND_CHARACTER
                , #{trigger := <<".">>, document := Document}
@@ -208,16 +223,6 @@ find_completions( Prefix
             ++ modules(NameBinary)
             ++ definitions(Document, POIKind, ExportFormat)
             ++ els_snippets_server:snippets()
-      end;
-    [] ->
-      %% Token parsing fails when triggering completion inside a string literal
-      case Prefix of
-        <<"-include_lib(\"">> ->
-          [item_kind_file(Path) || Path <- paths_include_lib()];
-        <<"-include(\"">> ->
-          [item_kind_file(Path) || Path <- paths_include(Document)];
-        _ ->
-          []
       end;
     Tokens ->
       ?LOG_DEBUG("No completion found. [prefix=~p] [tokens=~p]",
@@ -353,9 +358,9 @@ snippet(attribute_on_load) ->
 snippet(attribute_export_type) ->
   snippet(<<"-export_type().">>, <<"export_type([${1:}]).">>);
 snippet(attribute_include) ->
-  snippet(<<"-include().">>, <<"include(\"${1:}\").">>);
+  snippet(<<"-include().">>, <<"include(${1:}).">>);
 snippet(attribute_include_lib) ->
-  snippet(<<"-include_lib().">>, <<"include_lib(\"${1:}\").">>);
+  snippet(<<"-include_lib().">>, <<"include_lib(${1:}).">>);
 snippet(attribute_type) ->
   snippet(<<"-type name() :: definition.">>,
           <<"type ${1:name}() :: ${2:definition}.">>);

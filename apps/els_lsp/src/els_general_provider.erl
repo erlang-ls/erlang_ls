@@ -136,7 +136,7 @@ server_capabilities() ->
         , completionProvider =>
             #{ resolveProvider => true
              , triggerCharacters =>
-                 [<<":">>, <<"#">>, <<"?">>, <<".">>, <<"-">>]
+                 els_completion_provider:trigger_characters()
              }
         , definitionProvider =>
             els_definition_provider:is_enabled()
