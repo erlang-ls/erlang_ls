@@ -3,6 +3,7 @@
 -behaviour(els_provider).
 
 -include("els_lsp.hrl").
+-include_lib("kernel/include/logger.hrl").
 
 -export([ handle_request/2
         , is_enabled/0
@@ -18,6 +19,9 @@
                     , line     := line()
                     , column   := column()
                     }.
+
+-type items() :: [item()].
+-type item() :: completion_item().
 -type state() :: any().
 
 %%==============================================================================
@@ -81,7 +85,7 @@ resolve(#{ <<"kind">> := ?COMPLETION_ITEM_KIND_FUNCTION
 resolve(CompletionItem) ->
   CompletionItem.
 
--spec find_completions(binary(), integer(), options()) -> [any()].
+-spec find_completions(binary(), integer(), options()) -> items().
 find_completions( Prefix
                , ?COMPLETION_TRIGGER_KIND_CHARACTER
                , #{ trigger  := <<":">>
@@ -104,6 +108,11 @@ find_completions( _Prefix
                , #{trigger := <<"?">>, document := Document}
                ) ->
   definitions(Document, define);
+find_completions( _Prefix
+                , ?COMPLETION_TRIGGER_KIND_CHARACTER
+                , #{trigger := <<"-">>, document := _Document, column := 1}
+                ) ->
+  attributes();
 find_completions( _Prefix
                , ?COMPLETION_TRIGGER_KIND_CHARACTER
                , #{trigger := <<"#">>, document := Document}
@@ -162,6 +171,23 @@ find_completions( Prefix
     %% Check for "[...] Variable"
     [{var, _, _} | _] ->
       variables(Document);
+    %% Check for "-anything"
+    [{atom, _, _}, {'-', _}] ->
+      attributes();
+    %% Check for "-export(["
+    [{'[', _}, {'(', _}, {atom, _, export}, {'-', _}] ->
+      unexported_definitions(Document, function);
+    %% Check for "-export_type(["
+    [{'[', _}, {'(', _}, {atom, _, export_type}, {'-', _}] ->
+      unexported_definitions(Document, type_definition);
+    %% Check for "-behaviour(anything"
+    [{atom, _, _}, {'(', _}, {atom, _, Attribute}, {'-', _}]
+      when Attribute =:= behaviour; Attribute =:= behavior ->
+      [item_kind_module(Module) || Module <- behaviour_modules()];
+    %% Check for "-behaviour("
+    [{'(', _}, {atom, _, Attribute}, {'-', _}]
+      when Attribute =:= behaviour; Attribute =:= behavior ->
+      [item_kind_module(Module) || Module <- behaviour_modules()];
     %% Check for "[...] fun atom"
     [{atom, _, _}, {'fun', _} | _] ->
       bifs(function, ExportFormat = true)
@@ -183,11 +209,187 @@ find_completions( Prefix
             ++ definitions(Document, POIKind, ExportFormat)
             ++ els_snippets_server:snippets()
       end;
-    _ ->
+    [] ->
+      %% Token parsing fails when triggering completion inside a string literal
+      case Prefix of
+        <<"-include_lib(\"">> ->
+          [item_kind_file(Path) || Path <- paths_include_lib()];
+        <<"-include(\"">> ->
+          [item_kind_file(Path) || Path <- paths_include(Document)];
+        _ ->
+          []
+      end;
+    Tokens ->
+      ?LOG_DEBUG("No completion found. [prefix=~p] [tokens=~p]",
+                 [Prefix, Tokens]),
       []
   end;
 find_completions(_Prefix, _TriggerKind, _Opts) ->
   [].
+
+%%=============================================================================
+%% Attributes
+%%=============================================================================
+-spec attributes() -> items().
+attributes() ->
+  [ snippet(attribute_behaviour)
+  , snippet(attribute_callback)
+  , snippet(attribute_compile)
+  , snippet(attribute_define)
+  , snippet(attribute_dialyzer)
+  , snippet(attribute_export)
+  , snippet(attribute_export_type)
+  , snippet(attribute_if)
+  , snippet(attribute_ifdef)
+  , snippet(attribute_ifndef)
+  , snippet(attribute_import)
+  , snippet(attribute_include)
+  , snippet(attribute_include_lib)
+  , snippet(attribute_on_load)
+  , snippet(attribute_opaque)
+  , snippet(attribute_record)
+  , snippet(attribute_type)
+  , snippet(attribute_vsn)
+  ].
+
+%%=============================================================================
+%% Include paths
+%%=============================================================================
+-spec paths_include(els_dt_document:item()) -> [binary()].
+paths_include(#{uri := Uri}) ->
+  case match_in_path(els_uri:path(Uri), els_config:get(apps_paths)) of
+    [] ->
+      [];
+    [Path|_] ->
+      AppPath = filename:join(lists:droplast(filename:split(Path))),
+      {ok, Headers} = els_dt_document_index:find_by_kind(header),
+      lists:flatmap(
+        fun(#{uri := HeaderUri}) ->
+            case string:prefix(els_uri:path(HeaderUri), AppPath) of
+              nomatch ->
+                [];
+              IncludePath ->
+                [relative_include_path(IncludePath)]
+            end
+        end, Headers)
+  end.
+
+-spec paths_include_lib() -> [binary()].
+paths_include_lib() ->
+  Paths = els_config:get(otp_paths)
+    ++ els_config:get(deps_paths)
+    ++ els_config:get(apps_paths)
+    ++ els_config:get(include_paths),
+  {ok, Headers} = els_dt_document_index:find_by_kind(header),
+  lists:flatmap(
+    fun(#{uri := Uri}) ->
+        HeaderPath = els_uri:path(Uri),
+        case match_in_path(HeaderPath, Paths) of
+          [] ->
+            [];
+          [Path|_] ->
+            <<"/", PathSuffix/binary>> = string:prefix(HeaderPath, Path),
+            PathBin = unicode:characters_to_binary(Path),
+            case lists:reverse(filename:split(PathBin)) of
+              [<<"include">>, App | _] ->
+                [filename:join([ strip_app_version(App)
+                               , <<"include">>
+                               , PathSuffix])];
+              _ ->
+                []
+            end
+        end
+    end, Headers).
+
+-spec match_in_path(binary(), [binary()]) -> [binary()].
+match_in_path(DocumentPath, Paths) ->
+  [P || P <- Paths, string:prefix(DocumentPath, P) =/= nomatch].
+
+-spec relative_include_path(binary()) -> binary().
+relative_include_path(Path) ->
+  case filename:split(Path) of
+    [_App, <<"include">> | Rest] -> filename:join(Rest);
+    [_App, <<"src">> | Rest]     -> filename:join(Rest);
+    [_App, SubDir | Rest]        -> filename:join([<<"..">>, SubDir|Rest])
+  end.
+
+-spec strip_app_version(binary()) -> binary().
+strip_app_version(App0) ->
+  %% Transform "foo-1.0" into "foo"
+  case string:lexemes(App0, "-") of
+    []  -> App0;
+    [_] -> App0;
+    Lexemes ->
+      Vsn = lists:last(Lexemes),
+      case re:run(Vsn, "^[0-9.]+$", [global, {capture, none}]) of
+        match   -> list_to_binary(lists:join("-", lists:droplast(Lexemes)));
+        nomatch -> App0
+      end
+  end.
+
+-spec item_kind_file(binary()) -> item().
+item_kind_file(Path) ->
+  #{ label            => Path
+   , kind             => ?COMPLETION_ITEM_KIND_FILE
+   , insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+   }.
+
+%%==============================================================================
+%% Snippets
+%%==============================================================================
+-spec snippet(atom()) -> item().
+snippet(attribute_behaviour) ->
+  snippet(<<"-behaviour().">>, <<"behaviour(${1:Behaviour}).">>);
+snippet(attribute_export) ->
+  snippet(<<"-export().">>, <<"export([${1:}]).">>);
+snippet(attribute_vsn) ->
+  snippet(<<"-vsn(Version).">>, <<"vsn(${1:Version}).">>);
+snippet(attribute_callback) ->
+  snippet(<<"-callback name(Args) -> return().">>,
+          <<"callback ${1:name}(${2:Args}) -> ${3:return()}.">>);
+snippet(attribute_on_load) ->
+  snippet(<<"-on_load().">>,
+          <<"on_load(${1:Function}).">>);
+snippet(attribute_export_type) ->
+  snippet(<<"-export_type().">>, <<"export_type([${1:}]).">>);
+snippet(attribute_include) ->
+  snippet(<<"-include().">>, <<"include(\"${1:}\").">>);
+snippet(attribute_include_lib) ->
+  snippet(<<"-include_lib().">>, <<"include_lib(\"${1:}\").">>);
+snippet(attribute_type) ->
+  snippet(<<"-type name() :: definition.">>,
+          <<"type ${1:name}() :: ${2:definition}.">>);
+snippet(attribute_opaque) ->
+  snippet(<<"-opaque name() :: definition.">>,
+          <<"opaque ${1:name}() :: ${2:definition}.">>);
+snippet(attribute_ifdef) ->
+  snippet(<<"-ifdef().">>, <<"ifdef(${1:VAR}).\n${2:}\n-endif.">>);
+snippet(attribute_ifndef) ->
+  snippet(<<"-ifndef().">>, <<"ifndef(${1:VAR}).\n${2:}\n-endif.">>);
+snippet(attribute_if) ->
+  snippet(<<"-if().">>, <<"if(${1:Pred}).\n${2:}\n-endif.">>);
+snippet(attribute_define) ->
+  snippet(<<"-define().">>, <<"define(${1:MACRO}, ${2:Value}).">>);
+snippet(attribute_record) ->
+  snippet(<<"-record().">>,
+          <<"record(${1:name}, {${2:field} = ${3:Value} :: ${4:Type}()}).">>);
+snippet(attribute_import) ->
+  snippet(<<"-import().">>,
+          <<"import(${1:Module}, [${2:}]).">>);
+snippet(attribute_dialyzer) ->
+  snippet(<<"-dialyzer().">>,
+          <<"dialyzer(${1:}).">>);
+snippet(attribute_compile) ->
+  snippet(<<"-compile().">>,
+          <<"compile(${1:}).">>).
+
+-spec snippet(binary(), binary()) -> item().
+snippet(Label, InsertText) ->
+  #{ label => Label
+   , kind  => ?COMPLETION_ITEM_KIND_SNIPPET
+   , insertText => InsertText
+   , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+   }.
 
 %%==============================================================================
 %% Atoms
@@ -218,17 +420,37 @@ modules(Prefix) ->
   filter_by_prefix(Prefix, Modules,
                    fun atom_to_label/1, fun item_kind_module/1).
 
--spec item_kind_module(binary()) -> map().
+-spec item_kind_module(atom()) -> item().
 item_kind_module(Module) ->
   #{ label            => Module
    , kind             => ?COMPLETION_ITEM_KIND_MODULE
    , insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
    }.
 
+-spec behaviour_modules() -> [atom()].
+behaviour_modules() ->
+  {ok, Modules} = els_dt_document_index:find_by_kind(module),
+  OtpBehaviours = [ gen_event
+                  , gen_server
+                  , gen_statem
+                  , supervisor
+                  ],
+  Behaviours = [Id || #{id := Id, uri := Uri} <- Modules, is_behaviour(Uri)],
+  OtpBehaviours ++ Behaviours.
+
+-spec is_behaviour(uri()) -> boolean().
+is_behaviour(Uri) ->
+  case els_dt_document:lookup(Uri) of
+    {ok, [Document]} ->
+      [] =/= els_dt_document:pois(Document, [callback]);
+    _ ->
+      false
+  end.
+
 %%==============================================================================
 %% Functions, Types, Macros and Records
 %%==============================================================================
--spec unexported_definitions(els_dt_document:item(), poi_kind()) -> [map()].
+-spec unexported_definitions(els_dt_document:item(), poi_kind()) -> items().
 unexported_definitions(Document, POIKind) ->
   AllDefs      = definitions(Document, POIKind, true, false),
   ExportedDefs = definitions(Document, POIKind, true, true),
@@ -290,8 +512,12 @@ resolve_definition(_Uri, POI, ArityOnly) ->
 exported_definitions(Module, POIKind, ExportFormat) ->
   case els_utils:find_module(Module) of
     {ok, Uri} ->
-      {ok, Document} = els_utils:lookup_document(Uri),
-      definitions(Document, POIKind, ExportFormat, true);
+      case els_utils:lookup_document(Uri) of
+        {ok, Document} ->
+          definitions(Document, POIKind, ExportFormat, true);
+        {error, _} ->
+          []
+      end;
     {error, _Error} ->
       []
   end.
@@ -528,3 +754,20 @@ include_file_pois(Name, Kinds) ->
 -spec atom_to_label(atom()) -> binary().
 atom_to_label(Atom) when is_atom(Atom) ->
   unicode:characters_to_binary(io_lib:write(Atom)).
+
+%%==============================================================================
+%% Tests
+%%==============================================================================
+-ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
+
+strip_app_version_test() ->
+  ?assertEqual(<<"foo">>,         strip_app_version(<<"foo">>)),
+  ?assertEqual(<<"foo">>,         strip_app_version(<<"foo-1.2.3">>)),
+  ?assertEqual(<<"">>,            strip_app_version(<<"">>)),
+  ?assertEqual(<<"foo-bar">>,     strip_app_version(<<"foo-bar">>)),
+  ?assertEqual(<<"foo-bar">>,     strip_app_version(<<"foo-bar-1.2.3">>)),
+  ?assertEqual(<<"foo-bar-baz">>, strip_app_version(<<"foo-bar-baz">>)),
+  ?assertEqual(<<"foo-bar-baz">>, strip_app_version(<<"foo-bar-baz-1.2.3">>)).
+
+-endif.
