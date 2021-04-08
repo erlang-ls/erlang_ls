@@ -7,6 +7,7 @@
 
 -export([ handle_request/2
         , is_enabled/0
+        , trigger_characters/0
         ]).
 
 %% Exported to ease testing.
@@ -31,6 +32,10 @@
 -spec is_enabled() -> boolean().
 is_enabled() ->
   true.
+
+-spec trigger_characters() -> [binary()].
+trigger_characters() ->
+  [<<":">>, <<"#">>, <<"?">>, <<".">>, <<"-">>, <<"\"">>].
 
 -spec handle_request(els_provider:request(), state()) -> {any(), state()}.
 handle_request({completion, Params}, State) ->
@@ -118,6 +123,16 @@ find_completions( _Prefix
                , #{trigger := <<"#">>, document := Document}
                ) ->
   definitions(Document, record);
+find_completions( <<"-include_lib(">>
+                , ?COMPLETION_TRIGGER_KIND_CHARACTER
+                , #{trigger := <<"\"">>}
+                ) ->
+  [item_kind_file(Path) || Path <- paths_include_lib()];
+find_completions( <<"-include(">>
+                , ?COMPLETION_TRIGGER_KIND_CHARACTER
+                , #{trigger := <<"\"">>, document := Document}
+                ) ->
+  [item_kind_file(Path) || Path <- paths_include(Document)];
 find_completions( Prefix
                , ?COMPLETION_TRIGGER_KIND_CHARACTER
                , #{trigger := <<".">>, document := Document}
@@ -208,16 +223,6 @@ find_completions( Prefix
             ++ modules(NameBinary)
             ++ definitions(Document, POIKind, ExportFormat)
             ++ els_snippets_server:snippets()
-      end;
-    [] ->
-      %% Token parsing fails when triggering completion inside a string literal
-      case Prefix of
-        <<"-include_lib(\"">> ->
-          [item_kind_file(Path) || Path <- paths_include_lib()];
-        <<"-include(\"">> ->
-          [item_kind_file(Path) || Path <- paths_include(Document)];
-        _ ->
-          []
       end;
     Tokens ->
       ?LOG_DEBUG("No completion found. [prefix=~p] [tokens=~p]",

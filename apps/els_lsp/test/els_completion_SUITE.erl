@@ -215,21 +215,21 @@ attribute_behaviour(Config) ->
 -spec attribute_include(config()) -> ok.
 attribute_include(Config) ->
   Uri = ?config(completion_attributes_uri, Config),
-  TriggerKindInvoked = ?COMPLETION_TRIGGER_KIND_INVOKED,
+  TriggerKindInvoked = ?COMPLETION_TRIGGER_KIND_CHARACTER,
   Expected = [#{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
                 , kind => ?COMPLETION_ITEM_KIND_FILE
                 , label => <<"code_navigation.hrl">>
                 }
              ],
   #{result := Completions} =
-    els_client:completion(Uri, 3, 11, TriggerKindInvoked, <<"">>),
+    els_client:completion(Uri, 3, 11, TriggerKindInvoked, <<"\"">>),
   [?assert(lists:member(E, Completions)) || E <- Expected],
   ok.
 
 -spec attribute_include_lib(config()) -> ok.
 attribute_include_lib(Config) ->
   Uri = ?config(completion_attributes_uri, Config),
-  TriggerKindInvoked = ?COMPLETION_TRIGGER_KIND_INVOKED,
+  TriggerKindInvoked = ?COMPLETION_TRIGGER_KIND_CHARACTER,
   Expected = [ #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
                 , kind => ?COMPLETION_ITEM_KIND_FILE
                 , label => <<"code_navigation/include/rename.hrl">>
@@ -244,7 +244,7 @@ attribute_include_lib(Config) ->
                 }
              ],
   #{result := Completions} =
-    els_client:completion(Uri, 4, 15, TriggerKindInvoked, <<"">>),
+    els_client:completion(Uri, 4, 15, TriggerKindInvoked, <<"\"">>),
   [?assert(lists:member(E, Completions)) || E <- Expected],
   ok.
 
