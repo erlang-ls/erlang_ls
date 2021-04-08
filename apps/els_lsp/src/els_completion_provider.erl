@@ -358,9 +358,9 @@ snippet(attribute_on_load) ->
 snippet(attribute_export_type) ->
   snippet(<<"-export_type().">>, <<"export_type([${1:}]).">>);
 snippet(attribute_include) ->
-  snippet(<<"-include().">>, <<"include(\"${1:}\").">>);
+  snippet(<<"-include().">>, <<"include(${1:}).">>);
 snippet(attribute_include_lib) ->
-  snippet(<<"-include_lib().">>, <<"include_lib(\"${1:}\").">>);
+  snippet(<<"-include_lib().">>, <<"include_lib(${1:}).">>);
 snippet(attribute_type) ->
   snippet(<<"-type name() :: definition.">>,
           <<"type ${1:name}() :: ${2:definition}.">>);

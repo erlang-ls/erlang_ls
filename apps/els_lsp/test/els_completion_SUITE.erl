@@ -124,12 +124,12 @@ attributes(Config) ->
                 , kind => ?COMPLETION_ITEM_KIND_SNIPPET
                 , label => <<"-ifndef().">>
                 }
-             , #{ insertText => <<"include(\"${1:}\").">>
+             , #{ insertText => <<"include(${1:}).">>
                 , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
                 , kind => ?COMPLETION_ITEM_KIND_SNIPPET
                 , label => <<"-include().">>
                 }
-             , #{ insertText => <<"include_lib(\"${1:}\").">>
+             , #{ insertText => <<"include_lib(${1:}).">>
                 , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
                 , kind => ?COMPLETION_ITEM_KIND_SNIPPET
                 , label => <<"-include_lib().">>
