@@ -38,6 +38,7 @@
 -type macro_config()   :: #{string() => string()}.
 -type macro_option()   :: {'d', atom()} | {'d', atom(), any()}.
 -type include_option() :: {'i', string()}.
+-type parse_transform_option() :: {parse_transform, atom()}.
 
 %%==============================================================================
 %% Callback Functions
@@ -302,6 +303,11 @@ include_options() ->
   Paths = els_config:get(include_paths),
   [ {i, Path} || Path <- Paths ].
 
+-spec parse_transform_options() -> [parse_transform_option()].
+parse_transform_options() ->
+  Modules = els_config:get(parse_transforms),
+  [ {parse_transform, list_to_atom(Module)} || Module <- Modules ].
+
 -spec diagnostics_options() -> [any()].
 diagnostics_options() ->
   [basic_validation|diagnostics_options_bare()].
@@ -314,6 +320,7 @@ diagnostics_options_load_code() ->
 diagnostics_options_bare() ->
   lists:append([ macro_options()
                , include_options()
+               , parse_transform_options()
                , [ return_warnings
                  , return_errors
                  ]]).

@@ -34,7 +34,9 @@ dependencies([Uri|Uris], Acc, AlreadyProcessed) ->
   case els_utils:lookup_document(Uri) of
     {ok, Document} ->
       Behaviours = els_dt_document:pois(Document, [behaviour]),
-      ParseTransforms = els_dt_document:pois(Document, [parse_transform]),
+      DocumentTransforms = els_dt_document:pois(Document, [parse_transform]),
+      GlobalTransforms = els_config:get(parse_transforms),
+      ParseTransforms = lists:append(DocumentTransforms, GlobalTransforms),
       IncludedUris = included_uris(Document),
       FilteredIncludedUris = exclude_already_processed( IncludedUris
                                                       , AlreadyProcessed
