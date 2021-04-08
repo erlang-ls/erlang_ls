@@ -6,6 +6,8 @@
         , is_enabled/0
         ]).
 
+-include("els_lsp.hrl").
+
 -type state() :: any().
 
 %%==============================================================================
@@ -24,18 +26,16 @@ handle_request({definition, Params}, State) ->
    , <<"textDocument">> := #{<<"uri">> := Uri}
    } = Params,
   {ok, Document} = els_utils:lookup_document(Uri),
-  case
-    els_dt_document:get_element_at_pos(Document, Line + 1, Character + 1)
-  of
-    [POI | _] ->
-      case els_code_navigation:goto_definition(Uri, POI) of
-        {ok, DefUri, #{range := Range}} ->
-          { #{ uri => DefUri, range => els_protocol:range(Range) }
-          , State
-          };
-        _ ->
-          {null, State}
-      end;
-    [] ->
-      {null, State}
+  POIs = els_dt_document:get_element_at_pos(Document, Line + 1, Character + 1),
+  {goto_definition(Uri, POIs), State}.
+
+-spec goto_definition(uri(), [poi()]) -> map() | null.
+goto_definition(_Uri, []) ->
+  null;
+goto_definition(Uri, [POI|Rest]) ->
+  case els_code_navigation:goto_definition(Uri, POI) of
+    {ok, DefUri, #{range := Range}} ->
+      #{uri => DefUri, range => els_protocol:range(Range)};
+    _ ->
+      goto_definition(Uri, Rest)
   end.
