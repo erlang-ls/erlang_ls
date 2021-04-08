@@ -304,8 +304,8 @@ attribute(Tree) ->
     preprocessor ->
       Name = erl_syntax:atom_value(erl_syntax:attribute_name(Tree)),
       case {Name, erl_syntax:attribute_arguments(Tree)} of
-        {define, [Define|_]} ->
-          [poi(Pos, define, define_name(Define))];
+        {define, [Define|Value]} ->
+          [poi(Pos, define, define_name(Define), Value)];
         {include, [String]} ->
           [poi(Pos, include, erl_syntax:string_value(String))];
         {include_lib, [String]} ->

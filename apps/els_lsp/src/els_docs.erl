@@ -40,14 +40,24 @@
 %%==============================================================================
 %% API
 %%==============================================================================
--spec docs(atom(), poi()) -> [els_markup_content:doc_entry()].
-docs(_M, #{kind := application, id := {M, F, A}}) ->
+-spec docs(uri(), poi()) -> [els_markup_content:doc_entry()].
+docs(_Uri, #{kind := application, id := {M, F, A}}) ->
   function_docs('remote', M, F, A);
-docs(M, #{kind := Kind, id := {F, A}})
+docs(Uri, #{kind := Kind, id := {F, A}})
   when Kind =:= application;
        Kind =:= export_entry ->
+  M = els_uri:module(Uri),
   function_docs('local', M, F, A);
-docs(_M, _POI) ->
+docs(Uri, #{kind := macro, id := Name} = POI) ->
+  case els_code_navigation:goto_definition(Uri, POI) of
+    {ok, _DefUri, #{data := [Value|_]}} ->
+      NameStr = atom_to_list(Name),
+      Line = lists:flatten(["?", NameStr, " = ", erl_prettypr:format(Value)]),
+      [{code_line, Line}];
+    _ ->
+      []
+  end;
+docs(_Uri, _POI) ->
   [].
 
 %%==============================================================================

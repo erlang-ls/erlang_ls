@@ -17,6 +17,8 @@
         , local_call_with_args/1
         , remote_call_multiple_clauses/1
         , no_poi/1
+        , included_macro/1
+        , local_macro/1
         ]).
 
 %%==============================================================================
@@ -109,6 +111,26 @@ remote_call_multiple_clauses(Config) ->
               , value => Value
               },
   ?assertEqual(Expected, Contents),
+  ok.
+
+local_macro(Config) ->
+  Uri = ?config(hover_macro_uri, Config),
+  #{result := Result} = els_client:hover(Uri, 6, 4),
+  Value = <<"```erlang\n?LOCAL_MACRO = local_macro\n```">>,
+  Expected = #{contents => #{ kind  => <<"markdown">>
+                            , value => Value
+                            }},
+  ?assertEqual(Expected, Result),
+  ok.
+
+included_macro(Config) ->
+  Uri = ?config(hover_macro_uri, Config),
+  #{result := Result} = els_client:hover(Uri, 7, 4),
+  Value = <<"```erlang\n?INCLUDED_MACRO_A = included_macro_a\n```">>,
+  Expected = #{contents => #{ kind  => <<"markdown">>
+                            , value => Value
+                            }},
+  ?assertEqual(Expected, Result),
   ok.
 
 no_poi(Config) ->
