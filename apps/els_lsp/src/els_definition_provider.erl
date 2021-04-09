@@ -8,6 +8,7 @@
 
 -include("els_lsp.hrl").
 
+
 -type state() :: any().
 
 %%==============================================================================
@@ -27,7 +28,12 @@ handle_request({definition, Params}, State) ->
    } = Params,
   {ok, Document} = els_utils:lookup_document(Uri),
   POIs = els_dt_document:get_element_at_pos(Document, Line + 1, Character + 1),
-  {goto_definition(Uri, POIs), State}.
+  case goto_definition(Uri, POIs) of
+    null ->
+      els_references_provider:handle_request({references, Params}, State);
+    GoTo ->
+      {GoTo, State}
+  end.
 
 -spec goto_definition(uri(), [poi()]) -> map() | null.
 goto_definition(_Uri, []) ->

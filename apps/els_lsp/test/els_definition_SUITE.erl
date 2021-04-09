@@ -389,7 +389,12 @@ type_application_undefined(Config) ->
   Uri = ?config(code_navigation_uri, Config),
   Def = els_client:definition(Uri, 55, 42),
   #{result := Result} =  Def,
-  ?assertEqual(null, Result),
+  Expected = [
+    #{ range => #{'end' => #{character => 49, line => 54},
+                  start => #{character => 33, line => 54}}
+     , uri => Uri}
+  ],
+  ?assertEqual(Expected, Result),
   ok.
 
 -spec type_application_user(config()) -> ok.
