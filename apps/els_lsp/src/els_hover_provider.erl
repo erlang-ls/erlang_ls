@@ -9,6 +9,8 @@
         , is_enabled/0
         ]).
 
+-include("els_lsp.hrl").
+
 %%==============================================================================
 %% Types
 %%==============================================================================
@@ -29,10 +31,16 @@ handle_request({hover, Params}, State) ->
    , <<"textDocument">> := #{<<"uri">> := Uri}
    } = Params,
   {ok, Doc} = els_utils:lookup_document(Uri),
-  case els_dt_document:get_element_at_pos(Doc, Line + 1, Character + 1) of
+  POIs = els_dt_document:get_element_at_pos(Doc, Line + 1, Character + 1),
+  {get_docs(Uri, POIs), State}.
+
+-spec get_docs(uri(), [poi()]) -> map() | null.
+get_docs(_Uri, []) ->
+  null;
+get_docs(Uri, [POI|Rest]) ->
+  case els_docs:docs(Uri, POI) of
     [] ->
-      {null, State};
-    [POI|_] ->
-      Entries = els_docs:docs(els_uri:module(Uri), POI),
-      {#{contents => els_markup_content:new(Entries)}, State}
+      get_docs(Uri, Rest);
+    Entries ->
+      #{contents => els_markup_content:new(Entries)}
   end.

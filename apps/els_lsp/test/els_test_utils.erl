@@ -180,6 +180,7 @@ sources() ->
   , format_input
   , hover_docs
   , hover_docs_caller
+  , hover_macro
   , my_gen_server
   , rename
   , rename_function
