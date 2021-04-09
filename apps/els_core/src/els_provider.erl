@@ -68,7 +68,7 @@ handle_request(Provider, Request) ->
 
 -spec cancel_request(provider(), pid()) -> any().
 cancel_request(Provider, Job) ->
-  gen_server:call(Provider, {cancel_request, Job}).
+  gen_server:cast(Provider, {cancel_request, Job}).
 
 %%==============================================================================
 %% gen_server callbacks
@@ -90,21 +90,18 @@ init(Provider) ->
 handle_call({handle_request, Request}, _From, State) ->
   #{internal_state := InternalState, provider := Provider} = State,
   {Reply, NewInternalState} = Provider:handle_request(Request, InternalState),
-  {reply, Reply, State#{internal_state => NewInternalState}};
-handle_call({cancel_request, Job}, _From, State) ->
+  {reply, Reply, State#{internal_state => NewInternalState}}.
+
+-spec handle_cast(any(), state()) -> {noreply, state()}.
+handle_cast({cancel_request, Job}, State) ->
   #{internal_state := InternalState, provider := Provider} = State,
   case erlang:function_exported(Provider, cancel_request, 2) of
     true ->
       NewInternalState = Provider:cancel_request(Job, InternalState),
-      {reply, ok, State#{internal_state => NewInternalState}};
+      {noreply, State#{internal_state => NewInternalState}};
     false ->
-      {reply, ok, State}
+      {noreply, State}
   end.
-
--spec handle_cast(any(), state()) ->
-  {noreply, state()}.
-handle_cast(_Request, State) ->
-  {noreply, State}.
 
 -spec handle_info(any(), state()) ->
   {noreply, state()}.
