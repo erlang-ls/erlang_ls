@@ -42,6 +42,7 @@
         , type_application_remote/1
         , type_application_undefined/1
         , type_application_user/1
+        , type_export_entry/1
         , variable/1
         , opaque_application_remote/1
         , opaque_application_user/1
@@ -395,6 +396,16 @@ type_application_undefined(Config) ->
 type_application_user(Config) ->
   Uri = ?config(code_navigation_uri, Config),
   Def = els_client:definition(Uri, 55, 25),
+  #{result := #{range := Range, uri := DefUri}} = Def,
+  ?assertEqual(Uri, DefUri),
+  ?assertEqual( els_protocol:range(#{from => {37, 7}, to => {37, 13}})
+              , Range),
+  ok.
+
+-spec type_export_entry(config()) -> ok.
+type_export_entry(Config) ->
+  Uri = ?config(code_navigation_uri, Config),
+  Def = els_client:definition(Uri, 9, 17),
   #{result := #{range := Range, uri := DefUri}} = Def,
   ?assertEqual(Uri, DefUri),
   ?assertEqual( els_protocol:range(#{from => {37, 7}, to => {37, 13}})
