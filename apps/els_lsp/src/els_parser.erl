@@ -241,7 +241,11 @@ attribute(Tree) ->
                     _ ->
                       erl_syntax:get_pos(Define)
                   end,
-      [poi(DefinePos, define, define_name(Define), Value)];
+      ValueRange = #{ from => get_start_location(hd(Value))
+                    , to => get_end_location(lists:last(Value))
+                    },
+      Data = #{value_range => ValueRange},
+      [poi(DefinePos, define, define_name(Define), Data)];
     {include, [String]} ->
       [poi(Pos, include, erl_syntax:string_value(String))];
     {include_lib, [String]} ->
