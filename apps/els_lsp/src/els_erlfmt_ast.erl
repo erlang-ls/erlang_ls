@@ -385,12 +385,10 @@ erlfmt_to_st(Node) ->
         %% The erlfmt parser also accepts general guards (comma and
         %% semicolon separated sequences of guard expressions) as the body
         %% of a macro
-        {guard_or, Pos, Exprs} ->
-            AAnno = dummy_anno(),
-            erlfmt_to_st_1({tuple, Pos, [{atom, AAnno, '*guard_or*'} | Exprs]});
-        {guard_and, Pos, Exprs} ->
-            AAnno = dummy_anno(),
-            erlfmt_to_st_1({tuple, Pos, [{atom, AAnno, '*guard_and*'} | Exprs]});
+        {guard_or, _Pos, _Exprs} ->
+            erlfmt_guard_to_st(Node);
+        {guard_and, _Pos, _Exprs} ->
+            erlfmt_guard_to_st(Node);
         %% Record name fragments "#name" may also occur as the body of a macro
         {record_name, Pos, Name} ->
             AAnno = dummy_anno(),
