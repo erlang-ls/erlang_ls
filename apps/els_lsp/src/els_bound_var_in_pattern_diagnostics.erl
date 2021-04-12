@@ -61,7 +61,7 @@ find_vars_in_form(Form) ->
     function ->
       AnnotatedForm = erl_syntax_lib:annotate_bindings(Form, []),
       %% There are no bound variables in function heads or guards
-      %% so lets decend straight into the bodies
+      %% so lets descend straight into the bodies
       Clauses = erl_syntax:function_clauses(AnnotatedForm),
       ClauseBodies = lists:map(fun erl_syntax:clause_body/1, Clauses),
       fold_subtrees(ClauseBodies, []);
@@ -76,6 +76,19 @@ fold_subtrees(Subtrees, Acc) ->
 -spec find_vars_in_tree(tree(), [poi()]) -> [poi()].
 find_vars_in_tree(Tree, Acc) ->
   case erl_syntax:type(Tree) of
+    Type when Type =:= fun_expr;
+              Type =:= named_fun_expr ->
+      %% There is no bound variables in fun expression heads,
+      %% because they shadow whatever is in the input env
+      %% so lets descend straight into the bodies
+      %% (This is a workaround for erl_syntax_lib not considering
+      %%  shadowing in fun expressions)
+      Clauses = case Type of
+                  fun_expr -> erl_syntax:fun_expr_clauses(Tree);
+                  named_fun_expr -> erl_syntax:named_fun_expr_clauses(Tree)
+                end,
+      ClauseBodies = lists:map(fun erl_syntax:clause_body/1, Clauses),
+      fold_subtrees(ClauseBodies, Acc);
     match_expr ->
       Pattern = erl_syntax:match_expr_pattern(Tree),
       NewAcc = fold_pattern(Pattern, Acc),
