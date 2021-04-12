@@ -106,6 +106,7 @@ do_initialize(RootUri, Capabilities, {ConfigPath, Config}) ->
   ok = add_code_paths(CodePathExtraDirs, RootPath),
   ElvisConfigPath = maps:get("elvis_config_path", Config, undefined),
   BSPEnabled = maps:get("bsp_enabled", Config, false),
+  FormatOnTypeEnabled = maps:get("format_on_type", Config, false),
 
   %% Passed by the LSP client
   ok = set(root_uri       , RootUri),
@@ -118,6 +119,7 @@ do_initialize(RootUri, Capabilities, {ConfigPath, Config}) ->
   ok = set(macros         , Macros),
   ok = set(plt_path       , DialyzerPltPath),
   ok = set(code_reload    , CodeReload),
+  ok = set(format_on_type , FormatOnTypeEnabled),
   ?LOG_INFO("Config=~p", [Config]),
   ok = set(runtime, maps:merge( els_config_runtime:default_config()
                               , Runtime)),

@@ -386,28 +386,50 @@ do_handle_messages([Message|Messages], Pending, Notifications, Requests) ->
   end.
 
 -spec method_lookup(atom()) -> binary().
-method_lookup(completion)               -> <<"textDocument/completion">>;
-method_lookup(completionitem_resolve)   -> <<"completionItem/resolve">>;
-method_lookup(definition)               -> <<"textDocument/definition">>;
-method_lookup(document_symbol)          -> <<"textDocument/documentSymbol">>;
-method_lookup(references)               -> <<"textDocument/references">>;
-method_lookup(document_highlight)       -> <<"textDocument/documentHighlight">>;
-method_lookup(document_codeaction)      -> <<"textDocument/codeAction">>;
-method_lookup(document_codelens)        -> <<"textDocument/codeLens">>;
-method_lookup(document_formatting)      -> <<"textDocument/formatting">>;
-method_lookup(document_rangeformatting) -> <<"textDocument/rangeFormatting">>;
-method_lookup(document_ontypeormatting) -> <<"textDocument/onTypeFormatting">>;
-method_lookup(rename)                   -> <<"textDocument/rename">>;
-method_lookup(did_open)                 -> <<"textDocument/didOpen">>;
-method_lookup(did_save)                 -> <<"textDocument/didSave">>;
-method_lookup(did_close)                -> <<"textDocument/didClose">>;
-method_lookup(hover)                    -> <<"textDocument/hover">>;
-method_lookup(implementation)           -> <<"textDocument/implementation">>;
-method_lookup(workspace_symbol)         -> <<"workspace/symbol">>;
-method_lookup(workspace_executecommand) -> <<"workspace/executeCommand">>;
-method_lookup(folding_range)            -> <<"textDocument/foldingRange">>;
-method_lookup(initialize)               -> <<"initialize">>;
-method_lookup(initialized)              -> <<"initialized">>.
+method_lookup(completion) ->
+  <<"textDocument/completion">>;
+method_lookup(completionitem_resolve) ->
+  <<"completionItem/resolve">>;
+method_lookup(definition) ->
+  <<"textDocument/definition">>;
+method_lookup(document_symbol) ->
+  <<"textDocument/documentSymbol">>;
+method_lookup(references) ->
+  <<"textDocument/references">>;
+method_lookup(document_highlight) ->
+  <<"textDocument/documentHighlight">>;
+method_lookup(document_codeaction) ->
+  <<"textDocument/codeAction">>;
+method_lookup(document_codelens) ->
+  <<"textDocument/codeLens">>;
+method_lookup(document_formatting) ->
+  <<"textDocument/formatting">>;
+method_lookup(document_rangeformatting) ->
+  <<"textDocument/rangeFormatting">>;
+method_lookup(document_ontypeformatting) ->
+  <<"textDocument/onTypeFormatting">>;
+method_lookup(rename) ->
+  <<"textDocument/rename">>;
+method_lookup(did_open) ->
+  <<"textDocument/didOpen">>;
+method_lookup(did_save) ->
+  <<"textDocument/didSave">>;
+method_lookup(did_close) ->
+  <<"textDocument/didClose">>;
+method_lookup(hover) ->
+  <<"textDocument/hover">>;
+method_lookup(implementation) ->
+  <<"textDocument/implementation">>;
+method_lookup(workspace_symbol) ->
+  <<"workspace/symbol">>;
+method_lookup(workspace_executecommand) ->
+  <<"workspace/executeCommand">>;
+method_lookup(folding_range) ->
+  <<"textDocument/foldingRange">>;
+method_lookup(initialize) ->
+  <<"initialize">>;
+method_lookup(initialized) ->
+  <<"initialized">>.
 
 -spec request_params(tuple()) -> any().
 request_params({document_symbol, {Uri}}) ->
@@ -436,6 +458,10 @@ request_params({initialize, {RootUri, InitOptions}}) ->
                     #{ <<"contextSupport">> => 'true' }
                   , <<"hover">> =>
                     #{ <<"contentFormat">> => ContentFormat }
+                  , <<"documentOnTypeFormattingProvider">> =>
+                      #{ firstTriggerCharacter => <<",">>
+                       , moreTriggercharacter => []
+                       }
                   },
   #{ <<"rootUri">> => RootUri
    , <<"initializationOptions">> => InitOptions
