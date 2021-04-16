@@ -176,10 +176,30 @@ bound_var_in_pattern(Config) ->
           #{'end' => #{character => 12, line => 17},
             start => #{character => 8, line => 17}},
         severity => 4,
+        source => <<"BoundVarInPattern">>},
+      #{message => <<"Bound variable in pattern: Var5">>,
+        range =>
+          #{'end' => #{character => 10, line => 23},
+            start => #{character => 6, line => 23}},
+        severity => 4,
         source => <<"BoundVarInPattern">>}
+      %% erl_syntax_lib:annotate_bindings does not handle named funs correctly
+      %% #{message => <<"Bound variable in pattern: New">>,
+      %%   range =>
+      %%     #{'end' => #{character => 9, line => 28},
+      %%       start => #{character => 6, line => 28}},
+      %%   severity => 4,
+      %%   source => <<"BoundVarInPattern">>},
+      %% #{message => <<"Bound variable in pattern: F">>,
+      %%   range =>
+      %%     #{'end' => #{character => 7, line => 29},
+      %%       start => #{character => 6, line => 29}},
+      %%   severity => 4,
+      %%   source => <<"BoundVarInPattern">>}
     ],
   F = fun(#{message := M1}, #{message := M2}) -> M1 =< M2 end,
-  ?assertEqual(Expected, lists:sort(F, Diagnostics)),
+  Hints = [D || #{severity := ?DIAGNOSTIC_HINT} = D <- Diagnostics],
+  ?assertEqual(Expected, lists:sort(F, Hints)),
   ok.
 
 -spec compiler(config()) -> ok.
