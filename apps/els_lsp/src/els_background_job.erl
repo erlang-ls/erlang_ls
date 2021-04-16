@@ -189,9 +189,13 @@ terminate(normal, #{ config := #{on_complete := OnComplete}
   ok;
 terminate(Reason, #{ config := #{on_error := OnError}
                    , internal_state := InternalState
+                   , token := Token
+                   , total := Total
+                   , progress_enabled := ProgressEnabled
                    }) ->
   ?LOG_WARNING( "Background job aborted. [reason=~p] [pid=~p]"
               , [Reason, self()]),
+  notify_end(Token, Total, ProgressEnabled),
   OnError(InternalState),
   ok.
 
