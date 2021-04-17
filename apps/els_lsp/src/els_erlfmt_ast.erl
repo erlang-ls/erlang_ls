@@ -61,7 +61,7 @@ erlfmt_to_st(Node) ->
 
         %% raw strings only occur as forms, for when parsing the form failed
         {raw_string, Pos, Text} ->
-            erl_syntax:set_pos(erl_syntax:text("\n>>>>\n" ++ Text ++ "\n<<<<\n"), Pos);
+            update_tree_with_meta(erl_syntax:text("\n>>>>\n" ++ Text ++ "\n<<<<\n"), Pos);
         %% A new node `{macro_call, Anno, Name, Args}` is introduced, where
         %% `Name` is either an `atom` or a `var` node and `Args` is a list of
         %% expressions, types, or special `op` nodes with `'when'` operator.
@@ -71,7 +71,7 @@ erlfmt_to_st(Node) ->
                     none -> none;
                     _ -> [erlfmt_to_st(A) || A <- Args]
                 end,
-            erl_syntax:set_pos(erl_syntax:macro(erlfmt_to_st(Name), Args1), Pos);
+            update_tree_with_meta(erl_syntax:macro(erlfmt_to_st(Name), Args1), Pos);
         %% The value of an attribute node is always a list of abstract term
         %% formats instead of concrete terms. The name is always represented
         %% as a full `atom` node.
@@ -87,7 +87,7 @@ erlfmt_to_st(Node) ->
                         put('$erlfmt_ast_context$', type),
                         T1 = erlfmt_to_st(T),
                         erase('$erlfmt_ast_context$'),
-                        erl_syntax:set_pos(
+                        update_tree_with_meta(
                             erl_syntax:typed_record_field(B1, T1),
                             FPos
                         );
@@ -96,8 +96,8 @@ erlfmt_to_st(Node) ->
                 end
                 || F <- Fields
             ],
-            Tuple1 = erl_syntax:set_pos(erl_syntax:tuple(Fields1), TPos),
-            erl_syntax:set_pos(
+            Tuple1 = update_tree_with_meta(erl_syntax:tuple(Fields1), TPos),
+            update_tree_with_meta(
                 erl_syntax:attribute(
                     erlfmt_to_st(Tag),
                     [
@@ -123,9 +123,9 @@ erlfmt_to_st(Node) ->
               {TypeName0, Args0}
           end,
         Tree =
-          erl_syntax:set_pos(
+          update_tree_with_meta(
             erl_syntax:attribute(erlfmt_to_st(Name),
-                                 [erl_syntax:set_pos(
+                                 [update_tree_with_meta(
                                     erl_syntax:tuple([erlfmt_to_st(TypeName),
                                                       erlfmt_to_st(Definition),
                                                       erl_syntax:list([erlfmt_to_st(A) || A <- Args])]),
@@ -140,9 +140,9 @@ erlfmt_to_st(Node) ->
         {spec_clause, _, {args, _, ClauseArgs}, _, _} = hd(Clauses),
         Arity = length(ClauseArgs),
         Tree =
-          erl_syntax:set_pos(
+          update_tree_with_meta(
             erl_syntax:attribute(erlfmt_to_st(Name),
-                                 [erl_syntax:set_pos(
+                                 [update_tree_with_meta(
                                     erl_syntax:tuple([erl_syntax:tuple([erlfmt_to_st(FName), erl_syntax:integer(Arity)]),
                                                       erl_syntax:list([erlfmt_to_st(C) || C <- Clauses])]),
                                        SPos)]),
@@ -150,34 +150,34 @@ erlfmt_to_st(Node) ->
         erase('$erlfmt_ast_context$'),
         Tree;
       {spec_clause, Pos, {args, _HeadMeta, Args}, [ReturnType], empty} ->
-        erl_syntax:set_pos(
+        update_tree_with_meta(
           erl_syntax_function_type([erlfmt_to_st(A) || A <- Args],
                                    erlfmt_to_st(ReturnType)),
           Pos);
       {spec_clause, Pos, {args, _HeadMeta, Args}, [ReturnType], GuardOr} ->
         FunctionType =
-          erl_syntax:set_pos(
+          update_tree_with_meta(
             erl_syntax_function_type([erlfmt_to_st(A) || A <- Args],
                                      erlfmt_to_st(ReturnType)),
             Pos),
         FunctionConstraint = erlfmt_guard_to_st(GuardOr),
 
-        erl_syntax:set_pos(
+        update_tree_with_meta(
           erl_syntax:constrained_function_type(FunctionType, [FunctionConstraint]),
           Pos);
       {op, Pos, '|', A, B} when Context =:= type ->
-        erl_syntax:set_pos(
+        update_tree_with_meta(
           erl_syntax:type_union([erlfmt_to_st(A),
                                  erlfmt_to_st(B)]),
           Pos);
       {op, Pos, '..', A, B} when Context =:= type ->
         %% erlfmt_to_st_1({type, Pos, range, [A, B]}),
-        erl_syntax:set_pos(
+        update_tree_with_meta(
           erl_syntax:integer_range_type(erlfmt_to_st(A),
                                         erlfmt_to_st(B)),
           Pos);
       %%{op, Pos, '::', A, B} when Context =:= type ->
-      %%  erl_syntax:set_pos(
+      %%  update_tree_with_meta(
       %%    erl_syntax:annotated_type(erlfmt_to_st(A),
       %%                              erlfmt_to_st(B)),
       %%    Pos);
@@ -189,7 +189,7 @@ erlfmt_to_st(Node) ->
                      {op, FPos, '::', B, T} ->
                        B1 = erlfmt_to_st(B),
                        T1 = erlfmt_to_st(T),
-                       erl_syntax:set_pos(
+                       update_tree_with_meta(
                          erl_syntax:record_type_field(B1, T1),
                          FPos
                         );
@@ -199,7 +199,7 @@ erlfmt_to_st(Node) ->
                    || F <- Fields
                   ],
 
-        erl_syntax:set_pos(
+        update_tree_with_meta(
           erl_syntax:record_type(
             erlfmt_to_st(Name),
             Fields1
@@ -207,7 +207,7 @@ erlfmt_to_st(Node) ->
           Pos
          );
       {call, Pos, {remote, _, _, _} = Name, Args} when Context =:= type ->
-        erl_syntax:set_pos(
+        update_tree_with_meta(
           erl_syntax:type_application(erlfmt_to_st(Name),
                                       [erlfmt_to_st(A) || A <- Args]),
           Pos);
@@ -225,7 +225,7 @@ erlfmt_to_st(Node) ->
             _ ->
               user_type_application
           end,
-        erl_syntax:set_pos(
+        update_tree_with_meta(
           erl_syntax:TypeTag(erlfmt_to_st(Name),
                              [erlfmt_to_st(A) || A <- Args]),
           Pos);
@@ -234,7 +234,7 @@ erlfmt_to_st(Node) ->
             %% closing parens following after the comma); we must turn the
             %% atom 'empty' into a proper node here
             Body = erl_syntax:set_pos(erl_syntax:text(""), dummy_anno()),
-            erl_syntax:set_pos(
+            update_tree_with_meta(
                 erl_syntax:attribute(
                     erlfmt_to_st(Tag),
                     [
@@ -246,7 +246,7 @@ erlfmt_to_st(Node) ->
             );
         {attribute, Pos, Name, no_parens} ->
             %% a directive without parentheses, like -endif.
-            erl_syntax:set_pos(erl_syntax:attribute(erlfmt_to_st(Name)), Pos);
+            update_tree_with_meta(erl_syntax:attribute(erlfmt_to_st(Name)), Pos);
         %% Attributes are not processed to convert the `fun/arity` syntax into
         %% tuples, they are left as the `op` nodes with the `/` operator.
         %% Additionally, the `import` and `export` attributes are not
@@ -256,7 +256,7 @@ erlfmt_to_st(Node) ->
             %% general attributes -Name(Arg1, ... ArgN)
             %% (Name is not a naked atom, so Node is not erl_parse compatible)
             Args1 = [fold_arity_qualifiers(erlfmt_to_st(A)) || A <- Args],
-            erl_syntax:set_pos(erl_syntax:attribute(erlfmt_to_st(Name), Args1), Pos);
+            update_tree_with_meta(erl_syntax:attribute(erlfmt_to_st(Name), Args1), Pos);
         %% The `function` node has a different AST representation: `{function,
         %% Anno, Clauses}`, where `Clauses` is a list of `clause` nodes or
         %% `macro_call` nodes. Additionally it is less strict - it does not
@@ -269,7 +269,7 @@ erlfmt_to_st(Node) ->
                     %% as the function name
                     Clauses1 = [erlfmt_to_st(C) || C <- Clauses],
                     Name = erl_syntax:set_pos(erl_syntax:text(""), dummy_anno()),
-                    erl_syntax:set_pos(
+                    update_tree_with_meta(
                         erl_syntax:function(
                             Name,
                             Clauses1
@@ -278,7 +278,7 @@ erlfmt_to_st(Node) ->
                     );
                 Name ->
                     Clauses1 = [erlfmt_clause_to_st(C) || C <- Clauses],
-                    erl_syntax:set_pos(
+                    update_tree_with_meta(
                         erl_syntax:function(
                             erlfmt_to_st(Name),
                             Clauses1
@@ -302,7 +302,7 @@ erlfmt_to_st(Node) ->
                             []
                         end,
             After1 = [erlfmt_to_st(E) || E <- After],
-            erl_syntax:set_pos(
+            update_tree_with_meta(
                 erl_syntax:try_expr(
                     Body1,
                     Clauses1,
@@ -334,12 +334,12 @@ erlfmt_to_st(Node) ->
                         {Elements, none}
                 end,
             Es1 = [erlfmt_to_st(E) || E <- Es],
-            erl_syntax:set_pos(erl_syntax:list(Es1, Tail), Pos);
+            update_tree_with_meta(erl_syntax:list(Es1, Tail), Pos);
         %% The record name is always represented as node instead of a raw atom
         {record, Pos, Name, Fields} ->
             % a new record instance
             Fields1 = [erlfmt_to_st(F) || F <- Fields],
-            erl_syntax:set_pos(
+            update_tree_with_meta(
                 erl_syntax:record_expr(
                     erlfmt_to_st(Name),
                     Fields1
@@ -349,7 +349,7 @@ erlfmt_to_st(Node) ->
         {record, Pos, Expr, Name, Fields} ->
             % updating a record
             Fields1 = [erlfmt_to_st(F) || F <- Fields],
-            erl_syntax:set_pos(
+            update_tree_with_meta(
                 erl_syntax:record_expr(
                     erlfmt_to_st(Expr),
                     erlfmt_to_st(Name),
@@ -359,10 +359,10 @@ erlfmt_to_st(Node) ->
             );
         {record_field, Pos, Name} ->
             %% a record field without value, just the field name
-            erl_syntax:set_pos(erl_syntax:record_field(erlfmt_to_st(Name)), Pos);
+            update_tree_with_meta(erl_syntax:record_field(erlfmt_to_st(Name)), Pos);
         {record_field, Pos, Name, Value} ->
             %% a record field "name = val"
-            erl_syntax:set_pos(
+            update_tree_with_meta(
                 erl_syntax:record_field(
                     erlfmt_to_st(Name),
                     erlfmt_to_st(Value)
@@ -371,7 +371,7 @@ erlfmt_to_st(Node) ->
             );
         {record_field, Pos, Expr, Record, Field} ->
             %% a record field access expression "expr#record.field"
-            erl_syntax:set_pos(
+            update_tree_with_meta(
                 erl_syntax:record_access(
                     erlfmt_to_st(Expr),
                     erlfmt_to_st(Record),
@@ -381,7 +381,7 @@ erlfmt_to_st(Node) ->
             );
         {record_index, Pos, Record, Field} ->
             %% a record field index "#record.field"
-            erl_syntax:set_pos(
+            update_tree_with_meta(
                 erl_syntax:record_index_expr(
                     erlfmt_to_st(Record),
                     erlfmt_to_st(Field)
@@ -411,7 +411,7 @@ erlfmt_to_st(Node) ->
             case Head of
                 {call, _, Name, _} ->
                     %% if the head has function call shape, it's a named fun
-                    erl_syntax:set_pos(
+                    update_tree_with_meta(
                         erl_syntax:named_fun_expr(
                             erlfmt_to_st(Name),
                             Clauses1
@@ -419,20 +419,20 @@ erlfmt_to_st(Node) ->
                         Pos
                     );
                 _ ->
-                    erl_syntax:set_pos(erl_syntax:fun_expr(Clauses1), Pos)
+                    update_tree_with_meta(erl_syntax:fun_expr(Clauses1), Pos)
             end;
         {'fun', Pos, {function, FPos, Name, Arity}} ->
-            FName = erl_syntax:set_pos(
+            FName = update_tree_with_meta(
                 erl_syntax:arity_qualifier(
                     erlfmt_to_st(Name),
                     erlfmt_to_st(Arity)
                 ),
                 FPos
             ),
-            erl_syntax:set_pos(erl_syntax:implicit_fun(FName), Pos);
+            update_tree_with_meta(erl_syntax:implicit_fun(FName), Pos);
         {'fun', Pos, {function, FPos, Module, Name, Arity}} ->
             %% note that the inner arity qualifier gets no annotation
-            FName = erl_syntax:set_pos(
+            FName = update_tree_with_meta(
                 erl_syntax:module_qualifier(
                     erlfmt_to_st(Module),
                     erl_syntax:arity_qualifier(
@@ -442,11 +442,11 @@ erlfmt_to_st(Node) ->
                 ),
                 FPos
             ),
-            erl_syntax:set_pos(erl_syntax:implicit_fun(FName), Pos);
+            update_tree_with_meta(erl_syntax:implicit_fun(FName), Pos);
       {'fun', Pos, type} ->
-        erl_syntax:set_pos(erl_syntax:fun_type(), Pos);
+        update_tree_with_meta(erl_syntax:fun_type(), Pos);
       {'fun', Pos, {type, _, {args, _, Args}, Res}} ->
-        erl_syntax:set_pos(
+        update_tree_with_meta(
           erl_syntax_function_type(
             [erlfmt_to_st(A) || A <- Args],
             erlfmt_to_st(Res)),
@@ -470,7 +470,7 @@ erlfmt_to_st(Node) ->
               %% maybe just a binary(), or an empty text node
               {{integer, dummy_anno(), 0}, {integer, dummy_anno(), 1}}
           end,
-        erl_syntax:set_pos(
+        update_tree_with_meta(
           erl_syntax:bitstring_type(
             erlfmt_to_st(M),
             erlfmt_to_st(N)),
@@ -482,7 +482,7 @@ erlfmt_to_st(Node) ->
             Types1 = lists:map(
                 fun
                     ({remote, QPos, {atom, _, _} = A, {integer, _, _} = I}) ->
-                        erl_syntax:set_pos(
+                        update_tree_with_meta(
                             erl_syntax:size_qualifier(
                                 erlfmt_to_st(A),
                                 erlfmt_to_st(I)
@@ -499,7 +499,7 @@ erlfmt_to_st(Node) ->
                     default -> none;
                     _ -> erlfmt_to_st(Size)
                 end,
-            erl_syntax:set_pos(
+            update_tree_with_meta(
                 erl_syntax:binary_field(
                     erlfmt_to_st(Expr),
                     Size1,
@@ -557,7 +557,7 @@ erlfmt_to_st(Node) ->
         %% sometimes erlfmt leaves comments as separate nodes
         %% instead of attaching them to another node
         {comment, Pos, Lines} ->
-            erl_syntax:set_pos(erl_syntax:comment(Lines), Pos);
+            update_tree_with_meta(erl_syntax:comment(Lines), Pos);
         %% erlfmt has a separate entry for shebang nodes; we use raw strings
         {shebang, Pos, Text} ->
             erlfmt_to_st({raw_string, Pos, Text});
@@ -577,10 +577,19 @@ erlfmt_to_st(Node) ->
             erlfmt_to_st_1(Node)
     end.
 
-%% assuming erl_parse format, compatible with erl_syntax
-%% TODO: should convert erlfmt anno to erl_syntax pos+annotation
--spec erlfmt_to_st_1(_) -> any().
+%% erl_parse format is compatible with erl_syntax
+%% But since OTP 24 erl_syntax expects a proper erl_anno:anno() in pos.
+%% So first replace the Meta from Node with proper erl_syntax pos+annotation to
+%% make dialyzer happy.
+-spec erlfmt_to_st_1(erlfmt() | syntax_tools()) -> syntax_tools().
+erlfmt_to_st_1(Node) when is_map(element(2, Node))->
+  Node2 = convert_meta_to_anno(Node),
+  erlfmt_to_st_2(Node2);
 erlfmt_to_st_1(Node) ->
+  erlfmt_to_st_2(Node).
+
+-spec erlfmt_to_st_2(syntax_tools()) -> syntax_tools().
+erlfmt_to_st_2(Node) ->
     case erl_syntax:subtrees(Node) of
         [] ->
             % leaf node
@@ -636,9 +645,9 @@ erlfmt_clause_to_st({clause, Pos, {'catch', APos, Args}, Guard, Body}) ->
     Pattern =
         case [erlfmt_to_st(A) || A <- Args] of
             [Class, Term] ->
-                erl_syntax:set_pos(erl_syntax:class_qualifier(Class, Term), APos);
+                update_tree_with_meta(erl_syntax:class_qualifier(Class, Term), APos);
             [Class, Term, Trace] ->
-                erl_syntax:set_pos(erl_syntax:class_qualifier(Class, Term, Trace), APos)
+                update_tree_with_meta(erl_syntax:class_qualifier(Class, Term, Trace), APos)
         end,
     erlfmt_clause_to_st(Pos, [Pattern], Guard, Body);
 erlfmt_clause_to_st({clause, Pos, Expr, Guard, Body}) ->
@@ -654,7 +663,7 @@ erlfmt_clause_to_st(Pos, Patterns, Guard, Body) ->
         [erlfmt_guard_to_st(Guard)],
         [erlfmt_to_st(B) || B <- Body]
     ],
-    erl_syntax:set_pos(erl_syntax:make_tree(clause, Groups), Pos).
+    update_tree_with_meta(erl_syntax:make_tree(clause, Groups), Pos).
 
 %% New `{guard_or, Anno, GuardAndList}` and `{guard_and, Anno, Exprs}` nodes
 %% are introduced to support annotating guard sequences, instead of a plain
@@ -664,7 +673,7 @@ erlfmt_clause_to_st(Pos, Patterns, Guard, Body) ->
 erlfmt_guard_to_st(empty) ->
     none;
 erlfmt_guard_to_st({guard_or, Pos, List}) ->
-    erl_syntax:set_pos(
+    update_tree_with_meta(
         erl_syntax:disjunction([
             erlfmt_guard_to_st(E)
             || E <- List
@@ -672,7 +681,7 @@ erlfmt_guard_to_st({guard_or, Pos, List}) ->
         Pos
     );
 erlfmt_guard_to_st({guard_and, Pos, List}) ->
-    erl_syntax:set_pos(
+    update_tree_with_meta(
         erl_syntax:conjunction([
             erlfmt_guard_to_st(E)
             || E <- List
@@ -717,29 +726,17 @@ fold_arity_qualifier(Node) ->
             Node
     end.
 
--spec dummy_anno() -> map().
+-spec dummy_anno() -> erl_anno:anno().
 dummy_anno() ->
-    erlfmt_anno(0).
-
-%% assumes that if the annotation is a map, it came from erlfmt_scan
--spec erlfmt_anno(_) -> map().
-erlfmt_anno(Map) when is_map(Map) ->
-    Map;
-erlfmt_anno(Line) ->
-    %% have to add end_location as well even if it's incorrect
-    #{
-        location => {Line, 1},
-        % TODO: improve this
-        end_location => {Line, 1}
-    }.
+  erl_anno:set_generated(true, erl_anno:new({0, 1})).
 
 %% erlfmt ast utilities
 
--spec get_anno(tuple()) -> any().
+-spec get_anno(tuple()) -> term().
 get_anno(Node) ->
     element(2, Node).
 
--spec set_anno(tuple(),map()) -> tuple().
+-spec set_anno(tuple(), term()) -> tuple().
 set_anno(Node, Loc) ->
     setelement(2, Node, Loc).
 
@@ -748,3 +745,42 @@ set_anno(Node, Loc) ->
 -spec erl_syntax_function_type('any_arity' | [syntax_tools()], syntax_tools()) -> syntax_tools().
 erl_syntax_function_type(Arguments, Return) ->
   apply(erl_syntax, function_type, [Arguments, Return]).
+
+%% Convert erlfmt_scan:anno to erl_syntax pos+annotation
+%%
+%% Note: nothing from meta is stored in annotation
+%% as erlang_ls only needs start and end locations.
+-spec update_tree_with_meta(syntax_tools(), erlfmt_scan:anno())
+                           -> syntax_tools().
+update_tree_with_meta(Tree, Meta) ->
+  Anno = meta_to_anno(Meta),
+  Tree2 = erl_syntax:set_pos(Tree, Anno),
+  %% erl_syntax:set_ann(Tree2, [{meta, Meta}]).
+  Tree2.
+
+-spec convert_meta_to_anno(erlfmt()) -> syntax_tools().
+convert_meta_to_anno(Node) ->
+  Meta = get_anno(Node),
+  Node2 = set_anno(Node, meta_to_anno(Meta)),
+  %% erl_syntax:set_ann(Node2, [{meta, Meta}]).
+  Node2.
+
+-spec meta_to_anno(erlfmt_scan:anno()) -> erl_anno:anno().
+meta_to_anno(Meta) ->
+  %% Recommenting can modify the start and end locations of certain trees
+  %% see erlfmt_recomment:put_(pre|post)_comments/1
+  From =
+    case maps:is_key(pre_comments, Meta) of
+      true ->
+        maps:get(inner_location, Meta);
+      false ->
+        maps:get(location, Meta)
+    end,
+  To =
+    case maps:is_key(post_comments, Meta) of
+      true ->
+        maps:get(inner_end_location, Meta);
+      false ->
+        maps:get(end_location, Meta)
+    end,
+  erl_anno:from_term([{location, From}, {end_location, To}]).
