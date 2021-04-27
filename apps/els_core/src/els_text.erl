@@ -8,8 +8,15 @@
         , line/3
         , range/3
         , tokens/1
+        , apply_edits/2
         ]).
 
+-export_type([edit/0]).
+
+-include("els_core.hrl").
+
+-type edit()       :: {poi_range(), string()}.
+-type lines()      :: [string() | binary()].
 -type text()       :: binary().
 -type line_num()   :: non_neg_integer().
 -type column_num() :: pos_integer().
@@ -51,6 +58,62 @@ last_token(Text) ->
     [] -> {error, empty};
     Tokens -> lists:last(Tokens)
   end.
+
+-spec apply_edits(text(), [edit()]) -> text().
+apply_edits(Text, []) ->
+  Text;
+apply_edits(Text, Edits) when is_binary(Text) ->
+  Lines = lists:foldl(fun(Edit, Acc) ->
+                          apply_edit(Acc, 0, Edit)
+                      end, bin_to_lines(Text), Edits),
+  lines_to_bin(Lines).
+
+-spec apply_edit(lines(), line_num(), edit()) -> lines().
+apply_edit([], L, {#{from := {FromL, _}}, _} = Edit) when L < FromL ->
+  %% End of lines
+  %% Add empty line
+  [[] | apply_edit([], L + 1, Edit)];
+apply_edit([], L, {#{from := {L, FromC}}, Insert}) ->
+  %% End of lines
+  Padding = lists:duplicate(FromC, $ ),
+  string:split(Padding ++ Insert, "\n");
+apply_edit([CurrLine|RestLines], L, {#{from := {FromL, _}}, _} = Edit)
+  when L < FromL ->
+  %% Go to next line
+  [CurrLine|apply_edit(RestLines, L + 1, Edit)];
+apply_edit([CurrLine0|RestLines], L,
+           {#{from := {L, FromC}, to := {L, ToC}}, Insert}) ->
+  CurrLine = ensure_string(CurrLine0),
+  %% One line edit
+  {Prefix, Rest} = lists:split(FromC, CurrLine),
+  {_, Suffix} = lists:split(ToC - FromC, Rest),
+  string:split(Prefix ++ Insert ++ Suffix, "\n") ++ RestLines;
+apply_edit([CurrLine0|RestLines], L,
+           {#{from := {L, FromC}, to := {ToL, ToC}}, Insert}) ->
+  %% Multiline edit
+  CurrLine = ensure_string(CurrLine0),
+  {Prefix, _} = lists:split(FromC, CurrLine),
+  case lists:split(ToL - L - 1, RestLines) of
+    {_, []} ->
+      string:split(Prefix ++ Insert, "\n") ++ RestLines;
+    {_, [CurrSuffix|SuffixLines]} ->
+      {_, Suffix} = lists:split(ToC, ensure_string(CurrSuffix)),
+      string:split(Prefix ++ Insert ++ Suffix, "\n") ++ SuffixLines
+  end.
+
+-spec lines_to_bin(lines()) -> text().
+lines_to_bin(Lines) ->
+  iolist_to_binary(lists:join("\n", Lines)).
+
+-spec bin_to_lines(text()) -> lines().
+bin_to_lines(Text) ->
+  [Bin || Bin <- binary:split(Text, <<"\n">>, [global])].
+
+-spec ensure_string(binary() | string()) -> string().
+ensure_string(Text) when is_binary(Text) ->
+  els_utils:to_list(Text);
+ensure_string(Text) ->
+  Text.
 
 %%==============================================================================
 %% Internal functions

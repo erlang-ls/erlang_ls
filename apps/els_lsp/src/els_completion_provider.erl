@@ -44,6 +44,7 @@ handle_request({completion, Params}, State) ->
                             }
    , <<"textDocument">> := #{<<"uri">> := Uri}
    } = Params,
+  ok = els_index_buffer:flush(Uri),
   {ok, #{text := Text} = Document} = els_utils:lookup_document(Uri),
   Context = maps:get( <<"context">>
                     , Params

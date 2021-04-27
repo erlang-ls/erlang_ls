@@ -106,6 +106,7 @@ do_initialize(RootUri, Capabilities, {ConfigPath, Config}) ->
   ok = add_code_paths(CodePathExtraDirs, RootPath),
   ElvisConfigPath = maps:get("elvis_config_path", Config, undefined),
   BSPEnabled = maps:get("bsp_enabled", Config, false),
+  IncrementalSync = maps:get("incremental_sync", Config, false),
 
   %% Passed by the LSP client
   ok = set(root_uri       , RootUri),
@@ -125,6 +126,7 @@ do_initialize(RootUri, Capabilities, {ConfigPath, Config}) ->
                                     , CtRunTest)),
   ok = set(elvis_config_path, ElvisConfigPath),
   ok = set(bsp_enabled, BSPEnabled),
+  ok = set(incremental_sync, IncrementalSync),
   %% Calculated from the above
   ok = set(apps_paths     , project_paths(RootPath, AppsDirs, false)),
   ok = set(deps_paths     , project_paths(RootPath, DepsDirs, false)),
