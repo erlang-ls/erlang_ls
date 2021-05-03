@@ -50,9 +50,14 @@ docs(Uri, #{kind := Kind, id := {F, A}})
   function_docs('local', M, F, A);
 docs(Uri, #{kind := macro, id := Name} = POI) ->
   case els_code_navigation:goto_definition(Uri, POI) of
-    {ok, _DefUri, #{data := [Value|_]}} ->
+    {ok, DefUri, #{data := #{value_range := ValueRange}}} ->
       NameStr = atom_to_list(Name),
-      Line = lists:flatten(["?", NameStr, " = ", erl_prettypr:format(Value)]),
+
+      {ok, #{text := Text}} = els_utils:lookup_document(DefUri),
+      #{from := From, to := To} = ValueRange,
+      ValueText = els_utils:to_list(els_text:range(Text, From, To)),
+
+      Line = lists:flatten(["?", NameStr, " = ", ValueText]),
       [{code_line, Line}];
     _ ->
       []

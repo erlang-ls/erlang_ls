@@ -215,13 +215,14 @@ compiler(Config) ->
   ?assertEqual(3, length(Errors)),
   WarningRanges = [ Range || #{range := Range} <- Warnings],
   ExpectedWarningRanges =
-        fixcolumns(
-          [ #{'end' => #{character => 4, line => 6}
-             , start => #{character => 0, line => 6}}], Config) ++
-        [#{'end' => #{character => 35, line => 3},
-           start => #{character => 0, line => 3}}
-        ],
-  ?assertEqual(ExpectedWarningRanges, WarningRanges),
+    [#{'end' => #{character => 35, line => 3}
+      , start => #{character => 0, line => 3}}
+    ] ++
+    fixcolumns(
+      [ #{'end' => #{character => 4, line => 6}
+         , start => #{character => 0, line => 6}}], Config),
+
+  ?assertEqual(ExpectedWarningRanges, sort_ranges(WarningRanges)),
   ErrorRanges = [ Range || #{range := Range} <- Errors],
   ExpectedErrorRanges =
         [ #{'end' => #{character => 35, line => 3}
@@ -231,7 +232,7 @@ compiler(Config) ->
         fixcolumns(
           [ #{'end' => #{character => 44, line => 5}
              , start => #{character => 30, line => 5}}], Config),
-  ?assertEqual(ExpectedErrorRanges, ErrorRanges),
+  ?assertEqual(ExpectedErrorRanges, sort_ranges(ErrorRanges)),
   ok.
 
 -spec compiler_with_behaviour(config()) -> ok.
@@ -356,13 +357,13 @@ compiler_with_parse_transform_included(Config) ->
   ?assertEqual(2, length(Warnings)),
   WarningRanges = [ Range || #{range := Range} <- Warnings],
   ExpectedWarningsRanges =
-        fixcolumns(
-          [ #{ 'end' => #{character => 9, line => 6}
-             , start => #{character => 5, line => 6}}], Config) ++
         [#{ 'end' => #{character => 32, line => 4}
           , start => #{character => 0, line => 4}}
-        ],
-  ?assertEqual(ExpectedWarningsRanges, WarningRanges),
+        ] ++
+        fixcolumns(
+          [ #{ 'end' => #{character => 9, line => 6}
+             , start => #{character => 5, line => 6}}], Config),
+  ?assertEqual(ExpectedWarningsRanges, sort_ranges(WarningRanges)),
   ok.
 
 -spec compiler_with_parse_transform_broken(config()) -> ok.
@@ -377,11 +378,12 @@ compiler_with_parse_transform_broken(Config) ->
   Errors = [D || #{severity := ?DIAGNOSTIC_ERROR} = D <- Diagnostics],
   ?assertEqual(2, length(Errors)),
   ErrorsRanges = [ Range || #{range := Range} <- Errors],
-  ExpectedErrorsRanges = [#{'end' => #{character => 61, line => 4},
-                            start => #{character => 27, line => 4}},
-                          #{'end' => #{character => 0, line => 1},
-                            start => #{character => 0, line => 0}}],
-  ?assertEqual(ExpectedErrorsRanges, ErrorsRanges),
+  ExpectedErrorsRanges = [#{'end' => #{character => 0, line => 1},
+                            start => #{character => 0, line => 0}},
+                          #{'end' => #{character => 61, line => 4},
+                            start => #{character => 27, line => 4}}
+                          ],
+  ?assertEqual(ExpectedErrorsRanges, sort_ranges(ErrorsRanges)),
   ok.
 
 -spec compiler_with_parse_transform_deps(config()) -> ok.
@@ -442,7 +444,7 @@ epp_with_nonexistent_macro(Config) ->
                             start => #{character => 0, line => 4}},
                           #{'end' => #{character => 0, line => 7},
                             start => #{character => 0, line => 6}}],
-  ?assertEqual(ExpectedErrorsRanges, ErrorsRanges),
+  ?assertEqual(ExpectedErrorsRanges, sort_ranges(ErrorsRanges)),
   ok.
 
 -spec elvis(config()) -> ok.
@@ -715,6 +717,14 @@ fixcolumns(Ranges, Config) ->
                       Range
               end, Ranges)
     end.
+
+-spec sort_ranges([range()]) -> [range()].
+sort_ranges(Ranges) ->
+  lists:sort(fun(#{start := #{line := L1, character := C1}},
+                 #{start := #{line := L2, character := C2}}) ->
+                 {L1, C1} =< {L2, C2}
+             end,
+             Ranges).
 
 mock_rpc() ->
   meck:new(rpc, [passthrough, no_link, unstick]),

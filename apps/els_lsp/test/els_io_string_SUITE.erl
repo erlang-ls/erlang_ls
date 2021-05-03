@@ -10,7 +10,6 @@
 
 %% Test cases
 -export([ scan_forms/1
-        , parse_text/1
         ]).
 
 %%==============================================================================
@@ -59,22 +58,6 @@ scan_forms(Config) ->
   IoString   = els_io_string:new(Text),
   Result     = scan_all_forms(IoString, []),
   ok         = file:close(IoString),
-
-  ?assertEqual(Expected, Result),
-
-  ok.
-
--spec parse_text(config()) -> ok.
-parse_text(Config) ->
-  Path           = path(Config),
-  {ok, IoFile}   = file:open(Path, [read]),
-  {ok, Expected} = els_parser:parse_file(IoFile),
-  ok             = file:close(IoFile),
-
-  {ok, Text}     = file:read_file(Path),
-  IoString       = els_io_string:new(Text),
-  {ok, Result}   = els_parser:parse_file(IoString),
-  ok             = file:close(IoString),
 
   ?assertEqual(Expected, Result),
 

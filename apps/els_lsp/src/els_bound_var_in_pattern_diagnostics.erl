@@ -52,7 +52,7 @@ source() ->
 -spec find_vars(uri()) -> [poi()].
 find_vars(Uri) ->
   {ok, #{text := Text}} = els_utils:lookup_document(Uri),
-  {ok, Forms} = parse_file(Text),
+  {ok, Forms} = els_parser:parse_text(Text),
   lists:flatmap(fun find_vars_in_form/1, Forms).
 
 -spec find_vars_in_form(erl_syntax:forms()) -> [poi()].
@@ -125,13 +125,6 @@ find_vars_in_pattern(Tree, Acc) ->
     _ ->
       Acc
   end.
-
--spec parse_file(binary()) -> {ok, erl_syntax:forms()}.
-parse_file(Text) ->
-  IoDevice = els_io_string:new(Text),
-  {ok, Forms} = els_dodger:parse(IoDevice, {1, 1}),
-  ok = file:close(IoDevice),
-  {ok, Forms}.
 
 -spec variable(tree()) -> poi().
 variable(Tree) ->

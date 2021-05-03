@@ -216,7 +216,7 @@ record_field(Config) ->
 export(Config) ->
   Uri = ?config(code_navigation_uri, Config),
   #{result := Locations} = els_client:document_highlight(Uri, 5, 5),
-  ExpectedLocations = [ #{range => #{from => {5, 1}, to => {5, 92}}}
+  ExpectedLocations = [ #{range => #{from => {5, 1}, to => {5, 93}}}
                       ],
   assert_locations(ExpectedLocations, Locations),
   ok.

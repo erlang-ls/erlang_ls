@@ -19,6 +19,7 @@
         , no_poi/1
         , included_macro/1
         , local_macro/1
+        , weird_macro/1
         ]).
 
 %%==============================================================================
@@ -127,6 +128,16 @@ included_macro(Config) ->
   Uri = ?config(hover_macro_uri, Config),
   #{result := Result} = els_client:hover(Uri, 7, 4),
   Value = <<"```erlang\n?INCLUDED_MACRO_A = included_macro_a\n```">>,
+  Expected = #{contents => #{ kind  => <<"markdown">>
+                            , value => Value
+                            }},
+  ?assertEqual(Expected, Result),
+  ok.
+
+weird_macro(Config) ->
+  Uri = ?config(hover_macro_uri, Config),
+  #{result := Result} = els_client:hover(Uri, 12, 20),
+  Value = <<"```erlang\n?WEIRD_MACRO = A when A > 1\n```">>,
   Expected = #{contents => #{ kind  => <<"markdown">>
                             , value => Value
                             }},
