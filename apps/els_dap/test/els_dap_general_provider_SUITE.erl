@@ -21,7 +21,16 @@
         , set_variable/1
         , breakpoints/1
         , project_node_exit/1
+        , breakpoints_with_cond/1
+        , breakpoints_with_hit/1
+        , breakpoints_with_cond_and_hit/1
         , log_points/1
+        , log_points_with_lt_condition/1
+        , log_points_with_eq_condition/1
+        , log_points_with_hit/1
+        , log_points_with_hit1/1
+        , log_points_with_cond_and_hit/1
+        , log_points_empty_cond/1
         ]).
 
 %%==============================================================================
@@ -66,7 +75,16 @@ init_per_testcase(TestCase, Config) when
     TestCase =:= launch_mfa_with_cookie orelse
     TestCase =:= configuration_done orelse
     TestCase =:= configuration_done_with_breakpoint orelse
-    TestCase =:= log_points ->
+    TestCase =:= log_points orelse
+    TestCase =:= log_points_with_lt_condition orelse
+    TestCase =:= log_points_with_eq_condition orelse
+    TestCase =:= log_points_with_hit orelse
+    TestCase =:= log_points_with_hit1 orelse
+    TestCase =:= log_points_with_cond_and_hit orelse
+    TestCase =:= log_points_empty_cond orelse
+    TestCase =:= breakpoints_with_cond orelse
+    TestCase =:= breakpoints_with_hit orelse
+    TestCase =:= breakpoints_with_cond_and_hit ->
   {ok, DAPProvider} = els_provider:start_link(els_dap_general_provider),
   els_config:start_link(),
   meck:expect(els_dap_server, send_event, 2, meck:val(ok)),
@@ -407,28 +425,118 @@ project_node_exit(Config) ->
   % ?assert(meck:called(els_dap_server, send_event, [<<"terminated">>, '_'])),
   % ?assert(meck:called(els_dap_server, send_event, [<<"exited">>, '_'])).
 
--spec log_points(config()) -> ok.
-log_points(Config) ->
+-spec breakpoints_with_cond(config()) -> ok.
+breakpoints_with_cond(Config) ->
+  breakpoints_base(Config, 9, #{condition => <<"N =:= 5">>}, <<"5">>).
+
+-spec breakpoints_with_hit(config()) -> ok.
+breakpoints_with_hit(Config) ->
+  breakpoints_base(Config, 9, #{hitcond => <<"3">>}, <<"8">>).
+
+-spec breakpoints_with_cond_and_hit(config()) -> ok.
+breakpoints_with_cond_and_hit(Config) ->
+  Params = #{condition => <<"N < 7">>, hitcond => <<"3">>},
+  breakpoints_base(Config, 9, Params, <<"4">>).
+
+%% Parameterizable base test for breakpoints: sets up a breakpoint with given
+%% parameters and checks the value of N when first hit
+breakpoints_base(Config, BreakLine, Params, NExp) ->
   Provider = ?config(provider, Config),
   DataDir = ?config(data_dir, Config),
   Node = ?config(node, Config),
   els_provider:handle_request(Provider, request_initialize(#{})),
   els_provider:handle_request(
     Provider,
-    request_launch(DataDir, Node, els_dap_test_module, entry, [5])
+    request_launch(DataDir, Node, els_dap_test_module, entry, [10])
   ),
   els_dap_test_utils:wait_until_mock_called(els_dap_server, send_event),
+  meck:reset([els_dap_server]),
 
   els_provider:handle_request(
     Provider,
     request_set_breakpoints(
       path_to_test_module(DataDir, els_dap_test_module),
-      [{9, <<"N">>}, 11]
+      [{BreakLine, Params}]
+    )
+  ),
+  %% hit breakpoint
+  els_provider:handle_request(Provider, request_configuration_done(#{})),
+  ?assertEqual(ok, wait_for_break(Node, els_dap_test_module, BreakLine)),
+  %% check value of N
+  #{<<"threads">> := [#{<<"id">> := ThreadId}]} =
+    els_provider:handle_request( Provider
+                               , request_threads()
+                               ),
+  #{<<"stackFrames">> := [#{<<"id">> := FrameId}|_]} =
+    els_provider:handle_request( Provider
+                               , request_stack_frames(ThreadId)
+                               ),
+  #{<<"scopes">> := [#{<<"variablesReference">> := VariableRef}]} =
+    els_provider:handle_request(Provider, request_scope(FrameId)),
+  #{<<"variables">> := [NVar]} =
+    els_provider:handle_request(Provider, request_variable(VariableRef)),
+  ?assertMatch(#{ <<"name">> := <<"N">>
+                , <<"value">> := NExp
+                , <<"variablesReference">> := 0
+                }
+              , NVar),
+  ok.
+
+-spec log_points(config()) -> ok.
+log_points(Config) ->
+  log_points_base(Config, 9, #{log => <<"N">>}, 11, 1).
+
+-spec log_points_with_lt_condition(config()) -> ok.
+log_points_with_lt_condition(Config) ->
+  log_points_base(Config, 9, #{log => <<"N">>, condition => <<"N < 5">>}, 7, 4).
+
+-spec log_points_with_eq_condition(config()) -> ok.
+log_points_with_eq_condition(Config) ->
+  Params = #{log => <<"N">>, condition => <<"N =:= 5">>},
+  log_points_base(Config, 9, Params, 7, 1).
+
+-spec log_points_with_hit(config()) -> ok.
+log_points_with_hit(Config) ->
+  log_points_base(Config, 9, #{log => <<"N">>, hitcond => <<"3">>}, 7, 3).
+
+-spec log_points_with_hit1(config()) -> ok.
+log_points_with_hit1(Config) ->
+  log_points_base(Config, 9, #{log => <<"N">>, hitcond => <<"1">>}, 7, 10).
+
+-spec log_points_with_cond_and_hit(config()) -> ok.
+log_points_with_cond_and_hit(Config) ->
+  Params = #{log => <<"N">>, condition => <<"N < 5">>, hitcond => <<"2">>},
+  log_points_base(Config, 9, Params, 7, 2).
+
+-spec log_points_empty_cond(config()) -> ok.
+log_points_empty_cond(Config) ->
+  log_points_base(Config, 9, #{log => <<"N">>, condition => <<>>}, 11, 1).
+
+%% Parameterizable base test for logpoints: sets up a logpoint with given
+%% parameters and checks how many hits it gets before hitting a given breakpoint
+log_points_base(Config, LogLine, Params, BreakLine, NumCalls) ->
+  Provider = ?config(provider, Config),
+  DataDir = ?config(data_dir, Config),
+  Node = ?config(node, Config),
+  els_provider:handle_request(Provider, request_initialize(#{})),
+  els_provider:handle_request(
+    Provider,
+    request_launch(DataDir, Node, els_dap_test_module, entry, [10])
+  ),
+  els_dap_test_utils:wait_until_mock_called(els_dap_server, send_event),
+  meck:reset([els_dap_server]),
+
+  els_provider:handle_request(
+    Provider,
+    request_set_breakpoints(
+      path_to_test_module(DataDir, els_dap_test_module),
+      [{LogLine, Params}, BreakLine]
     )
   ),
   els_provider:handle_request(Provider, request_configuration_done(#{})),
-  ?assertEqual(ok, wait_for_break(Node, els_dap_test_module, 11)),
-  ?assert(meck:called(els_dap_server, send_event, [<<"output">>, '_'])),
+  ?assertEqual(ok, wait_for_break(Node, els_dap_test_module, BreakLine)),
+  ?assertEqual(NumCalls,
+               meck:num_calls(els_dap_server, send_event, [<<"output">>, '_'])),
   ok.
 
 %%==============================================================================
@@ -461,15 +569,24 @@ request_set_breakpoints(File, Specs) ->
   { <<"setBreakpoints">>
   , #{ <<"source">> => #{<<"path">> => File}
      , <<"sourceModified">> => false
-     , <<"breakpoints">> =>
-         [  case Spec of
-              {Line, Message} -> #{ <<"line">> => Line
-                                  , <<"logMessage">> => Message};
-              Line -> #{<<"line">> => Line}
-            end
-         || Spec <- Specs
-         ]
+     , <<"breakpoints">> => lists:map(fun map_spec/1, Specs)
      }}.
+
+map_spec({Line, Params}) ->
+  Cond = case Params of
+    #{condition := CondExpr} -> #{<<"condition">> => CondExpr};
+    _ -> #{}
+  end,
+  Hit = case Params of
+    #{hitcond := HitExpr} -> #{<<"hitCondition">> => HitExpr};
+    _ -> #{}
+  end,
+  Log = case Params of
+    #{log := LogMsg} -> #{<<"logMessage">> => LogMsg};
+    _ -> #{}
+  end,
+  lists:foldl(fun maps:merge/2, #{<<"line">> => Line}, [Cond, Hit, Log]);
+map_spec(Line) -> #{<<"line">> => Line}.
 
 request_set_function_breakpoints(MFAs) ->
   {<<"setFunctionBreakpoints">>, #{

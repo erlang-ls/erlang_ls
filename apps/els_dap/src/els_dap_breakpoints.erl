@@ -24,9 +24,10 @@
   }
 }.
 -type line() :: non_neg_integer().
--type line_breaks() ::
-    regular
-  | {log, expression()}.
+-type line_breaks() :: #{ condition => expression()
+                        , hitcond => expression()
+                        , logexpr => expression()
+                        }.
 -type expression() :: string().
 -type function_break() :: {atom(), non_neg_integer()}.
 
@@ -40,10 +41,11 @@ type(Breakpoints, Module, Line) ->
       Break;
     _ ->
       %% function breaks get handled like regular ones
-      regular
+      #{}
   end.
 
-%% @doc build regular and log breakpoints from setBreakpoint request
+%% @doc build regular, conditional, hit and log breakpoints from setBreakpoint
+%% request
 -spec build_source_breakpoints(Params :: map()) ->
         {module(), #{line() => line_breaks()}}.
 build_source_breakpoints(Params) ->
@@ -55,11 +57,29 @@ build_source_breakpoints(Params) ->
                                     SourceBreakpoints))}.
 
 -spec build_source_breakpoint(map()) ->
-        {line(), 'regular' | {'log', expression()}}.
-build_source_breakpoint(#{<<"line">> := Line, <<"logMessage">> := LogExpr}) ->
-  {Line, {log, LogExpr}};
-build_source_breakpoint(#{<<"line">> := Line}) ->
-  {Line, regular}.
+        { line()
+        , #{ condition => expression()
+           , hitcond => expression()
+           , logexpr => expression()
+           }
+        }.
+build_source_breakpoint(#{<<"line">> := Line} = Breakpoint) ->
+  Cond = case Breakpoint of
+    #{<<"condition">> := CondExpr} when CondExpr =/= <<>> ->
+      #{condition => CondExpr};
+    _ -> #{}
+  end,
+  Hit = case Breakpoint of
+    #{<<"hitCondition">> := HitExpr} when HitExpr =/= <<>> ->
+      #{hitcond => HitExpr};
+    _ -> #{}
+  end,
+  Log = case Breakpoint of
+    #{<<"logMessage">> := LogExpr} when LogExpr =/= <<>>  ->
+      #{logexpr => LogExpr};
+    _ -> #{}
+  end,
+  {Line, lists:foldl(fun maps:merge/2, #{}, [Cond, Hit, Log])}.
 
 -spec get_function_breaks(module(), breakpoints()) -> [function_break()].
 get_function_breaks(Module, Breaks) ->
@@ -81,8 +101,7 @@ get_line_breaks(Module, Breaks) ->
 do_line_breakpoints(Node, Module, LineBreakPoints, Breaks) ->
   maps:map(
     fun
-      (Line, regular) -> els_dap_rpc:break(Node, Module, Line);
-      (Line, {log, _}) -> els_dap_rpc:break(Node, Module, Line)
+      (Line, _) -> els_dap_rpc:break(Node, Module, Line)
     end,
     LineBreakPoints
   ),
