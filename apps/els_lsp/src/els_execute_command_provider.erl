@@ -29,6 +29,7 @@ options() ->
                  , els_command:with_prefix(<<"ct-run-test">>)
                  , els_command:with_prefix(<<"show-behaviour-usages">>)
                  , els_command:with_prefix(<<"suggest-spec">>)
+                 , els_command:with_prefix(<<"function-references">>)
                  ] }.
 
 -spec handle_request(any(), state()) -> {any(), state()}.
@@ -88,6 +89,8 @@ execute_command(<<"server-info">>, _Arguments) ->
   [];
 execute_command(<<"ct-run-test">>, [Params]) ->
   els_command_ct_run_test:execute(Params),
+  [];
+execute_command(<<"function-references">>, [_Params]) ->
   [];
 execute_command(<<"show-behaviour-usages">>, [_Params]) ->
   [];
