@@ -31,7 +31,8 @@
 -type expression() :: string().
 -type function_break() :: {atom(), non_neg_integer()}.
 
--export_type([breakpoints/0]).
+-export_type([ breakpoints/0
+             , line_breaks/0]).
 
 -spec type(breakpoints(), module(), line()) -> line_breaks().
 type(Breakpoints, Module, Line) ->
