@@ -414,6 +414,68 @@ handle_request( {<<"disconnect">>, _Params}
   els_utils:halt(0),
   {#{}, State}.
 
+-spec evaluate_condition(els_dap_breakpoints:line_breaks(), module(),
+                         integer(), atom(), pid()) -> boolean().
+evaluate_condition(Breakpt, Module, Line, ProjectNode, ThreadPid) ->
+  %% evaluate condition if exists, otherwise treat as 'true'
+  case Breakpt of
+    #{condition := CondExpr} ->
+      CondEval = safe_eval(ProjectNode, ThreadPid, CondExpr, no_update),
+      case CondEval of
+        true -> true;
+        false -> false;
+        _ ->
+          WarnCond = unicode:characters_to_binary(
+            io_lib:format(
+              "~s:~b - Breakpoint condition evaluated to non-Boolean: ~w~n",
+              [source(Module, ProjectNode), Line, CondEval])),
+          els_dap_server:send_event( <<"output">>
+                                    , #{ <<"output">> => WarnCond }),
+          false
+      end;
+    _ -> true
+    end.
+
+-spec evaluate_hitcond(els_dap_breakpoints:line_breaks(), integer(), module(),
+                         integer(), atom(), pid()) -> boolean().
+evaluate_hitcond(Breakpt, HitCount, Module, Line, ProjectNode, ThreadPid) ->
+  %% evaluate condition if exists, otherwise treat as 'true'
+  case Breakpt of
+    #{hitcond := HitExpr} ->
+      HitEval = safe_eval(ProjectNode, ThreadPid, HitExpr, no_update),
+      case HitEval of
+        N when is_integer(N), N>0 -> (HitCount rem N =:= 0);
+        _ ->
+          WarnHit = unicode:characters_to_binary(
+            io_lib:format(
+              "~s:~b - Breakpoint hit condition not a non-negative int: ~w~n",
+              [source(Module, ProjectNode), Line, HitEval])),
+          els_dap_server:send_event( <<"output">>
+                                    , #{ <<"output">> => WarnHit }),
+          true
+      end;
+    _ -> true
+  end.
+
+-spec check_stop(els_dap_breakpoints:line_breaks(), boolean(), module(),
+                 integer(), atom(), pid()) -> boolean().
+check_stop(Breakpt, IsHit, Module, Line, ProjectNode, ThreadPid) ->
+  case Breakpt of
+    #{logexpr := LogExpr} ->
+      case IsHit of
+        true ->
+          Return = safe_eval(ProjectNode, ThreadPid, LogExpr, no_update),
+          LogMessage = unicode:characters_to_binary(
+            io_lib:format("~s:~b - ~w~n",
+                          [source(Module, ProjectNode), Line, Return])),
+          els_dap_server:send_event( <<"output">>
+                                    , #{ <<"output">> => LogMessage }),
+          false;
+        false -> false
+      end;
+    _ -> IsHit
+  end.
+
 -spec debug_stop(thread_id()) -> mode().
 debug_stop(ThreadId) ->
   els_dap_server:send_event( <<"stopped">>
@@ -448,24 +510,7 @@ handle_info( {int_cb, ThreadPid}
             },
   {Module, Line} = break_module_line(ThreadPid, ProjectNode),
   Breakpt = els_dap_breakpoints:type(Breakpoints, Module, Line),
-  %% evaluate condition if exists, otherwise treat as 'true'
-  Condition = case Breakpt of
-    #{condition := CondExpr} ->
-      CondEval = safe_eval(ProjectNode, ThreadPid, CondExpr, no_update),
-      case CondEval of
-        true -> true;
-        false -> false;
-        _ ->
-          WarnCond = unicode:characters_to_binary(
-            io_lib:format(
-              "~s:~b - Breakpoint condition evaluated to non-Boolean: ~w~n",
-              [source(Module, ProjectNode), Line, CondEval])),
-          els_dap_server:send_event( <<"output">>
-                                   , #{ <<"output">> => WarnCond }),
-          false
-      end;
-    _ -> true
-    end,
+  Condition = evaluate_condition(Breakpt, Module, Line, ProjectNode, ThreadPid),
   %% update hit count for current line if condition is true
   HitCount = maps:get(Line, Hits0, 0) + 1,
   Hits1 = case Condition of
@@ -473,38 +518,10 @@ handle_info( {int_cb, ThreadPid}
       false -> Hits0
     end,
   %% check if there is hit expression, if yes check along with condition
-  IsHit = case Breakpt of
-      #{hitcond := HitExpr} ->
-        HitEval = safe_eval(ProjectNode, ThreadPid, HitExpr, no_update),
-        case HitEval of
-          N when is_integer(N), N>0 -> Condition and (HitCount rem N =:= 0);
-          _ ->
-            WarnHit = unicode:characters_to_binary(
-              io_lib:format(
-                "~s:~b - Breakpoint hit condition not a non-negative int: ~w~n",
-                [source(Module, ProjectNode), Line, HitEval])),
-            els_dap_server:send_event( <<"output">>
-                                     , #{ <<"output">> => WarnHit }),
-            Condition
-        end;
-      _ -> Condition
-    end,
+  IsHit = Condition andalso
+    evaluate_hitcond(Breakpt, HitCount, Module, Line, ProjectNode, ThreadPid),
   %% finally, either stop or log
-  Stop = case Breakpt of
-      #{logexpr := LogExpr} ->
-        case IsHit of
-          true ->
-            Return = safe_eval(ProjectNode, ThreadPid, LogExpr, no_update),
-            LogMessage = unicode:characters_to_binary(
-              io_lib:format("~s:~b - ~w~n",
-                            [source(Module, ProjectNode), Line, Return])),
-            els_dap_server:send_event( <<"output">>
-                                     , #{ <<"output">> => LogMessage }),
-            false;
-          false -> false
-        end;
-      _ -> IsHit
-    end,
+  Stop = check_stop(Breakpt, IsHit, Module, Line, ProjectNode, ThreadPid),
   Mode1 = case Stop of
       true -> debug_stop(ThreadId);
       false -> debug_previous_mode(Mode0, ProjectNode, ThreadPid, ThreadId)
