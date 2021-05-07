@@ -46,14 +46,16 @@
                          , frames := #{frame_id() => frame()}
                          }.
 -type thread_id()    :: integer().
+-type mode()         :: undefined | running | stepping.
 -type state()        :: #{ threads => #{thread_id() => thread()}
                          , project_node => atom()
                          , launch_params => #{}
                          , scope_bindings =>
                           #{pos_integer() => {binding_type(), bindings()}}
                          , breakpoints := els_dap_breakpoints:breakpoints()
+                         , hits => #{line() => non_neg_integer()}
                          , timeout := timeout()
-                         , mode := undefined | running | stepping
+                         , mode := mode()
                          }.
 -type bindings()     :: [{varname(), term()}].
 -type varname()      :: atom() | string().
@@ -74,6 +76,7 @@ init() ->
    , launch_params => #{}
    , scope_bindings => #{}
    , breakpoints => #{}
+   , hits => #{}
    , timeout => 30
    , mode => undefined}.
 
@@ -411,11 +414,92 @@ handle_request( {<<"disconnect">>, _Params}
   els_utils:halt(0),
   {#{}, State}.
 
+-spec evaluate_condition(els_dap_breakpoints:line_breaks(), module(),
+                         integer(), atom(), pid()) -> boolean().
+evaluate_condition(Breakpt, Module, Line, ProjectNode, ThreadPid) ->
+  %% evaluate condition if exists, otherwise treat as 'true'
+  case Breakpt of
+    #{condition := CondExpr} ->
+      CondEval = safe_eval(ProjectNode, ThreadPid, CondExpr, no_update),
+      case CondEval of
+        true -> true;
+        false -> false;
+        _ ->
+          WarnCond = unicode:characters_to_binary(
+            io_lib:format(
+              "~s:~b - Breakpoint condition evaluated to non-Boolean: ~w~n",
+              [source(Module, ProjectNode), Line, CondEval])),
+          els_dap_server:send_event( <<"output">>
+                                    , #{ <<"output">> => WarnCond }),
+          false
+      end;
+    _ -> true
+    end.
+
+-spec evaluate_hitcond(els_dap_breakpoints:line_breaks(), integer(), module(),
+                         integer(), atom(), pid()) -> boolean().
+evaluate_hitcond(Breakpt, HitCount, Module, Line, ProjectNode, ThreadPid) ->
+  %% evaluate condition if exists, otherwise treat as 'true'
+  case Breakpt of
+    #{hitcond := HitExpr} ->
+      HitEval = safe_eval(ProjectNode, ThreadPid, HitExpr, no_update),
+      case HitEval of
+        N when is_integer(N), N>0 -> (HitCount rem N =:= 0);
+        _ ->
+          WarnHit = unicode:characters_to_binary(
+            io_lib:format(
+              "~s:~b - Breakpoint hit condition not a non-negative int: ~w~n",
+              [source(Module, ProjectNode), Line, HitEval])),
+          els_dap_server:send_event( <<"output">>
+                                    , #{ <<"output">> => WarnHit }),
+          true
+      end;
+    _ -> true
+  end.
+
+-spec check_stop(els_dap_breakpoints:line_breaks(), boolean(), module(),
+                 integer(), atom(), pid()) -> boolean().
+check_stop(Breakpt, IsHit, Module, Line, ProjectNode, ThreadPid) ->
+  case Breakpt of
+    #{logexpr := LogExpr} ->
+      case IsHit of
+        true ->
+          Return = safe_eval(ProjectNode, ThreadPid, LogExpr, no_update),
+          LogMessage = unicode:characters_to_binary(
+            io_lib:format("~s:~b - ~w~n",
+                          [source(Module, ProjectNode), Line, Return])),
+          els_dap_server:send_event( <<"output">>
+                                    , #{ <<"output">> => LogMessage }),
+          false;
+        false -> false
+      end;
+    _ -> IsHit
+  end.
+
+-spec debug_stop(thread_id()) -> mode().
+debug_stop(ThreadId) ->
+  els_dap_server:send_event( <<"stopped">>
+                           , #{ <<"reason">> => <<"breakpoint">>
+                              , <<"threadId">> => ThreadId
+                              }),
+  stepping.
+
+-spec debug_previous_mode(mode(), atom(), pid(), thread_id()) -> mode().
+debug_previous_mode(Mode0, ProjectNode, ThreadPid, ThreadId) ->
+  case Mode0 of
+    running ->
+      els_dap_rpc:continue(ProjectNode, ThreadPid),
+      Mode0;
+    _ ->
+      debug_stop(ThreadId)
+  end.
+
 -spec handle_info(any(), state()) -> state() | no_return().
 handle_info( {int_cb, ThreadPid}
            , #{ threads := Threads
               , project_node := ProjectNode
               , breakpoints := Breakpoints
+              , hits := Hits0
               , mode := Mode0
               } = State
            ) ->
@@ -425,39 +509,28 @@ handle_info( {int_cb, ThreadPid}
             , frames => stack_frames(ThreadPid, ProjectNode)
             },
   {Module, Line} = break_module_line(ThreadPid, ProjectNode),
-
-  %% handle breakpoints
-  Mode1 =
-    case els_dap_breakpoints:type(Breakpoints, Module, Line) of
-      regular ->
-        els_dap_server:send_event( <<"stopped">>
-                                 , #{ <<"reason">> => <<"breakpoint">>
-                                    , <<"threadId">> => ThreadId
-                                    }),
-        stepping;
-      {log, Expression} ->
-        Return = safe_eval(ProjectNode, ThreadPid, Expression, no_update),
-        LogMessage = unicode:characters_to_binary(
-          io_lib:format("~s:~b - ~w~n",
-                        [source(Module, ProjectNode), Line, Return])
-        ),
-        els_dap_server:send_event( <<"output">>
-                                 , #{ <<"output">> => LogMessage }),
-        case Mode0 of
-          running ->
-            els_dap_rpc:continue(ProjectNode, ThreadPid);
-          _ ->
-            els_dap_server:send_event( <<"stopped">>
-                                     , #{ <<"reason">> => <<"breakp9oint">>
-                                        , <<"threadId">> => ThreadId
-                                        })
-        end,
-        %% logpoints don't change the mode
-        Mode0
+  Breakpt = els_dap_breakpoints:type(Breakpoints, Module, Line),
+  Condition = evaluate_condition(Breakpt, Module, Line, ProjectNode, ThreadPid),
+  %% update hit count for current line if condition is true
+  HitCount = maps:get(Line, Hits0, 0) + 1,
+  Hits1 = case Condition of
+      true -> maps:put(Line, HitCount, Hits0);
+      false -> Hits0
     end,
-
-
-  State#{threads => maps:put(ThreadId, Thread, Threads), mode => Mode1};
+  %% check if there is hit expression, if yes check along with condition
+  IsHit = Condition andalso
+    evaluate_hitcond(Breakpt, HitCount, Module, Line, ProjectNode, ThreadPid),
+  %% finally, either stop or log
+  Stop = check_stop(Breakpt, IsHit, Module, Line, ProjectNode, ThreadPid),
+  Mode1 = case Stop of
+      true -> debug_stop(ThreadId);
+      false -> debug_previous_mode(Mode0, ProjectNode, ThreadPid, ThreadId)
+    end,
+  State#{
+    threads => maps:put(ThreadId, Thread, Threads),
+    mode => Mode1,
+    hits => Hits1
+  };
 handle_info({nodedown, Node}, State) ->
   %% the project node is down, there is nothing left to do then to exit
   ?LOG_NOTICE("project node ~p terminated, ending debug session", [Node]),
@@ -473,6 +546,8 @@ capabilities() ->
   #{ <<"supportsConfigurationDoneRequest">> => true
    , <<"supportsEvaluateForHovers">> => true
    , <<"supportsFunctionBreakpoints">> => true
+   , <<"supportsConditionalBreakpoints">> => true
+   , <<"supportsHitConditionalBreakpoints">> => true
    , <<"supportsLogPoints">> => true}.
 
 %%==============================================================================
