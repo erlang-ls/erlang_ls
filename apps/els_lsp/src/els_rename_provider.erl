@@ -138,12 +138,6 @@ editable_range(#{kind := application, id := {M, F, _A}, range := Range}) ->
 editable_range(#{kind := _Kind, range := Range}) ->
   els_protocol:range(Range).
 
--spec editable_range(poi_kind(), els_dt_references:item()) -> range().
-editable_range(macro, #{range := Range}) ->
-  #{ from := {FromL, FromC} } = Range,
-  EditFromC = FromC + string:length("?"),
-  els_protocol:range(Range#{ from := {FromL, EditFromC} }).
-
 -spec changes(uri(), poi(), binary()) -> #{uri() => [text_edit()]} | null.
 changes(Uri, #{kind := variable, id := VarId, range := VarRange}, NewName) ->
   %% Rename variable in function clause scope
@@ -190,13 +184,13 @@ changes(Uri, #{kind := function, id := {F, A}}, NewName) ->
             [F, A, NewName, length(lists:flatten(maps:values(Changes))),
              length(maps:keys(Changes))]),
   Changes;
-changes(Uri, #{kind := 'define', id := Id} = POI, NewName) ->
-  Self = #{range => editable_range(POI), newText => NewName},
-  {ok, Refs} = els_dt_references:find_by_id(macro, Id),
+changes(Uri, #{kind := 'define'} = DefPoi, NewName) ->
+  Self = #{range => editable_range(DefPoi), newText => NewName},
+  Refs = els_references_provider:find_scoped_references_for_def(Uri, DefPoi),
   lists:foldl(
-    fun(#{uri := U} = Ref, Acc) ->
-        Change = #{ range => editable_range(macro, Ref)
-                  , newText => NewName
+    fun({U, Poi}, Acc) ->
+        Change = #{ range => editable_range(Poi)
+                  , newText =>  <<"?", NewName/binary>>
                   },
         maps:update_with(U, fun(V) -> [Change|V] end, [Change], Acc)
     end, #{Uri => [Self]}, Refs);

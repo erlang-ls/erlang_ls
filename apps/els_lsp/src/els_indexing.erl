@@ -102,8 +102,8 @@ index_references(#{uri := Uri} = Document, 'deep', false) ->
   POIs  = els_dt_document:pois(Document, [ application
                                          , behaviour
                                          , implicit_fun
-                                         , macro
-                                         , record_expr
+                                         , include
+                                         , include_lib
                                          , type_application
                                          , import_entry
                                          ]),
@@ -152,10 +152,9 @@ register_reference(Uri, #{id := {F, A}} = POI) ->
   M = els_uri:module(Uri),
   register_reference(Uri, POI#{id => {M, F, A}});
 register_reference(Uri, #{kind := Kind, id := Id, range := Range})
-  when %% Record
-       Kind =:= record_expr;
-       %% Macro
-       Kind =:= macro;
+  when %% Include
+       Kind =:= include;
+       Kind =:= include_lib;
        %% Function
        Kind =:= application;
        Kind =:= implicit_fun;

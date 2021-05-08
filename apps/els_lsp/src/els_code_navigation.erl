@@ -177,7 +177,7 @@ include_uris(Document) ->
   POIs = els_dt_document:pois(Document, [include, include_lib]),
   lists:foldl(fun add_include_uri/2, [], POIs).
 
--spec add_include_uri(els_dt_document:item(), [uri()]) -> [uri()].
+-spec add_include_uri(poi(), [uri()]) -> [uri()].
 add_include_uri(#{ id := Id }, Acc) ->
   case els_utils:find_header(els_utils:filename_to_atom(Id)) of
     {ok, Uri}       -> [Uri | Acc];

@@ -402,7 +402,7 @@ snippet(Label, InsertText) ->
 
 -spec atoms(els_dt_document:item(), binary()) -> [map()].
 atoms(Document, Prefix) ->
-  POIs   = local_and_included_pois(Document, atom),
+  POIs   = els_scope:local_and_included_pois(Document, atom),
   Atoms  = [Id || #{id := Id} <- POIs],
   Unique = lists:usort(Atoms),
   filter_by_prefix(Prefix, Unique, fun atom_to_label/1, fun item_kind_atom/1).
@@ -472,13 +472,13 @@ definitions(Document, POIKind, ExportFormat) ->
 -spec definitions(els_dt_document:item(), poi_kind(), boolean(), boolean()) ->
   [map()].
 definitions(Document, POIKind, ExportFormat, ExportedOnly) ->
-  POIs = local_and_included_pois(Document, POIKind),
+  POIs = els_scope:local_and_included_pois(Document, POIKind),
   #{uri := Uri} = Document,
   %% Find exported entries when there is an export_entry kind available
   FAs = case export_entry_kind(POIKind) of
           {error, no_export_entry_kind} -> [];
           ExportKind ->
-            Exports = local_and_included_pois(Document, ExportKind),
+            Exports = els_scope:local_and_included_pois(Document, ExportKind),
             [FA || #{id := FA} <- Exports]
         end,
   Items = resolve_definitions(Uri, POIs, FAs, ExportedOnly, ExportFormat),
@@ -547,8 +547,8 @@ variables(Document) ->
 
 -spec all_record_fields(els_dt_document:item(), binary()) -> [map()].
 all_record_fields(Document, Prefix) ->
-  POIs   = local_and_included_pois(Document, [ record_def_field
-                                             , record_field]),
+  POIs   = els_scope:local_and_included_pois(Document, [ record_def_field
+                                                       , record_field]),
   Fields  = [Id || #{id := {_Record, Id}} <- POIs],
   Unique = lists:usort(Fields),
   filter_by_prefix(Prefix, Unique, fun atom_to_label/1, fun item_kind_field/1).
@@ -566,7 +566,7 @@ record_fields(Document, RecordName) ->
 
 -spec find_record_definition(els_dt_document:item(), atom()) -> [poi()].
 find_record_definition(Document, RecordName) ->
-  POIs = local_and_included_pois(Document, record),
+  POIs = els_scope:local_and_included_pois(Document, record),
   [X || X = #{id := Name} <- POIs, Name =:= RecordName].
 
 -spec item_kind_field(binary()) -> map().
@@ -724,37 +724,6 @@ completion_item_kind(function) ->
 export_entry_kind(type_definition) -> export_type_entry;
 export_entry_kind(function) -> export_entry;
 export_entry_kind(_) -> {error, no_export_entry_kind}.
-
-%% @doc Returns POIs of the provided `Kinds' in the document and included files
--spec local_and_included_pois(els_dt_document:item(), poi_kind() | [poi_kind()])
-                             -> [poi()].
-local_and_included_pois(Document, Kind) when is_atom(Kind) ->
-  local_and_included_pois(Document, [Kind]);
-local_and_included_pois(Document, Kinds) ->
-  lists:flatten([ els_dt_document:pois(Document, Kinds)
-                , included_pois(Document, Kinds)
-                ]).
-
-%% @doc Returns POIs of the provided `Kinds' in included files from `Document'
--spec included_pois(els_dt_document:item(), [poi_kind()]) -> [[map()]].
-included_pois(Document, Kinds) ->
-  POIs  = els_dt_document:pois(Document, [include, include_lib]),
-  [include_file_pois(Name, Kinds) || #{id := Name} <- POIs].
-
-%% @doc Returns POIs of the provided `Kinds' in the included file
--spec include_file_pois(string(), [poi_kind()]) -> [map()].
-include_file_pois(Name, Kinds) ->
-  Filename = filename:basename(Name, filename:extension(Name)),
-  H = list_to_atom(Filename),
-  case els_utils:find_header(H) of
-    {ok, Uri} ->
-      {ok, IncludeDocument} = els_utils:lookup_document(Uri),
-      %% NB: Recursive call to support includes in the include file
-      IncludedInHeader = lists:flatten(included_pois(IncludeDocument, Kinds)),
-      els_dt_document:pois(IncludeDocument, Kinds) ++ IncludedInHeader;
-    {error, _} ->
-      []
-  end.
 
 -spec atom_to_label(atom()) -> binary().
 atom_to_label(Atom) when is_atom(Atom) ->

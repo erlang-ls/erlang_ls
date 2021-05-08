@@ -148,6 +148,7 @@ rename_macro(Config) ->
   Line = 0,
   Char = 13,
   NewName = <<"NEW_AWESOME_NAME">>,
+  NewNameUsage = <<"?NEW_AWESOME_NAME">>,
   #{result := Result} = els_client:document_rename(Uri, Line, Char, NewName),
   Expected =  #{changes =>
                   #{ binary_to_atom(Uri, utf8) =>
@@ -157,20 +158,20 @@ rename_macro(Config) ->
                                , start => #{character => 8, line => 0}}}
                        ]
                    , binary_to_atom(?config(rename_usage1_uri, Config), utf8) =>
-                       [ #{ newText => NewName
+                       [ #{ newText => NewNameUsage
                           , range =>
                               #{ 'end' => #{character => 13, line => 15}
-                               , start => #{character => 4, line => 15}}}
-                       , #{ newText => NewName
+                               , start => #{character => 3, line => 15}}}
+                       , #{ newText => NewNameUsage
                           , range =>
                               #{ 'end' => #{character => 25, line => 15}
-                               , start => #{character => 16, line => 15}}}
+                               , start => #{character => 15, line => 15}}}
                        ]
                    , binary_to_atom(?config(rename_usage2_uri, Config), utf8) =>
-                       [ #{ newText => NewName
+                       [ #{ newText => NewNameUsage
                           , range =>
                               #{ 'end' => #{character => 26, line => 11}
-                               , start => #{character => 17, line => 11}}}
+                               , start => #{character => 16, line => 11}}}
                        ]
                    }
                },
@@ -259,6 +260,7 @@ rename_parametrized_macro(Config) ->
   Line = 2,
   Char = 16,
   NewName = <<"NEW_AWESOME_NAME">>,
+  NewNameUsage = <<"?NEW_AWESOME_NAME">>,
   #{result := Result} = els_client:document_rename(Uri, Line, Char, NewName),
   Expected =  #{changes =>
                   #{ binary_to_atom(Uri, utf8) =>
@@ -268,21 +270,21 @@ rename_parametrized_macro(Config) ->
                                , start => #{character => 8, line => 2}}}
                        ]
                    , binary_to_atom(?config(rename_usage1_uri, Config), utf8) =>
-                       [ #{ newText => NewName
+                       [ #{ newText => NewNameUsage
                           , range =>
                               #{ 'end' => #{character => 26, line => 18}
-                               , start => #{character => 4, line => 18}}}
-                       , #{ newText => NewName
+                               , start => #{character => 3, line => 18}}}
+                       , #{ newText => NewNameUsage
                           , range =>
                               #{ 'end' => #{character => 54, line => 18}
-                               , start => #{character => 32, line => 18}}}
+                               , start => #{character => 31, line => 18}}}
                        ]
                     , binary_to_atom(
                         ?config(rename_usage2_uri, Config), utf8) =>
-                        [ #{ newText => NewName
+                        [ #{ newText => NewNameUsage
                            , range =>
                                #{ 'end' => #{character => 52, line => 14}
-                                , start => #{character => 30, line => 14}}}
+                                , start => #{character => 29, line => 14}}}
                         ]
                    }
                },
@@ -294,6 +296,7 @@ rename_macro_from_usage(Config) ->
   Line = 15,
   Char = 7,
   NewName = <<"NEW_AWESOME_NAME">>,
+  NewNameUsage = <<"?NEW_AWESOME_NAME">>,
   #{result := Result} = els_client:document_rename(Uri, Line, Char, NewName),
   Expected =  #{changes =>
                   #{ binary_to_atom(?config(rename_h_uri, Config), utf8) =>
@@ -303,20 +306,20 @@ rename_macro_from_usage(Config) ->
                                , start => #{character => 8, line => 0}}}
                        ]
                    , binary_to_atom(?config(rename_usage1_uri, Config), utf8) =>
-                       [ #{ newText => NewName
+                       [ #{ newText => NewNameUsage
                           , range =>
                               #{ 'end' => #{character => 13, line => 15}
-                               , start => #{character => 4, line => 15}}}
-                       , #{ newText => NewName
+                               , start => #{character => 3, line => 15}}}
+                       , #{ newText => NewNameUsage
                           , range =>
                               #{ 'end' => #{character => 25, line => 15}
-                               , start => #{character => 16, line => 15}}}
+                               , start => #{character => 15, line => 15}}}
                        ]
                    , binary_to_atom(?config(rename_usage2_uri, Config), utf8) =>
-                       [ #{ newText => NewName
+                       [ #{ newText => NewNameUsage
                           , range =>
                               #{ 'end' => #{character => 26, line => 11}
-                               , start => #{character => 17, line => 11}}}
+                               , start => #{character => 16, line => 11}}}
                        ]
                    }
                },

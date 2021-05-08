@@ -19,8 +19,15 @@
         , fun_remote/1
         , export_entry/1
         , macro/1
+        , included_macro/1
+        , undefined_macro/1
         , module/1
         , record/1
+        , record_field/1
+        , included_record/1
+        , included_record_field/1
+        , undefined_record/1
+        , undefined_record_field/1
         , purge_references/1
         , type_local/1
         , type_remote/1
@@ -195,6 +202,41 @@ macro(Config) ->
 
   ok.
 
+-spec included_macro(config()) -> ok.
+included_macro(Config) ->
+  Uri = ?config(diagnostics_unused_includes_uri, Config),
+  HeaderUri = ?config(definition_h_uri, Config),
+
+  ExpectedLocations = [ #{ uri => Uri
+                         , range => #{from => {14, 23}, to => {14, 54}}
+                         }
+                      ],
+
+  ct:comment("References for MACRO_FOR_TRANSITIVE_INCLUSION from usage"),
+  #{result := Locations} = els_client:references(Uri, 14, 30),
+  ct:comment("References for MACRO_FOR_TRANSITIVE_INCLUSION from define"),
+  #{result := Locations} = els_client:references(HeaderUri, 1, 20),
+  assert_locations(Locations, ExpectedLocations),
+
+  ok.
+
+-spec undefined_macro(config()) -> ok.
+undefined_macro(Config) ->
+  Uri = ?config(code_navigation_undefined_uri, Config),
+
+  ExpectedLocations = [ #{ uri => Uri
+                         , range => #{from => {6, 28}, to => {6, 40}}
+                         }
+                      , #{ uri => Uri
+                         , range => #{from => {8, 29}, to => {8, 41}}
+                         }
+                      ],
+
+  ct:comment("References for UNDEF_MACRO from usage"),
+  #{result := Locations1} = els_client:references(Uri, 6, 30),
+  assert_locations(Locations1, ExpectedLocations),
+  ok.
+
 -spec module(config()) -> ok.
 module(Config) ->
   Uri = ?config(code_navigation_extra_uri, Config),
@@ -240,7 +282,7 @@ record(Config) ->
   ct:comment("Find references record_a from beginning of definition"),
   #{result := Locations} = els_client:references(Uri, 16, 9),
   ct:comment("Find references record_a from end of definition"),
-  #{result := Locations} = els_client:references(Uri, 16, 16),
+  #{result := Locations} = els_client:references(Uri, 16, 17),
 
   assert_locations(Locations, ExpectedLocations),
 
@@ -248,6 +290,113 @@ record(Config) ->
   #{result := null} = els_client:references(Uri, 16, 8),
   #{result := null} = els_client:references(Uri, 16, 18),
 
+  ok.
+
+-spec record_field(config()) -> ok.
+record_field(Config) ->
+  Uri = ?config(code_navigation_uri, Config),
+  ExpectedLocations = [ #{ uri => Uri
+                         , range => #{from => {33, 18}, to => {33, 25}}
+                         }
+                      , #{ uri => Uri
+                         , range => #{from => {34, 19}, to => {34, 26}}
+                         }
+                      , #{ uri => Uri
+                         , range => #{from => {34, 44}, to => {34, 51}}
+                         }
+                      ],
+
+  ct:comment("Find references field_a from a usage"),
+  #{result := Locations} = els_client:references(Uri, 33, 18),
+  ct:comment("Find references field_a from an access"),
+  #{result := Locations} = els_client:references(Uri, 34, 19),
+  ct:comment("Find references field_a from beginning of definition"),
+  #{result := Locations} = els_client:references(Uri, 16, 20),
+  ct:comment("Find references field_a from end of definition"),
+  #{result := Locations} = els_client:references(Uri, 16, 27),
+
+  assert_locations(Locations, ExpectedLocations),
+
+  ct:comment("Check limits of field_a"),
+  #{result := null} = els_client:references(Uri, 16, 19),
+  #{result := null} = els_client:references(Uri, 16, 28),
+
+  ok.
+
+-spec included_record(config()) -> ok.
+included_record(Config) ->
+  Uri = ?config(code_navigation_uri, Config),
+  HeaderUri = ?config(code_navigation_h_uri, Config),
+
+  ExpectedRecordLocations =
+    [ #{ uri => Uri
+       , range => #{from => {52, 41}, to => {52, 59}}
+       }
+    , #{ uri => Uri
+       , range => #{from => {53, 23}, to => {53, 41}}
+       }
+    , #{ uri => Uri
+       , range => #{from => {75, 4}, to => {75, 22}}
+       }
+    ],
+  ct:comment("Find references of included_record_a from a usage"),
+  #{result := RecordLocations} = els_client:references(Uri, 53, 30),
+  ct:comment("Find references of included_record_a from definition"),
+  #{result := RecordLocations} = els_client:references(HeaderUri, 1, 10),
+  assert_locations(RecordLocations, ExpectedRecordLocations),
+
+  ok.
+
+-spec included_record_field(config()) -> ok.
+included_record_field(Config) ->
+  Uri = ?config(code_navigation_uri, Config),
+  HeaderUri = ?config(code_navigation_h_uri, Config),
+
+  ExpectedFieldLocations =
+    [ #{ uri => Uri
+       , range => #{from => {53, 42}, to => {53, 58}}
+       }
+    ],
+  ct:comment("Find references of included_field_a from a usage"),
+  #{result := FieldLocations} = els_client:references(Uri, 53, 45),
+  ct:comment("Find references of included_field_a from definition"),
+  #{result := FieldLocations} = els_client:references(HeaderUri, 1, 30),
+  assert_locations(FieldLocations, ExpectedFieldLocations),
+
+  ok.
+
+-spec undefined_record(config()) -> ok.
+undefined_record(Config) ->
+  Uri = ?config(code_navigation_undefined_uri, Config),
+
+  ExpectedLocations = [ #{ uri => Uri
+                         , range => #{from => {6, 3}, to => {6, 13}}
+                         }
+                      , #{ uri => Uri
+                         , range => #{from => {8, 4}, to => {8, 14}}
+                         }
+                      ],
+
+  ct:comment("References for undef_rec from usage"),
+  #{result := Locations1} = els_client:references(Uri, 6, 10),
+  assert_locations(Locations1, ExpectedLocations),
+  ok.
+
+-spec undefined_record_field(config()) -> ok.
+undefined_record_field(Config) ->
+  Uri = ?config(code_navigation_undefined_uri, Config),
+
+  ExpectedLocations = [ #{ uri => Uri
+                         , range => #{from => {6, 14}, to => {6, 25}}
+                         }
+                      , #{ uri => Uri
+                         , range => #{from => {8, 15}, to => {8, 26}}
+                         }
+                      ],
+
+  ct:comment("References for undef_field from usage"),
+  #{result := Locations1} = els_client:references(Uri, 6, 20),
+  assert_locations(Locations1, ExpectedLocations),
   ok.
 
 %% Issue #245

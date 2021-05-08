@@ -8,6 +8,8 @@
         , fold_files/4
         , halt/1
         , lookup_document/1
+        , include_id/1
+        , include_lib_id/1
         , macro_string_to_term/1
         , project_relative/1
         , resolve_paths/3
@@ -88,7 +90,8 @@ cmd_path(Cmd) ->
       Epmd
   end.
 
--spec filename_to_atom(els_dt_document:id()) -> atom().
+%% @doc Convert an 'include'/'include_lib' POI ID to a document index ID
+-spec filename_to_atom(string()) -> atom().
 filename_to_atom(FileName) ->
   list_to_atom(filename:basename(FileName, filename:extension(FileName))).
 
@@ -140,6 +143,23 @@ lookup_document(Uri) ->
           {error, Error}
       end
   end.
+
+%% @doc Convert path to an 'include' POI id
+-spec include_id(file:filename_all()) -> string().
+include_id(Path) ->
+  els_utils:to_list(filename:basename(Path)).
+
+%% @doc Convert path to an 'include_lib' POI id
+-spec include_lib_id(file:filename_all()) -> string().
+include_lib_id(Path) ->
+  Components = filename:split(Path),
+  Length     = length(Components),
+  End        = Length - 1,
+  Beginning  = max(1, Length - 2),
+  [H|T]      = lists:sublist(Components, Beginning, End),
+  %% Strip the app version number from the path
+  Id = filename:join([re:replace(H, "-.*", "", [{return, list}]) | T]),
+  els_utils:to_list(Id).
 
 -spec macro_string_to_term(list()) -> any().
 macro_string_to_term(Value) ->
