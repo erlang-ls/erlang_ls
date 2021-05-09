@@ -94,6 +94,8 @@ execute_command(<<"function-references">>, [_Params]) ->
   [];
 execute_command(<<"show-behaviour-usages">>, [_Params]) ->
   [];
+execute_command(<<"suggest-spec">>, []) ->
+  [];
 execute_command(<<"suggest-spec">>, [#{ <<"uri">> := Uri
                                       , <<"line">> := Line
                                       , <<"spec">> := Spec

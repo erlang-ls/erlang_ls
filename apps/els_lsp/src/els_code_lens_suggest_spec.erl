@@ -19,7 +19,7 @@
 %%==============================================================================
 %% Type Definitions
 %%==============================================================================
--type state() :: #{'info' => els_typer:info() | 'no_info'}.
+-type state() :: els_typer:info() | 'no_info'.
 
 %%==============================================================================
 %% Callback functions for the els_code_lens behaviour
@@ -28,7 +28,7 @@
 init(#{uri := Uri} = _Document) ->
   try els_typer:get_info(Uri) of
     Info ->
-      #{info => Info}
+      Info
   catch C:E:S ->
       Fmt =
         "Cannot extract typer info.~n"
@@ -36,19 +36,23 @@ init(#{uri := Uri} = _Document) ->
         "Exception: ~p~n"
         "Stacktrace: ~p~n",
       ?LOG_WARNING(Fmt, [C, E, S]),
-      #{info => 'no_info'}
+      'no_info'
   end.
 
 -spec command(els_dt_document:item(), poi(), state()) -> els_command:command().
-command(Document, #{range := #{from := {Line, _}}} = POI, #{info := Info}) ->
-  #{uri := Uri} = Document,
-  Spec = get_type_spec(POI, Info),
-  Title = Spec,
+command(_Document, _POI, 'no_info') ->
   CommandId = <<"suggest-spec">>,
+  Title = <<"Cannot extract specs (check logs for details)">>,
+  els_command:make_command(Title, CommandId, []);
+command(Document, #{range := #{from := {Line, _}}} = POI, Info) ->
+  #{uri := Uri} = Document,
+  CommandId = <<"suggest-spec">>,
+  Spec = get_type_spec(POI, Info),
+  Title = truncate_spec_title(Spec, spec_title_max_length()),
   CommandArgs = [ #{ uri => Uri
-                   , line => Line
-                   , spec => Spec
-                   }
+                  , line => Line
+                  , spec => Spec
+                  }
                 ],
   els_command:make_command(Title, CommandId, CommandArgs).
 
@@ -66,13 +70,25 @@ pois(Document) ->
 %%==============================================================================
 %% Internal functions
 %%==============================================================================
--spec get_type_spec(poi(), els_typer:info() | 'no_info') -> binary().
+-spec get_type_spec(poi(), els_typer:info()) -> binary().
 get_type_spec(POI, Info) ->
-  case Info of
-    'no_info' ->
-      <<"Cannot extract specs (check logs for details)">>;
-    _ ->
-      #{id := {Function, Arity}} = POI,
-      Spec = els_typer:get_type_spec(Function, Arity, Info),
-      re:replace(Spec, ",", ", ", [global, {return, binary}])
+    #{id := {Function, Arity}} = POI,
+    Spec = els_typer:get_type_spec(Function, Arity, Info),
+    re:replace(Spec, ",", ", ", [global, {return, binary}]).
+
+-spec truncate_spec_title(binary(), integer()) -> binary().
+truncate_spec_title(Spec, MaxLength) ->
+  Length = string:length(Spec),
+  case Length > MaxLength of
+    true ->
+      Title = unicode:characters_to_binary(
+        string:slice(Spec, 0, MaxLength - 3)
+      ),
+      <<Title/binary, "...">>;
+    false ->
+      Spec
   end.
+
+-spec spec_title_max_length() -> integer().
+spec_title_max_length() ->
+  application:get_env(els_core, suggest_spec_title_max_length, 100).

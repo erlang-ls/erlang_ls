@@ -61,7 +61,7 @@
 -record(info, {records = maps:new() :: erl_types:type_table(),
                functions = []       :: [func_info()],
                types = map__new()   :: map_dict()}).
--opaque info() :: #info{}.
+-type info() :: #info{}.
 -export_type([ info/0 ]).
 
 -spec get_info(uri()) -> #info{}.
