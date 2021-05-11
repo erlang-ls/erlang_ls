@@ -18,6 +18,10 @@ Compile the project:
 
     make
 
+Install erlang_ls built by `make`:
+
+    make install
+
 ## Command-line Arguments
 
 These are the command-line arguments that can be provided to the
