@@ -19,6 +19,8 @@
         , rename_function/1
         , rename_function_quoted_atom/1
         , rename_function_clause/1
+        , rename_function_application/1
+        , rename_function_implicit_fun/1
         , rename_parametrized_macro/1
         , rename_macro_from_usage/1
         ]).
@@ -233,6 +235,64 @@ rename_function_clause(Config) ->
   Char = 2,
   NewName = <<"new_function">>,
   #{result := Result} = els_client:document_rename(Uri, Line, Char, NewName),
+  Expected = #{changes =>
+                 #{binary_to_atom(Uri, utf8) =>
+                     [ change(NewName, {12, 23}, {12, 26})
+                     , change(NewName, {13, 10}, {13, 13})
+                     , change(NewName, {15, 27}, {15, 30})
+                     , change(NewName, {17, 11}, {17, 14})
+                     , change(NewName, {18, 2}, {18, 5})
+                     , change(NewName, {1, 9}, {1, 12})
+                     , change(NewName, {3, 6}, {3, 9})
+                     , change(NewName, {4, 0}, {4, 3})
+                     , change(NewName, {6, 0}, {6, 3})
+                     , change(NewName, {8, 0}, {8, 3})
+                     ],
+                   binary_to_atom(ImportUri, utf8) =>
+                     [ change(NewName, {7, 18}, {7, 21})
+                     , change(NewName, {2, 26}, {2, 29})
+                     , change(NewName, {6, 2}, {6, 5})
+                     ]}},
+  assert_changes(Expected, Result).
+
+-spec rename_function_application(config()) -> ok.
+rename_function_application(Config) ->
+  Uri = ?config(rename_function_uri, Config),
+  ImportUri = ?config(rename_function_import_uri, Config),
+  Line = 7,
+  Char = 18,
+  NewName = <<"new_function">>,
+  #{result := Result} =
+    els_client:document_rename(ImportUri, Line, Char, NewName),
+  Expected = #{changes =>
+                 #{binary_to_atom(Uri, utf8) =>
+                     [ change(NewName, {12, 23}, {12, 26})
+                     , change(NewName, {13, 10}, {13, 13})
+                     , change(NewName, {15, 27}, {15, 30})
+                     , change(NewName, {17, 11}, {17, 14})
+                     , change(NewName, {18, 2}, {18, 5})
+                     , change(NewName, {1, 9}, {1, 12})
+                     , change(NewName, {3, 6}, {3, 9})
+                     , change(NewName, {4, 0}, {4, 3})
+                     , change(NewName, {6, 0}, {6, 3})
+                     , change(NewName, {8, 0}, {8, 3})
+                     ],
+                   binary_to_atom(ImportUri, utf8) =>
+                     [ change(NewName, {7, 18}, {7, 21})
+                     , change(NewName, {2, 26}, {2, 29})
+                     , change(NewName, {6, 2}, {6, 5})
+                     ]}},
+  assert_changes(Expected, Result).
+
+-spec rename_function_implicit_fun(config()) -> ok.
+rename_function_implicit_fun(Config) ->
+  Uri = ?config(rename_function_uri, Config),
+  ImportUri = ?config(rename_function_import_uri, Config),
+  Line = 13,
+  Char = 10,
+  NewName = <<"new_function">>,
+  #{result := Result} =
+    els_client:document_rename(Uri, Line, Char, NewName),
   Expected = #{changes =>
                  #{binary_to_atom(Uri, utf8) =>
                      [ change(NewName, {12, 23}, {12, 26})
