@@ -55,7 +55,12 @@ workspace_edits(Uri, [#{kind := function_clause} = POI| _], NewName) ->
   #{changes => changes(Uri, POI#{kind => function, id => {F, A}}, NewName)};
 workspace_edits(Uri, [#{kind := 'define'} = POI| _], NewName) ->
   #{changes => changes(Uri, POI, NewName)};
-workspace_edits(Uri, [#{kind := 'macro'} = POI| _], NewName) ->
+workspace_edits(Uri, [#{kind := Kind} = POI| _], NewName)
+  when Kind =:= macro;
+       Kind =:= application;
+       Kind =:= implicit_fun;
+       Kind =:= export_entry;
+       Kind =:= import_entry ->
   case els_code_navigation:goto_definition(Uri, POI) of
     {ok, DefUri, DefPOI} ->
       #{changes => changes(DefUri, DefPOI, NewName)};
