@@ -18,7 +18,7 @@ Compile the project:
 
     make
 
-Install erlang_ls built by `make`:
+To install the produced `erlang_ls` escript in `/usr/local/bin`:
 
     make install
 
