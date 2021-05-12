@@ -104,6 +104,7 @@ index_references(#{uri := Uri} = Document, 'deep', false) ->
                                          , implicit_fun
                                          , macro
                                          , record_expr
+                                         , record_field
                                          , type_application
                                          , import_entry
                                          ]),
@@ -154,6 +155,8 @@ register_reference(Uri, #{id := {F, A}} = POI) ->
 register_reference(Uri, #{kind := Kind, id := Id, range := Range})
   when %% Record
        Kind =:= record_expr;
+       %% Record Field
+       Kind =:= record_field;
        %% Macro
        Kind =:= macro;
        %% Function

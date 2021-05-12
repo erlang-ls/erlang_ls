@@ -100,7 +100,8 @@ find_by(Pattern) ->
   {ok, Items} = els_db:match(name(), Pattern),
   {ok, [to_item(Item) || Item <- Items]}.
 
--spec kind_to_category(poi_kind()) -> function | type | macro | record.
+-spec kind_to_category(poi_kind()) ->
+  function | type | macro | record | record_field | behaviour.
 kind_to_category(Kind) when Kind =:= application;
                             Kind =:= export_entry;
                             Kind =:= function;
@@ -118,5 +119,8 @@ kind_to_category(Kind) when Kind =:= macro;
 kind_to_category(Kind) when Kind =:= record_expr;
                             Kind =:= record ->
   record;
+kind_to_category(Kind) when Kind =:= record_field;
+                            Kind =:= record_def_field ->
+  record_field;
 kind_to_category(Kind) when Kind =:= behaviour ->
   behaviour.

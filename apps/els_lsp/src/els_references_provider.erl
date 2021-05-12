@@ -56,6 +56,7 @@ find_references(Uri, #{ kind := Kind
                               Kind =:= function;
                               Kind =:= export_entry;
                               Kind =:= export_type_entry;
+                              Kind =:= record_def_field;
                               Kind =:= type_application;
                               Kind =:= type_definition ->
   Key = case Id of
