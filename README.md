@@ -18,6 +18,10 @@ Compile the project:
 
     make
 
+To install the produced `erlang_ls` escript in `/usr/local/bin`:
+
+    make install
+
 ## Command-line Arguments
 
 These are the command-line arguments that can be provided to the
