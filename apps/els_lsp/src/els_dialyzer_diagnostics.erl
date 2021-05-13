@@ -66,9 +66,10 @@ source() ->
 %%==============================================================================
 %% Internal Functions
 %%==============================================================================
--spec diagnostic({any(), {any(), integer()}, any()}) ->
+-spec diagnostic({any(), {any(), erl_anno:anno()}, any()}) ->
         els_diagnostics:diagnostic().
-diagnostic({_, {_, Line}, _} = Warning) ->
+diagnostic({_, {_, Anno}, _} = Warning) ->
+  Line     = erl_anno:line(Anno),
   Range    = els_protocol:range(#{ from => {Line, 1}
                                  , to   => {Line + 1, 1}
                                  }),
