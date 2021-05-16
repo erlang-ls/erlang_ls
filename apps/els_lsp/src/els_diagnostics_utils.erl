@@ -8,6 +8,7 @@
 %%==============================================================================
 -export([ dependencies/1
         , included_uris/1
+        , range/2
         ]).
 %%==============================================================================
 %% Includes
@@ -23,6 +24,41 @@ dependencies(Uri) ->
 included_uris(Document) ->
   POIs = els_dt_document:pois(Document, [include, include_lib]),
   included_uris([Id || #{id := Id} <- POIs], []).
+
+-spec range(els_dt_document:item() | undefined,
+            erl_anno:anno() | none) -> poi_range().
+range(Document, none) ->
+  range(Document, erl_anno:new(1));
+range(Document, Anno) ->
+  true = erl_anno:is_anno(Anno),
+  Line = erl_anno:line(Anno),
+  case erl_anno:column(Anno) of
+    Col when Document =:= undefined; Col =:= undefined ->
+      #{from => {Line, 1}, to => {Line + 1, 1}};
+    Col ->
+      POIs0 = els_dt_document:get_element_at_pos(Document, Line, Col),
+
+      %% Exclude folding range since line is more exact anyway
+      POIs  = [POI || #{kind := Kind} = POI <- POIs0, Kind =/= folding_range],
+
+      %% * If we find no pois that we just return the original line
+      %% * If we find a poi that start on the line and col as the anno
+      %%   we are looking for we that that one.
+      %% * We take the "first" poi if we find some, but none come from
+      %%   the correct line and number.
+
+      case lists:search(
+             fun(#{ range := #{ from := {FromLine, FromCol} } }) ->
+                 FromLine =:= Line andalso FromCol =:= Col
+             end, POIs) of
+        {value, #{ range := Range } } ->
+          Range;
+        false when POIs =:= [] ->
+          #{ from => {Line, 1}, to => {Line + 1, 1} };
+        false ->
+          maps:get(range, hd(POIs))
+      end
+  end.
 
 %%==============================================================================
 %% Internal Functions

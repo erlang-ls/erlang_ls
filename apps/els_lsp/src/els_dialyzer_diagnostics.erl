@@ -42,6 +42,7 @@ run(Uri) ->
   case els_config:get(plt_path) of
     undefined -> [];
     DialyzerPltPath ->
+      {ok, Document} = els_utils:lookup_document(Uri),
       Deps  = [dep_path(X) || X <- els_diagnostics_utils:dependencies(Uri)],
       Files = [els_utils:to_list(Path) | Deps],
       WS = try dialyzer:run([ {files, Files}
@@ -56,7 +57,7 @@ run(Uri) ->
                          ),
                []
            end,
-      [diagnostic(W) || W <- WS]
+      [diagnostic(Document, W) || W <- WS]
   end.
 
 -spec source() -> binary().
@@ -66,17 +67,14 @@ source() ->
 %%==============================================================================
 %% Internal Functions
 %%==============================================================================
--spec diagnostic({any(), {any(), erl_anno:anno()}, any()}) ->
+-spec diagnostic(els_dt_document:item(),
+                 {any(), {any(), erl_anno:anno()}, any()}) ->
         els_diagnostics:diagnostic().
-diagnostic({_, {_, Anno}, _} = Warning) ->
-  Line     = erl_anno:line(Anno),
-  Range    = els_protocol:range(#{ from => {Line, 1}
-                                 , to   => {Line + 1, 1}
-                                 }),
-  Message0 = lists:flatten(dialyzer:format_warning(Warning)),
-  Message  = els_utils:to_binary(Message0),
-  #{ range    => Range
-   , message  => Message
+diagnostic(Document, {_, {_, Anno}, _} = Warning) ->
+  Range   = els_diagnostics_utils:range(Document, Anno),
+  Message = lists:flatten(dialyzer:format_warning(Warning)),
+  #{ range    => els_protocol:range(Range)
+   , message  => els_utils:to_binary(Message)
    , severity => ?DIAGNOSTIC_WARNING
    , source   => source()
    }.
