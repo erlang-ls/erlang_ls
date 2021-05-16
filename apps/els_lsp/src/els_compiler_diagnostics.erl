@@ -229,11 +229,11 @@ inclusion_range(IncludePath, Document) ->
                      -> [poi_range()].
 inclusion_range(IncludePath, Document, include) ->
   POIs       = els_dt_document:pois(Document, [include]),
-  IncludeId  = include_id(IncludePath),
+  IncludeId  = els_utils:include_id(IncludePath),
   [Range || #{id := Id, range := Range} <- POIs, Id =:= IncludeId];
 inclusion_range(IncludePath, Document, include_lib) ->
   POIs       = els_dt_document:pois(Document, [include_lib]),
-  IncludeId  = include_lib_id(IncludePath),
+  IncludeId  = els_utils:include_lib_id(IncludePath),
   [Range || #{id := Id, range := Range} <- POIs, Id =:= IncludeId];
 inclusion_range(IncludePath, Document, behaviour) ->
   POIs        = els_dt_document:pois(Document, [behaviour]),
@@ -244,20 +244,6 @@ inclusion_range(IncludePath, Document, parse_transform) ->
   ParseTransformId
     = els_uri:module(els_uri:uri(els_utils:to_binary(IncludePath))),
   [Range || #{id := Id, range := Range} <- POIs, Id =:= ParseTransformId].
-
--spec include_id(string()) -> string().
-include_id(Path) ->
-  filename:basename(Path).
-
--spec include_lib_id(string()) -> string().
-include_lib_id(Path) ->
-  Components = filename:split(Path),
-  Length     = length(Components),
-  End        = Length - 1,
-  Beginning  = max(1, Length - 2),
-  [H|T]      = lists:sublist(Components, Beginning, End),
-  %% Strip the app version number from the path
-  filename:join([re:replace(H, "-.*", "", [{return, list}])], filename:join(T)).
 
 -spec macro_options() -> [macro_option()].
 macro_options() ->

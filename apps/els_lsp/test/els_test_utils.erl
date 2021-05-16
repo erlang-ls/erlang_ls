@@ -148,6 +148,7 @@ sources() ->
   , code_navigation
   , code_navigation_extra
   , code_navigation_types
+  , code_navigation_undefined
   , 'Code.Navigation.Elixirish'
   , completion
   , completion_caller
@@ -204,6 +205,8 @@ escripts() ->
 -spec includes() -> [atom()].
 includes() ->
   [ code_navigation
+  , transitive
+  , definition
   , diagnostics
   , rename
   ].
