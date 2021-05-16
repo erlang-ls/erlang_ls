@@ -594,7 +594,7 @@ macros(Config) ->
                 , data => #{}
                 }
              , #{ kind => ?COMPLETION_ITEM_KIND_CONSTANT
-                , label => <<"MACRO_WITH_ARGS">>
+                , label => <<"MACRO_A/1">>
                 , data => #{}
                 }
              , #{ kind => ?COMPLETION_ITEM_KIND_CONSTANT

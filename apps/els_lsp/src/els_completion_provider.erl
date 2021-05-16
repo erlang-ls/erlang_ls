@@ -687,10 +687,16 @@ completion_item(#{kind := Kind = record, id := Name}, Data, _) ->
    , data             => Data
    };
 completion_item(#{kind := Kind = define, id := Name}, Data, _) ->
-  #{ label            => atom_to_binary(Name, utf8)
+  #{ label            => macro_label(Name)
    , kind             => completion_item_kind(Kind)
    , data             => Data
    }.
+
+-spec macro_label(atom() | {atom(), non_neg_integer()}) -> binary().
+macro_label({Name, Arity}) ->
+  els_utils:to_binary(io_lib:format("~ts/~p", [Name, Arity]));
+macro_label(Name) ->
+  atom_to_binary(Name, utf8).
 
 -spec snippet_function_call(atom(), [{integer(), string()}]) -> binary().
 snippet_function_call(Function, Args0) ->

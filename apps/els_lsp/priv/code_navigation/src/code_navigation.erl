@@ -16,7 +16,7 @@
 -record(record_a, {field_a, field_b, 'Field C'}).
 
 -define(MACRO_A, macro_a).
--define(MACRO_WITH_ARGS(X), erlang:display(X)).
+-define(MACRO_A(X), erlang:display(X)).
 
 function_a() ->
   function_b(),
@@ -37,7 +37,7 @@ function_c() ->
 -type type_a() :: any().
 
 function_d() ->
-  ?MACRO_WITH_ARGS(d).
+  ?MACRO_A(d).
 
 function_e() ->
   ?assertEqual(2.0, 4/2).
