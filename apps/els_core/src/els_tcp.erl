@@ -4,7 +4,7 @@
 -behaviour(els_transport).
 
 %% ranch callbacks
--export([start_link/4]).
+-export([start_link/3]).
 
 %% els_transport callbacks
 -export([ start_listener/1
@@ -24,8 +24,6 @@
 %% Defines
 %%==============================================================================
 
--define(DEFAULT_PORT, 10000).
-
 %%==============================================================================
 %% Types
 %%==============================================================================
@@ -37,9 +35,9 @@
 %% ranch_protocol callbacks
 %%==============================================================================
 
--spec start_link(ranch:ref(), any(), module(), any()) -> {ok, pid()}.
-start_link(Ref, Socket, Transport, Opts) ->
-  Args = {Ref, Socket, Transport, Opts},
+-spec start_link(ranch:ref(), module(), any()) -> {ok, pid()}.
+start_link(Ref, Transport, Opts) ->
+  Args = {Ref, Transport, Opts},
   {ok, proc_lib:spawn_link(?MODULE, init, [Args])}.
 
 %%==============================================================================
@@ -57,9 +55,9 @@ start_listener(_Cb) ->
                                 , []
                                 ).
 
--spec init({ranch:ref(), any(), module(), any()}) -> ok.
-init({Ref, Socket, Transport, _Opts}) ->
-  {ok, _}    = ranch:handshake(Ref),
+-spec init({ranch:ref(), module(), any()}) -> ok.
+init({Ref, Transport, _Opts}) ->
+  {ok, Socket} = ranch:handshake(Ref),
   ok         = Transport:setopts(Socket, [{active, once}, {packet, 0}]),
 
   Connection = #connection{socket = Socket, transport = Transport},
