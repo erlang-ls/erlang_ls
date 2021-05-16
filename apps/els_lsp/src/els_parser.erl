@@ -183,7 +183,7 @@ application_with_variable(Operator, A) ->
     %% fully qualified calls is so common that it is worth a
     %% specific clause.
     {macro, atom} ->
-      ModuleName   = node_name(Module),
+      ModuleName   = macro_name(Module),
       FunctionName = node_name(Function),
       case {ModuleName, FunctionName} of
         {'MODULE', F} -> {F, A};
@@ -472,7 +472,7 @@ implicit_fun(Tree) ->
 -spec macro(tree()) -> [poi()].
 macro(Tree) ->
   Anno = macro_location(Tree),
-  [poi(Anno, macro, node_name(Tree))].
+  [poi(Anno, macro, macro_name(Tree))].
 
 -spec record_access(tree()) -> [poi()].
 record_access(Tree) ->
@@ -613,7 +613,8 @@ define_name(Tree) ->
   case erl_syntax:type(Tree) of
     application ->
       Operator = erl_syntax:application_operator(Tree),
-      node_name(Operator);
+      Args = erl_syntax:application_arguments(Tree),
+      macro_name(Operator, Args);
     variable ->
       erl_syntax:variable_name(Tree);
     atom ->
@@ -629,11 +630,18 @@ node_name(Tree) ->
       erl_syntax:atom_value(Tree);
     variable ->
       erl_syntax:variable_name(Tree);
-    macro ->
-      node_name(erl_syntax:macro_name(Tree));
     underscore ->
       '_'
   end.
+
+-spec macro_name(tree()) -> atom() | {atom(), non_neg_integer()}.
+macro_name(Tree) ->
+  macro_name(erl_syntax:macro_name(Tree), erl_syntax:macro_arguments(Tree)).
+
+-spec macro_name(tree(), [tree()] | none) ->
+  atom() | {atom(), non_neg_integer()}.
+macro_name(Name, none) -> node_name(Name);
+macro_name(Name, Args) -> {node_name(Name), length(Args)}.
 
 -spec is_atom_node(tree()) -> {true, atom()} | false.
 is_atom_node(Tree) ->

@@ -74,13 +74,13 @@ parse_invalid_code(_Config) ->
 
 -spec underscore_macro(config()) -> ok.
 underscore_macro(_Config) ->
-  ?assertMatch({ok, [#{id := '_', kind := define} | _]},
+  ?assertMatch({ok, [#{id := {'_', 1}, kind := define} | _]},
                els_parser:parse("-define(_(Text), gettexter:gettext(Text)).")),
   ?assertMatch({ok, [#{id := '_', kind := define} | _]},
                els_parser:parse("-define(_, smth).")),
   ?assertMatch({ok, [#{id := '_', kind := macro}]},
                els_parser:parse("?_.")),
-  ?assertMatch({ok, [#{id := '_', kind := macro} | _]},
+  ?assertMatch({ok, [#{id := {'_', 1}, kind := macro} | _]},
                els_parser:parse("?_(ok).")),
   ok.
 
@@ -185,7 +185,7 @@ assert_recursive_types(Text) ->
 
 -spec callback_macro(config()) -> ok.
 callback_macro(_Config) ->
-  Text = "-callback foo() -> ?M().",
+  Text = "-callback foo() -> ?M.",
   ?assertMatch([_], parse_find_pois(Text, callback, {foo, 0})),
   ?assertMatch([_], parse_find_pois(Text, macro, 'M')),
   ok.
@@ -194,27 +194,28 @@ callback_macro(_Config) ->
 spec_macro(_Config) ->
   Text = "-spec foo() -> ?M().",
   ?assertMatch([_], parse_find_pois(Text, spec, {foo, 0})),
-  ?assertMatch([_], parse_find_pois(Text, macro, 'M')),
+  ?assertMatch([_], parse_find_pois(Text, macro, {'M', 0})),
   ok.
 
 -spec type_macro(config()) -> ok.
 type_macro(_Config) ->
-  Text = "-type t() :: ?M(a, b).",
+  Text = "-type t() :: ?M(a, b, c).",
   ?assertMatch([_], parse_find_pois(Text, type_definition, {t, 0})),
-  ?assertMatch([_], parse_find_pois(Text, macro, 'M')),
+  ?assertMatch([_], parse_find_pois(Text, macro, {'M', 3})),
   ok.
 
 -spec opaque_macro(config()) -> ok.
 opaque_macro(_Config) ->
   Text = "-opaque o() :: ?M(a, b).",
   ?assertMatch([_], parse_find_pois(Text, type_definition, {o, 0})),
-  ?assertMatch([_], parse_find_pois(Text, macro, 'M')),
+  ?assertMatch([_], parse_find_pois(Text, macro, {'M', 2})),
   ok.
 
 -spec wild_attrbibute_macro(config()) -> ok.
 wild_attrbibute_macro(_Config) ->
+  %% This is parsed as -(?M(foo)), rather than -(?M)(foo)
   Text = "-?M(foo).",
-  ?assertMatch([_], parse_find_pois(Text, macro, 'M')),
+  ?assertMatch([_], parse_find_pois(Text, macro, {'M', 1})),
   ?assertMatch([_], parse_find_pois(Text, atom, foo)),
   ok.
 

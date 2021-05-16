@@ -287,7 +287,7 @@ macro_with_args(Config) ->
   Def = els_client:definition(Uri, 40, 9),
   #{result := #{range := Range, uri := DefUri}} = Def,
   ?assertEqual(Uri, DefUri),
-  ?assertEqual( els_protocol:range(#{from => {19, 9}, to => {19, 24}})
+  ?assertEqual( els_protocol:range(#{from => {19, 9}, to => {19, 16}})
               , Range),
   ok.
 
