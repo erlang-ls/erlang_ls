@@ -244,7 +244,8 @@ attribute(Tree) ->
       ValueRange = #{ from => get_start_location(hd(Value))
                     , to => get_end_location(lists:last(Value))
                     },
-      Data = #{value_range => ValueRange},
+      Args = define_args(Define),
+      Data = #{value_range => ValueRange, args => Args},
       [poi(DefinePos, define, define_name(Define), Data)];
     {include, [String]} ->
       [poi(Pos, include, erl_syntax:string_value(String))];
@@ -446,15 +447,20 @@ analyze_function(FunName, Clauses) ->
 function_args(Clause) ->
   Patterns = erl_syntax:clause_patterns(Clause),
   Arity = length(Patterns),
-  Args =
-    [ case erl_syntax:type(P) of
-        %% TODO: Handle literals
-        variable -> {N, erl_syntax:variable_literal(P)};
-        _        -> {N, "Arg" ++ integer_to_list(N)}
-      end
-      || {N, P} <- lists:zip(lists:seq(1, Arity), Patterns)
-    ],
+  Args = args_from_subtrees(Patterns),
   {Arity, Args}.
+
+
+-spec args_from_subtrees([tree()]) -> [{integer(), string()}].
+args_from_subtrees(Trees) ->
+  Arity = length(Trees),
+  [ case erl_syntax:type(T) of
+      %% TODO: Handle literals
+      variable -> {N, erl_syntax:variable_literal(T)};
+      _        -> {N, "Arg" ++ integer_to_list(N)}
+    end
+    || {N, T} <- lists:zip(lists:seq(1, Arity), Trees)
+  ].
 
 -spec implicit_fun(tree()) -> [poi()].
 implicit_fun(Tree) ->
@@ -621,6 +627,16 @@ define_name(Tree) ->
       erl_syntax:atom_value(Tree);
     underscore ->
       '_'
+  end.
+
+-spec define_args(tree()) -> none | [{integer(), string()}].
+define_args(Define) ->
+  case erl_syntax:type(Define) of
+    application ->
+      Args = erl_syntax:application_arguments(Define),
+      args_from_subtrees(Args);
+    _ ->
+      none
   end.
 
 -spec node_name(tree()) -> atom().

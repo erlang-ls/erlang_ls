@@ -668,7 +668,7 @@ completion_item(#{kind := Kind, id := {F, A}, data := ArgsNames}, Data, false)
   Label = io_lib:format("~p/~p", [F, A]),
   #{ label            => els_utils:to_binary(Label)
    , kind             => completion_item_kind(Kind)
-   , insertText       => snippet_function_call(F, ArgsNames)
+   , insertText       => snippet_function(F, ArgsNames)
    , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
    , data             => Data
    };
@@ -686,9 +686,12 @@ completion_item(#{kind := Kind = record, id := Name}, Data, _) ->
    , kind             => completion_item_kind(Kind)
    , data             => Data
    };
-completion_item(#{kind := Kind = define, id := Name}, Data, _) ->
+completion_item(#{kind := Kind = define, id := Name, data := Info}, Data, _) ->
+  #{args := ArgNames} = Info,
   #{ label            => macro_label(Name)
    , kind             => completion_item_kind(Kind)
+   , insertText       => snippet_macro(Name, ArgNames)
+   , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
    , data             => Data
    }.
 
@@ -698,12 +701,24 @@ macro_label({Name, Arity}) ->
 macro_label(Name) ->
   atom_to_binary(Name, utf8).
 
--spec snippet_function_call(atom(), [{integer(), string()}]) -> binary().
-snippet_function_call(Function, Args0) ->
+-spec snippet_function(atom(), [{integer(), string()}]) -> binary().
+snippet_function(Name, Args) ->
+  snippet_args(atom_to_label(Name), Args).
+
+-spec snippet_macro( atom() | {atom(), non_neg_integer()}
+                   , [{integer(), string()}]) -> binary().
+snippet_macro({Name0, _Arity}, Args) ->
+  Name = atom_to_binary(Name0, utf8),
+  snippet_args(Name, Args);
+snippet_macro(Name, none) ->
+  atom_to_binary(Name, utf8).
+
+-spec snippet_args(binary(), [{integer(), string()}]) -> binary().
+snippet_args(Name, Args0) ->
   Args    = [ ["${", integer_to_list(N), ":", A, "}"]
               || {N, A} <- Args0
             ],
-  Snippet = [atom_to_label(Function), "(", string:join(Args, ", "), ")"],
+  Snippet = [Name, "(", string:join(Args, ", "), ")"],
   els_utils:to_binary(Snippet).
 
 -spec is_in(els_dt_document:item(), line(), column(), [poi_kind()]) ->
