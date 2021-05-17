@@ -731,6 +731,12 @@ types(Config) ->
                 , label            => <<"'INCLUDED_TYPE'/1">>
                 , data             => #{}
                 }
+             , #{ insertText       => <<"type_b()">>
+                , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+                , kind             => ?COMPLETION_ITEM_KIND_TYPE_PARAM
+                , label            => <<"type_b/0">>
+                , data             => #{}
+                }
              ],
 
   DefaultCompletion = els_completion_provider:keywords()
@@ -752,7 +758,17 @@ types_export_list(Config) ->
   Uri = ?config(code_navigation_types_uri, Config),
   Expected = [ #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
                 , kind             => ?COMPLETION_ITEM_KIND_TYPE_PARAM
+                , label            => <<"type_b/0">>
+                , data             => #{}
+                }
+             , #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+                , kind             => ?COMPLETION_ITEM_KIND_TYPE_PARAM
                 , label            => <<"user_type_a/0">>
+                , data             => #{}
+                }
+             , #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+                , kind             => ?COMPLETION_ITEM_KIND_TYPE_PARAM
+                , label            => <<"user_type_b/0">>
                 , data             => #{}
                 }
              ],

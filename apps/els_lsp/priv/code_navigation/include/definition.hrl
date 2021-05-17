@@ -1,1 +1,2 @@
 -define(MACRO_FOR_TRANSITIVE_INCLUSION, true).
+-type type_b() :: any().

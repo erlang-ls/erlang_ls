@@ -58,9 +58,8 @@ find_references(Uri, #{ kind := Kind
                               Kind =:= implicit_fun;
                               Kind =:= function;
                               Kind =:= export_entry;
-                              Kind =:= export_type_entry;
-                              Kind =:= type_application;
-                              Kind =:= type_definition ->
+                              Kind =:= export_type_entry
+                              ->
   Key = case Id of
           {F, A}    -> {els_uri:module(Uri), F, A};
           {M, F, A} -> {M, F, A}
@@ -78,14 +77,23 @@ find_references(Uri, Poi = #{kind := Kind})
        Kind =:= define ->
   uri_pois_to_locations(
     find_scoped_references_for_def(Uri, Poi));
+find_references(Uri, Poi = #{kind := Kind, id := Id})
+  when Kind =:= type_definition ->
+  Key = case Id of
+          {F, A}    -> {els_uri:module(Uri), F, A};
+          {M, F, A} -> {M, F, A}
+        end,
+  lists:usort(find_references_for_id(Kind, Key) ++
+                uri_pois_to_locations(
+                  find_scoped_references_for_def(Uri, Poi)));
 find_references(Uri, Poi = #{kind := Kind})
   when Kind =:= record_expr;
        Kind =:= record_field;
-       Kind =:= macro ->
+       Kind =:= macro;
+       Kind =:= type_application ->
   case els_code_navigation:goto_definition(Uri, Poi) of
     {ok, DefUri, DefPoi} ->
-      uri_pois_to_locations(
-        find_scoped_references_for_def(DefUri, DefPoi));
+      find_references(DefUri, DefPoi);
     {error, _} ->
       %% look for references only in the current document
       uri_pois_to_locations(
@@ -123,6 +131,8 @@ kind_to_ref_kinds(record) ->
   [record_expr];
 kind_to_ref_kinds(record_def_field) ->
   [record_field];
+kind_to_ref_kinds(type_definition) ->
+  [type_application];
 kind_to_ref_kinds(Kind) ->
   [Kind].
 
