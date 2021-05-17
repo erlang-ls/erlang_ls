@@ -587,22 +587,32 @@ macros(Config) ->
   TriggerKindInvoked = ?COMPLETION_TRIGGER_KIND_INVOKED,
   Expected = [ #{ kind => ?COMPLETION_ITEM_KIND_CONSTANT
                 , label => <<"INCLUDED_MACRO_A">>
+                , insertText => <<"INCLUDED_MACRO_A">>
+                , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
                 , data => #{}
                 }
              , #{ kind => ?COMPLETION_ITEM_KIND_CONSTANT
                 , label => <<"MACRO_A">>
+                , insertText => <<"MACRO_A">>
+                , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
                 , data => #{}
                 }
              , #{ kind => ?COMPLETION_ITEM_KIND_CONSTANT
                 , label => <<"MACRO_A/1">>
+                , insertText => <<"MACRO_A(${1:X})">>
+                , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
                 , data => #{}
                 }
              , #{ kind => ?COMPLETION_ITEM_KIND_CONSTANT
                 , label => <<"macro_A">>
+                , insertText => <<"macro_A">>
+                , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
                 , data => #{}
                 }
              , #{ kind => ?COMPLETION_ITEM_KIND_CONSTANT
                 , label => <<"MACRO_FOR_TRANSITIVE_INCLUSION">>
+                , insertText => <<"MACRO_FOR_TRANSITIVE_INCLUSION">>
+                , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
                 , data => #{}
                 }
              ],
