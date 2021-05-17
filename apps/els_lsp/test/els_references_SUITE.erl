@@ -31,6 +31,7 @@
         , purge_references/1
         , type_local/1
         , type_remote/1
+        , type_included/1
         ]).
 
 %%==============================================================================
@@ -470,6 +471,22 @@ type_remote(Config) ->
 
   assert_locations(Locations, ExpectedLocations),
 
+  ok.
+
+-spec type_included(config()) -> ok.
+type_included(Config) ->
+  UriTypes = ?config(code_navigation_types_uri, Config),
+  UriHeader = ?config(definition_h_uri, Config),
+
+  ExpectedLocations = [ #{ uri   => UriTypes
+                         , range => #{from => {15, 24}, to => {15, 30}}
+                         }
+                      ],
+  ct:comment("Find references for type_b from a remote usage"),
+  #{result := Locations} = els_client:references(UriTypes, 15, 25),
+  ct:comment("Find references for type_b from definition"),
+  #{result := Locations} = els_client:references(UriHeader, 2, 7),
+  assert_locations(Locations, ExpectedLocations),
   ok.
 
 %%==============================================================================
