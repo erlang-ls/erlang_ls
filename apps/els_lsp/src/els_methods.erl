@@ -192,14 +192,7 @@ textdocument_didopen(Params, State) ->
 
 -spec textdocument_didchange(params(), state()) -> result().
 textdocument_didchange(Params, State) ->
-  ContentChanges = maps:get(<<"contentChanges">>, Params),
-  TextDocument   = maps:get(<<"textDocument">>  , Params),
-  Uri            = maps:get(<<"uri">>           , TextDocument),
-  case ContentChanges of
-    []                      -> ok;
-    [#{<<"text">> := Text}] ->
-      els_indexing:index(Uri, Text, 'deep')
-  end,
+  ok = els_text_synchronization:did_change(Params),
   {noresponse, State}.
 
 %%==============================================================================

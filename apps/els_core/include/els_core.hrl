@@ -181,6 +181,10 @@
 -define(TEXT_DOCUMENT_SYNC_KIND_FULL, 1).
 -define(TEXT_DOCUMENT_SYNC_KIND_INCREMENTAL, 2).
 
+-type text_document_sync_kind() :: ?TEXT_DOCUMENT_SYNC_KIND_NONE
+                                 | ?TEXT_DOCUMENT_SYNC_KIND_FULL
+                                 | ?TEXT_DOCUMENT_SYNC_KIND_INCREMENTAL.
+
 %%------------------------------------------------------------------------------
 %% Text Document Sync Kind
 %%------------------------------------------------------------------------------

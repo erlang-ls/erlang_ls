@@ -27,7 +27,7 @@ goto_definition( Uri
                ) ->
   %% This will naively try to find the definition of a variable by finding the
   %% first occurrence of the variable in the function clause.
-  {ok, [Document]} = els_dt_document:lookup(Uri),
+  {ok, Document} = els_utils:lookup_document(Uri),
   FunPOIs = els_poi:sort(els_dt_document:pois(Document, [function_clause])),
   VarPOIs = els_poi:sort(els_dt_document:pois(Document, [variable])),
   %% Find the function clause we are in
