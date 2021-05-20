@@ -24,6 +24,7 @@
 %% Macros
 %%==============================================================================
 -define(DEFAULT_CONFIG_FILE, "erlang_ls.config").
+-define(ALTERNATIVE_CONFIG_FILE, "erlang_ls.yaml").
 -define( DEFAULT_EXCLUDED_OTP_APPS
        , [ "megaco"
          , "diameter"
@@ -110,7 +111,7 @@ do_initialize(RootUri, Capabilities, {ConfigPath, Config}) ->
 
   %% Passed by the LSP client
   ok = set(root_uri       , RootUri),
-  %% Read from the erlang_ls.config file
+  %% Read from the configuration file
   ok = set(config_path    , ConfigPath),
   ok = set(otp_path       , OtpPath),
   ok = set(deps_dirs      , DepsDirs),
@@ -196,13 +197,18 @@ config_paths(RootPath, _Config) ->
 default_config_paths(RootPath) ->
   GlobalConfigDir = filename:basedir(user_config, "erlang_ls"),
   [ filename:join([RootPath, ?DEFAULT_CONFIG_FILE])
+  , filename:join([RootPath, ?ALTERNATIVE_CONFIG_FILE])
   , filename:join([GlobalConfigDir, ?DEFAULT_CONFIG_FILE])
+  , filename:join([GlobalConfigDir, ?ALTERNATIVE_CONFIG_FILE])
   ].
 
 %% @doc Bare `Path' as well as with default config file name suffix.
 -spec possible_config_paths(path()) -> [path()].
 possible_config_paths(Path) ->
-  [ Path, filename:join([Path, ?DEFAULT_CONFIG_FILE]) ].
+  [ Path
+  , filename:join([Path, ?DEFAULT_CONFIG_FILE])
+  , filename:join([Path, ?ALTERNATIVE_CONFIG_FILE])
+  ].
 
 -spec consult_config([path()]) -> {undefined|path(), map()}.
 consult_config([]) -> {undefined, #{}};

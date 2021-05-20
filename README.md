@@ -44,8 +44,8 @@ Usage: Erlang LS [-v] [-t [<transport>]] [-p [<port>]] [-d [<log_dir>]]
 ## Configuration
 
 It is possible to customize the behaviour of the `erlang_ls` server
-via a configuration file, named `erlang_ls.config`. The
-`erlang_ls.config` file should be placed in the root directory of a
+via a configuration file, named `erlang_ls.config` or `erlang_ls.yaml`.
+That file should be placed in the root directory of a
 given project to store the configuration for that project. It is also
 possible to store a system-wide default configuration, which is shared
 across multiple projects.
