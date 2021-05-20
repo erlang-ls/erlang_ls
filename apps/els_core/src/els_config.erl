@@ -24,7 +24,7 @@
 %% Macros
 %%==============================================================================
 -define(DEFAULT_CONFIG_FILE, "erlang_ls.config").
--define(ALTERNATIVE_CONFIG_FILE, "erlang_ls.yml").
+-define(ALTERNATIVE_CONFIG_FILE, "erlang_ls.yaml").
 -define( DEFAULT_EXCLUDED_OTP_APPS
        , [ "megaco"
          , "diameter"
