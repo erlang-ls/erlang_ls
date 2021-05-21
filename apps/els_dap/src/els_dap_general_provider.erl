@@ -443,11 +443,16 @@ handle_request({<<"variables">>, #{<<"variablesReference">> := Ref
   {Variables, MoreBindings} = build_variables(Type, Bindings),
   { #{<<"variables">> => Variables}
   , State#{ scope_bindings => maps:merge(RestBindings, MoreBindings)}};
-handle_request( {<<"disconnect">>, _Params}
-              , State = #{project_node := ProjectNode, launch_params := #{<<"request">> := Request}}) ->
+handle_request({<<"disconnect">>, _Params}
+              , #{project_node := ProjectNode,
+                  threads := Threads,
+                  launch_params := #{<<"request">> := Request} = State}) ->
   case Request of
     <<"attach">> ->
-      els_dap_rpc:no_break(ProjectNode);
+      els_dap_rpc:no_break(ProjectNode),
+      [els_dap_rpc:continue(ProjectNode, Pid) ||
+        {_ThreadID, #{pid := Pid}} <- maps:to_list(Threads)],
+      [els_dap_rpc:n(Module) || Module <- els_dap_rpc:interpreted()];
     <<"launch">> ->
       els_dap_rpc:halt(ProjectNode)
   end,
