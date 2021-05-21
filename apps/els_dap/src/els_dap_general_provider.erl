@@ -151,6 +151,41 @@ handle_request({<<"launch">>, Params}, State) ->
               , launch_params => Params
               , timeout => TimeOut
               }};
+handle_request({<<"attach">>, Params}, State) ->
+  #{<<"cwd">> := Cwd} = Params,
+  ok = file:set_cwd(Cwd),
+  Name = filename:basename(Cwd),
+
+  %% start distribution
+  LocalNode = els_distribution_server:node_name(<<"erlang_ls_dap">>, Name),
+  els_distribution_server:start_distribution(LocalNode),
+  ?LOG_INFO("Distribution up on: [~p]", [LocalNode]),
+
+  %% get default and final launch config
+  DefaultConfig = #{
+    <<"projectnode">> =>
+      atom_to_binary(
+        els_distribution_server:node_name(<<"erlang_ls_dap_project">>, Name),
+        utf8
+      ),
+    <<"cookie">> => atom_to_binary(erlang:get_cookie(), utf8),
+    <<"timeout">> => 30
+  },
+  #{ <<"projectnode">> := ConfProjectNode
+    , <<"cookie">>  := ConfCookie
+    , <<"timeout">> := TimeOut} = maps:merge(DefaultConfig, Params),
+  ProjectNode = binary_to_atom(ConfProjectNode, utf8),
+  Cookie = binary_to_atom(ConfCookie, utf8),
+
+  %% set cookie
+  true = erlang:set_cookie(LocalNode, Cookie),
+
+  els_dap_server:send_event(<<"initialized">>, #{}),
+
+  {#{}, State#{ project_node => ProjectNode
+              , launch_params => Params
+              , timeout => TimeOut
+              }};
 handle_request( {<<"configurationDone">>, _Params}
               , #{ project_node := ProjectNode
                  , launch_params := LaunchParams
@@ -409,8 +444,13 @@ handle_request({<<"variables">>, #{<<"variablesReference">> := Ref
   { #{<<"variables">> => Variables}
   , State#{ scope_bindings => maps:merge(RestBindings, MoreBindings)}};
 handle_request( {<<"disconnect">>, _Params}
-              , State = #{project_node := ProjectNode}) ->
-  els_dap_rpc:halt(ProjectNode),
+              , State = #{project_node := ProjectNode, launch_params := #{<<"request">> := Request}}) ->
+  case Request of
+    <<"attach">> ->
+      els_dap_rpc:no_break(ProjectNode);
+    <<"launch">> ->
+      els_dap_rpc:halt(ProjectNode)
+  end,
   els_utils:halt(0),
   {#{}, State}.
 
