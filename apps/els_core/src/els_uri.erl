@@ -40,7 +40,7 @@ path(Uri) ->
     {true, <<>>} ->
       % Windows drive letter, have to strip the initial slash
       re:replace(
-        Path, "^/([a-zA-Z]:)(.*)", "\\1\\2", [{return, binary}]
+        Path, "^/([a-zA-Z])(:|%3A)(.*)", "\\1:\\3", [{return, binary}]
       );
     {true, _} ->
       <<"//", Host/binary, Path/binary>>;
