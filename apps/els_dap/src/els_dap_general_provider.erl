@@ -106,11 +106,15 @@ handle_request({<<"launch">>, Params}, State) ->
         utf8
       ),
     <<"cookie">> => atom_to_binary(erlang:get_cookie(), utf8),
-    <<"timeout">> => 30
+    <<"timeout">> => 30,
+    <<"use_long_names">> => false
   },
-  #{ <<"projectnode">> := ConfProjectNode
+  #{ <<"projectnode">> := RawProjectNode
    , <<"cookie">>  := ConfCookie
-   , <<"timeout">> := TimeOut} = maps:merge(DefaultConfig, Params),
+   , <<"timeout">> := TimeOut
+   , <<"use_long_names">> := UseLongNames} = maps:merge(DefaultConfig, Params),
+  ConfProjectNode = check_project_node_name(RawProjectNode, UseLongNames),
+  ?LOG_INFO("Configured Project Node Name: ~p", [ConfProjectNode]),
   ProjectNode = binary_to_atom(ConfProjectNode, utf8),
   Cookie = binary_to_atom(ConfCookie, utf8),
 
@@ -853,3 +857,17 @@ safe_eval(ProjectNode, Debugged, Expression, Update) ->
       end
   end,
   Return.
+
+-spec check_project_node_name(binary(), boolean()) -> binary().
+check_project_node_name(ProjectNode, false) ->
+  ProjectNode;
+check_project_node_name(ProjectNode, true) ->
+  case binary:match(<<"@">>, ProjectNode) of
+    nomatch ->
+      {ok, HostName} = inet:gethostname(),
+      BinHostName = list_to_binary(HostName),
+      Domain = list_to_binary(proplists:get_value(domain, inet:get_rc(), "")),
+      <<ProjectNode/binary, "@", BinHostName/binary, ".", Domain/binary>>;
+    _ ->
+      ProjectNode
+  end.
