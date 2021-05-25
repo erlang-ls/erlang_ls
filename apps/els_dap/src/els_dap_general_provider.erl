@@ -452,7 +452,8 @@ handle_request({<<"disconnect">>, _Params}
       els_dap_rpc:no_break(ProjectNode),
       [els_dap_rpc:continue(ProjectNode, Pid) ||
         {_ThreadID, #{pid := Pid}} <- maps:to_list(Threads)],
-      [els_dap_rpc:n(ProjectNode, Module) || Module <- els_dap_rpc:interpreted(ProjectNode)];
+      [els_dap_rpc:n(ProjectNode, Module) ||
+        Module <- els_dap_rpc:interpreted(ProjectNode)];
     <<"launch">> ->
       els_dap_rpc:halt(ProjectNode)
   end,
