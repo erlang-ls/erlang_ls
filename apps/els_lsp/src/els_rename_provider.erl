@@ -46,17 +46,20 @@ handle_request({rename, Params}, State) ->
 -spec workspace_edits(uri(), [poi()], binary()) -> null | [any()].
 workspace_edits(_Uri, [], _NewName) ->
   null;
-workspace_edits(Uri, [#{kind := variable} = POI| _], NewName) ->
-  #{changes => changes(Uri, POI, NewName)};
-workspace_edits(Uri, [#{kind := function} = POI| _], NewName) ->
-  #{changes => changes(Uri, POI, NewName)};
 workspace_edits(Uri, [#{kind := function_clause} = POI| _], NewName) ->
   #{id := {F, A, _}} = POI,
   #{changes => changes(Uri, POI#{kind => function, id => {F, A}}, NewName)};
-workspace_edits(Uri, [#{kind := 'define'} = POI| _], NewName) ->
+workspace_edits(Uri, [#{kind := Kind} = POI| _], NewName)
+  when Kind =:= define;
+       Kind =:= record;
+       Kind =:= record_def_field;
+       Kind =:= function;
+       Kind =:= variable ->
   #{changes => changes(Uri, POI, NewName)};
 workspace_edits(Uri, [#{kind := Kind} = POI| _], NewName)
   when Kind =:= macro;
+       Kind =:= record_expr;
+       Kind =:= record_field;
        Kind =:= application;
        Kind =:= implicit_fun;
        Kind =:= export_entry;
@@ -189,19 +192,29 @@ changes(Uri, #{kind := function, id := {F, A}}, NewName) ->
             [F, A, NewName, length(lists:flatten(maps:values(Changes))),
              length(maps:keys(Changes))]),
   Changes;
-changes(Uri, #{kind := 'define'} = DefPoi, NewName) ->
+changes(Uri, #{kind := DefKind} = DefPoi, NewName)
+  when DefKind =:= define;
+       DefKind =:= record;
+       DefKind =:= record_def_field ->
   Self = #{range => editable_range(DefPoi), newText => NewName},
   Refs = els_references_provider:find_scoped_references_for_def(Uri, DefPoi),
   lists:foldl(
     fun({U, Poi}, Acc) ->
         Change = #{ range => editable_range(Poi)
-                  , newText =>  <<"?", NewName/binary>>
+                  , newText =>  new_name(Poi, NewName)
                   },
         maps:update_with(U, fun(V) -> [Change|V] end, [Change], Acc)
     end, #{Uri => [Self]}, Refs);
 changes(_Uri, _POI, _NewName) ->
   null.
 
+-spec new_name(poi(), binary()) -> binary().
+new_name(#{kind := macro}, NewName) ->
+  <<"?", NewName/binary>>;
+new_name(#{kind := record_expr}, NewName) ->
+  <<"#", NewName/binary>>;
+new_name(_, NewName) ->
+  NewName.
 
 -spec function_clause_range(poi_range(), els_dt_document:item()) -> poi_range().
 function_clause_range(VarRange, Document) ->

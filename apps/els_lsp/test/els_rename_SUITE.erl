@@ -20,6 +20,8 @@
         , rename_function_quoted_atom/1
         , rename_parametrized_macro/1
         , rename_macro_from_usage/1
+        , rename_record/1
+        , rename_record_field/1
         ]).
 
 %%==============================================================================
@@ -304,6 +306,89 @@ rename_macro_from_usage(Config) ->
                    }
                },
   assert_changes(Expected, Result).
+
+-spec rename_record(config()) -> ok.
+rename_record(Config) ->
+  HdrUri = ?config(rename_h_uri, Config),
+  UsageUri = ?config(rename_usage1_uri, Config),
+  NewName = <<"new_record_name">>,
+  NewNameUsage = <<"#new_record_name">>,
+
+  Expected =  #{changes =>
+                  #{ binary_to_atom(HdrUri, utf8) =>
+                       [ #{ newText => NewName
+                          , range =>
+                              #{ 'end' => #{character => 18, line => 4}
+                               , start => #{character => 8, line => 4}}}
+                       ]
+                   , binary_to_atom(UsageUri, utf8) =>
+                       [ #{ newText => NewNameUsage
+                          , range =>
+                              #{ 'end' => #{character => 29, line => 20}
+                               , start => #{character => 18, line => 20}}}
+                       , #{ newText => NewNameUsage
+                          , range =>
+                              #{ 'end' => #{character => 18, line => 22}
+                               , start => #{character => 7, line => 22}}}
+                       , #{ newText => NewNameUsage
+                          , range =>
+                              #{ 'end' => #{character => 18, line => 24}
+                               , start => #{character => 7, line => 24}}}
+                       , #{ newText => NewNameUsage
+                          , range =>
+                              #{ 'end' => #{character => 15, line => 26}
+                               , start => #{character => 4, line => 26}}}
+                       ]
+                   }
+               },
+
+  %% definition
+  #{result := Result} = els_client:document_rename(HdrUri, 4, 10, NewName),
+  assert_changes(Expected, Result),
+  %% usage
+  #{result := Result2} = els_client:document_rename(UsageUri, 22, 10, NewName),
+  assert_changes(Expected, Result2).
+
+-spec rename_record_field(config()) -> ok.
+rename_record_field(Config) ->
+  HdrUri = ?config(rename_h_uri, Config),
+  UsageUri = ?config(rename_usage1_uri, Config),
+  NewName = <<"new_record_field_name">>,
+
+  Expected =  #{changes =>
+                  #{ binary_to_atom(HdrUri, utf8) =>
+                       [ #{ newText => NewName
+                          , range =>
+                              #{ 'end' => #{character => 33, line => 4}
+                               , start => #{character => 21, line => 4}}}
+                       ]
+                   , binary_to_atom(UsageUri, utf8) =>
+                       [ #{ newText => NewName
+                          , range =>
+                              #{ 'end' => #{character => 42, line => 20}
+                               , start => #{character => 30, line => 20}}}
+                       , #{ newText => NewName
+                          , range =>
+                              #{ 'end' => #{character => 31, line => 22}
+                               , start => #{character => 19, line => 22}}}
+                       , #{ newText => NewName
+                          , range =>
+                              #{ 'end' => #{character => 31, line => 24}
+                               , start => #{character => 19, line => 24}}}
+                       , #{ newText => NewName
+                          , range =>
+                              #{ 'end' => #{character => 28, line => 26}
+                               , start => #{character => 16, line => 26}}}
+                       ]
+                   }
+               },
+
+  %% definition
+  #{result := Result} = els_client:document_rename(HdrUri, 4, 25, NewName),
+  assert_changes(Expected, Result),
+  %% usage
+  #{result := Result2} = els_client:document_rename(UsageUri, 22, 25, NewName),
+  assert_changes(Expected, Result2).
 
 assert_changes(#{ changes := ExpectedChanges }, #{ changes := Changes }) ->
   ?assertEqual(maps:keys(ExpectedChanges), maps:keys(Changes)),

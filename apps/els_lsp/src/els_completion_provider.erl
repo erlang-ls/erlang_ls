@@ -586,7 +586,6 @@ keywords() ->
              , 'bsr', 'bxor', 'case', 'catch', 'cond', 'div', 'end', 'fun'
              , 'if', 'let', 'not', 'of', 'or', 'orelse', 'receive', 'rem'
              , 'try', 'when', 'xor'],
-
   [ #{ label => atom_to_binary(K, utf8)
      , kind  => ?COMPLETION_ITEM_KIND_KEYWORD
      } || K <- Keywords ].
