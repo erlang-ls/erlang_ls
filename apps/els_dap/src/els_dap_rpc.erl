@@ -1,6 +1,8 @@
 -module(els_dap_rpc).
 
--export([ all_breaks/1
+-export([ interpreted/1
+        , n/2
+        , all_breaks/1
         , all_breaks/2
         , auto_attach/3
         , break/3
@@ -22,6 +24,14 @@
         , stack_trace/2
         , step/2
         ]).
+
+-spec interpreted(node()) -> any().
+interpreted(Node) ->
+  rpc:call(Node, int, interpreted, []).
+
+-spec n(node(), any()) -> any().
+n(Node, Module) ->
+  rpc:call(Node, int, n, [Module]).
 
 -spec all_breaks(node()) -> any().
 all_breaks(Node) ->
