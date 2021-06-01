@@ -20,7 +20,6 @@
 %% Includes
 %%==============================================================================
 -include("els_lsp.hrl").
--include_lib("kernel/include/logger.hrl").
 
 %%==============================================================================
 %% Callback Functions
@@ -55,7 +54,7 @@ source() ->
 %%==============================================================================
 -spec find_unused_includes(els_dt_document:item(), [poi()]) -> [uri()].
 find_unused_includes(#{uri := Uri} = Document, Includes) ->
-  Graph = expand_includes(Uri),
+  Graph = expand_includes(Document),
   POIs = els_dt_document:pois(Document),
   IncludedUris = els_diagnostics_utils:included_uris(Document),
   Fun = fun(POI, Acc) ->
@@ -68,6 +67,8 @@ find_unused_includes(#{uri := Uri} = Document, Includes) ->
 -spec update_unused(digraph:graph(), uri(), poi(), [uri()]) -> [uri()].
 update_unused(Graph, Uri, POI, Acc) ->
   case els_code_navigation:goto_definition(Uri, POI) of
+    {ok, Uri, _DefinitionPOI} ->
+      Acc;
     {ok, DefinitionUri, _DefinitionPOI} ->
       case digraph:get_path(Graph, DefinitionUri, Uri) of
         false ->
@@ -79,34 +80,16 @@ update_unused(Graph, Uri, POI, Acc) ->
       Acc
   end.
 
--spec expand_includes(uri()) -> digraph:graph().
-expand_includes(Uri) ->
-  expand_includes([Uri], digraph:new(), sets:new()).
-
--spec expand_includes([uri()], digraph:graph(), sets:set()) -> digraph:graph().
-expand_includes([], Graph, _Visited) ->
-  Graph;
-expand_includes([Uri|Uris], Graph, Visited) ->
-  case els_utils:lookup_document(Uri) of
-    {ok, Document} ->
-      IncludedUris = els_diagnostics_utils:included_uris(Document),
-      NonVisitedIncludedUris = [U || U <- IncludedUris
-                                       , not sets:is_element(U, Visited)],
-      Dest = digraph:add_vertex(Graph, Uri),
-      NewGraph = lists:foldl(fun(U, G) ->
-                                 Src = digraph:add_vertex(G, U),
-                                 digraph:add_edge(G, Src, Dest),
-                                 G
-                             end
-                            , Graph
-                            , IncludedUris),
-      expand_includes( Uris ++ NonVisitedIncludedUris
-                     , NewGraph
-                     , sets:add_element(Uri, Visited));
-    {error, _Error} ->
-      ?LOG_WARNING("Failed lookup while expanding includes [uri=~p]", [Uri]),
-      []
-  end.
+-spec expand_includes(els_dt_document:item()) -> digraph:graph().
+expand_includes(Document) ->
+  DG = digraph:new(),
+  AccFun = fun(#{uri := IncludedUri}, #{uri := IncluderUri}, _) ->
+    Dest = digraph:add_vertex(DG, IncluderUri),
+    Src = digraph:add_vertex(DG, IncludedUri),
+    _IncludedBy = digraph:add_edge(DG, Src, Dest),
+    DG
+  end,
+  els_diagnostics_utils:traverse_include_graph(AccFun, DG, Document).
 
 -spec inclusion_range(uri(), els_dt_document:item()) -> poi_range().
 inclusion_range(Uri, Document) ->
