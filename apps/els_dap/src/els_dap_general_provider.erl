@@ -365,6 +365,12 @@ handle_request( {<<"next">>, Params}
   Pid = to_pid(ThreadId, Threads),
   ok = els_dap_rpc:next(ProjectNode, Pid),
   {#{}, State};
+handle_request( {<<"pause">>, _}
+              , State
+              ) ->
+  %% pause is not supported by the OTP debugger
+  %% but we cannot disable it in the UI either
+  {#{}, State};
 handle_request( {<<"continue">>, Params}
               , #{ threads := Threads
                  , project_node := ProjectNode
