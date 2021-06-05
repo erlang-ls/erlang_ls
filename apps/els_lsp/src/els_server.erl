@@ -12,7 +12,7 @@
 %% Exports
 %%==============================================================================
 
--export([ start_link/1
+-export([ start_link/0
         ]).
 
 %% gen_server callbacks
@@ -23,7 +23,7 @@
 
 %% API
 -export([ process_requests/1
-        , set_connection/1
+        , set_io_device/1
         , send_notification/2
         , send_request/2
         , send_response/2
@@ -46,8 +46,7 @@
 %%==============================================================================
 %% Record Definitions
 %%==============================================================================
--record(state, { transport      :: module()
-               , connection     :: any()
+-record(state, { io_device      :: any()
                , request_id     :: number()
                , internal_state :: map()
                , pending        :: [{number(), els_provider:provider(), pid()}]
@@ -61,22 +60,22 @@
 %%==============================================================================
 %% API
 %%==============================================================================
--spec start_link(module()) -> {ok, pid()}.
-start_link(Transport) ->
-  {ok, Pid} = gen_server:start_link({local, ?SERVER}, ?MODULE, Transport, []),
+-spec start_link() -> {ok, pid()}.
+start_link() ->
+  {ok, Pid} = gen_server:start_link({local, ?SERVER}, ?MODULE, [], []),
   Cb = fun(Requests) ->
            gen_server:cast(Pid, {process_requests, Requests})
        end,
-  {ok, _} = Transport:start_listener(Cb),
+  {ok, _} = els_stdio:start_listener(Cb),
   {ok, Pid}.
 
 -spec process_requests([any()]) -> ok.
 process_requests(Requests) ->
   gen_server:cast(?SERVER, {process_requests, Requests}).
 
--spec set_connection(any()) -> ok.
-set_connection(Connection) ->
-  gen_server:call(?SERVER, {set_connection, Connection}).
+-spec set_io_device(atom() | pid()) -> ok.
+set_io_device(IoDevice) ->
+  gen_server:call(?SERVER, {set_io_device, IoDevice}).
 
 -spec send_notification(binary(), map()) -> ok.
 send_notification(Method, Params) ->
@@ -100,19 +99,18 @@ reset_internal_state() ->
 %%==============================================================================
 %% gen_server callbacks
 %%==============================================================================
--spec init(module()) -> {ok, state()}.
-init(Transport) ->
+-spec init([]) -> {ok, state()}.
+init([]) ->
   ?LOG_INFO("Starting els_server..."),
-  State = #state{ transport      = Transport
-                , request_id     = 0
+  State = #state{ request_id     = 0
                 , internal_state = #{}
                 , pending        = []
                 },
   {ok, State}.
 
 -spec handle_call(any(), any(), state()) -> {reply, any(), state()}.
-handle_call({set_connection, Connection}, _From, State) ->
-  {reply, ok, State#state{connection = Connection}};
+handle_call({set_io_device, IoDevice}, _From, State) ->
+  {reply, ok, State#state{io_device = IoDevice}};
 handle_call({reset_internal_state}, _From, State) ->
   {reply, ok, State#state{internal_state = #{}}}.
 
@@ -236,5 +234,5 @@ do_send_response(Job, Result, State0) ->
   end.
 
 -spec send(binary(), state()) -> ok.
-send(Payload, #state{transport = T, connection = C}) ->
-  T:send(C, Payload).
+send(Payload, #state{io_device = IoDevice}) ->
+  els_stdio:send(IoDevice, Payload).

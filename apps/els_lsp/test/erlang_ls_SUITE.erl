@@ -8,7 +8,6 @@
         , end_per_suite/1
         , init_per_testcase/2
         , end_per_testcase/2
-        , groups/0
         , all/0
         ]).
 
@@ -38,10 +37,6 @@ suite() ->
 -spec all() -> [atom()].
 all() ->
   els_test_utils:all(?MODULE).
-
--spec groups() -> [atom()].
-groups() ->
-  els_test_utils:groups(?MODULE).
 
 -spec init_per_suite(config()) -> config().
 init_per_suite(_Config) ->
@@ -79,14 +74,10 @@ unset_env(Application, [{Par, _Val} | Rest]) ->
 %%==============================================================================
 -spec parse_args(config()) -> ok.
 parse_args(_Config) ->
-  Args = [ "--transport", "tcp"
-         , "--port", "9000"
-         , "--log-dir", "/test"
+  Args = [ "--log-dir", "/test"
          , "--log-level", "error"
          ],
   erlang_ls:parse_args(Args),
-  ?assertEqual(els_tcp, application:get_env(els_core, transport, undefined)),
-  ?assertEqual(9000, application:get_env(els_core, port, undefined)),
   ?assertEqual('error', application:get_env(els_core, log_level, undefined)),
   ok.
 
@@ -95,9 +86,7 @@ log_root(_Config) ->
   meck:new(file, [unstick]),
   meck:expect(file, get_cwd, fun() -> {ok, "/root/els_lsp"} end),
 
-  Args = [ "--transport", "tcp"
-         , "--port", "9000"
-         , "--log-dir", "/somewhere_else/logs"
+  Args = [ "--log-dir", "/somewhere_else/logs"
          ],
   erlang_ls:parse_args(Args),
   ?assertEqual("/somewhere_else/logs/els_lsp", erlang_ls:log_root()),

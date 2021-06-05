@@ -30,7 +30,7 @@
 suite() ->
   [{timetrap, {seconds, 30}}].
 
--spec all() -> [{group, atom()}].
+-spec all() -> [atom()].
 all() ->
   [ one ].
 

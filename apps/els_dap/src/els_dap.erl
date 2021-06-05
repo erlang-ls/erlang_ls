@@ -61,19 +61,6 @@ opt_spec_list() ->
     , undefined
     , "Print the current version of Erlang LS - DAP"
     }
-  , { transport
-    , $t
-    , "transport"
-    , {string, "stdio"}
-    , "Specifies the transport the server will use for "
-      "the connection with the client, either \"tcp\" or \"stdio\"."
-    }
-  , { port
-    , $p
-    , "port"
-    , {integer, 10000}
-    , "Used when the transport is tcp."
-    }
  ,  { log_dir
     , $d
     , "log-dir"
@@ -96,20 +83,10 @@ set_args([{Arg, Val} | Rest]) ->
   set_args(Rest).
 
 -spec set(atom(), getopt:arg_value()) -> ok.
-set(transport, Name) ->
-  Transport = case Name of
-                "tcp"   -> els_tcp;
-                "stdio" -> els_stdio
-              end,
-  application:set_env(els_core, transport, Transport);
-set(port, Port) ->
-  application:set_env(els_core, port, Port);
 set(log_dir, Dir) ->
   application:set_env(els_core, log_dir, Dir);
 set(log_level, Level) ->
-  application:set_env(els_core, log_level, list_to_atom(Level));
-set(port_old, Port) ->
-  application:set_env(els_core, port, Port).
+  application:set_env(els_core, log_level, list_to_atom(Level)).
 
 %%==============================================================================
 %% Logger configuration

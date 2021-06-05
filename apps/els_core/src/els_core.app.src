@@ -11,10 +11,8 @@
         redbug
     ]},
     {env, [
-        {transport, els_tcp},
         {io_device, standard_io},
-        {server, els_server},
-        {port, 10000}
+        {server, els_server}
     ]},
     {modules, []},
 

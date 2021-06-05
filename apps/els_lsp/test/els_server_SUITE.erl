@@ -6,7 +6,6 @@
         , end_per_suite/1
         , init_per_testcase/2
         , end_per_testcase/2
-        , groups/0
         , all/0
         ]).
 
@@ -32,13 +31,9 @@
 suite() ->
   [{timetrap, {seconds, 30}}].
 
--spec all() -> [{group, atom()}].
+-spec all() -> [atom()].
 all() ->
-  [{group, tcp}, {group, stdio}].
-
--spec groups() -> [atom()].
-groups() ->
-  els_test_utils:groups(?MODULE).
+  els_test_utils:all(?MODULE).
 
 -spec init_per_suite(config()) -> config().
 init_per_suite(Config) ->
