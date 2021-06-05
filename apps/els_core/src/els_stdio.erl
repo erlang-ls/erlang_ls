@@ -1,7 +1,5 @@
 -module(els_stdio).
 
--behaviour(els_transport).
-
 -export([ start_listener/1
         , init/1
         , send/2
@@ -22,17 +20,17 @@ start_listener(Cb) ->
   {ok, IoDevice} = application:get_env(els_core, io_device),
   {ok, proc_lib:spawn_link(?MODULE, init, [{Cb, IoDevice}])}.
 
--spec init({function(), any()}) -> no_return().
+-spec init({function(), atom() | pid()}) -> no_return().
 init({Cb, IoDevice}) ->
   ?LOG_INFO("Starting stdio server..."),
   ok = io:setopts(IoDevice, [binary]),
   {ok, Server} = application:get_env(els_core, server),
-  ok = Server:set_connection(IoDevice),
+  ok = Server:set_io_device(IoDevice),
   ?MODULE:loop([], IoDevice, Cb, [return_maps]).
 
--spec send(any(), binary()) -> ok.
-send(Connection, Payload) ->
-  io:format(Connection, "~s", [Payload]).
+-spec send(atom() | pid(), binary()) -> ok.
+send(IoDevice, Payload) ->
+  io:format(IoDevice, "~s", [Payload]).
 
 %%==============================================================================
 %% Listener loop function

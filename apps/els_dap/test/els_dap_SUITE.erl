@@ -81,18 +81,12 @@ unset_env(Application, [{Par, _Val} | Rest]) ->
 -spec parse_args(config()) -> ok.
 parse_args(_Config) ->
   Args =
-    [ "--transport"
-    , "tcp"
-    , "--port"
-    , "9000"
-    , "--log-dir"
+    [ "--log-dir"
     , "/test"
     , "--log-level"
     , "error"
     ],
   els_dap:parse_args(Args),
-  ?assertEqual(els_tcp, application:get_env(els_core, transport, undefined)),
-  ?assertEqual(9000, application:get_env(els_core, port, undefined)),
   ?assertEqual('error', application:get_env(els_core, log_level, undefined)),
   ok.
 
@@ -102,11 +96,7 @@ log_root(_Config) ->
   meck:expect(file, get_cwd, fun() -> {ok, "/root/els_dap"} end),
 
   Args =
-    [ "--transport"
-    , "tcp"
-    , "--port"
-    , "9000"
-    , "--log-dir"
+    [ "--log-dir"
     , "/somewhere_else/logs"
     ],
   els_dap:parse_args(Args),
