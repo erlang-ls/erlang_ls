@@ -17,6 +17,7 @@
         , rename_variable/1
         , rename_function/1
         , rename_function_quoted_atom/1
+        , rename_type/1
         , rename_parametrized_macro/1
         , rename_macro_from_usage/1
         , rename_record/1
@@ -228,6 +229,27 @@ rename_function_quoted_atom(Config) ->
                      , change(NewName, {21, 0}, {21, 13})
                      , change(NewName, {23, 0}, {23, 13})
                      , change(NewName, {25, 0}, {25, 13})
+                     ]}},
+  assert_changes(Expected, Result).
+
+-spec rename_type(config()) -> ok.
+rename_type(Config) ->
+  Uri = ?config(rename_type_uri, Config),
+  NewName = <<"new_type">>,
+  %% Definition
+  #{result := Result} = els_client:document_rename(Uri, 3, 7, NewName),
+  %% Application
+  #{result := Result} = els_client:document_rename(Uri, 5, 18, NewName),
+  %% Fully qualified application
+  #{result := Result} = els_client:document_rename(Uri, 4, 30, NewName),
+  %% Export
+  #{result := Result} = els_client:document_rename(Uri, 1, 14, NewName),
+  Expected = #{changes =>
+                 #{binary_to_atom(Uri, utf8) =>
+                     [ change(NewName, {5, 18}, {5, 21})
+                     , change(NewName, {4, 30}, {4, 33})
+                     , change(NewName, {1, 14}, {1, 17})
+                     , change(NewName, {3, 6}, {3, 9})
                      ]}},
   assert_changes(Expected, Result).
 

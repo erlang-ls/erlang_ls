@@ -164,6 +164,7 @@ sources() ->
   , rename
   , rename_function
   , rename_function_import
+  , rename_type
   , rename_usage1
   , rename_usage2
   , rename_variable
