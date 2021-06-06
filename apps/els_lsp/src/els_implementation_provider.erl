@@ -25,12 +25,10 @@ handle_request({implementation, Params}, State) ->
    , <<"textDocument">> := #{<<"uri">> := Uri}
    } = Params,
   {ok, Document} = els_utils:lookup_document(Uri),
-  case find_implementation(Document, Line, Character) of
-    [#{range := Range}|_] ->
-      {#{uri => Uri, range => els_protocol:range(Range)}, State};
-    [] ->
-      {null, State}
-  end.
+  Implementations = find_implementation(Document, Line, Character),
+  Locations = [#{uri => U, range => els_protocol:range(Range)} ||
+                {U, #{range := Range}} <- Implementations],
+  {Locations, State}.
 
 %%==============================================================================
 %% Internal functions
@@ -45,15 +43,30 @@ find_implementation(Document, Line, Character) ->
     []      -> []
   end.
 
--spec implementation(els_dt_document:item(), poi()) -> [poi()].
+-spec implementation(els_dt_document:item(), poi()) -> [{uri(), poi()}].
 implementation(Document, #{kind := application, id := MFA}) ->
+  #{uri := Uri} = Document,
   case callback(MFA) of
     {CF, CA} ->
       POIs = els_dt_document:pois(Document, [function]),
-      [POI || #{id := {F, A}} = POI <- POIs, F =:= CF, A =:= CA];
+      [{Uri, POI} || #{id := {F, A}} = POI <- POIs, F =:= CF, A =:= CA];
     undefined ->
       []
   end;
+implementation(Document, #{kind := callback, id := {CF, CA}}) ->
+  #{uri := Uri} = Document,
+  {ok, Refs} = els_dt_references:find_by_id(behaviour, els_uri:module(Uri)),
+  lists:flatmap(
+    fun(#{uri := U}) ->
+        case els_utils:lookup_document(U) of
+          {ok, D} ->
+            [{U, POI} || #{id := {F, A}} = POI
+                           <- els_dt_document:pois(D, [function]),
+                         F =:= CF, A =:= CA];
+          {error, _Reason} ->
+            []
+        end
+    end, Refs);
 implementation(_Document, _POI) ->
   [].
 
