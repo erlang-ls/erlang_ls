@@ -2,7 +2,6 @@
 
 %% CT Callbacks
 -export([ all/0
-        , groups/0
         , init_per_suite/1
         , end_per_suite/1
         , init_per_testcase/2
@@ -30,13 +29,9 @@
 %%==============================================================================
 %% CT Callbacks
 %%==============================================================================
--spec all() -> [{group, atom()}].
+-spec all() -> [atom()].
 all() ->
-  [{group, tcp}, {group, stdio}].
-
--spec groups() -> [atom()].
-groups() ->
-  els_test_utils:groups(?MODULE).
+  els_test_utils:all(?MODULE).
 
 -spec init_per_suite(config()) -> config().
 init_per_suite(Config) ->

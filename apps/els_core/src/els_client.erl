@@ -3,9 +3,6 @@
 %%==============================================================================
 -module(els_client).
 
--callback start_link(any())     -> {ok, pid()}.
--callback send(pid(), binary()) -> ok.
-
 %%==============================================================================
 %% Behaviours
 %%==============================================================================
@@ -48,7 +45,7 @@
         , document_rename/4
         , folding_range/1
         , shutdown/0
-        , start_link/2
+        , start_link/1
         , stop/0
         , workspace_symbol/1
         , workspace_executecommand/2
@@ -73,8 +70,7 @@
 %%==============================================================================
 %% Record Definitions
 %%==============================================================================
--record(state, { transport_cb         :: transport_cb()
-               , transport_server     :: pid()
+-record(state, { io_device        :: atom() | pid()
                , request_id       = 1 :: request_id()
                , pending          = []
                , notifications    = []
@@ -86,8 +82,6 @@
 %%==============================================================================
 -type state()        :: #state{}.
 -type init_options() :: #{}.
--type transport()    :: stdio | tcp.
--type transport_cb() :: els_stdio_client | els_tcp_client.
 -type request_id()   :: pos_integer().
 
 %%==============================================================================
@@ -217,9 +211,9 @@ shutdown() ->
 exit() ->
   gen_server:call(?SERVER, {exit}).
 
--spec start_link(transport(), any()) -> {ok, pid()}.
-start_link(Transport, Args) ->
-  gen_server:start_link({local, ?SERVER}, ?MODULE, {Transport, Args}, []).
+-spec start_link(any()) -> {ok, pid()}.
+start_link(Args) ->
+  gen_server:start_link({local, ?SERVER}, ?MODULE, Args, []).
 
 -spec stop() -> ok.
 stop() ->
@@ -246,11 +240,15 @@ handle_responses(Responses) ->
 %%==============================================================================
 %% gen_server Callback Functions
 %%==============================================================================
--spec init({transport(), any()}) -> {ok, state()}.
-init({Transport, Args}) ->
-  Cb = transport_cb(Transport),
-  {ok, Pid} = Cb:start_link(Args),
-  State = #state{transport_cb = Cb, transport_server = Pid},
+-spec init(any()) -> {ok, state()}.
+init(#{io_device := IoDevice}) ->
+  Args = [ []
+         , IoDevice
+         , fun handle_responses/1
+         , els_jsonrpc:default_opts()
+         ],
+  _Pid = proc_lib:spawn_link(els_stdio, loop, Args),
+  State = #state{io_device = IoDevice},
   {ok, State}.
 
 -spec handle_call(any(), any(), state()) -> {reply, any(), state()}.
@@ -258,27 +256,27 @@ handle_call({Action, Opts}, _From, State) when Action =:= did_save
                                                orelse Action =:= did_close
                                                orelse Action =:= did_open
                                                orelse Action =:= initialized ->
-  #state{transport_cb = Cb, transport_server = Server} = State,
+  #state{io_device = IoDevice} = State,
   Method = method_lookup(Action),
   Params = notification_params(Opts),
   Content = els_protocol:notification(Method, Params),
-  Cb:send(Server, Content),
+  send(IoDevice, Content),
   {reply, ok, State};
 handle_call({exit}, _From, State) ->
-  #state{transport_cb = Cb, transport_server = Server} = State,
+  #state{io_device = IoDevice} = State,
   RequestId = State#state.request_id,
   Method = <<"exit">>,
   Params = #{},
   Content = els_protocol:request(RequestId, Method, Params),
-  Cb:send(Server, Content),
+  send(IoDevice, Content),
   {reply, ok, State};
 handle_call({shutdown}, From, State) ->
-  #state{transport_cb = Cb, transport_server = Server} = State,
+  #state{io_device = IoDevice} = State,
   RequestId = State#state.request_id,
   Method = <<"shutdown">>,
   Params = #{},
   Content = els_protocol:request(RequestId, Method, Params),
-  Cb:send(Server, Content),
+  send(IoDevice, Content),
   {noreply, State#state{ request_id = RequestId + 1
                        , pending    = [{RequestId, From} | State#state.pending]
                        }};
@@ -290,19 +288,19 @@ handle_call({'$_cancelrequest', Id}, _From, State) ->
   do_cancel_request(Id, State),
   {reply, ok, State};
 handle_call({'$_settracenotification'}, _From, State) ->
-  #state{transport_cb = Cb, transport_server = Server} = State,
+  #state{io_device = IoDevice} = State,
   Method = <<"$/setTraceNotification">>,
   Params = #{value => <<"verbose">>},
   Content = els_protocol:notification(Method, Params),
-  Cb:send(Server, Content),
+  send(IoDevice, Content),
   {reply, ok, State};
 handle_call({'$_unexpectedrequest'}, From, State) ->
-  #state{transport_cb = Cb, transport_server = Server} = State,
+  #state{io_device = IoDevice} = State,
   RequestId = State#state.request_id,
   Method = <<"$/unexpectedRequest">>,
   Params = #{},
   Content = els_protocol:request(RequestId, Method, Params),
-  Cb:send(Server, Content),
+  send(IoDevice, Content),
   {noreply, State#state{ request_id = RequestId + 1
                        , pending    = [{RequestId, From} | State#state.pending]
                        }};
@@ -310,14 +308,13 @@ handle_call({get_notifications}, _From, State) ->
   #state{notifications = Notifications} = State,
   {reply, Notifications, State#state { notifications = []}};
 handle_call(Input = {Action, _}, From, State) ->
-  #state{ transport_cb     = Cb
-        , transport_server = Server
-        , request_id       = RequestId
+  #state{ io_device = IoDevice
+        , request_id = RequestId
         } = State,
   Method = method_lookup(Action),
   Params = request_params(Input),
   Content = els_protocol:request(RequestId, Method, Params),
-  Cb:send(Server, Content),
+  send(IoDevice, Content),
   {noreply, State#state{ request_id = RequestId + 1
                        , pending    = [{RequestId, From} | State#state.pending]
                        }}.
@@ -486,10 +483,6 @@ notification_params({Uri, LanguageId, Version, Text}) ->
 notification_params({}) ->
   #{}.
 
--spec transport_cb(transport()) -> transport_cb().
-transport_cb(stdio)             -> els_stdio_client;
-transport_cb(tcp)               -> els_tcp_client.
-
 -spec is_notification(map()) -> boolean().
 is_notification(#{id := _Id}) ->
   false;
@@ -504,8 +497,12 @@ is_response(_) ->
 
 -spec do_cancel_request(request_id(), state()) -> ok.
 do_cancel_request(Id, State) ->
-  #state{transport_cb = Cb, transport_server = Server} = State,
+  #state{io_device = IoDevice} = State,
   Method = <<"$/cancelRequest">>,
   Params = #{id => Id},
   Content = els_protocol:notification(Method, Params),
-  Cb:send(Server, Content).
+  send(IoDevice, Content).
+
+-spec send(atom() | pid(), binary()) -> ok.
+send(IoDevice, Payload) ->
+  els_stdio:send(IoDevice, Payload).

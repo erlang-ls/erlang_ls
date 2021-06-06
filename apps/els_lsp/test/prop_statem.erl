@@ -23,12 +23,6 @@
 -compile(nowarn_export_all).
 
 %%==============================================================================
-%% Defines
-%%==============================================================================
--define(HOSTNAME, {127, 0, 0, 1}).
--define(PORT    , 10000).
-
-%%==============================================================================
 %% Initial State
 %%==============================================================================
 initial_state() ->
@@ -57,7 +51,11 @@ weight(_S, _Cmd)                     -> 5.
 %% Connect
 %%------------------------------------------------------------------------------
 connect() ->
-  els_client:start_link(tcp, #{ host => ?HOSTNAME, port => ?PORT}).
+  ClientIo = els_fake_stdio:start(),
+  {ok, ServerIo} = application:get_env(els_core, io_device),
+  els_fake_stdio:connect(ClientIo, ServerIo),
+  els_fake_stdio:connect(ServerIo, ClientIo),
+  els_client:start_link(#{io_device => ClientIo}).
 
 connect_args(_S) ->
   [].
@@ -352,6 +350,8 @@ setup() ->
   Self    = erlang:self(),
   HaltFun = fun(_X) -> Self ! halt_called, ok end,
   meck:expect(els_utils, halt, HaltFun),
+  ServerIo = els_fake_stdio:start(),
+  ok = application:set_env(els_core, io_device, ServerIo),
   application:ensure_all_started(els_lsp),
   file:write_file("/tmp/erlang_ls.config", <<"">>),
   ok.

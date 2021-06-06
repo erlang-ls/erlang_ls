@@ -4,11 +4,9 @@
         , all/2
         , end_per_suite/1
         , end_per_testcase/2
-        , get_group/1
-        , groups/1
         , init_per_suite/1
         , init_per_testcase/2
-        , start/1
+        , start/0
         , wait_for/2
         , wait_for_fun/3
         , wait_until_mock_called/2
@@ -20,8 +18,6 @@
 %% Defines
 %%==============================================================================
 -define(TEST_APP, <<"code_navigation">>).
--define(HOSTNAME, {127, 0, 0, 1}).
--define(PORT    , 10000).
 
 %%==============================================================================
 %% Types
@@ -32,12 +28,6 @@
 %%==============================================================================
 %% API
 %%==============================================================================
-
--spec groups(module()) -> [{atom(), [], [atom()]}].
-groups(Module) ->
-  [ {tcp,   [], all(Module)}
-  , {stdio, [], all(Module)}
-  ].
 
 -spec all(module()) -> [atom()].
 all(Module) -> all(Module, []).
@@ -67,8 +57,7 @@ end_per_suite(_Config) ->
 init_per_testcase(_TestCase, Config) ->
   meck:new(els_distribution_server, [no_link, passthrough]),
   meck:expect(els_distribution_server, connect, 0, ok),
-  Transport = get_group(Config),
-  Started   = start(Transport),
+  Started   = start(),
   RootPath  = ?config(root_path, Config),
   RootUri   = ?config(root_uri, Config),
   els_client:initialize(RootUri, #{indexingEnabled => false}),
@@ -95,21 +84,15 @@ end_per_testcase(_TestCase, Config) ->
   [application:stop(App) || App <- ?config(started, Config)],
   ok.
 
--spec start(stdio | tcp) -> [atom()].
-start(stdio) ->
+-spec start() -> [atom()].
+start() ->
   ClientIo = els_fake_stdio:start(),
   ServerIo = els_fake_stdio:start(),
   els_fake_stdio:connect(ClientIo, ServerIo),
   els_fake_stdio:connect(ServerIo, ClientIo),
-  ok = application:set_env(els_core, transport, els_stdio),
   ok = application:set_env(els_core, io_device, ServerIo),
   {ok, Started} = application:ensure_all_started(els_lsp),
-  els_client:start_link(stdio, #{io_device => ClientIo}),
-  Started;
-start(tcp) ->
-  ok = application:set_env(els_core, transport, els_tcp),
-  {ok, Started} = application:ensure_all_started(els_lsp),
-  els_client:start_link(tcp, #{host => ?HOSTNAME, port => ?PORT}),
+  els_client:start_link(#{io_device => ClientIo}),
   Started.
 
 -spec wait_for(any(), non_neg_integer()) -> ok.
@@ -134,11 +117,6 @@ wait_for_fun(CheckFun, WaitTime, Retries) ->
       timer:sleep(WaitTime),
       wait_for_fun(CheckFun, WaitTime, Retries - 1)
   end.
-
--spec get_group(config()) -> atom().
-get_group(Config) ->
-  GroupProperties = ?config(tc_group_properties, Config),
-  proplists:get_value(name, GroupProperties).
 
 -spec sources() -> [atom()].
 sources() ->

@@ -9,7 +9,6 @@
         , end_per_suite/1
         , init_per_testcase/2
         , end_per_testcase/2
-        , groups/0
         , suite/0
         ]).
 
@@ -38,11 +37,7 @@
 %%==============================================================================
 -spec all() -> [atom()].
 all() ->
-  [{group, tcp}, {group, stdio}].
-
--spec groups() -> [atom()].
-groups() ->
-  els_test_utils:groups(?MODULE).
+  els_test_utils:all(?MODULE).
 
 -spec init_per_suite(config()) -> config().
 init_per_suite(Config) ->
@@ -64,8 +59,7 @@ end_per_suite(Config) ->
 init_per_testcase(_TestCase, Config) ->
   meck:new(els_distribution_server, [no_link, passthrough]),
   meck:expect(els_distribution_server, connect, 0, ok),
-  Transport = els_test_utils:get_group(Config),
-  Started   = els_test_utils:start(Transport),
+  Started   = els_test_utils:start(),
   RootUri   = ?config(root_uri, Config),
   AppUri    = ?config(app_uri, Config),
   els_client:initialize(RootUri),
