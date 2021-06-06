@@ -50,8 +50,8 @@ docs(Uri, #{kind := Kind, id := {F, A}})
   function_docs('local', M, F, A);
 docs(Uri, #{kind := macro, id := Name} = POI) ->
   case els_code_navigation:goto_definition(Uri, POI) of
-    {ok, DefUri, #{data := #{value_range := ValueRange}}} ->
-      NameStr = atom_to_list(Name),
+    {ok, DefUri, #{data := #{args := Args, value_range := ValueRange}}} ->
+      NameStr = macro_signature(Name, Args),
 
       {ok, #{text := Text}} = els_utils:lookup_document(DefUri),
       #{from := From, to := To} = ValueRange,
@@ -253,3 +253,9 @@ is_function_exported(Uri, _Module, Function, Arity) ->
   {ok, Doc} = els_utils:lookup_document(Uri),
   POIs = els_dt_document:pois(Doc, [export_entry]),
   [] =/= [{F, A} || #{id := {F, A}} <- POIs, Function =:= F, Arity =:= A].
+
+-spec macro_signature(poi_id(), [{integer(), string()}]) -> unicode:charlist().
+macro_signature({Name, _Arity}, Args) ->
+  [atom_to_list(Name), "(", lists:join(", ", [A || {_N, A} <- Args]), ")"];
+macro_signature(Name, none) ->
+  atom_to_list(Name).

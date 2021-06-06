@@ -19,6 +19,8 @@
         , included_macro/1
         , local_macro/1
         , weird_macro/1
+        , macro_with_zero_args/1
+        , macro_with_args/1
         ]).
 
 %%==============================================================================
@@ -133,6 +135,26 @@ weird_macro(Config) ->
   Uri = ?config(hover_macro_uri, Config),
   #{result := Result} = els_client:hover(Uri, 12, 20),
   Value = <<"```erlang\n?WEIRD_MACRO = A when A > 1\n```">>,
+  Expected = #{contents => #{ kind  => <<"markdown">>
+                            , value => Value
+                            }},
+  ?assertEqual(Expected, Result),
+  ok.
+
+macro_with_zero_args(Config) ->
+  Uri = ?config(hover_macro_uri, Config),
+  #{result := Result} = els_client:hover(Uri, 18, 10),
+  Value = <<"```erlang\n?MACRO_WITH_ARGS() = {macro}\n```">>,
+  Expected = #{contents => #{ kind  => <<"markdown">>
+                            , value => Value
+                            }},
+  ?assertEqual(Expected, Result),
+  ok.
+
+macro_with_args(Config) ->
+  Uri = ?config(hover_macro_uri, Config),
+  #{result := Result} = els_client:hover(Uri, 19, 10),
+  Value = <<"```erlang\n?MACRO_WITH_ARGS(X, Y) = {macro, X, Y}\n```">>,
   Expected = #{contents => #{ kind  => <<"markdown">>
                             , value => Value
                             }},
