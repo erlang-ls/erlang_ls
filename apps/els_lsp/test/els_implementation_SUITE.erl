@@ -13,6 +13,7 @@
 
 %% Test cases
 -export([ gen_server_call/1
+        , callback/1
         ]).
 
 %%==============================================================================
@@ -61,11 +62,32 @@ end_per_testcase(TestCase, Config) ->
 gen_server_call(Config) ->
   Uri = ?config(my_gen_server_uri, Config),
   #{result := Result} = els_client:implementation(Uri, 30, 10),
-  Expected = #{ range =>
-                  #{ 'end' => #{character => 4, line => 46}
-                   , start => #{character => 0, line => 46}
-                   }
-              , uri => Uri
-              },
+  Expected = [ #{ range =>
+                    #{ 'end' => #{character => 4, line => 46}
+                     , start => #{character => 0, line => 46}
+                     }
+                , uri => Uri
+                }
+             ],
+  ?assertEqual(Expected, Result),
+  ok.
+
+-spec callback(config()) -> ok.
+callback(Config) ->
+  Uri = ?config(implementation_uri, Config),
+  #{result := Result} = els_client:implementation(Uri, 3, 20),
+  Expected = [ #{ range =>
+                    #{ 'end' => #{character => 17, line => 6}
+                     , start => #{character => 0, line => 6}
+                     }
+                , uri => ?config(implementation_a_uri, Config)
+                }
+             , #{ range =>
+                    #{ 'end' => #{character => 17, line => 6}
+                     , start => #{character => 0, line => 6}
+                     }
+                , uri => ?config(implementation_b_uri, Config)
+                }
+             ],
   ?assertEqual(Expected, Result),
   ok.

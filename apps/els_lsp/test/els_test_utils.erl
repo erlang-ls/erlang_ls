@@ -160,6 +160,9 @@ sources() ->
   , hover_docs
   , hover_docs_caller
   , hover_macro
+  , implementation
+  , implementation_a
+  , implementation_b
   , my_gen_server
   , rename
   , rename_function
