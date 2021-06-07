@@ -14,6 +14,7 @@
         , attribute_include/1
         , attribute_include_lib/1
         , attribute_export/1
+        , attribute_export_incomplete/1
         , attribute_export_type/1
         , default_completions/1
         , empty_completions/1
@@ -269,6 +270,36 @@ attribute_export(Config) ->
                 ],
   #{result := Completions} =
     els_client:completion(Uri, 5, 10, TriggerKindInvoked, <<"">>),
+  [?assert(lists:member(E, Completions)) || E <- Expected],
+  [?assertNot(lists:member(E, Completions)) || E <- NotExpected],
+  ok.
+
+-spec attribute_export_incomplete(config()) -> ok.
+attribute_export_incomplete(Config) ->
+  Uri = ?config(completion_incomplete_uri, Config),
+  TriggerKindInvoked = ?COMPLETION_TRIGGER_KIND_INVOKED,
+  Expected = [#{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+               , kind => ?COMPLETION_ITEM_KIND_FUNCTION
+               , label => <<"function_unexported/0">>
+               , data =>
+                   #{ arity => 0
+                    , function => <<"function_unexported">>
+                    , module => <<"completion_incomplete">>
+                    }
+               }
+             ],
+  NotExpected = [#{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+                  , kind => ?COMPLETION_ITEM_KIND_FUNCTION
+                  , label => <<"function_exported/0">>
+                  , data =>
+                      #{ arity => 0
+                       , function => <<"function_exported">>
+                       , module => <<"completion_incomplete">>
+                       }
+                  }
+                ],
+  #{result := Completions} =
+    els_client:completion(Uri, 4, 18, TriggerKindInvoked, <<"">>),
   [?assert(lists:member(E, Completions)) || E <- Expected],
   [?assertNot(lists:member(E, Completions)) || E <- NotExpected],
   ok.

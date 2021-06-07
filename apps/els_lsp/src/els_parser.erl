@@ -353,10 +353,10 @@ find_export_pois(Tree, AttrName, Arg) ->
                             -> [poi()].
 find_export_entry_pois(EntryPoiKind, Exports) ->
   lists:flatten(
-    [ try erl_syntax_lib:analyze_function_name(FATree) of
+    [ case get_name_arity(FATree) of
         {F, A} ->
-          poi(erl_syntax:get_pos(FATree), EntryPoiKind, {F, A})
-      catch throw:syntax_error ->
+          poi(erl_syntax:get_pos(FATree), EntryPoiKind, {F, A});
+        false ->
           []
       end
       || FATree <- Exports
@@ -365,10 +365,10 @@ find_export_entry_pois(EntryPoiKind, Exports) ->
 -spec find_import_entry_pois(atom(), [tree()]) -> [poi()].
 find_import_entry_pois(M, Imports) ->
   lists:flatten(
-    [ try erl_syntax_lib:analyze_function_name(FATree) of
+    [ case get_name_arity(FATree) of
         {F, A} ->
-          poi(erl_syntax:get_pos(FATree), import_entry, {M, F, A})
-      catch throw:syntax_error ->
+          poi(erl_syntax:get_pos(FATree), import_entry, {M, F, A});
+        false ->
           []
       end
       || FATree <- Imports
@@ -668,6 +668,28 @@ is_atom_node(Tree) ->
       false
   end.
 
+-spec get_name_arity(tree()) -> {atom(), integer()} | false.
+get_name_arity(Tree) ->
+  case erl_syntax:type(Tree) of
+    arity_qualifier ->
+      A = erl_syntax:arity_qualifier_argument(Tree),
+      case erl_syntax:type(A) of
+        integer ->
+          F = erl_syntax:arity_qualifier_body(Tree),
+          case is_atom_node(F) of
+            {true, Name} ->
+              Arity = erl_syntax:integer_value(A),
+              {Name, Arity};
+            false ->
+              false
+          end;
+        _ ->
+          false
+      end;
+    _ ->
+      false
+  end.
+
 -spec poi(pos() | {pos(), pos()} | erl_anno:anno(), poi_kind(), any()) -> poi().
 poi(Pos, Kind, Id) ->
   poi(Pos, Kind, Id, undefined).
@@ -836,10 +858,9 @@ skip_function_entries(FunList) ->
     list ->
       lists:filter(
         fun(FATree) ->
-            try erl_syntax_lib:analyze_function_name(FATree) of
-              {_, _} -> false
-            catch
-              throw:syntax_error -> true
+            case get_name_arity(FATree) of
+              {_, _} -> false;
+              false -> true
             end
         end, erl_syntax:list_elements(FunList));
     _ ->
