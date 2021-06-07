@@ -10,8 +10,8 @@
 %% Includes
 %%==============================================================================
 -include_lib("kernel/include/logger.hrl").
+-include_lib("els_lsp/include/els_lsp.hrl").
 
--define(APP, els_lsp).
 -define(DEFAULT_LOGGING_LEVEL, "info").
 
 -spec main([any()]) -> ok.
@@ -24,6 +24,7 @@ main(Args) ->
   configure_logging(),
   {ok, _} = application:ensure_all_started(?APP),
   patch_logging(),
+  configure_client_logging(),
   ?LOG_INFO("Started erlang_ls server", []),
   receive _ -> ok end.
 
@@ -108,13 +109,7 @@ configure_logging() ->
   Handler = #{ config => #{ file => LogFile }
              , level => LoggingLevel
              , formatter => { logger_formatter
-                            , #{ template => [ "[", time, "] "
-                                             , file, ":", line, " "
-                                             , pid, " "
-                                             , "[", level, "] "
-                                             , msg, "\n"
-                                             ]
-                               }
+                            , #{ template => ?ELP_LOG_FORMAT ++ ["\n"] }
                             }
              },
   [logger:remove_handler(H) || H <-  logger:get_handler_ids()],
@@ -134,3 +129,12 @@ log_root() ->
   {ok, CurrentDir} = file:get_cwd(),
   Dirname = filename:basename(CurrentDir),
   filename:join([LogDir, Dirname]).
+
+
+-spec configure_client_logging() -> ok.
+configure_client_logging() ->
+    LoggingLevel = application:get_env(els_core, log_level, notice),
+    ok = logger:add_handler( els_log_notification
+                           , els_log_notification
+                           , #{ level => LoggingLevel }
+                           ).
