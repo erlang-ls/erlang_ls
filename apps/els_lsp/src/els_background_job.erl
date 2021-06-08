@@ -98,7 +98,7 @@ start_link(Config) ->
 %%==============================================================================
 -spec init(config()) -> {ok, state()}.
 init(#{entries := Entries, title := Title} = Config) ->
-  ?LOG_INFO("Background job started. [pid=~p] [title=~p]", [self(), Title]),
+  ?LOG_INFO("Background job started ~s", [Title]),
   %% Ensure the terminate function is called on shutdown, allowing the
   %% job to clean up.
   process_flag(trap_exit, true),
@@ -184,7 +184,7 @@ terminate(normal, #{ config := #{on_complete := OnComplete}
     Pid ->
       exit(Pid, kill)
   end,
-  ?LOG_INFO("Background job completed. [pid=~p]", [self()]),
+  ?LOG_INFO("Background job completed.", []),
   OnComplete(InternalState),
   ok;
 terminate(Reason, #{ config := #{on_error := OnError}
@@ -193,8 +193,7 @@ terminate(Reason, #{ config := #{on_error := OnError}
                    , total := Total
                    , progress_enabled := ProgressEnabled
                    }) ->
-  ?LOG_WARNING( "Background job aborted. [reason=~p] [pid=~p]"
-              , [Reason, self()]),
+  ?LOG_WARNING( "Background job aborted. [reason=~p]", [Reason]),
   notify_end(Token, Total, ProgressEnabled),
   OnError(InternalState),
   ok.
