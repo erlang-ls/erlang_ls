@@ -109,7 +109,7 @@ configure_logging() ->
   Handler = #{ config => #{ file => LogFile }
              , level => LoggingLevel
              , formatter => { logger_formatter
-                            , #{ template => ?ELP_LOG_FORMAT ++ ["\n"] }
+                            , #{ template => ?LSP_LOG_FORMAT }
                             }
              },
   [logger:remove_handler(H) || H <-  logger:get_handler_ids()],
