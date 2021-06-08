@@ -5,4 +5,6 @@
 
 -define(APP, els_lsp).
 
+-define(ELP_LOG_FORMAT, [ "[", level, "] ", "[", time, "] ", mfa, " L", line, " ", pid,  "\n", msg, "\n" ]).
+
 -endif.
