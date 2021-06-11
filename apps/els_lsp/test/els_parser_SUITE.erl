@@ -27,6 +27,8 @@
         , wild_attrbibute_macro/1
         , type_name_macro/1
         , spec_name_macro/1
+        , macro_in_application/1
+        , var_in_application/1
         , unicode_clause_pattern/1
         , latin1_source_code/1
         ]).
@@ -237,6 +239,37 @@ spec_name_macro(_Config) ->
   ?assertMatch([#{id := undefined}], parse_find_pois(Text2, spec)),
   %% TODO: Update erlfmt, a later version can parse this
   %%?assertMatch([_], parse_find_pois(Text2, type_application, {t, 0})),
+  ok.
+
+macro_in_application(_Config) ->
+  Text1 = "f() -> ?M:f(42).",
+  ?assertMatch([#{id := 'M'}], parse_find_pois(Text1, macro)),
+
+  Text2 = "f() -> ?M(mod):f(42).",
+  ?assertMatch([#{id := {'M', 1}}], parse_find_pois(Text2, macro)),
+
+  %% This is not an application, only a module qualifier before macro M/1
+  Text3 = "f() -> mod:?M(42).",
+  ?assertMatch([#{id := {'M', 1}}], parse_find_pois(Text3, macro)),
+
+  %% Application with macro M/0 as function name
+  Text4 = "f() -> mod:?M()(42).",
+  ?assertMatch([#{id := {'M', 0}}], parse_find_pois(Text4, macro)),
+
+  %% Known limitation of the current implementation,
+  %% ?MODULE is handled specially, converted to a local call
+  Text5 = "f() -> ?MODULE:foo().",
+  ?assertMatch([], parse_find_pois(Text5, macro)),
+  ?assertMatch([#{id := {foo, 0}}], parse_find_pois(Text5, application)),
+
+  ok.
+
+var_in_application(_Config) ->
+  Text1 = "f() -> Mod:f(42).",
+  ?assertMatch([#{id := 'Mod'}], parse_find_pois(Text1, variable)),
+
+  Text2 = "f() -> mod:Fun(42).",
+  ?assertMatch([#{id := 'Fun'}], parse_find_pois(Text2, variable)),
   ok.
 
 -spec unicode_clause_pattern(config()) -> ok.

@@ -727,7 +727,13 @@ fold2(_, S, []) ->
 
 -spec subtrees(tree(), atom()) -> [[tree()]].
 subtrees(Tree, application) ->
-  [erl_syntax:application_arguments(Tree)];
+  [ case application_mfa(Tree) of
+      undefined ->
+        [erl_syntax:application_operator(Tree)];
+      _ ->
+        []
+    end
+  , erl_syntax:application_arguments(Tree)];
 subtrees(Tree, function) ->
   [erl_syntax:function_clauses(Tree)];
 subtrees(_Tree, implicit_fun) ->
