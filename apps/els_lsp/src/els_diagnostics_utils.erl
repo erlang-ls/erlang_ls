@@ -8,7 +8,9 @@
 %%==============================================================================
 -export([ dependencies/1
         , included_uris/1
+        , included_documents/1
         , range/2
+        , traverse_include_graph/3
         ]).
 %%==============================================================================
 %% Includes
@@ -24,6 +26,20 @@ dependencies(Uri) ->
 included_uris(Document) ->
   POIs = els_dt_document:pois(Document, [include, include_lib]),
   included_uris([Id || #{id := Id} <- POIs], []).
+
+-spec included_documents(els_dt_document:item()) -> [els_dt_document:item()].
+included_documents(Document) ->
+  lists:filtermap(fun find_included_document/1, included_uris(Document)).
+
+-spec find_included_document(uri()) -> {true, els_dt_document:item()} | false.
+find_included_document(Uri) ->
+  case els_utils:lookup_document(Uri) of
+    {ok, IncludeDocument} ->
+      {true, IncludeDocument};
+    {error, _} ->
+      ?LOG_WARNING("Failed included document lookup [uri=~p]", [Uri]),
+      false
+  end.
 
 -spec range(els_dt_document:item() | undefined,
             erl_anno:anno() | none) -> poi_range().
@@ -59,6 +75,17 @@ range(Document, Anno) ->
           maps:get(range, hd(POIs))
       end
   end.
+
+-spec traverse_include_graph(AccFun, AccT, From) -> AccT when
+    AccFun :: fun((Included, Includer, AccT) -> AccT),
+    From :: els_dt_document:item(),
+    Included :: els_dt_document:item(),
+    Includer :: els_dt_document:item().
+traverse_include_graph(AccFun, Acc, From) ->
+    Graph = els_fungraph:new(
+      fun els_dt_document:uri/1,
+      fun included_documents/1),
+    els_fungraph:traverse(AccFun, Acc, From, Graph).
 
 %%==============================================================================
 %% Internal Functions

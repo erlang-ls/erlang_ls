@@ -25,6 +25,7 @@
         , pois/1
         , pois/2
         , get_element_at_pos/3
+        , uri/1
         ]).
 
 %%==============================================================================
@@ -162,3 +163,8 @@ get_element_at_pos(Item, Line, Column) ->
   POIs = pois(Item),
   MatchedPOIs = els_poi:match_pos(POIs, {Line, Column}),
   els_poi:sort(MatchedPOIs).
+
+%% @doc Returns the URI of the current document
+-spec uri(item()) -> uri().
+uri(#{ uri := Uri }) ->
+  Uri.

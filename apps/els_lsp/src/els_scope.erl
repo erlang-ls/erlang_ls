@@ -18,23 +18,14 @@ local_and_included_pois(Document, Kinds) ->
                 ]).
 
 %% @doc Return POIs of the provided `Kinds' in included files from `Document'
--spec included_pois(els_dt_document:item(), [poi_kind()]) -> [[map()]].
+-spec included_pois(els_dt_document:item(), [poi_kind()]) -> [poi()].
 included_pois(Document, Kinds) ->
-  POIs  = els_dt_document:pois(Document, [include, include_lib]),
-  [include_file_pois(Name, Kinds) || #{id := Name} <- POIs].
-
-%% @doc Return POIs of the provided `Kinds' in the included file
--spec include_file_pois(string(), [poi_kind()]) -> [map()].
-include_file_pois(Name, Kinds) ->
-  case els_utils:find_header(els_utils:filename_to_atom(Name)) of
-    {ok, Uri} ->
-      {ok, IncludeDocument} = els_utils:lookup_document(Uri),
-      %% NB: Recursive call to support includes in the include file
-      IncludedInHeader = lists:flatten(included_pois(IncludeDocument, Kinds)),
-      els_dt_document:pois(IncludeDocument, Kinds) ++ IncludedInHeader;
-    {error, _} ->
-      []
-  end.
+  els_diagnostics_utils:traverse_include_graph(
+    fun(IncludedDocument, _Includer, Acc) ->
+      els_dt_document:pois(IncludedDocument, Kinds) ++ Acc
+    end,
+    [],
+    Document).
 
 %% @doc Return POIs of the provided `Kinds' in the local document and files that
 %% (maybe recursively) include it
