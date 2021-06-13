@@ -559,7 +559,7 @@ record_fields(Document, RecordName) ->
   case find_record_definition(Document, RecordName) of
     [] -> [];
     POIs ->
-      [#{data := Fields} | _] = els_poi:sort(POIs),
+      [#{data := #{field_list := Fields}} | _] = els_poi:sort(POIs),
       [ item_kind_field(atom_to_label(Name))
         || {Name, _} <- Fields
       ]

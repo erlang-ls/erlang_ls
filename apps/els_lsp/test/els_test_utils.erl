@@ -161,6 +161,7 @@ sources() ->
   , hover_docs
   , hover_docs_caller
   , hover_macro
+  , hover_record_expr
   , implementation
   , implementation_a
   , implementation_b

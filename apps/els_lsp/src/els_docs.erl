@@ -53,12 +53,19 @@ docs(Uri, #{kind := macro, id := Name} = POI) ->
     {ok, DefUri, #{data := #{args := Args, value_range := ValueRange}}} ->
       NameStr = macro_signature(Name, Args),
 
-      {ok, #{text := Text}} = els_utils:lookup_document(DefUri),
-      #{from := From, to := To} = ValueRange,
-      ValueText = els_utils:to_list(els_text:range(Text, From, To)),
+      ValueText = get_valuetext(DefUri, ValueRange),
 
       Line = lists:flatten(["?", NameStr, " = ", ValueText]),
       [{code_line, Line}];
+    _ ->
+      []
+  end;
+docs(Uri, #{kind := record_expr} = POI) ->
+  case els_code_navigation:goto_definition(Uri, POI) of
+    {ok, DefUri, #{data := #{value_range := ValueRange}}} ->
+      ValueText = get_valuetext(DefUri, ValueRange),
+
+      [{code_line, ValueText}];
     _ ->
       []
   end;
@@ -86,6 +93,12 @@ function_docs(Type, M, F, A) ->
       , Docs
       ],
   lists:append(L).
+
+-spec get_valuetext(uri(), map()) -> list().
+get_valuetext(DefUri, #{from := From, to := To}) ->
+  {ok, #{text := Text}} = els_utils:lookup_document(DefUri),
+  els_utils:to_list(els_text:range(Text, From, To)).
+
 
 -spec signature(application_type(), atom(), atom(), non_neg_integer()) ->
         string().
