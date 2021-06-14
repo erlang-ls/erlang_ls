@@ -80,31 +80,23 @@ handle_request({initialize, Params}, State) ->
   NewState = State#{ root_uri => RootUri, init_options => InitOptions},
   {server_capabilities(), NewState};
 handle_request({initialized, _Params}, State) ->
-  #{root_uri := RootUri, init_options := InitOptions} = State,
+  #{root_uri := RootUri} = State,
   NodeName = els_distribution_server:node_name( <<"erlang_ls">>
                                               , filename:basename(RootUri)),
   els_distribution_server:start_distribution(NodeName),
   ?LOG_INFO("Started distribution for: [~p]", [NodeName]),
-  case els_config:get(bsp_enabled) of
-    true ->
-      ok = els_bsp_client:start_server(RootUri),
-      {ok, Vsn} = application:get_key(erlang_ls, vsn),
-      els_bsp_client:request(
-        <<"build/initialize">>
-          , #{ <<"displayName">>  => <<"Erlang LS BSP Client">>
-             , <<"version">>      => list_to_binary(Vsn)
-             , <<"bspVersion">>   => <<"2.0.0">>
-             , <<"rootUri">>      => RootUri
-             , <<"capabilities">> => #{ <<"languageIds">> => [<<"erlang">>] }
-             , <<"data">>         => #{}
-             }
-       );
-    false ->
+  case els_bsp_provider:maybe_start(RootUri) of
+    {error, Reason} ->
+      ?LOG_INFO("Failed to start BSP server. [reason=~p]", [Reason]),
+      els_config:get(bsp_enabled) =:= true andalso els_utils:halt(1);
+    _ ->
       ok
   end,
-  case maps:get(<<"indexingEnabled">>, InitOptions, true) of
-    true  -> els_indexing:start();
-    false -> ?LOG_INFO("Skipping Indexing (disabled via InitOptions)")
+  case els_bsp_provider:info(is_running) of
+    true ->  %% The BSP provider will start indexing when it's ready
+      ok;
+    false -> %% We need to start indexing here
+      els_indexing:maybe_start()
   end,
   {null, State};
 handle_request({shutdown, _Params}, State) ->

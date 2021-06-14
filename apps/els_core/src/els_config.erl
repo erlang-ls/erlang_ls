@@ -52,7 +52,9 @@
                | root_uri
                | search_paths
                | code_reload
-               | elvis_config_path.
+               | elvis_config_path
+               | indexing_enabled
+               | bsp_enabled.
 
 -type path()  :: file:filename().
 -type state() :: #{ apps_dirs        => [path()]
@@ -70,6 +72,8 @@
                   , root_uri         => uri()
                   , search_paths     => [path()]
                   , code_reload      => map() | 'disabled'
+                  , indexing_enabled => boolean()
+                  , bsp_enabled      => boolean() | auto
                   }.
 
 %%==============================================================================
@@ -112,7 +116,7 @@ do_initialize(RootUri, Capabilities, {ConfigPath, Config}) ->
   CodePathExtraDirs = maps:get("code_path_extra_dirs", Config, []),
   ok = add_code_paths(CodePathExtraDirs, RootPath),
   ElvisConfigPath = maps:get("elvis_config_path", Config, undefined),
-  BSPEnabled = maps:get("bsp_enabled", Config, false),
+  BSPEnabled = maps:get("bsp_enabled", Config, auto),
   IncrementalSync = maps:get("incremental_sync", Config, false),
 
   %% Passed by the LSP client
