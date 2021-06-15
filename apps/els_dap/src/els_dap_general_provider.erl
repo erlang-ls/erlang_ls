@@ -88,39 +88,10 @@ handle_request({<<"initialize">>, _Params}, State) ->
   InitOptions = #{},
   ok = els_config:initialize(RootUri, capabilities(), InitOptions),
   {capabilities(), State};
-handle_request({<<"launch">>, Params}, State) ->
-  #{<<"cwd">> := Cwd} = Params,
-  ok = file:set_cwd(Cwd),
-  Name = filename:basename(Cwd),
-
-  %% start distribution
-  LocalNode = els_distribution_server:node_name(<<"erlang_ls_dap">>, Name),
-  els_distribution_server:start_distribution(LocalNode),
-  ?LOG_INFO("Distribution up on: [~p]", [LocalNode]),
-
-  %% get default and final launch config
-  DefaultConfig = #{
-    <<"projectnode">> =>
-      atom_to_binary(
-        els_distribution_server:node_name(<<"erlang_ls_dap_project">>, Name),
-        utf8
-      ),
-    <<"cookie">> => atom_to_binary(erlang:get_cookie(), utf8),
-    <<"timeout">> => 30,
-    <<"use_long_names">> => false
-  },
-  #{ <<"projectnode">> := RawProjectNode
-   , <<"cookie">>  := ConfCookie
-   , <<"timeout">> := TimeOut
-   , <<"use_long_names">> := UseLongNames} = maps:merge(DefaultConfig, Params),
-  ConfProjectNode = check_project_node_name(RawProjectNode, UseLongNames),
-  ?LOG_INFO("Configured Project Node Name: ~p", [ConfProjectNode]),
-  ProjectNode = binary_to_atom(ConfProjectNode, utf8),
-  Cookie = binary_to_atom(ConfCookie, utf8),
-
-  %% set cookie
-  true = erlang:set_cookie(LocalNode, Cookie),
-
+handle_request({<<"launch">>, #{<<"cwd">> := Cwd} = Params}, State) ->
+  #{ <<"projectnode">> := ProjectNode
+   , <<"cookie">> := Cookie
+   , <<"timeout">> := TimeOut} = start_distribution(Params),
 
   case Params of
     #{ <<"runinterminal">> := Cmd
@@ -143,7 +114,7 @@ handle_request({<<"launch">>, Params}, State) ->
                   , "--sname"
                   , ProjectNode
                   , "--setcookie"
-                  , erlang:atom_to_list(Cookie)
+                  , erlang:binary_to_list(Cookie)
                   ]
                 )
             end)
@@ -156,33 +127,8 @@ handle_request({<<"launch">>, Params}, State) ->
               , timeout => TimeOut
               }};
 handle_request({<<"attach">>, Params}, State) ->
-  #{<<"cwd">> := Cwd} = Params,
-  ok = file:set_cwd(Cwd),
-  Name = filename:basename(Cwd),
-
-  %% start distribution
-  LocalNode = els_distribution_server:node_name(<<"erlang_ls_dap">>, Name),
-  els_distribution_server:start_distribution(LocalNode),
-  ?LOG_INFO("Distribution up on: [~p]", [LocalNode]),
-
-  %% get default and final launch config
-  DefaultConfig = #{
-    <<"projectnode">> =>
-      atom_to_binary(
-        els_distribution_server:node_name(<<"erlang_ls_dap_project">>, Name),
-        utf8
-      ),
-    <<"cookie">> => atom_to_binary(erlang:get_cookie(), utf8),
-    <<"timeout">> => 30
-  },
-  #{ <<"projectnode">> := ConfProjectNode
-    , <<"cookie">>  := ConfCookie
-    , <<"timeout">> := TimeOut} = maps:merge(DefaultConfig, Params),
-  ProjectNode = binary_to_atom(ConfProjectNode, utf8),
-  Cookie = binary_to_atom(ConfCookie, utf8),
-
-  %% set cookie
-  true = erlang:set_cookie(LocalNode, Cookie),
+  #{ <<"projectnode">> := ProjectNode
+   , <<"timeout">> := TimeOut} = start_distribution(Params),
 
   els_dap_server:send_event(<<"initialized">>, #{}),
 
@@ -918,8 +864,43 @@ check_project_node_name(ProjectNode, true) ->
     nomatch ->
       {ok, HostName} = inet:gethostname(),
       BinHostName = list_to_binary(HostName),
-      Domain = list_to_binary(proplists:get_value(domain, inet:get_rc(), "")),
+      DomainStr = proplists:get_value(domain, inet:get_rc(), <<"">>),
+      Domain = list_to_binary(DomainStr),
       <<ProjectNode/binary, "@", BinHostName/binary, ".", Domain/binary>>;
     _ ->
       ProjectNode
   end.
+
+-spec start_distribution(map()) -> map().
+start_distribution(Params) ->
+  #{<<"cwd">> := Cwd} = Params,
+  ok = file:set_cwd(Cwd),
+  Name = filename:basename(Cwd),
+
+  %% start distribution
+  LocalNode = els_distribution_server:node_name(<<"erlang_ls_dap">>, Name),
+  els_distribution_server:start_distribution(LocalNode),
+  ?LOG_INFO("Distribution up on: [~p]", [LocalNode]),
+
+  %% get default and final launch config
+  DefaultConfig = #{
+    <<"projectnode">> =>
+      atom_to_binary(
+        els_distribution_server:node_name(<<"erlang_ls_dap_project">>, Name),
+        utf8
+      ),
+    <<"cookie">> => atom_to_binary(erlang:get_cookie(), utf8),
+    <<"timeout">> => 30,
+    <<"use_long_names">> => false
+  },
+  Config = maps:merge(DefaultConfig, Params),
+  #{ <<"projectnode">> := RawProjectNode
+   , <<"cookie">>  := ConfCookie
+   , <<"use_long_names">> := UseLongNames} = Config,
+  ConfProjectNode = check_project_node_name(RawProjectNode, UseLongNames),
+  ?LOG_INFO("Configured Project Node Name: ~p", [ConfProjectNode]),
+  Cookie = binary_to_atom(ConfCookie, utf8),
+
+  %% set cookie
+  true = erlang:set_cookie(LocalNode, Cookie),
+  Config#{ <<"projectnode">> => binary_to_atom(ConfProjectNode, utf8)}.
