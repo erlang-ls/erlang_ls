@@ -15,6 +15,8 @@
         , launch_mfa/1
         , launch_mfa_with_cookie/1
         , configuration_done/1
+        , configuration_done_with_long_names/1
+        , configuration_done_with_long_names_using_host/1
         , configuration_done_with_breakpoint/1
         , frame_variables/1
         , navigation_and_frames/1
@@ -65,7 +67,7 @@ init_per_suite(Config) ->
 
 -spec end_per_suite(config()) -> ok.
 end_per_suite(_Config) ->
-  ok.
+   meck:unload().
 
 -spec init_per_testcase(atom(), config()) -> config().
 init_per_testcase(TestCase, Config) when
@@ -74,6 +76,8 @@ init_per_testcase(TestCase, Config) when
     TestCase =:= launch_mfa orelse
     TestCase =:= launch_mfa_with_cookie orelse
     TestCase =:= configuration_done orelse
+    TestCase =:= configuration_done_with_long_names orelse
+    TestCase =:= configuration_done_with_long_names_using_host orelse
     TestCase =:= configuration_done_with_breakpoint orelse
     TestCase =:= log_points orelse
     TestCase =:= log_points_with_lt_condition orelse
@@ -86,7 +90,7 @@ init_per_testcase(TestCase, Config) when
     TestCase =:= breakpoints_with_hit orelse
     TestCase =:= breakpoints_with_cond_and_hit ->
   {ok, DAPProvider} = els_provider:start_link(els_dap_general_provider),
-  els_config:start_link(),
+  {ok, _} = els_config:start_link(),
   meck:expect(els_dap_server, send_event, 2, meck:val(ok)),
   [{provider, DAPProvider}, {node, node_name()} | Config];
 init_per_testcase(_TestCase, Config0) ->
@@ -207,6 +211,35 @@ configuration_done(Config) ->
   ),
   els_test_utils:wait_until_mock_called(els_dap_server, send_event),
   els_provider:handle_request(Provider, request_configuration_done(#{})),
+  ok.
+
+-spec configuration_done_with_long_names(config()) -> ok.
+configuration_done_with_long_names(Config) ->
+  Provider = ?config(provider, Config),
+  DataDir = ?config(data_dir, Config),
+  NodeStr = io_lib:format("~s~p", [?MODULE, erlang:unique_integer()]),
+  Node = unicode:characters_to_binary(NodeStr),
+  els_provider:handle_request(Provider, request_initialize(#{})),
+  els_provider:handle_request(
+    Provider,
+    request_launch(DataDir, Node, <<"some_cookie">>,
+                   els_dap_test_module, entry, [], use_long_names)
+  ),
+  els_test_utils:wait_until_mock_called(els_dap_server, send_event),
+  ok.
+
+-spec configuration_done_with_long_names_using_host(config()) -> ok.
+configuration_done_with_long_names_using_host(Config) ->
+  Provider = ?config(provider, Config),
+  DataDir = ?config(data_dir, Config),
+  Node = ?config(node, Config),
+  els_provider:handle_request(Provider, request_initialize(#{})),
+  els_provider:handle_request(
+    Provider,
+    request_launch(DataDir, Node, <<"some_cookie">>,
+                   els_dap_test_module, entry, [], use_long_names)
+  ),
+  els_test_utils:wait_until_mock_called(els_dap_server, send_event),
   ok.
 
 -spec configuration_done_with_breakpoint(config()) -> ok.
@@ -411,6 +444,7 @@ breakpoints(Config) ->
 project_node_exit(Config) ->
   NodeName = ?config(node, Config),
   Node = binary_to_atom(NodeName, utf8),
+  % ok = meck:new(els_utils, [passthrough]),
   meck:expect(els_utils, halt, 1, meck:val(ok)),
   meck:reset(els_dap_server),
   erlang:monitor_node(Node, true),
@@ -561,6 +595,11 @@ request_launch(AppDir, Node, M, F, A) ->
 request_launch(AppDir, Node, Cookie, M, F, A) ->
   {<<"launch">>, Params} = request_launch(AppDir, Node, M, F, A),
   {<<"launch">>, Params#{<<"cookie">> => Cookie}}.
+
+request_launch(AppDir, Node, Cookie, M, F, A, use_long_names) ->
+    {<<"launch">>, Params} = request_launch(AppDir, Node, M, F, A),
+    {<<"launch">>, Params#{<<"cookie">> => Cookie,
+                           <<"use_long_names">> => true}}.
 
 request_configuration_done(Params) ->
   {<<"configurationDone">>, Params}.

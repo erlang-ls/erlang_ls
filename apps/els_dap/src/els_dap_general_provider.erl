@@ -91,8 +91,8 @@ handle_request({<<"initialize">>, _Params}, State) ->
 handle_request({<<"launch">>, #{<<"cwd">> := Cwd} = Params}, State) ->
   #{ <<"projectnode">> := ProjectNode
    , <<"cookie">> := Cookie
-   , <<"timeout">> := TimeOut} = start_distribution(Params),
-
+   , <<"timeout">> := TimeOut
+   , <<"use_long_names">> := UseLongNames} = start_distribution(Params),
   case Params of
     #{ <<"runinterminal">> := Cmd
      } ->
@@ -106,13 +106,19 @@ handle_request({<<"launch">>, #{<<"cwd">> := Cwd} = Params}, State) ->
       els_dap_server:send_request(<<"runInTerminal">>, ParamsR),
       ok;
     _ ->
+      NameTypeParam = case UseLongNames of
+                        true ->
+                          "--name";
+                        false ->
+                          "--sname"
+                      end,
       ?LOG_INFO("launching 'rebar3 shell`", []),
       spawn(fun() ->
                 els_utils:cmd(
                   "rebar3",
                   [ "shell"
-                  , "--sname"
-                  , ProjectNode
+                  , NameTypeParam
+                  , atom_to_list(ProjectNode)
                   , "--setcookie"
                   , erlang:binary_to_list(Cookie)
                   ]
@@ -856,19 +862,21 @@ safe_eval(ProjectNode, Debugged, Expression, Update) ->
   end,
   Return.
 
--spec check_project_node_name(binary(), boolean()) -> binary().
+-spec check_project_node_name(binary(), boolean()) -> atom().
 check_project_node_name(ProjectNode, false) ->
-  ProjectNode;
+  binary_to_atom(ProjectNode, utf8);
 check_project_node_name(ProjectNode, true) ->
-  case binary:match(<<"@">>, ProjectNode) of
+  case binary:match(ProjectNode, <<"@">>) of
     nomatch ->
       {ok, HostName} = inet:gethostname(),
       BinHostName = list_to_binary(HostName),
-      DomainStr = proplists:get_value(domain, inet:get_rc(), <<"">>),
+      DomainStr = proplists:get_value(domain, inet:get_rc(), ""),
       Domain = list_to_binary(DomainStr),
-      <<ProjectNode/binary, "@", BinHostName/binary, ".", Domain/binary>>;
+      BinName = <<ProjectNode/binary, "@",
+                  BinHostName/binary, ".", Domain/binary>>,
+      binary_to_atom(BinName, utf8);
     _ ->
-      ProjectNode
+      binary_to_atom(ProjectNode, utf8)
   end.
 
 -spec start_distribution(map()) -> map().
@@ -877,16 +885,12 @@ start_distribution(Params) ->
   ok = file:set_cwd(Cwd),
   Name = filename:basename(Cwd),
 
-  %% start distribution
-  LocalNode = els_distribution_server:node_name(<<"erlang_ls_dap">>, Name),
-  els_distribution_server:start_distribution(LocalNode),
-  ?LOG_INFO("Distribution up on: [~p]", [LocalNode]),
-
   %% get default and final launch config
   DefaultConfig = #{
     <<"projectnode">> =>
       atom_to_binary(
-        els_distribution_server:node_name(<<"erlang_ls_dap_project">>, Name),
+        els_distribution_server:node_name(<<"erlang_ls_dap_project">>,
+                                          list_to_binary(Name)),
         utf8
       ),
     <<"cookie">> => atom_to_binary(erlang:get_cookie(), utf8),
@@ -901,6 +905,17 @@ start_distribution(Params) ->
   ?LOG_INFO("Configured Project Node Name: ~p", [ConfProjectNode]),
   Cookie = binary_to_atom(ConfCookie, utf8),
 
-  %% set cookie
-  true = erlang:set_cookie(LocalNode, Cookie),
-  Config#{ <<"projectnode">> => binary_to_atom(ConfProjectNode, utf8)}.
+  NameType = case UseLongNames of
+               true ->
+                 longnames;
+               false ->
+                 shortnames
+             end,
+  %% start distribution
+  LocalNode = els_distribution_server:node_name("erlang_ls_dap",
+                                      Name, NameType),
+  els_distribution_server:start_distribution(LocalNode, ConfProjectNode,
+                                             Cookie, NameType),
+  ?LOG_INFO("Distribution up on: [~p]", [LocalNode]),
+
+  Config#{ <<"projectnode">> => ConfProjectNode}.

@@ -41,7 +41,7 @@ all() ->
 
 -spec groups() -> [atom()].
 groups() ->
-  els_test_utils:groups(?MODULE).
+  [].
 
 -spec init_per_suite(config()) -> config().
 init_per_suite(_Config) ->
