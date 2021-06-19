@@ -1,0 +1,1 @@
+-record(included_record_a, {included_field_a, included_field_b}).

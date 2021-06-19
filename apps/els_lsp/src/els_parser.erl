@@ -269,7 +269,10 @@ attribute(Tree) ->
                     erl_syntax:record_field_value(FF)}
                end
                || F <- erl_syntax:tuple_elements(Fields)]),
-          [poi(erl_syntax:get_pos(Record), record, RecordName, FieldList)
+          ValueRange = #{ from => get_start_location(Tree),
+                          to => get_end_location(Tree)},
+          Data = #{field_list => FieldList, value_range => ValueRange},
+          [poi(erl_syntax:get_pos(Record), record, RecordName, Data)
           | record_def_fields(Tree, RecordName)];
         _ ->
           []

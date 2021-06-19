@@ -21,6 +21,8 @@
         , weird_macro/1
         , macro_with_zero_args/1
         , macro_with_args/1
+        , local_record/1
+        , included_record/1
         ]).
 
 %%==============================================================================
@@ -165,4 +167,30 @@ no_poi(Config) ->
   Uri = ?config(hover_docs_caller_uri, Config),
   #{result := Result} = els_client:hover(Uri, 10, 1),
   ?assertEqual(null, Result),
+  ok.
+
+local_record(Config) ->
+  Uri = ?config(hover_record_expr_uri, Config),
+  #{result := Result} = els_client:hover(Uri, 11, 4),
+  Value = <<"```erlang\n-record(test_record, {\n"
+            "        field1 = 123,\n"
+            "        field2 = xyzzy,\n"
+            "        field3\n"
+            "}).\n```">>,
+  Expected = #{contents => #{ kind  => <<"markdown">>
+                            , value => Value
+                            }},
+  ?assertEqual(Expected, Result),
+  ok.
+
+included_record(Config) ->
+  Uri = ?config(hover_record_expr_uri, Config),
+  #{result := Result} = els_client:hover(Uri, 15, 4),
+  Value = <<"```erlang\n"
+            "-record(included_record_a, {included_field_a, included_field_b})."
+            "\n```">>,
+  Expected = #{contents => #{ kind  => <<"markdown">>
+                            , value => Value
+                            }},
+  ?assertEqual(Expected, Result),
   ok.
