@@ -12,6 +12,7 @@
 %% Test cases
 -export([ apply_edits_single_line/1
         , apply_edits_multi_line/1
+        , apply_edits_unicode/1
         ]).
 
 %%==============================================================================
@@ -149,4 +150,16 @@ apply_edits_multi_line(_Config) ->
                     " h i\n">>,    F(In, [ C(0, 3, 2, 1, "a\nb\nc\n")
                                          , C(1, 0, 1, 1, "_")
                                          ])),
+  ok.
+
+apply_edits_unicode(_Config) ->
+  In = <<"二郎"/utf8>>,
+  C = fun(FromC, ToC, Str) -> {#{from => {0, FromC}, to => {0, ToC}}, Str} end,
+  F = fun els_text:apply_edits/2,
+  ?assertEqual(<<"㇐郎"/utf8>>, F(In, [C(0, 1, "㇐")])),
+  ?assertEqual(<<"二㇐郎"/utf8>>, F(In, [C(1, 1, "㇐")])),
+  ?assertEqual(<<"二㇐"/utf8>>, F(In, [C(1, 2, "㇐")])),
+  ?assertEqual(<<"二郎㇐"/utf8>>, F(In, [C(2, 2, "㇐")])),
+  ?assertEqual(<<"二郎㇐"/utf8>>, F(In, [C(2, 2, "㇐")])),
+  ?assertEqual(<<"㇐二郎"/utf8>>, F(In, [C(0, 0, "㇐")])),
   ok.

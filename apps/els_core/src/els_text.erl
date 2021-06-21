@@ -103,7 +103,7 @@ apply_edit([CurrLine0|RestLines], L,
 
 -spec lines_to_bin(lines()) -> text().
 lines_to_bin(Lines) ->
-  iolist_to_binary(lists:join("\n", Lines)).
+  els_utils:to_binary(lists:join("\n", Lines)).
 
 -spec bin_to_lines(text()) -> lines().
 bin_to_lines(Text) ->
