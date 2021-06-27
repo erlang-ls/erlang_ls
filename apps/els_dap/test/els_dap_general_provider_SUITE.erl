@@ -444,7 +444,6 @@ breakpoints(Config) ->
 project_node_exit(Config) ->
   NodeName = ?config(node, Config),
   Node = binary_to_atom(NodeName, utf8),
-  % ok = meck:new(els_utils, [passthrough]),
   meck:expect(els_utils, halt, 1, meck:val(ok)),
   meck:reset(els_dap_server),
   erlang:monitor_node(Node, true),
@@ -586,7 +585,7 @@ request_launch(Params) ->
 request_launch(AppDir, Node, M, F, A) ->
   request_launch(
     #{ <<"projectnode">> => Node
-     , <<"cwd">> => AppDir
+     , <<"cwd">> => list_to_binary(AppDir)
      , <<"module">> => atom_to_binary(M, utf8)
      , <<"function">> => atom_to_binary(F, utf8)
      , <<"args">> => unicode:characters_to_binary(io_lib:format("~w", [A]))

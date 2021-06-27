@@ -889,8 +889,7 @@ start_distribution(Params) ->
   DefaultConfig = #{
     <<"projectnode">> =>
       atom_to_binary(
-        els_distribution_server:node_name(<<"erlang_ls_dap_project">>,
-                                          list_to_binary(Name)),
+        els_distribution_server:node_name(<<"erlang_ls_dap_project">>, Name),
         utf8
       ),
     <<"cookie">> => atom_to_binary(erlang:get_cookie(), utf8),
@@ -913,7 +912,7 @@ start_distribution(Params) ->
              end,
   %% start distribution
   LocalNode = els_distribution_server:node_name("erlang_ls_dap",
-                                      Name, NameType),
+                                      binary_to_list(Name), NameType),
   els_distribution_server:start_distribution(LocalNode, ConfProjectNode,
                                              Cookie, NameType),
   ?LOG_INFO("Distribution up on: [~p]", [LocalNode]),
