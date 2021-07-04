@@ -24,3 +24,8 @@ current_counterexample.eqc
 *.log
 *.log.*
 doc
+# Emacs Backup files
+*~
+# Emacs temporary files
+.#*
+*#
