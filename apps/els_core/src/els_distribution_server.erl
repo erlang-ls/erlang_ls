@@ -10,12 +10,14 @@
 %%==============================================================================
 -export([ start_link/0
         , start_distribution/1
+        , start_distribution/4
         , connect/0
         , wait_connect_and_monitor/1
         , wait_connect_and_monitor/3
         , rpc_call/3
         , rpc_call/4
         , node_name/2
+        , node_name/3
         ]).
 
 %%==============================================================================
@@ -56,12 +58,17 @@ start_link() ->
 %% @doc Turns a non-distributed node into a distributed one
 -spec start_distribution(atom()) -> ok.
 start_distribution(Name) ->
+  Cookie = els_config_runtime:get_cookie(),
+  RemoteNode = els_config_runtime:get_node_name(),
   NameType = els_config_runtime:get_name_type(),
+  start_distribution(Name, RemoteNode, Cookie, NameType).
+
+-spec start_distribution(atom(), atom(), atom(),
+                         shortnames | longnames) -> any().
+start_distribution(Name, RemoteNode, Cookie, NameType) ->
   ?LOG_INFO("Enable distribution [name=~p]", [Name]),
   case net_kernel:start([Name, NameType]) of
     {ok, _Pid} ->
-      Cookie = els_config_runtime:get_cookie(),
-      RemoteNode = els_config_runtime:get_node_name(),
       erlang:set_cookie(RemoteNode, Cookie),
       ?LOG_INFO("Distribution enabled [name=~p]", [Name]);
     {error, {already_started, _Pid}} ->
@@ -198,14 +205,15 @@ ensure_epmd() ->
 node_name(Prefix, Name) ->
   Int = erlang:phash2(erlang:timestamp()),
   Id = lists:flatten(io_lib:format("~s_~s_~p", [Prefix, Name, Int])),
-  {ok, Hostname} = inet:gethostname(),
-  case els_config_runtime:get_name_type() of
-    shortnames ->
-      list_to_atom(Id ++ "@" ++ Hostname);
-    longnames ->
-      Domain = proplists:get_value(domain, inet:get_rc(), ""),
-      list_to_atom(Id ++ "@" ++ Hostname ++ "." ++ Domain)
-  end.
+  {ok, HostName} = inet:gethostname(),
+  node_name(Id, HostName, els_config_runtime:get_name_type()).
+
+-spec node_name(string(), string(), 'longnames' | 'shortnames') -> atom().
+node_name(Id, HostName, shortnames) ->
+  list_to_atom(Id ++ "@" ++ HostName);
+node_name(Id, HostName, longnames) ->
+  Domain = proplists:get_value(domain, inet:get_rc(), ""),
+  list_to_atom(Id ++ "@" ++ HostName ++ "." ++ Domain).
 
 -spec connect_node(node(),  hidden | not_hidden) -> boolean() | ignored.
 connect_node(Node, not_hidden) ->
