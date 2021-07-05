@@ -106,3 +106,10 @@ function_p(Foo) ->
 function_p(Foo) ->
   _Bar = Foo,
   _Baz = Foo.
+
+%% [#1052] ?MODULE macro as record name
+-record(?MODULE, {field_a, field_b}).
+
+function_q() ->
+  X = #?MODULE{},
+  {X#?MODULE{field_a = 42}, X#?MODULE.field_a}.

@@ -533,6 +533,7 @@ functions_arity(Config) ->
                       , {<<"function_o">>, 0}
                       , {<<"'PascalCaseFunction'">>, 1}
                       , {<<"function_p">>, 1}
+                      , {<<"function_q">>, 0}
                       ],
   ExpectedCompletion =
     [ #{ label =>
@@ -671,6 +672,10 @@ records(Config) ->
   TriggerKindChar = ?COMPLETION_TRIGGER_KIND_CHARACTER,
   TriggerKindInvoked = ?COMPLETION_TRIGGER_KIND_INVOKED,
   Expected = [ #{ kind => ?COMPLETION_ITEM_KIND_STRUCT
+                , label => <<"'?MODULE'">>
+                , data => #{}
+                }
+             , #{ kind => ?COMPLETION_ITEM_KIND_STRUCT
                 , label => <<"included_record_a">>
                 , data => #{}
                 }

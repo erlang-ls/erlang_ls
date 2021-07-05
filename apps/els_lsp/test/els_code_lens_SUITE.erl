@@ -89,7 +89,7 @@ default_lenses(Config) ->
                , <<"suggest-spec">>
                ]
               , lists:usort(Commands)),
-  ?assertEqual(35, length(Commands)),
+  ?assertEqual(37, length(Commands)),
   ok.
 
 -spec server_info(config()) -> ok.
