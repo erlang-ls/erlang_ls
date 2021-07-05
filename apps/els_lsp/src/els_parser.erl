@@ -254,28 +254,16 @@ attribute(Tree) ->
     {record, [Record, Fields]} ->
       case is_atom_node(Record) of
         {true, RecordName} ->
-          %% FIXME clean FieldList up -> analyze_record_fields
-          FieldList =
-            lists:flatten(
-              [case erl_syntax:type(F) of
-                 record_field ->
-                   FieldName = erl_syntax:record_field_name(F),
-                   {erl_syntax:atom_value(FieldName),
-                    erl_syntax:record_field_value(F)};
-                 typed_record_field ->
-                   FF = erl_syntax:typed_record_field_body(F),
-                   FieldName = erl_syntax:record_field_name(FF),
-                   {erl_syntax:atom_value(FieldName),
-                    erl_syntax:record_field_value(FF)}
-               end
-               || F <- erl_syntax:tuple_elements(Fields)]),
-          ValueRange = #{ from => get_start_location(Tree),
-                          to => get_end_location(Tree)},
-          Data = #{field_list => FieldList, value_range => ValueRange},
-          [poi(erl_syntax:get_pos(Record), record, RecordName, Data)
-          | record_def_fields(Tree, RecordName)];
-        _ ->
-          []
+          record_attribute_pois(Tree, Record, RecordName, Fields);
+        false ->
+          case is_macro_node(Record) of
+            {true, 'MODULE'} ->
+              %% [#1052] Let's handle the common ?MODULE macro case explicitly
+              RecordName = '?MODULE',
+              record_attribute_pois(Tree, Record, RecordName, Fields);
+            false ->
+              []
+          end
       end;
     {AttrName, [ArgTuple]} when AttrName =:= type;
                                 AttrName =:= opaque ->
@@ -315,6 +303,29 @@ attribute(Tree) ->
   catch throw:syntax_error ->
       []
   end.
+
+-spec record_attribute_pois(tree(), tree(), atom(), tree()) -> [poi()].
+record_attribute_pois(Tree, Record, RecordName, Fields) ->
+  %% FIXME clean FieldList up -> analyze_record_fields
+  FieldList =
+    lists:flatten(
+      [case erl_syntax:type(F) of
+         record_field ->
+           FieldName = erl_syntax:record_field_name(F),
+           {erl_syntax:atom_value(FieldName),
+            erl_syntax:record_field_value(F)};
+         typed_record_field ->
+           FF = erl_syntax:typed_record_field_body(F),
+           FieldName = erl_syntax:record_field_name(FF),
+           {erl_syntax:atom_value(FieldName),
+            erl_syntax:record_field_value(FF)}
+       end
+       || F <- erl_syntax:tuple_elements(Fields)]),
+  ValueRange = #{ from => get_start_location(Tree),
+                  to => get_end_location(Tree)},
+  Data = #{field_list => FieldList, value_range => ValueRange},
+  [poi(erl_syntax:get_pos(Record), record, RecordName, Data)
+  | record_def_fields(Tree, RecordName)].
 
 -spec find_compile_options_pois(tree()) -> [poi()].
 find_compile_options_pois(Arg) ->
@@ -490,20 +501,31 @@ record_access(Tree) ->
   case erl_syntax:type(RecordNode) of
     atom ->
       Record = erl_syntax:atom_value(RecordNode),
-      FieldPoi =
-        case erl_syntax:type(FieldNode) of
-          atom ->
-            Field = erl_syntax:atom_value(FieldNode),
-            [poi(erl_syntax:get_pos(FieldNode), record_field, {Record, Field})];
-          _    ->
-            []
-        end,
-      Anno = record_access_location(Tree),
-      [ poi(Anno, record_expr, Record)
-      | FieldPoi ];
+      record_access_pois(Tree, Record, FieldNode);
+    macro ->
+      case macro_name(RecordNode) of
+         'MODULE' ->
+          %% [#1052] Let's handle the common ?MODULE macro case explicitly
+          record_access_pois(Tree, '?MODULE', FieldNode);
+        _ ->
+          []
+      end;
     _ ->
       []
   end.
+
+-spec record_access_pois(tree(), atom(), tree()) -> [poi()].
+record_access_pois(Tree, Record, FieldNode) ->
+  FieldPoi =
+    case erl_syntax:type(FieldNode) of
+      atom ->
+        Field = erl_syntax:atom_value(FieldNode),
+        [poi(erl_syntax:get_pos(FieldNode), record_field, {Record, Field})];
+      _    ->
+        []
+    end,
+  Anno = record_access_location(Tree),
+  [ poi(Anno, record_expr, Record) | FieldPoi ].
 
 -spec record_expr(tree()) -> [poi()].
 record_expr(Tree) ->
@@ -511,15 +533,27 @@ record_expr(Tree) ->
   case erl_syntax:type(RecordNode) of
     atom ->
       Record = erl_syntax:atom_value(RecordNode),
-      FieldPois  = lists:append(
-                     [record_field_name(F, Record, record_field)
-                      || F <- erl_syntax:record_expr_fields(Tree)]),
-      Anno = record_expr_location(Tree, RecordNode),
-      [ poi(Anno, record_expr, Record)
-      | FieldPois ];
+      record_expr_pois(Tree, RecordNode, Record);
+    macro ->
+      case macro_name(RecordNode) of
+        'MODULE' ->
+          %% [#1052] Let's handle the common ?MODULE macro case explicitly
+          record_expr_pois(Tree, RecordNode, '?MODULE');
+        _ ->
+          []
+      end;
     _ ->
       []
   end.
+
+-spec record_expr_pois(tree(), tree(), atom()) -> [poi()].
+record_expr_pois(Tree, RecordNode, Record) ->
+  FieldPois  = lists:append(
+                 [record_field_name(F, Record, record_field)
+                  || F <- erl_syntax:record_expr_fields(Tree)]),
+  Anno = record_expr_location(Tree, RecordNode),
+  [ poi(Anno, record_expr, Record)
+  | FieldPois ].
 
 -spec record_field_name(tree(), atom(), poi_kind()) -> [poi()].
 record_field_name(FieldNode, Record, Kind) ->
@@ -667,6 +701,15 @@ is_atom_node(Tree) ->
   case erl_syntax:type(Tree) of
     atom ->
       {true, erl_syntax:atom_value(Tree)};
+    _ ->
+      false
+  end.
+
+-spec is_macro_node(tree()) -> {true, atom()} | false.
+is_macro_node(Tree) ->
+  case erl_syntax:type(Tree) of
+    macro ->
+      {true, macro_name(Tree)};
     _ ->
       false
   end.

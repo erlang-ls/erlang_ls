@@ -34,8 +34,10 @@
         , parse_transform/1
         , record_access/1
         , record_access_included/1
+        , record_access_macro_name/1
         , record_expr/1
         , record_expr_included/1
+        , record_expr_macro_name/1
         , record_field/1
         , record_field_included/1
         , type_application_remote/1
@@ -326,6 +328,16 @@ record_access_included(Config) ->
               , Range),
   ok.
 
+-spec record_access_macro_name(config()) -> ok.
+record_access_macro_name(Config) ->
+  Uri = ?config(code_navigation_uri, Config),
+  Def = els_client:definition(Uri, 115, 33),
+  #{result := #{range := Range, uri := DefUri}} = Def,
+  ?assertEqual(Uri, DefUri),
+  ?assertEqual( els_protocol:range(#{from => {111, 9}, to => {111, 16}})
+              , Range),
+  ok.
+
 %% TODO: Additional constructors for POI
 %% TODO: Navigation should return POI, not range
 -spec record_expr(config()) -> ok.
@@ -345,6 +357,16 @@ record_expr_included(Config) ->
   #{result := #{range := Range, uri := DefUri}} = Def,
   ?assertEqual(?config(code_navigation_h_uri, Config), DefUri),
   ?assertEqual( els_protocol:range(#{from => {1, 9}, to => {1, 26}})
+              , Range),
+  ok.
+
+-spec record_expr_macro_name(config()) -> ok.
+record_expr_macro_name(Config) ->
+  Uri = ?config(code_navigation_uri, Config),
+  Def = els_client:definition(Uri, 114, 11),
+  #{result := #{range := Range, uri := DefUri}} = Def,
+  ?assertEqual(Uri, DefUri),
+  ?assertEqual( els_protocol:range(#{from => {111, 9}, to => {111, 16}})
               , Range),
   ok.
 
