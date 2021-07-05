@@ -363,7 +363,7 @@ handle_rpc_result(Err, Module) ->
 compile_options(Module) ->
   case code:which(Module) of
     non_existing ->
-      ?LOG_INFO("Could not find compile options. [module=~p]", [Module]),
+      ?LOG_DEBUG("Could not find compile options. [module=~p]", [Module]),
       [];
     Beam ->
       case beam_lib:chunks(Beam, [compile_info]) of
@@ -371,8 +371,8 @@ compile_options(Module) ->
           Info = proplists:get_value(compile_info, Chunks),
           proplists:get_value(options, Info, []);
         Error ->
-          ?LOG_INFO( "Error extracting compile_info. [module=~p] [error=~p]"
-                   , [Module, Error]),
+          ?LOG_DEBUG( "Error extracting compile_info. [module=~p] [error=~p]"
+                    , [Module, Error]),
           []
       end
   end.
