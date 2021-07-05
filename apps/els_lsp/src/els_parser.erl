@@ -261,7 +261,7 @@ attribute(Tree) ->
               %% [#1052] Let's handle the common ?MODULE macro case explicitly
               RecordName = '?MODULE',
               record_attribute_pois(Tree, Record, RecordName, Fields);
-            false ->
+            _ ->
               []
           end
       end;
