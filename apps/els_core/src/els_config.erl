@@ -211,7 +211,10 @@ possible_config_paths(Path) ->
   ].
 
 -spec consult_config([path()]) -> {undefined|path(), map()}.
-consult_config([]) -> {undefined, #{}};
+consult_config([]) ->
+  ?LOG_INFO("No config file found."),
+  report_missing_config(),
+  {undefined, #{}};
 consult_config([Path | Paths]) ->
   ?LOG_INFO("Reading config file. path=~p", [Path]),
   Options = [{map_node_format, map}],
@@ -224,6 +227,18 @@ consult_config([Path | Paths]) ->
                   , [Path, Class, Error]),
       consult_config(Paths)
   end.
+
+-spec report_missing_config() -> ok.
+report_missing_config() ->
+  Msg =
+    io_lib:format("The current project is missing an erlang_ls.config file. "
+                  "Need help configuring Erlang LS for your project? "
+                  "Visit: https://erlang-ls.github.io/configuration/", []),
+  els_server:send_notification(<<"window/showMessage">>,
+                               #{ type => ?MESSAGE_TYPE_WARNING,
+                                  message => els_utils:to_binary(Msg)
+                                }),
+  ok.
 
 -spec include_paths(path(), string(), boolean()) -> [string()].
 include_paths(RootPath, IncludeDirs, Recursive) ->
