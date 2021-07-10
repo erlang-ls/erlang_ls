@@ -76,7 +76,7 @@ handle_request({initialize, Params}, State) ->
                     InitOptions0;
                   _ -> #{}
                 end,
-  ok = els_config:initialize(RootUri, Capabilities, InitOptions),
+  ok = els_config:initialize(RootUri, Capabilities, InitOptions, true),
   NewState = State#{ root_uri => RootUri, init_options => InitOptions},
   {server_capabilities(), NewState};
 handle_request({initialized, _Params}, State) ->

@@ -3,6 +3,7 @@
 %% API
 -export([ do_initialize/3
         , initialize/3
+        , initialize/4
         , get/1
         , set/2
         , start_link/0
@@ -77,8 +78,13 @@
 
 -spec initialize(uri(), map(), map()) -> ok.
 initialize(RootUri, Capabilities, InitOptions) ->
+  initialize(RootUri, Capabilities, InitOptions, _ReportMissingConfig = false).
+
+-spec initialize(uri(), map(), map(), boolean()) -> ok.
+initialize(RootUri, Capabilities, InitOptions, ReportMissingConfig) ->
   RootPath = els_utils:to_list(els_uri:path(RootUri)),
-  Config = consult_config(config_paths(RootPath, InitOptions)),
+  Config = consult_config(
+             config_paths(RootPath, InitOptions), ReportMissingConfig),
   do_initialize(RootUri, Capabilities, Config).
 
 -spec do_initialize(uri(), map(), {undefined|path(), map()}) -> ok.
@@ -210,12 +216,17 @@ possible_config_paths(Path) ->
   , filename:join([Path, ?ALTERNATIVE_CONFIG_FILE])
   ].
 
--spec consult_config([path()]) -> {undefined|path(), map()}.
-consult_config([]) ->
+-spec consult_config([path()], boolean()) -> {undefined|path(), map()}.
+consult_config([], ReportMissingConfig) ->
   ?LOG_INFO("No config file found."),
-  report_missing_config(),
+  case ReportMissingConfig of
+    true ->
+      report_missing_config();
+    false ->
+      ok
+  end,
   {undefined, #{}};
-consult_config([Path | Paths]) ->
+consult_config([Path | Paths], ReportMissingConfig) ->
   ?LOG_INFO("Reading config file. path=~p", [Path]),
   Options = [{map_node_format, map}],
   try yamerl:decode_file(Path, Options) of
@@ -225,7 +236,7 @@ consult_config([Path | Paths]) ->
     Class:Error ->
       ?LOG_WARNING( "Could not read config file: path=~p class=~p error=~p"
                   , [Path, Class, Error]),
-      consult_config(Paths)
+      consult_config(Paths, ReportMissingConfig)
   end.
 
 -spec report_missing_config() -> ok.

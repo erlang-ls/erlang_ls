@@ -86,8 +86,9 @@ handle_request({<<"initialize">>, _Params}, State) ->
   {ok, RootPath} = file:get_cwd(),
   RootUri = els_uri:uri(els_utils:to_binary(RootPath)),
   InitOptions = #{},
-  ok = els_config:initialize(RootUri, capabilities(), InitOptions),
-  {capabilities(), State};
+  Capabilities = capabilities(),
+  ok = els_config:initialize(RootUri, Capabilities, InitOptions),
+  {Capabilities, State};
 handle_request({<<"launch">>, #{<<"cwd">> := Cwd} = Params}, State) ->
   #{ <<"projectnode">> := ProjectNode
    , <<"cookie">> := Cookie
