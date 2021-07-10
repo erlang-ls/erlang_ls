@@ -474,7 +474,7 @@ check_stop(Breakpt, IsHit, Module, Line, ProjectNode, ThreadPid) ->
         true ->
           Return = safe_eval(ProjectNode, ThreadPid, LogExpr, no_update),
           LogMessage = unicode:characters_to_binary(
-            io_lib:format("~s:~b - ~w~n",
+            io_lib:format("~s:~b - ~p~n",
                           [source(Module, ProjectNode), Line, Return])),
           els_dap_server:send_event( <<"output">>
                                     , #{ <<"output">> => LogMessage }),
