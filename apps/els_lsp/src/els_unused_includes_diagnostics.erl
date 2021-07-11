@@ -35,8 +35,7 @@ run(Uri) ->
     {error, _Error} ->
       [];
     {ok, Document} ->
-      Includes = els_dt_document:pois(Document, [include, include_lib]),
-      UnusedIncludes = find_unused_includes(Document, Includes),
+      UnusedIncludes = find_unused_includes(Document),
       [ els_diagnostics:make_diagnostic(
           els_protocol:range(inclusion_range(UI, Document))
          , <<"Unused file: ", (filename:basename(UI))/binary>>
@@ -52,15 +51,24 @@ source() ->
 %%==============================================================================
 %% Internal Functions
 %%==============================================================================
--spec find_unused_includes(els_dt_document:item(), [poi()]) -> [uri()].
-find_unused_includes(#{uri := Uri} = Document, Includes) ->
+-spec find_unused_includes(els_dt_document:item()) -> [uri()].
+find_unused_includes(#{uri := Uri} = Document) ->
   Graph = expand_includes(Document),
-  POIs = els_dt_document:pois(Document),
+  POIs = els_dt_document:pois(Document,
+    [ application
+    , implicit_fun
+    , import_entry
+    , macro
+    , record_expr
+    , record_field
+    , type_application
+    , export_type_entry
+    ]),
   IncludedUris = els_diagnostics_utils:included_uris(Document),
   Fun = fun(POI, Acc) ->
             update_unused(Graph, Uri, POI, Acc)
         end,
-  UnusedIncludes = lists:foldl(Fun, IncludedUris, POIs -- Includes),
+  UnusedIncludes = lists:foldl(Fun, IncludedUris, POIs),
   digraph:delete(Graph),
   UnusedIncludes.
 
