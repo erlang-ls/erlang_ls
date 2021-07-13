@@ -439,7 +439,9 @@ evaluate_condition(Breakpt, Module, Line, ProjectNode, ThreadPid) ->
               "~s:~b - Breakpoint condition evaluated to non-Boolean: ~w~n",
               [source(Module, ProjectNode), Line, CondEval])),
           els_dap_server:send_event( <<"output">>
-                                    , #{ <<"output">> => WarnCond }),
+                                   , #{ <<"output">> => WarnCond
+                                      , <<"category">> => <<"stdout">>
+                                      }),
           false
       end;
     _ -> true
@@ -460,7 +462,9 @@ evaluate_hitcond(Breakpt, HitCount, Module, Line, ProjectNode, ThreadPid) ->
               "~s:~b - Breakpoint hit condition not a non-negative int: ~w~n",
               [source(Module, ProjectNode), Line, HitEval])),
           els_dap_server:send_event( <<"output">>
-                                    , #{ <<"output">> => WarnHit }),
+                                    , #{ <<"output">> => WarnHit
+                                       , <<"category">> => <<"stdout">>
+                                       }),
           true
       end;
     _ -> true
@@ -478,7 +482,9 @@ check_stop(Breakpt, IsHit, Module, Line, ProjectNode, ThreadPid) ->
             io_lib:format("~s:~b - ~p~n",
                           [source(Module, ProjectNode), Line, Return])),
           els_dap_server:send_event( <<"output">>
-                                    , #{ <<"output">> => LogMessage }),
+                                    , #{ <<"output">> => LogMessage
+                                       , <<"category">> => <<"stdout">>
+                                       }),
           false;
         false -> false
       end;
