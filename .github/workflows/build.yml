@@ -35,6 +35,20 @@ jobs:
           ${{ runner.os }}-dialyzer-
     - name: Compile
       run: rebar3 compile
+    - name: Escriptize LSP Server
+      run: rebar3 escriptize
+    - name: Store LSP Server Escript
+      uses: actions/upload-artifact@v2
+      with:
+        name: erlang_ls
+        path: _build/default/bin/erlang_ls
+    - name: Escriptize DAP Server
+      run: rebar3 as dap escriptize
+    - name: Store DAP Server Escript
+      uses: actions/upload-artifact@v2
+      with:
+        name: els_dap
+        path: _build/dap/bin/els_dap
     - name: Lint
       run: rebar3 lint
     - name: Generate Dialyzer PLT for usage in CT Tests
