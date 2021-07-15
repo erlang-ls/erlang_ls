@@ -158,6 +158,22 @@ A good commit may look like this:
   Request are not in a _reviewable_ state, yet. In this case, though,
   a [Draft Pull Request][github-draft] should be used.
 
+### Dealing with strings
+
+Dealing with strings in Erlang can be tricky. Within the Erlang LS
+project we try as much as possible to ensure proper Unicode handling
+of strings. When converting lists of characters into binaries and
+back, please use the utilities provided in the `els_utils` module:
+
+```erlang
+els_utils:to_list(Binary)
+els_utils:to_binary(List)
+```
+
+You can also read
+[here](https://adoptingerlang.org/docs/development/hard_to_get_right/#handling-strings-in-erlang)
+for more information on the topic.
+
 ### Final Note
 
 These CONTRIBUTING notes are partially inspired by the awesome ones of
