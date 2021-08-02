@@ -336,7 +336,9 @@ handle_request( {<<"continue">>, Params}
   #{<<"threadId">> := ThreadId} = Params,
   Pid = to_pid(ThreadId, Threads),
   ok = els_dap_rpc:continue(ProjectNode, Pid),
-  {#{}, State#{mode => running}};
+  { #{<<"allThreadsContinued">> => false}
+  , State#{mode => running}
+  };
 handle_request( {<<"stepIn">>, Params}
               , #{ threads := Threads
                  , project_node := ProjectNode
