@@ -63,13 +63,17 @@ start_distribution(Name) ->
   NameType = els_config_runtime:get_name_type(),
   start_distribution(Name, RemoteNode, Cookie, NameType).
 
--spec start_distribution(atom(), atom(), atom(),
-                         shortnames | longnames) -> any().
+-spec start_distribution(atom(), atom(), atom(), shortnames | longnames) -> ok.
 start_distribution(Name, RemoteNode, Cookie, NameType) ->
   ?LOG_INFO("Enable distribution [name=~p]", [Name]),
   case net_kernel:start([Name, NameType]) of
     {ok, _Pid} ->
-      erlang:set_cookie(RemoteNode, Cookie),
+      case Cookie of
+        nocookie ->
+          ok;
+        CustomCookie ->
+          erlang:set_cookie(RemoteNode, CustomCookie)
+      end,
       ?LOG_INFO("Distribution enabled [name=~p]", [Name]);
     {error, {already_started, _Pid}} ->
       ?LOG_INFO("Distribution already enabled [name=~p]", [Name]);
