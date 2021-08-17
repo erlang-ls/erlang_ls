@@ -95,6 +95,7 @@ do_initialize(RootUri, Capabilities, {ConfigPath, Config}) ->
   DepsDirs        = maps:get("deps_dirs", Config, []),
   AppsDirs        = maps:get("apps_dirs", Config, ["."]),
   IncludeDirs     = maps:get("include_dirs", Config, ["include"]),
+  ExcludeUnusedIncludes = maps:get("exclude_unused_includes", Config, []),
   Macros          = maps:get("macros", Config, []),
   DialyzerPltPath = maps:get("plt_path", Config, undefined),
   OtpAppsExclude  = maps:get( "otp_apps_exclude"
@@ -123,6 +124,7 @@ do_initialize(RootUri, Capabilities, {ConfigPath, Config}) ->
   ok = set(deps_dirs      , DepsDirs),
   ok = set(apps_dirs      , AppsDirs),
   ok = set(include_dirs   , IncludeDirs),
+  ok = set(exclude_unused_includes , ExcludeUnusedIncludes),
   ok = set(macros         , Macros),
   ok = set(plt_path       , DialyzerPltPath),
   ok = set(code_reload    , CodeReload),
