@@ -82,6 +82,13 @@ goto_definition( _Uri
     {ok, Uri}      -> find(Uri, module, Module);
     {error, Error} -> {error, Error}
   end;
+goto_definition(Uri, #{ kind := macro, id := {MacroName, _Arity} = Define } = POI) ->
+  case find(Uri, define, Define) of
+      {error, not_found} ->
+          goto_definition(Uri, POI#{id => MacroName});
+      Else ->
+          Else
+  end;
 goto_definition(Uri, #{ kind := macro, id := Define }) ->
   find(Uri, define, Define);
 goto_definition(Uri, #{ kind := record_expr, id := Record }) ->
