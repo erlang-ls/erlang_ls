@@ -151,6 +151,16 @@ folding_range(Config) ->
                 , startCharacter => ?END_OF_LINE
                 , startLine      => 112
                 }
+             , #{ endCharacter   => ?END_OF_LINE
+                , endLine        => 119
+                , startCharacter => ?END_OF_LINE
+                , startLine      => 118
+                }
+             , #{ endCharacter   => ?END_OF_LINE
+                , endLine        => 122
+                , startCharacter => ?END_OF_LINE
+                , startLine      => 121
+                }
              ],
   ?assertEqual(Expected, Result),
   ok.

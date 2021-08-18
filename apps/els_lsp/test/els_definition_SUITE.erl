@@ -31,6 +31,7 @@
         , macro_included/1
         , macro_with_args/1
         , macro_with_args_included/1
+        , macro_with_implicit_args/1
         , parse_transform/1
         , record_access/1
         , record_access_included/1
@@ -296,6 +297,16 @@ macro_with_args_included(Config) ->
   ?assertEqual( <<"assert.hrl">>
               , filename:basename(els_uri:path(DefUri))),
   %% Do not assert on line number to avoid binding to a specific OTP version
+  ok.
+
+-spec macro_with_implicit_args(config()) -> ok.
+macro_with_implicit_args(Config) ->
+  Uri = ?config(code_navigation_uri, Config),
+  Def = els_client:definition(Uri, 123, 5),
+  #{result := #{range := Range, uri := DefUri}} = Def,
+  ?assertEqual(Uri, DefUri),
+  ?assertEqual( els_protocol:range(#{from => {117, 9}, to => {117, 16}})
+              , Range),
   ok.
 
 -spec parse_transform(config()) -> ok.

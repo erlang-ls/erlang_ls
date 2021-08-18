@@ -2,7 +2,7 @@
 
 -behaviour(behaviour_a).
 -wildattribute(a).
--export([ function_a/0, function_b/0, function_g/1, function_j/0, 'PascalCaseFunction'/1 ]).
+-export([ function_a/0, function_b/0, function_g/1, function_j/0, 'PascalCaseFunction'/1, function_mb/0 ]).
 
 %% behaviour_a callbacks
 -export([ callback_a/0 ]).
@@ -113,3 +113,11 @@ function_p(Foo) ->
 function_q() ->
   X = #?MODULE{},
   {X#?MODULE{field_a = 42}, X#?MODULE.field_a}.
+
+-define(MACRO_B, macro_b).
+
+macro_b(_X, _Y) ->
+  ok.
+
+function_mb() ->
+  ?MACRO_B(m, b).

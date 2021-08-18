@@ -534,6 +534,8 @@ functions_arity(Config) ->
                       , {<<"'PascalCaseFunction'">>, 1}
                       , {<<"function_p">>, 1}
                       , {<<"function_q">>, 0}
+                      , {<<"macro_b">>, 2}
+                      , {<<"function_mb">>, 0}
                       ],
   ExpectedCompletion =
     [ #{ label =>
