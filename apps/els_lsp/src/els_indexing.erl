@@ -115,14 +115,14 @@ index_references(_Document, 'shallow', _) ->
 
 -spec maybe_start() -> true | false.
 maybe_start() ->
-  case els_config:get(indexing_enabled) =:= false of
-    false ->
-      start(),
-      true;
+  IndexingEnabled = els_config:get(indexing_enabled),
+  case IndexingEnabled of
     true ->
-      ?LOG_INFO("Skipping Indexing (disabled via InitOptions)"),
-      false
-  end.
+      start();
+    false ->
+      ?LOG_INFO("Skipping Indexing (disabled via InitOptions)")
+  end,
+  IndexingEnabled.
 
 -spec start() -> ok.
 start() ->
