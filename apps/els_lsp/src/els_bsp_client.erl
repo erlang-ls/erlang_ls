@@ -69,13 +69,13 @@
 %% Compat Stuff
 %% Since the build server can take arbitrary amounts of time to process things
 %% we really would like to use gen_server:send_request et co that are added in
-%% OTP 23, but we also need to support older OTP versions for now - implement
+%% OTP 23/24, but we also need to support older OTP versions for now - implement
 %% rudimentary scaffolding to fake the new functionality.
-%% Remove whenever only OTP >= 23 is supported.
+%% Remove whenever only OTP > 23 is supported.
 %%==============================================================================
 -type server_ref() :: atom() | pid().
 
--if(?OTP_RELEASE >= 23).
+-if(?OTP_RELEASE > 23).
 -spec do_send_request(server_ref(), any()) -> any().
 do_send_request(ServerRef, Request) ->
   gen_server:send_request(ServerRef, Request).
