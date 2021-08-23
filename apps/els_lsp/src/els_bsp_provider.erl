@@ -120,7 +120,7 @@ handle_request({start, #{ root := RootUri }}, #{ running := false } = State) ->
       ?LOG_INFO("BSP server started from config ~p", [Config]),
       {{ok, Config}, initialize_bsp(RootUri, State)};
     {error, Reason} ->
-      ?LOG_ERROR("BSP server startup failed: ~p", [Reason]),
+      ?LOG_INFO("BSP server startup failed: ~p", [Reason]),
       {{error, Reason}, State}
   end;
 handle_request({send_request, #{ from := From
