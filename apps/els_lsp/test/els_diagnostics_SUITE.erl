@@ -699,6 +699,18 @@ unused_macros(Config) ->
                      }
                 , severity => 2
                 , source => <<"UnusedMacros">>
+                },
+                #{ message => <<"Unused macro: UNUSED_MACRO_WITH_ARG/1">>
+                , range =>
+                    #{ 'end' => #{ character => 29
+                                 , line => 6
+                                 }
+                     , start => #{ character => 8
+                                 , line => 6
+                                 }
+                     }
+                , severity => 2
+                , source => <<"UnusedMacros">>
                 }
              ],
   F = fun(#{message := M1}, #{message := M2}) -> M1 =< M2 end,

@@ -59,9 +59,14 @@ find_unused_macros(Document) ->
   [POI || #{id := Id} = POI <- Defines, not lists:member(Id, MacroIds)].
 
 -spec make_diagnostic(poi()) -> els_diagnostics:diagnostic().
-make_diagnostic(#{id := Id, range := POIRange}) ->
+make_diagnostic(#{id := POIId, range := POIRange}) ->
   Range = els_protocol:range(POIRange),
-  MacroName = atom_to_binary(Id, utf8),
+  MacroName = case POIId of
+    {Id, Arity} ->
+      els_utils:to_binary(
+        lists:flatten(io_lib:format("~s/~p", [Id, Arity])));
+    Id -> atom_to_binary(Id, utf8)
+  end,
   Message = <<"Unused macro: ", MacroName/binary>>,
   Severity = ?DIAGNOSTIC_WARNING,
   Source = source(),
