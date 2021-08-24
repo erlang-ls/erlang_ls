@@ -34,6 +34,7 @@
         , crossref_autoimport_disabled/1
         , crossref_pseudo_functions/1
         , unused_includes/1
+        , exclude_unused_includes/1
         , unused_macros/1
         ]).
 
@@ -107,6 +108,11 @@ init_per_testcase(use_long_names, Config) ->
                                       end),
   els_mock_diagnostics:setup(),
   els_test_utils:init_per_testcase(code_path_extra_dirs, Config);
+init_per_testcase(exclude_unused_includes = TestCase, Config) ->
+  els_mock_diagnostics:setup(),
+  NewConfig = els_test_utils:init_per_testcase(TestCase, Config),
+  els_config:set(exclude_unused_includes, ["et/include/et.hrl"]),
+  NewConfig;
 init_per_testcase(TestCase, Config) ->
   els_mock_diagnostics:setup(),
   els_test_utils:init_per_testcase(TestCase, Config).
@@ -131,6 +137,11 @@ end_per_testcase(TestCase, Config)
           TestCase =:= use_long_names ->
   meck:unload(yamerl),
   els_test_utils:end_per_testcase(code_path_extra_dirs, Config),
+  els_mock_diagnostics:teardown(),
+  ok;
+end_per_testcase(exclude_unused_includes = TestCase, Config) ->
+  els_config:set(exclude_unused_includes, []),
+  els_test_utils:end_per_testcase(TestCase, Config),
   els_mock_diagnostics:teardown(),
   ok;
 end_per_testcase(TestCase, Config) ->
@@ -660,6 +671,15 @@ unused_includes(Config) ->
              ],
   F = fun(#{message := M1}, #{message := M2}) -> M1 =< M2 end,
   ?assertEqual(Expected, lists:sort(F, Diagnostics)),
+  ok.
+
+-spec exclude_unused_includes(config()) -> ok.
+exclude_unused_includes(Config) ->
+  Uri = ?config(diagnostics_unused_includes_uri, Config),
+  els_mock_diagnostics:subscribe(),
+  ok = els_client:did_save(Uri),
+  Diagnostics = els_mock_diagnostics:wait_until_complete(),
+  ?assertEqual([], Diagnostics),
   ok.
 
 -spec unused_macros(config()) -> ok.

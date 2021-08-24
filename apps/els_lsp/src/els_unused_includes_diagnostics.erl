@@ -64,7 +64,17 @@ find_unused_includes(#{uri := Uri} = Document) ->
     , type_application
     , export_type_entry
     ]),
-  IncludedUris = els_diagnostics_utils:included_uris(Document),
+  IncludedUris0 = els_diagnostics_utils:included_uris(Document),
+  ExcludeUnusedIncludes =
+      lists:filtermap(
+          fun(Include) ->
+              case els_utils:find_header(els_utils:filename_to_atom(Include)) of
+                  {ok, File} -> {true, File};
+                  {error, _Error} ->
+                      false
+              end
+          end, els_config:get(exclude_unused_includes)),
+  IncludedUris = IncludedUris0 -- ExcludeUnusedIncludes,
   Fun = fun(POI, Acc) ->
             update_unused(Graph, Uri, POI, Acc)
         end,
