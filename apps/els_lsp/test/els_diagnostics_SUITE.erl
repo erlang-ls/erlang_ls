@@ -281,7 +281,8 @@ compiler_with_broken_behaviour(Config) ->
               #{'end' => #{character => 24, line => 2}
                , start => #{character => 0, line => 2}}
          , severity => 1
-         , source => <<"Compiler">>},
+         , source => <<"Compiler">>
+         , code => <<"L0000">>},
   ?assertEqual(ExpectedError, BehaviourError),
   ok.
 
@@ -584,6 +585,7 @@ crossref(Config) ->
                         , start => #{character => 2, line => 6}}
                  , severity => 1
                  , source => <<"Compiler">>
+                 , code => <<"L1227">>
                  }
                ], Config),
   do_crossref_test(Config, diagnostics_xref_uri, Expected).
@@ -647,7 +649,7 @@ crossref_autoimport_disabled(Config) ->
        range =>
          #{'end' => #{character => 22, line => 6},
            start => #{character => 4, line => 6}},
-       severity => 1, source => <<"Compiler">>}], Config),
+       severity => 1, source => <<"Compiler">>, code => <<"L1227">>}], Config),
   do_crossref_test(Config, diagnostics_autoimport_disabled_uri, Expected).
 
 -spec unused_includes(config()) -> ok.
