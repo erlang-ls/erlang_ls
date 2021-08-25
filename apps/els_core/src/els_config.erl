@@ -1,7 +1,7 @@
 -module(els_config).
 
 %% API
--export([ do_initialize/3
+-export([ do_initialize/4
         , initialize/3
         , initialize/4
         , get/1
@@ -52,7 +52,9 @@
                | root_uri
                | search_paths
                | code_reload
-               | elvis_config_path.
+               | elvis_config_path
+               | indexing_enabled
+               | bsp_enabled.
 
 -type path()  :: file:filename().
 -type state() :: #{ apps_dirs        => [path()]
@@ -70,6 +72,8 @@
                   , root_uri         => uri()
                   , search_paths     => [path()]
                   , code_reload      => map() | 'disabled'
+                  , indexing_enabled => boolean()
+                  , bsp_enabled      => boolean() | auto
                   }.
 
 %%==============================================================================
@@ -85,10 +89,10 @@ initialize(RootUri, Capabilities, InitOptions, ReportMissingConfig) ->
   RootPath = els_utils:to_list(els_uri:path(RootUri)),
   Config = consult_config(
              config_paths(RootPath, InitOptions), ReportMissingConfig),
-  do_initialize(RootUri, Capabilities, Config).
+  do_initialize(RootUri, Capabilities, InitOptions, Config).
 
--spec do_initialize(uri(), map(), {undefined|path(), map()}) -> ok.
-do_initialize(RootUri, Capabilities, {ConfigPath, Config}) ->
+-spec do_initialize(uri(), map(), map(), {undefined|path(), map()}) -> ok.
+do_initialize(RootUri, Capabilities, InitOptions, {ConfigPath, Config}) ->
   RootPath        = els_utils:to_list(els_uri:path(RootUri)),
   OtpPath         = maps:get("otp_path", Config, code:root_dir()),
   ?LOG_INFO("OTP Path: ~p", [OtpPath]),
@@ -113,8 +117,10 @@ do_initialize(RootUri, Capabilities, {ConfigPath, Config}) ->
   CodePathExtraDirs = maps:get("code_path_extra_dirs", Config, []),
   ok = add_code_paths(CodePathExtraDirs, RootPath),
   ElvisConfigPath = maps:get("elvis_config_path", Config, undefined),
-  BSPEnabled = maps:get("bsp_enabled", Config, false),
+  BSPEnabled = maps:get("bsp_enabled", Config, auto),
   IncrementalSync = maps:get("incremental_sync", Config, false),
+
+  IndexingEnabled = maps:get(<<"indexingEnabled">>, InitOptions, true),
 
   %% Passed by the LSP client
   ok = set(root_uri       , RootUri),
@@ -153,6 +159,7 @@ do_initialize(RootUri, Capabilities, {ConfigPath, Config}) ->
           ),
   %% Init Options
   ok = set(capabilities  , Capabilities),
+  ok = set(indexing_enabled, IndexingEnabled),
   ok.
 
 -spec start_link() -> {ok, pid()}.

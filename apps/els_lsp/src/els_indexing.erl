@@ -8,6 +8,7 @@
         , index/3
         , index_dir/2
         , start/0
+        , maybe_start/0
         ]).
 
 %%==============================================================================
@@ -111,6 +112,17 @@ index_references(#{uri := Uri} = Document, 'deep', false) ->
   ok;
 index_references(_Document, 'shallow', _) ->
   ok.
+
+-spec maybe_start() -> true | false.
+maybe_start() ->
+  IndexingEnabled = els_config:get(indexing_enabled),
+  case IndexingEnabled of
+    true ->
+      start();
+    false ->
+      ?LOG_INFO("Skipping Indexing (disabled via InitOptions)")
+  end,
+  IndexingEnabled.
 
 -spec start() -> ok.
 start() ->
