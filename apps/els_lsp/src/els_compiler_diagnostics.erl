@@ -22,6 +22,7 @@
 
 -export([ include_options/0
         , macro_options/0
+        , telemetry/2
         ]).
 
 %%==============================================================================
@@ -76,6 +77,7 @@ source() ->
 
 -spec on_complete(uri(), [els_diagnostics:diagnostic()]) -> ok.
 on_complete(Uri, Diagnostics) ->
+  ?MODULE:telemetry(Uri, Diagnostics),
   maybe_compile_and_load(Uri, Diagnostics).
 
 %%==============================================================================
@@ -807,4 +809,20 @@ compile_options(Module) ->
                     , [Module, Error]),
           []
       end
+  end.
+
+%% @doc Send a telemetry/event LSP message, for logging in the client
+-spec telemetry(uri(), [els_diagnostics:diagnostic()]) -> ok.
+telemetry(Uri, Diagnostics) ->
+  case els_config:get(compiler_telemetry_enabled) of
+    true ->
+      Codes = [Code || #{ code := Code } <- Diagnostics ],
+      Method = <<"telemetry/event">>,
+      Params = #{ uri         => Uri
+                , diagnostics => Codes
+                , type => <<"erlang-diagnostic-codes">>
+                },
+      els_server:send_notification(Method, Params);
+    _ ->
+      ok
   end.

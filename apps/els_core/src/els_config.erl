@@ -54,7 +54,8 @@
                | code_reload
                | elvis_config_path
                | indexing_enabled
-               | bsp_enabled.
+               | bsp_enabled
+               | compiler_telemetry_enabled.
 
 -type path()  :: file:filename().
 -type state() :: #{ apps_dirs        => [path()]
@@ -74,6 +75,7 @@
                   , code_reload      => map() | 'disabled'
                   , indexing_enabled => boolean()
                   , bsp_enabled      => boolean() | auto
+                  , compiler_telemetry_enabled => boolean()
                   }.
 
 %%==============================================================================
@@ -119,6 +121,9 @@ do_initialize(RootUri, Capabilities, InitOptions, {ConfigPath, Config}) ->
   ElvisConfigPath = maps:get("elvis_config_path", Config, undefined),
   BSPEnabled = maps:get("bsp_enabled", Config, auto),
   IncrementalSync = maps:get("incremental_sync", Config, true),
+  CompilerTelemetryEnabled
+    = maps:get("compiler_telemetry_enabled", Config, false),
+
   IndexingEnabled = maps:get(<<"indexingEnabled">>, InitOptions, true),
 
   %% Passed by the LSP client
@@ -140,6 +145,7 @@ do_initialize(RootUri, Capabilities, InitOptions, {ConfigPath, Config}) ->
                                     , CtRunTest)),
   ok = set(elvis_config_path, ElvisConfigPath),
   ok = set(bsp_enabled, BSPEnabled),
+  ok = set(compiler_telemetry_enabled, CompilerTelemetryEnabled),
   ok = set(incremental_sync, IncrementalSync),
   %% Calculated from the above
   ok = set(apps_paths     , project_paths(RootPath, AppsDirs, false)),
