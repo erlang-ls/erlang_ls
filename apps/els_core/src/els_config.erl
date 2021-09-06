@@ -118,8 +118,7 @@ do_initialize(RootUri, Capabilities, InitOptions, {ConfigPath, Config}) ->
   ok = add_code_paths(CodePathExtraDirs, RootPath),
   ElvisConfigPath = maps:get("elvis_config_path", Config, undefined),
   BSPEnabled = maps:get("bsp_enabled", Config, auto),
-  IncrementalSync = maps:get("incremental_sync", Config, false),
-
+  IncrementalSync = maps:get("incremental_sync", Config, true),
   IndexingEnabled = maps:get(<<"indexingEnabled">>, InitOptions, true),
 
   %% Passed by the LSP client
