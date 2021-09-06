@@ -20,6 +20,7 @@
         , compiler_with_parse_transform_included/1
         , compiler_with_parse_transform_broken/1
         , compiler_with_parse_transform_deps/1
+        , compiler_telemetry/1
         , code_path_extra_dirs/1
         , use_long_names/1
         , epp_with_nonexistent_macro/1
@@ -113,6 +114,10 @@ init_per_testcase(exclude_unused_includes = TestCase, Config) ->
   NewConfig = els_test_utils:init_per_testcase(TestCase, Config),
   els_config:set(exclude_unused_includes, ["et/include/et.hrl"]),
   NewConfig;
+init_per_testcase(TestCase, Config) when TestCase =:= compiler_telemetry ->
+  els_mock_diagnostics:setup(),
+  mock_compiler_telemetry_enabled(),
+  els_test_utils:init_per_testcase(TestCase, Config);
 init_per_testcase(TestCase, Config) ->
   els_mock_diagnostics:setup(),
   els_test_utils:init_per_testcase(TestCase, Config).
@@ -141,6 +146,11 @@ end_per_testcase(TestCase, Config)
   ok;
 end_per_testcase(exclude_unused_includes = TestCase, Config) ->
   els_config:set(exclude_unused_includes, []),
+  els_test_utils:end_per_testcase(TestCase, Config),
+  els_mock_diagnostics:teardown(),
+  ok;
+end_per_testcase(TestCase, Config) when TestCase =:= compiler_telemetry ->
+  unmock_compiler_telemetry_enabled(),
   els_test_utils:end_per_testcase(TestCase, Config),
   els_mock_diagnostics:teardown(),
   ok;
@@ -410,6 +420,30 @@ compiler_with_parse_transform_deps(Config) ->
                                 start => #{character => 0, line => 4}}],
                              Config),
   ?assertEqual(ExpectedWarningsRanges, WarningsRanges),
+  ok.
+
+-spec compiler_telemetry(config()) -> ok.
+compiler_telemetry(Config) ->
+  Uri = ?config(diagnostics_uri, Config),
+  els_mock_diagnostics:subscribe(),
+  ok = els_client:did_save(Uri),
+  Diagnostics = els_mock_diagnostics:wait_until_complete(),
+  ?assertEqual(5, length(Diagnostics)),
+  Warnings = [D || #{severity := ?DIAGNOSTIC_WARNING} = D <- Diagnostics],
+  Errors   = [D || #{severity := ?DIAGNOSTIC_ERROR}   = D <- Diagnostics],
+  ?assertEqual(2, length(Warnings)),
+  ?assertEqual(3, length(Errors)),
+  ?assertEqual([<<"L1230">>], [Code || #{ code := Code } <- Warnings ]),
+  ?assertEqual([<<"L0000">>, <<"L0000">>, <<"L1295">>]
+              , [Code || #{ code := Code } <- Errors ]),
+  Telemetry = wait_for_compiler_telemetry(),
+  #{ type := Type
+   , uri := UriT
+   , diagnostics := DiagnosticsCodes }  = Telemetry,
+  ?assertEqual(<<"erlang-diagnostic-codes">>, Type),
+  ?assertEqual(Uri, UriT),
+  ?assertEqual([ <<"L1230">>, <<"L0000">>, <<"L0000">>, <<"L1295">>]
+               , DiagnosticsCodes),
   ok.
 
 -spec code_path_extra_dirs(config()) -> ok.
@@ -785,3 +819,36 @@ mock_code_reload_enabled() ->
 
 unmock_code_reload_enabled() ->
   meck:unload(els_config).
+
+mock_compiler_telemetry_enabled() ->
+  meck:new(els_config, [passthrough, no_link]),
+  meck:expect( els_config
+             , get
+             , fun(compiler_telemetry_enabled) ->
+                   true;
+                  (Key) ->
+                   meck:passthrough([Key])
+               end
+             ),
+  Self = self(),
+  meck:expect( els_server
+             , send_notification
+             , fun(<<"telemetry/event">> = Method, Params) ->
+                   Self ! {on_complete_telemetry, Params},
+                   meck:passthrough([Method, Params]);
+                  (M, P) ->
+                   meck:passthrough([M, P])
+               end
+             ),
+  ok.
+
+-spec wait_for_compiler_telemetry() -> {uri(), [els_diagnostics:diagnostic()]}.
+wait_for_compiler_telemetry() ->
+  receive
+    {on_complete_telemetry, Params} ->
+      Params
+  end.
+
+unmock_compiler_telemetry_enabled() ->
+  meck:unload(els_config),
+  meck:unload(els_server).
