@@ -242,15 +242,28 @@ consult_config([], ReportMissingConfig) ->
   {undefined, #{}};
 consult_config([Path | Paths], ReportMissingConfig) ->
   ?LOG_INFO("Reading config file. path=~p", [Path]),
-  Options = [{map_node_format, map}],
-  try yamerl:decode_file(Path, Options) of
+  try consult_file(Path) of
       [] -> {Path, #{}};
-      [Config] -> {Path, Config}
+      [Config] -> {Path, Config};
+      {ok, Config} -> {Path, maps:from_list(Config)};
+      {error, Reason} ->
+        ?LOG_WARNING( "Could not read config file: path=~p class=~p error=~p"
+                    , [Path, error, Reason]),
+        consult_config(Paths, ReportMissingConfig)
   catch
     Class:Error ->
       ?LOG_WARNING( "Could not read config file: path=~p class=~p error=~p"
                   , [Path, Class, Error]),
       consult_config(Paths, ReportMissingConfig)
+  end.
+
+-spec consult_file(path()) -> [map()] | {ok, [term()]} | {error, term()}.
+consult_file(Path) ->
+  case string:find(Path, ".yaml", trailing) of
+    nomatch ->
+      file:consult(Path);
+    ".yaml" ->
+      yamerl:decode_file(Path, [{map_node_format, map}])
   end.
 
 -spec report_missing_config() -> ok.
