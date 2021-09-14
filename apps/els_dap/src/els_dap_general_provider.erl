@@ -609,9 +609,8 @@ break_line(Pid, Node) ->
 
 -spec source(atom(), atom()) -> binary().
 source(Module, Node) ->
-  CompileOpts = els_dap_rpc:module_info(Node, Module, compile),
+  Source = els_dap_rpc:file(Node, Module),
   els_dap_rpc:clear(Node),
-  Source = proplists:get_value(source, CompileOpts),
   unicode:characters_to_binary(Source).
 
 -spec to_pid(pos_integer(), #{thread_id() => thread()}) -> pid().

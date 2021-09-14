@@ -10,6 +10,7 @@
         , clear/1
         , continue/2
         , eval/3
+        , file/2
         , get_meta/2
         , halt/1
         , i/2
@@ -69,6 +70,27 @@ eval(Node, Input, Bindings) ->
   case rpc:call(Node, erl_eval, exprs, [Exprs, Bindings]) of
     {value, Value, _NewBindings} -> Value;
     {badrpc, Error} -> Error
+  end.
+
+-spec file(node(), module()) -> file:filename().
+file(Node, Module) ->
+  MaybeSource =
+    case rpc:call(Node, int, file, [Module]) of
+      {error, not_loaded} ->
+        BeamName = atom_to_list(Module) ++ ".beam",
+        case rpc:call(Node, code, where_is_file, [BeamName]) of
+          non_existing -> {error, not_found};
+          BeamFile -> rpc:call(Node, filelib, find_source, [BeamFile])
+        end;
+      IntSource ->
+        {ok, IntSource}
+    end,
+  case MaybeSource of
+    {ok, Source} ->
+      Source;
+    {error, not_found} ->
+      CompileOpts = module_info(Node, Module, compile),
+      proplists:get_value(source, CompileOpts)
   end.
 
 -spec get_meta(node(), pid()) -> {ok, pid()}.
