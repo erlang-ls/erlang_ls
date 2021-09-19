@@ -65,6 +65,7 @@ find_unused_includes(#{uri := Uri} = Document) ->
     , export_type_entry
     ]),
   IncludedUris0 = els_diagnostics_utils:included_uris(Document),
+  IncludedUris1 = filter_includes_with_compiler_attributes(IncludedUris0),
   ExcludeUnusedIncludes =
       lists:filtermap(
           fun(Include) ->
@@ -74,7 +75,7 @@ find_unused_includes(#{uri := Uri} = Document) ->
                       false
               end
           end, els_config:get(exclude_unused_includes)),
-  IncludedUris = IncludedUris0 -- ExcludeUnusedIncludes,
+  IncludedUris = IncludedUris1 -- ExcludeUnusedIncludes,
   Fun = fun(POI, Acc) ->
             update_unused(Graph, Uri, POI, Acc)
         end,
@@ -120,3 +121,31 @@ inclusion_range(Uri, Document) ->
     _ ->
       #{from => {1, 1}, to => {2, 1}}
   end.
+
+%% @doc Given a list of included uris, filter out the ones containing
+%% compiler attributes. If the Uri cannot be found, keep it in the list.
+-spec filter_includes_with_compiler_attributes([uri()]) -> [uri()].
+filter_includes_with_compiler_attributes(Uris) ->
+  Filter = fun(Uri) ->
+               case els_utils:lookup_document(Uri) of
+                 {error, _Error} ->
+                   {true, Uri};
+                 {ok, Document} ->
+                    case contains_compiler_attributes(Document) of
+                      true ->
+                        false;
+                      false ->
+                        {true, Uri}
+                    end
+               end
+           end,
+  lists:filtermap(Filter, Uris).
+
+%% @doc Return true if the Document contains a compiler attribute.
+-spec contains_compiler_attributes(els_dt_document:item()) -> boolean().
+contains_compiler_attributes(Document) ->
+  compiler_attributes(Document) =/= [].
+
+-spec compiler_attributes(els_dt_document:item()) -> [poi()].
+compiler_attributes(Document) ->
+  els_dt_document:pois(Document, [compile]).

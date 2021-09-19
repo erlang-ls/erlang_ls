@@ -221,7 +221,12 @@ attribute(Tree) ->
           []
       end;
     {compile, [Arg]} ->
-      find_compile_options_pois(Arg);
+      %% When we encounter a compiler attribute, we include a POI
+      %% indicating the fact. This is useful, for example, to avoid
+      %% marking header files including parse transforms or other
+      %% compiler attributes as unused. See #1047
+      Marker = poi(erl_syntax:get_pos(Arg), compile, unused),
+      [Marker|find_compile_options_pois(Arg)];
     {AttrName, [Arg]} when AttrName =:= export;
                            AttrName =:= export_type ->
       find_export_pois(Tree, AttrName, Arg);
