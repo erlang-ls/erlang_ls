@@ -39,6 +39,10 @@
 -type macro_config()   :: #{string() => string()}.
 -type macro_option()   :: {'d', atom()} | {'d', atom(), any()}.
 -type include_option() :: {'i', string()}.
+-type dependency()     :: 'include'
+                        | 'include_lib'
+                        | 'parse_transform'
+                        | 'behaviour'.
 
 %%==============================================================================
 %% Callback Functions
@@ -179,12 +183,12 @@ diagnostic(Path, Path, Range, _Document, Module, Desc, Severity) ->
   diagnostic(Range, Module, Desc, Severity);
 diagnostic(_Path, MessagePath, Range, Document, Module, Desc0, Severity) ->
   #{from := {Line, _}} = Range,
-  InclusionRange = inclusion_range(MessagePath, Document),
+  {Dependency, InclusionRange} = inclusion_range(MessagePath, Document),
   %% The compiler message is related to an included file. Replace the
   %% original location with the location of the file inclusion.
   %% And re-route the format_error call to this module as a no-op
   Desc1 = Module:format_error(Desc0),
-  Desc = io_lib:format("Issue in included file (~p): ~s", [Line, Desc1]),
+  Desc = io_lib:format("Issues in ~p (~p): ~s", [Dependency, Line, Desc1]),
   diagnostic(InclusionRange, ?MODULE, Desc, Severity).
 
 -spec diagnostic(poi_range(), module(), string(), integer()) ->
@@ -645,7 +649,8 @@ range(Document, Anno) ->
 %%
 %%      Given the path of e .hrl path, find its inclusion range within
 %%      a given document.
--spec inclusion_range(string(), els_dt_document:item()) -> poi_range().
+-spec inclusion_range(string(), els_dt_document:item()) ->
+        {dependency() | undefined, poi_range()}.
 inclusion_range(IncludePath, Document) ->
   case
     inclusion_range(IncludePath, Document, include) ++
@@ -653,31 +658,33 @@ inclusion_range(IncludePath, Document) ->
     inclusion_range(IncludePath, Document, behaviour) ++
     inclusion_range(IncludePath, Document, parse_transform)
   of
-    [Range|_] -> Range;
-    _ -> range(undefined, none)
+    [{Dependency, Range}|_] -> {Dependency, Range};
+    _ -> {undefined, range(undefined, none)}
   end.
 
--spec inclusion_range( string()
-                     , els_dt_document:item()
-                     , include | include_lib | behaviour | parse_transform)
-                     -> [poi_range()].
+-spec inclusion_range(string(), els_dt_document:item(), dependency()) ->
+        [{dependency(), poi_range()}].
 inclusion_range(IncludePath, Document, include) ->
   POIs       = els_dt_document:pois(Document, [include]),
   IncludeId  = els_utils:include_id(IncludePath),
-  [Range || #{id := Id, range := Range} <- POIs, Id =:= IncludeId];
+  [{include, Range} ||
+    #{id := Id, range := Range} <- POIs, Id =:= IncludeId];
 inclusion_range(IncludePath, Document, include_lib) ->
   POIs       = els_dt_document:pois(Document, [include_lib]),
   IncludeId  = els_utils:include_lib_id(IncludePath),
-  [Range || #{id := Id, range := Range} <- POIs, Id =:= IncludeId];
+  [{include_lib, Range} ||
+    #{id := Id, range := Range} <- POIs, Id =:= IncludeId];
 inclusion_range(IncludePath, Document, behaviour) ->
   POIs        = els_dt_document:pois(Document, [behaviour]),
   BehaviourId = els_uri:module(els_uri:uri(els_utils:to_binary(IncludePath))),
-  [Range || #{id := Id, range := Range} <- POIs, Id =:= BehaviourId];
+  [{behaviour, Range}
+   || #{id := Id, range := Range} <- POIs, Id =:= BehaviourId];
 inclusion_range(IncludePath, Document, parse_transform) ->
   POIs       = els_dt_document:pois(Document, [parse_transform]),
   ParseTransformId
     = els_uri:module(els_uri:uri(els_utils:to_binary(IncludePath))),
-  [Range || #{id := Id, range := Range} <- POIs, Id =:= ParseTransformId].
+  [{parse_transform, Range} ||
+    #{id := Id, range := Range} <- POIs, Id =:= ParseTransformId].
 
 -spec macro_options() -> [macro_option()].
 macro_options() ->

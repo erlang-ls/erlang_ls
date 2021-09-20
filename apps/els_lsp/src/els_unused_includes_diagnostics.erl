@@ -116,7 +116,7 @@ inclusion_range(Uri, Document) ->
   case
     els_compiler_diagnostics:inclusion_range(Path, Document, include) ++
     els_compiler_diagnostics:inclusion_range(Path, Document, include_lib) of
-    [Range|_] ->
+    [{_Dependency, Range}|_] ->
       Range;
     _ ->
       #{from => {1, 1}, to => {2, 1}}
