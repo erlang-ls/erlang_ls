@@ -35,6 +35,7 @@
         , crossref_autoimport_disabled/1
         , crossref_pseudo_functions/1
         , unused_includes/1
+        , unused_includes_compiler_attribute/1
         , exclude_unused_includes/1
         , unused_macros/1
         ]).
@@ -369,14 +370,11 @@ compiler_with_parse_transform_included(Config) ->
   els_mock_diagnostics:subscribe(),
   ok = els_client:did_save(Uri),
   Diagnostics = els_mock_diagnostics:wait_until_complete(),
-  ?assertEqual(2, length(Diagnostics)),
+  ?assertEqual(1, length(Diagnostics)),
   Warnings = [D || #{severity := ?DIAGNOSTIC_WARNING} = D <- Diagnostics],
-  ?assertEqual(2, length(Warnings)),
+  ?assertEqual(1, length(Warnings)),
   WarningRanges = [ Range || #{range := Range} <- Warnings],
   ExpectedWarningsRanges =
-        [#{ 'end' => #{character => 32, line => 4}
-          , start => #{character => 0, line => 4}}
-        ] ++
         fixcolumns(
           [ #{ 'end' => #{character => 9, line => 6}
              , start => #{character => 5, line => 6}}], Config),
@@ -707,6 +705,28 @@ unused_includes(Config) ->
              ],
   F = fun(#{message := M1}, #{message := M2}) -> M1 =< M2 end,
   ?assertEqual(Expected, lists:sort(F, Diagnostics)),
+  ok.
+
+-spec unused_includes_compiler_attribute(config()) -> ok.
+unused_includes_compiler_attribute(Config) ->
+  Uri = ?config(diagnostics_unused_includes_compiler_attribute_uri, Config),
+  els_mock_diagnostics:subscribe(),
+  ok = els_client:did_save(Uri),
+  Diagnostics = els_mock_diagnostics:wait_until_complete(),
+  Expected = [ #{ message => <<"Unused file: file.hrl">>
+                , range =>
+                    #{ 'end' => #{ character => 40
+                                 , line => 3
+                                 }
+                     , start => #{ character => 0
+                                 , line => 3
+                                 }
+                     }
+                , severity => 2
+                , source => <<"UnusedIncludes">>
+                }
+             ],
+  ?assertEqual(Expected, Diagnostics),
   ok.
 
 -spec exclude_unused_includes(config()) -> ok.
