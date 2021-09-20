@@ -58,34 +58,32 @@ source() ->
 %% Internal Functions
 %%==============================================================================
 -spec format_diagnostics(any()) -> [map()].
-format_diagnostics(#{file := Path, rules := Rules}) ->
-  R = format_rules(Path, Rules),
+format_diagnostics(#{file := _File, rules := Rules}) ->
+  R = format_rules(Rules),
   lists:flatten(R).
 
-
 %%% This section is based directly on elvis_result:print_rules
--spec format_rules(any(), [any()]) -> [[map()]].
-format_rules(_File, []) ->
+-spec format_rules([any()]) -> [[map()]].
+format_rules([]) ->
     [];
-format_rules(File, [#{items := []} | Items]) ->
-    format_rules(File, Items);
-format_rules(File, [#{items := Items, name := Name} | EItems]) ->
-    ItemDiags = format_item(File, Name, Items),
-    [lists:flatten(ItemDiags) | format_rules(File, EItems)].
+format_rules([#{items := []} | Items]) ->
+    format_rules(Items);
+format_rules([#{items := Items, name := Name} | EItems]) ->
+    ItemDiags = format_item(Name, Items),
+    [lists:flatten(ItemDiags) | format_rules(EItems)].
 
 %% Item
--spec format_item(any(), any(), [any()]) -> [[map()]].
-format_item(File, Name,
-            [#{message := Msg, line_num := Ln, info := Info} | Items]) ->
-    Diagnostic = diagnostic(File, Name, Msg, Ln, Info),
-    [Diagnostic | format_item(File, Name, Items)];
-format_item(_File, _Name, []) ->
+-spec format_item(any(), [any()]) -> [[map()]].
+format_item(Name, [#{message := Msg, line_num := Ln, info := Info} | Items]) ->
+    Diagnostic = diagnostic(Name, Msg, Ln, Info),
+    [Diagnostic | format_item(Name, Items)];
+format_item(_Name, []) ->
     [].
 
 %%% End of section based directly on elvis_result:print_rules
 
--spec diagnostic(any(), any(), any(), integer(), [any()]) -> [map()].
-diagnostic(_File, Name, Msg, Ln, Info) ->
+-spec diagnostic(any(), any(), integer(), [any()]) -> [map()].
+diagnostic(Name, Msg, Ln, Info) ->
   FMsg    = io_lib:format(Msg, Info),
   Range   = els_protocol:range(#{from => {Ln, 1}, to => {Ln + 1, 1}}),
   Message = els_utils:to_binary(FMsg),
