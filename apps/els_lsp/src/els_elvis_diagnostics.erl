@@ -65,30 +65,37 @@ format_diagnostics(#{file := _File, rules := Rules}) ->
 %%% This section is based directly on elvis_result:print_rules
 -spec format_rules([any()]) -> [[map()]].
 format_rules([]) ->
-    [];
+  [];
+format_rules([#{error_msg := Msg, info := Info} | Items]) ->
+  [diagnostic(<<"Config Error">>, Msg, 1, Info, ?DIAGNOSTIC_ERROR) |
+   format_rules(Items)];
+format_rules([#{warn_msg := Msg, info := Info} | Items]) ->
+  [diagnostic(<<"Config Warning">>, Msg, 1, Info, ?DIAGNOSTIC_WARNING) |
+   format_rules(Items)];
 format_rules([#{items := []} | Items]) ->
-    format_rules(Items);
+  format_rules(Items);
 format_rules([#{items := Items, name := Name} | EItems]) ->
-    ItemDiags = format_item(Name, Items),
-    [lists:flatten(ItemDiags) | format_rules(EItems)].
+  ItemDiags = format_item(Name, Items),
+  [lists:flatten(ItemDiags) | format_rules(EItems)].
 
 %% Item
 -spec format_item(any(), [any()]) -> [[map()]].
 format_item(Name, [#{message := Msg, line_num := Ln, info := Info} | Items]) ->
-    Diagnostic = diagnostic(Name, Msg, Ln, Info),
+    Diagnostic = diagnostic(Name, Msg, Ln, Info, ?DIAGNOSTIC_WARNING),
     [Diagnostic | format_item(Name, Items)];
 format_item(_Name, []) ->
     [].
 
 %%% End of section based directly on elvis_result:print_rules
 
--spec diagnostic(any(), any(), integer(), [any()]) -> [map()].
-diagnostic(Name, Msg, Ln, Info) ->
+-spec diagnostic(any(), any(), integer(), [any()],
+                 els_diagnostics:severity()) -> [map()].
+diagnostic(Name, Msg, Ln, Info, Severity) ->
   FMsg    = io_lib:format(Msg, Info),
   Range   = els_protocol:range(#{from => {Ln, 1}, to => {Ln + 1, 1}}),
   Message = els_utils:to_binary(FMsg),
   [#{ range    => Range
-    , severity => ?DIAGNOSTIC_WARNING
+    , severity => Severity
     , code     => Name
     , source   => source()
     , message  => Message
