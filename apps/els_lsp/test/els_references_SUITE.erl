@@ -125,7 +125,10 @@ function_multiple_clauses(Config) ->
   UriCaller = ?config(hover_docs_caller_uri, Config),
   #{result := Locations} = els_client:references(Uri, 7, 1),
   ExpectedLocations = [ #{ uri => UriCaller
-                         , range => #{from => {15, 3}, to => {15, 30}}
+                         , range => #{from => {16, 3}, to => {16, 30}}
+                         }
+                      , #{ uri => UriCaller
+                         , range => #{from => {20, 4}, to => {20, 37}}
                          }
                       ],
   assert_locations(Locations, ExpectedLocations),

@@ -3,6 +3,7 @@
 -export([ local_call_no_args/0
         , local_call_with_args/0
         , remote_call_multiple_clauses/0
+        , implicit_funs/0
         ]).
 
 local_call_no_args() ->
@@ -13,6 +14,10 @@ local_call_with_args() ->
 
 remote_call_multiple_clauses() ->
   hover_docs:multiple_clauses(dummy_arg).
+
+implicit_funs() ->
+  {fun local_call/2,
+   fun hover_docs:multiple_clauses/1}.
 
 local_call() ->
   ok.

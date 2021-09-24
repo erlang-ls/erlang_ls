@@ -15,6 +15,8 @@
 -export([ local_call_no_args/1
         , local_call_with_args/1
         , remote_call_multiple_clauses/1
+        , local_fun_expression/1
+        , remote_fun_expression/1
         , no_poi/1
         , included_macro/1
         , local_macro/1
@@ -68,7 +70,7 @@ end_per_testcase(TestCase, Config) ->
 %%==============================================================================
 local_call_no_args(Config) ->
   Uri = ?config(hover_docs_caller_uri, Config),
-  #{result := Result} = els_client:hover(Uri, 9, 7),
+  #{result := Result} = els_client:hover(Uri, 10, 7),
   ?assert(maps:is_key(contents, Result)),
   Contents = maps:get(contents, Result),
   Value = <<"## local_call/0">>,
@@ -80,7 +82,7 @@ local_call_no_args(Config) ->
 
 local_call_with_args(Config) ->
   Uri = ?config(hover_docs_caller_uri, Config),
-  #{result := Result} = els_client:hover(Uri, 12, 7),
+  #{result := Result} = els_client:hover(Uri, 13, 7),
   ?assert(maps:is_key(contents, Result)),
   Contents = maps:get(contents, Result),
   Value = <<"## local_call/2\n\n"
@@ -99,7 +101,42 @@ local_call_with_args(Config) ->
 
 remote_call_multiple_clauses(Config) ->
   Uri = ?config(hover_docs_caller_uri, Config),
-  #{result := Result} = els_client:hover(Uri, 15, 15),
+  #{result := Result} = els_client:hover(Uri, 16, 15),
+  ?assert(maps:is_key(contents, Result)),
+  Contents = maps:get(contents, Result),
+  Value = <<"## hover_docs:multiple_clauses/1\n\n"
+            "```erlang\n\n"
+            "  multiple_clauses(L) when is_list(L)\n\n"
+            "  multiple_clauses(#{data := Data}) \n\n"
+            "  multiple_clauses(X) \n\n```">>,
+  Expected = #{ kind  => <<"markdown">>
+              , value => Value
+              },
+  ?assertEqual(Expected, Contents),
+  ok.
+
+local_fun_expression(Config) ->
+  Uri = ?config(hover_docs_caller_uri, Config),
+  #{result := Result} = els_client:hover(Uri, 19, 5),
+  ?assert(maps:is_key(contents, Result)),
+  Contents = maps:get(contents, Result),
+  Value = <<"## local_call/2\n\n"
+            "```erlang\n\n"
+            "  local_call(Arg1, Arg2) \n\n"
+            "```\n\n"
+            "```erlang\n"
+            "-spec local_call(integer(), any()) -> tuple();\n"
+            "                (float(), any()) -> tuple().\n"
+            "```">>,
+  Expected = #{ kind  => <<"markdown">>
+              , value => Value
+              },
+  ?assertEqual(Expected, Contents),
+  ok.
+
+remote_fun_expression(Config) ->
+  Uri = ?config(hover_docs_caller_uri, Config),
+  #{result := Result} = els_client:hover(Uri, 20, 10),
   ?assert(maps:is_key(contents, Result)),
   Contents = maps:get(contents, Result),
   Value = <<"## hover_docs:multiple_clauses/1\n\n"
