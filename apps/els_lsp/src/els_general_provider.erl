@@ -167,6 +167,8 @@ server_capabilities() ->
             els_code_lens_provider:options()
         , renameProvider =>
             els_rename_provider:is_enabled()
+        , callHierarchyProvider =>
+            els_call_hierarchy_provider:is_enabled()
         },
      serverInfo =>
        #{ name    => <<"Erlang LS">>

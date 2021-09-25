@@ -5,6 +5,7 @@
 -export([ compare/2
         , in/2
         , range/4
+        , to_poi_range/1
         ]).
 
 -spec compare(poi_range(), poi_range()) -> boolean().
@@ -39,6 +40,21 @@ range(Anno, _Type, _Id, _Data) ->
   %% To = erl_anno:end_location(Anno),
   To = proplists:get_value(end_location, erl_anno:to_term(Anno)),
   #{ from => From, to => To }.
+
+%% @doc Converts a LSP range into a POI range
+-spec to_poi_range(range()) -> poi_range().
+to_poi_range(#{'start' := Start, 'end' := End}) ->
+  #{'line' := LineStart, 'character' := CharStart} = Start,
+   #{'line' := LineEnd, 'character' := CharEnd} = End,
+  #{ from => {LineStart + 1, CharStart + 1}
+   , to => {LineEnd + 1, CharEnd + 1}
+   };
+to_poi_range(#{<<"start">> := Start, <<"end">> := End}) ->
+  #{<<"line">> := LineStart, <<"character">> := CharStart} = Start,
+  #{<<"line">> := LineEnd, <<"character">> := CharEnd} = End,
+  #{ from => {LineStart + 1, CharStart + 1}
+   , to => {LineEnd + 1, CharEnd + 1}
+   }.
 
 -spec plus(pos(), string()) -> pos().
 plus({Line, Column}, String) ->

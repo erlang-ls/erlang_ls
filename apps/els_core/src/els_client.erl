@@ -49,7 +49,9 @@
         , stop/0
         , workspace_symbol/1
         , workspace_executecommand/2
-
+        , preparecallhierarchy/3
+        , callhierarchy_incomingcalls/1
+        , callhierarchy_outgoingcalls/1
         , get_notifications/0
         ]).
 
@@ -229,6 +231,21 @@ workspace_symbol(Query) ->
 workspace_executecommand(Command, Args) ->
   gen_server:call(?SERVER, {workspace_executecommand, {Command, Args}}).
 
+-spec preparecallhierarchy(uri(), non_neg_integer(), non_neg_integer()) -> ok.
+preparecallhierarchy(Uri, Line, Char) ->
+  Args = {Uri, Line, Char},
+  gen_server:call(?SERVER, {preparecallhierarchy, Args}).
+
+-spec callhierarchy_incomingcalls(els_call_hierarchy_item:item()) -> ok.
+callhierarchy_incomingcalls(Item) ->
+  Args = {Item},
+  gen_server:call(?SERVER, {callhierarchy_incomingcalls, Args}).
+
+-spec callhierarchy_outgoingcalls(els_call_hierarchy_item:item()) -> ok.
+callhierarchy_outgoingcalls(Item) ->
+  Args = {Item},
+  gen_server:call(?SERVER, {callhierarchy_outgoingcalls, Args}).
+
 -spec get_notifications() -> [any()].
 get_notifications() ->
   gen_server:call(?SERVER, {get_notifications}).
@@ -400,9 +417,12 @@ method_lookup(did_save)                 -> <<"textDocument/didSave">>;
 method_lookup(did_close)                -> <<"textDocument/didClose">>;
 method_lookup(hover)                    -> <<"textDocument/hover">>;
 method_lookup(implementation)           -> <<"textDocument/implementation">>;
+method_lookup(folding_range)            -> <<"textDocument/foldingRange">>;
+method_lookup(preparecallhierarchy) -> <<"textDocument/prepareCallHierarchy">>;
+method_lookup(callhierarchy_incomingcalls) -> <<"callHierarchy/incomingCalls">>;
+method_lookup(callhierarchy_outgoingcalls) -> <<"callHierarchy/outgoingCalls">>;
 method_lookup(workspace_symbol)         -> <<"workspace/symbol">>;
 method_lookup(workspace_executecommand) -> <<"workspace/executeCommand">>;
-method_lookup(folding_range)            -> <<"textDocument/foldingRange">>;
 method_lookup(initialize)               -> <<"initialize">>;
 method_lookup(initialized)              -> <<"initialized">>.
 
@@ -462,6 +482,10 @@ request_params({rename, {Uri, Line, Character, NewName}}) ->
 request_params({folding_range, {Uri}}) ->
   TextDocument = #{ uri => Uri },
   #{ textDocument => TextDocument };
+request_params({callhierarchy_incomingcalls, {Item}}) ->
+  #{item => Item};
+request_params({callhierarchy_outgoingcalls, {Item}}) ->
+  #{item => Item};
 request_params({_Action, {Uri, Line, Char}}) ->
   #{ textDocument => #{ uri => Uri }
    , position     => #{ line      => Line - 1

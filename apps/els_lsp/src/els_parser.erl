@@ -277,7 +277,7 @@ attribute(Tree) ->
       case is_atom_node(Type) of
         {true, TypeName} ->
           [poi(erl_syntax:get_pos(Type), type_definition,
-               {TypeName, length(TypeArgs)}, type_args(TypeArgs))];
+               {TypeName, length(TypeArgs)}, #{ args => type_args(TypeArgs)})];
         _ ->
           []
       end;
@@ -428,8 +428,8 @@ function(Tree) ->
                      )
                   || {I, Clause} <- IndexedClauses,
                      erl_syntax:type(Clause) =:= clause],
-  {StartLine, _} = StartLocation = get_start_location(Tree),
-  {EndLine, _} = get_end_location(Tree),
+  {StartLine, StartColumn} = StartLocation = get_start_location(Tree),
+  {EndLine, _EndColumn} = get_end_location(Tree),
   %% It only makes sense to fold a function if the function contains
   %% at least one line apart from its signature.
   FoldingRanges = case EndLine > StartLine of
@@ -441,7 +441,13 @@ function(Tree) ->
                     false ->
                       []
                   end,
-  lists:append([ [ poi(erl_syntax:get_pos(FunName), function, {F, A}, Args) ]
+  FunctionPOI = poi(erl_syntax:get_pos(FunName), function, {F, A},
+                    #{ args => Args
+                     , wrapping_range => #{ from => {StartLine, StartColumn}
+                                          , to => {EndLine + 1, 0}
+                                          }
+                     }),
+  lists:append([ [ FunctionPOI ]
                , FoldingRanges
                , ClausesPOIs
                ]).

@@ -27,6 +27,9 @@
         , textdocument_codeaction/2
         , textdocument_codelens/2
         , textdocument_rename/2
+        , textdocument_preparecallhierarchy/2
+        , callhierarchy_incomingcalls/2
+        , callhierarchy_outgoingcalls/2
         , workspace_executecommand/2
         , workspace_didchangewatchedfiles/2
         , workspace_symbol/2
@@ -378,6 +381,36 @@ textdocument_codelens(Params, State) ->
 textdocument_rename(Params, State) ->
   Provider = els_rename_provider,
   Response = els_provider:handle_request(Provider, {rename, Params}),
+  {response, Response, State}.
+
+%%==============================================================================
+%% textDocument/preparePreparecallhierarchy
+%%==============================================================================
+
+-spec textdocument_preparecallhierarchy(params(), state()) -> result().
+textdocument_preparecallhierarchy(Params, State) ->
+  Provider = els_call_hierarchy_provider,
+  Response = els_provider:handle_request(Provider, {prepare, Params}),
+  {response, Response, State}.
+
+%%==============================================================================
+%% callHierarchy/incomingCalls
+%%==============================================================================
+
+-spec callhierarchy_incomingcalls(params(), state()) -> result().
+callhierarchy_incomingcalls(Params, State) ->
+  Provider = els_call_hierarchy_provider,
+  Response = els_provider:handle_request(Provider, {incoming_calls, Params}),
+  {response, Response, State}.
+
+%%==============================================================================
+%% callHierarchy/outgoingCalls
+%%==============================================================================
+
+-spec callhierarchy_outgoingcalls(params(), state()) -> result().
+callhierarchy_outgoingcalls(Params, State) ->
+  Provider = els_call_hierarchy_provider,
+  Response = els_provider:handle_request(Provider, {outgoing_calls, Params}),
   {response, Response, State}.
 
 %%==============================================================================

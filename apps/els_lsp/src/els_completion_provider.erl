@@ -601,7 +601,7 @@ bifs(function, ExportFormat) ->
   BIFs = [ #{ kind  => function
             , id    => X
             , range => Range
-            , data  => generate_arguments("Arg", A)
+            , data  => #{args => generate_arguments("Arg", A)}
             }
            || {F, A} = X <- Exports, erl_internal:bif(F, A)
          ],
@@ -628,7 +628,7 @@ bifs(type_definition, false = ExportFormat) ->
   POIs = [ #{ kind  => type_definition
             , id    => X
             , range => Range
-            , data  => generate_arguments("Type", A)
+            , data  => #{args => generate_arguments("Type", A)}
             }
            || {_, A} = X <- Types
          ],
@@ -662,9 +662,10 @@ completion_item(POI, ExportFormat) ->
   completion_item(POI, #{}, ExportFormat).
 
 -spec completion_item(poi(), map(), ExportFormat :: boolean()) -> map().
-completion_item(#{kind := Kind, id := {F, A}, data := ArgsNames}, Data, false)
+completion_item(#{kind := Kind, id := {F, A}, data := POIData}, Data, false)
   when Kind =:= function;
        Kind =:= type_definition ->
+  ArgsNames = maps:get(args, POIData),
   Label = io_lib:format("~p/~p", [F, A]),
   #{ label            => els_utils:to_binary(Label)
    , kind             => completion_item_kind(Kind)
