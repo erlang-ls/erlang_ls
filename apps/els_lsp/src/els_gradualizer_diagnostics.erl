@@ -77,9 +77,7 @@ start_and_load() ->
             end,
             true;
         {ok, []} ->
-            true;
-        _ ->
-            false
+            true
     catch E:R ->
             ?LOG_ERROR("Could not start gradualizer: ~p ~p", [E, R]),
             false
