@@ -157,39 +157,15 @@ diagnostics(Path, List, Severity) ->
   Uri = els_uri:uri(els_utils:to_binary(Path)),
   case els_utils:lookup_document(Uri) of
     {ok, Document} ->
-      lists:flatten([[ diagnostic( Path
-                                 , MessagePath
-                                 , range(Document, Anno)
-                                 , Document
+      lists:flatten([[ diagnostic( range(Document, Anno)
                                  , Module
                                  , Desc
                                  , Severity)
                        || {Anno, Module, Desc} <- Info]
-                     || {MessagePath, Info} <- List]);
+                     || {_MessagePath, Info} <- List]);
     {error, _Error} ->
       []
   end.
-
--spec diagnostic( string()
-                , string()
-                , poi_range()
-                , els_dt_document:item()
-                , module()
-                , string()
-                , integer()) -> els_diagnostics:diagnostic().
-diagnostic(Path, Path, Range, _Document, Module, Desc, Severity) ->
-  %% The compiler message is related to the same .erl file, so
-  %% preserve the location information.
-  diagnostic(Range, Module, Desc, Severity);
-diagnostic(_Path, MessagePath, Range, Document, Module, Desc0, Severity) ->
-  #{from := {Line, _}} = Range,
-  {Dependency, InclusionRange} = inclusion_range(MessagePath, Document),
-  %% The compiler message is related to an included file. Replace the
-  %% original location with the location of the file inclusion.
-  %% And re-route the format_error call to this module as a no-op
-  Desc1 = Module:format_error(Desc0),
-  Desc = io_lib:format("Issues in ~p (~p): ~s", [Dependency, Line, Desc1]),
-  diagnostic(InclusionRange, ?MODULE, Desc, Severity).
 
 -spec diagnostic(poi_range(), module(), string(), integer()) ->
         els_diagnostics:diagnostic().
@@ -723,8 +699,7 @@ diagnostics_options_bare() ->
         , [els_diagnostics:diagnostic()]}.
 compile_file(Path, Dependencies) ->
   %% Load dependencies required for the compilation
-  Olds = [load_dependency(Dependency, Path)
-          || Dependency <- Dependencies
+  Olds = [load_dependency(Path, Dependency) || Dependency <- Dependencies
                , not code:is_sticky(Dependency) ],
   Res = compile:file(Path, diagnostics_options()),
   %% Restore things after compilation
@@ -735,10 +710,10 @@ compile_file(Path, Dependencies) ->
 
 %% @doc Load a dependency, return the old version of the code (if any),
 %% so it can be restored.
--spec load_dependency(atom(), string()) ->
+-spec load_dependency(string(), atom()) ->
         {{atom(), binary(), file:filename()}, [els_diagnostics:diagnostic()]}
           | error.
-load_dependency(Module, IncludingPath) ->
+load_dependency(Path, Module) ->
   Old = code:get_object_code(Module),
   Diagnostics =
     case els_utils:find_module(Module) of
@@ -751,12 +726,18 @@ load_dependency(Module, IncludingPath) ->
           {ok, Module, Binary} ->
             code:load_binary(Module, atom_to_list(Module), Binary),
             [];
-          {ok, Module, Binary, WS} ->
+          {ok, Module, Binary, _WS} ->
             code:load_binary(Module, atom_to_list(Module), Binary),
-            diagnostics(IncludingPath, WS, ?DIAGNOSTIC_WARNING);
-          {error, ES, WS} ->
-            diagnostics(IncludingPath, WS, ?DIAGNOSTIC_WARNING) ++
-              diagnostics(IncludingPath, ES, ?DIAGNOSTIC_ERROR)
+            [];
+          {error, ES, _WS} ->
+            {MessagePath, _Info} = ES,
+            Uri = els_uri:uri(els_utils:to_binary(Path)),
+            case els_utils:lookup_document(Uri) of
+              {ok, Document} ->
+                Range = inclusion_range(MessagePath, Document),
+                Desc = "Issues in ",
+                [diagnostic(Range, ?MODULE, Desc, ?DIAGNOSTIC_WARNING)]
+            end
         end;
       {error, Error} ->
         ?LOG_WARNING( "Error finding dependency [module=~p] [error=~p]"

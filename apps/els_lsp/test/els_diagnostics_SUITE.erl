@@ -275,17 +275,20 @@ compiler_with_behaviour(Config) ->
 %% Testing #614
 -spec compiler_with_broken_behaviour(config()) -> ok.
 compiler_with_broken_behaviour(Config) ->
+  dbg:tracer(),
+  dbg:p(all, c),
+  dbg:tpl(els_compiler_diagnostics, debug, x),
   Uri = ?config(code_navigation_uri, Config),
   els_mock_diagnostics:subscribe(),
   ok = els_client:did_save(Uri),
   Diagnostics = els_mock_diagnostics:wait_until_complete(),
   ?assertEqual(24, length(Diagnostics)),
   Warnings = [D || #{severity := ?DIAGNOSTIC_WARNING} = D <- Diagnostics],
-  ?assertEqual(18, length(Warnings)),
+  ?assertEqual(19, length(Warnings)),
   Errors = [D || #{severity := ?DIAGNOSTIC_ERROR} = D <- Diagnostics],
-  ?assertEqual(6, length(Errors)),
-  [BehaviourError | _ ] = Errors,
-  ExpectedError =
+  ?assertEqual(5, length(Errors)),
+  [BehaviourWarning] = [D || #{code := <<"L0000">>} = D <- Warnings],
+  ExpectedWarning =
         #{message =>
               <<"Issue in included file (5): syntax error before: ">>
          , range =>
@@ -294,7 +297,7 @@ compiler_with_broken_behaviour(Config) ->
          , severity => 1
          , source => <<"Compiler">>
          , code => <<"L0000">>},
-  ?assertEqual(ExpectedError, BehaviourError),
+  ?assertEqual(ExpectedWarning, BehaviourWarning),
   ok.
 
 -spec compiler_with_custom_macros(config()) -> ok.
