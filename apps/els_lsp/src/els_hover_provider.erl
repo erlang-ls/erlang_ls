@@ -83,7 +83,7 @@ run_hover_job(Uri, Line, Character) ->
   {ok, Pid} = els_background_job:new(Config),
   Pid.
 
--spec get_docs({uri(), [poi()]}, undefined) -> map() | null.
+-spec get_docs({uri(), integer(), integer()}, undefined) -> map() | null.
 get_docs({Uri, Line, Character}, _) ->
   {ok, Doc} = els_utils:lookup_document(Uri),
   POIs = els_dt_document:get_element_at_pos(Doc, Line + 1, Character + 1),
