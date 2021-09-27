@@ -71,10 +71,8 @@ cancel_request(Job, State) ->
 
 -spec run_hover_job(uri(), line(), column()) -> pid().
 run_hover_job(Uri, Line, Character) ->
-  {ok, Doc} = els_utils:lookup_document(Uri),
-  POIs = els_dt_document:get_element_at_pos(Doc, Line + 1, Character + 1),
   Config = #{ task => fun get_docs/2
-            , entries => [{Uri, POIs}]
+            , entries => [{Uri, Line, Character}]
             , title => <<"Hover">>
             , on_complete =>
                 fun(HoverResp) ->
@@ -86,7 +84,9 @@ run_hover_job(Uri, Line, Character) ->
   Pid.
 
 -spec get_docs({uri(), [poi()]}, undefined) -> map() | null.
-get_docs({Uri, POIs}, _) ->
+get_docs({Uri, Line, Character}, _) ->
+  {ok, Doc} = els_utils:lookup_document(Uri),
+  POIs = els_dt_document:get_element_at_pos(Doc, Line + 1, Character + 1),
   do_get_docs(Uri, POIs).
 
 
