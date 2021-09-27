@@ -231,8 +231,8 @@ textdocument_documentsymbol(Params, State) ->
 -spec textdocument_hover(params(), state()) -> result().
 textdocument_hover(Params, State) ->
   Provider = els_hover_provider,
-  Response = els_provider:handle_request(Provider, {hover, Params}),
-  {response, Response, State}.
+  Job = els_provider:handle_request(Provider, {hover, Params}),
+  {noresponse, {Provider, Job}, State}.
 
 %%==============================================================================
 %% textDocument/completion
