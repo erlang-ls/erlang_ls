@@ -174,6 +174,9 @@ sources() ->
   , rename_usage1
   , rename_usage2
   , rename_variable
+  , call_hierarchy_a
+  , call_hierarchy_b
+  , call_hierarchy_c
   ].
 
 tests() ->

@@ -26,6 +26,10 @@
         , pois/2
         , get_element_at_pos/3
         , uri/1
+        , functions_at_pos/3
+        , applications_at_pos/3
+        , wrapping_functions/2
+        , wrapping_functions/3
         ]).
 
 %%==============================================================================
@@ -168,3 +172,27 @@ get_element_at_pos(Item, Line, Column) ->
 -spec uri(item()) -> uri().
 uri(#{ uri := Uri }) ->
   Uri.
+
+-spec functions_at_pos(item(), non_neg_integer(), non_neg_integer()) -> [poi()].
+functions_at_pos(Item, Line, Column) ->
+  POIs = get_element_at_pos(Item, Line, Column),
+  [POI || #{kind := 'function'} = POI <- POIs].
+
+-spec applications_at_pos(item(), non_neg_integer(), non_neg_integer()) ->
+        [poi()].
+applications_at_pos(Item, Line, Column) ->
+  POIs = get_element_at_pos(Item, Line, Column),
+  [POI || #{kind := 'application'} = POI <- POIs].
+
+-spec wrapping_functions(item(), non_neg_integer(), non_neg_integer()) ->
+        [poi()].
+wrapping_functions(Document, Line, Column) ->
+  Range = #{from => {Line, Column}, to => {Line, Column}},
+  Functions = pois(Document, ['function']),
+  [F || #{data := #{ wrapping_range := WR}} = F <- Functions,
+        els_range:in(Range, WR)].
+
+-spec wrapping_functions(item(), range()) -> [poi()].
+wrapping_functions(Document, Range) ->
+  #{start := #{character := Character, line := Line}} = Range,
+  wrapping_functions(Document, Line, Character).

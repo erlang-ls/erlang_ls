@@ -7,7 +7,9 @@
         ]).
 
 %% For use in other providers
--export([ find_scoped_references_for_def/2 ]).
+-export([ find_references/2
+        , find_scoped_references_for_def/2
+        ]).
 
 %%==============================================================================
 %% Includes

@@ -16,6 +16,9 @@
         , to_binary/1
         , to_list/1
         , compose_node_name/2
+        , function_signature/1
+        , base64_encode_term/1
+        , base64_decode_term/1
         ]).
 
 
@@ -417,3 +420,21 @@ compose_node_name(Name, Type) ->
       Domain = proplists:get_value(domain, inet:get_rc(), ""),
       list_to_atom(NodeName ++ "." ++ Domain)
   end.
+
+%% @doc Given an MFA or a FA, return a printable version of the
+%% function signature, in binary format.
+-spec function_signature( {atom(), atom(), non_neg_integer()} |
+                          {atom(), non_neg_integer()}) ->
+        binary().
+function_signature({M, F, A}) ->
+  els_utils:to_binary(io_lib:format("~p:~ts/~p", [M, F, A]));
+function_signature({F, A}) ->
+  els_utils:to_binary(io_lib:format("~ts/~p", [F, A])).
+
+-spec base64_encode_term(any()) -> binary().
+base64_encode_term(Term) ->
+  els_utils:to_binary(base64:encode_to_string(term_to_binary(Term))).
+
+-spec base64_decode_term(binary()) -> any().
+base64_decode_term(Base64) ->
+  binary_to_term(base64:decode(Base64)).

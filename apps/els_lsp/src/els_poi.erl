@@ -35,6 +35,7 @@ new(Range, Kind, Id, Data) ->
    , range => Range
    }.
 
+
 -spec match_pos([poi()], pos()) -> [poi()].
 match_pos(POIs, Pos) ->
   [POI || #{range := #{ from := From
