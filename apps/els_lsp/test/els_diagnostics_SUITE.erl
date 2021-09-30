@@ -38,6 +38,7 @@
         , unused_includes_compiler_attribute/1
         , exclude_unused_includes/1
         , unused_macros/1
+        , unused_record_fields/1
         ]).
 
 %%==============================================================================
@@ -279,10 +280,12 @@ compiler_with_broken_behaviour(Config) ->
   els_mock_diagnostics:subscribe(),
   ok = els_client:did_save(Uri),
   Diagnostics = els_mock_diagnostics:wait_until_complete(),
-  ?assertEqual(24, length(Diagnostics)),
-  Warnings = [D || #{severity := ?DIAGNOSTIC_WARNING} = D <- Diagnostics],
-  ?assertEqual(18, length(Warnings)),
-  Errors = [D || #{severity := ?DIAGNOSTIC_ERROR} = D <- Diagnostics],
+  CompilerDiagnostics = [D || #{source := <<"Compiler">>} = D <- Diagnostics],
+  ?assertEqual(22, length(CompilerDiagnostics)),
+  Warnings = [D || #{severity := ?DIAGNOSTIC_WARNING} = D
+                     <- CompilerDiagnostics],
+  ?assertEqual(16, length(Warnings)),
+  Errors = [D || #{severity := ?DIAGNOSTIC_ERROR} = D <- CompilerDiagnostics],
   ?assertEqual(6, length(Errors)),
   [BehaviourError | _ ] = Errors,
   ExpectedError =
@@ -608,18 +611,7 @@ crossref(Config) ->
                      , start => #{character => 2, line => 6}}
                 , severity => 1
                 , source => <<"CrossRef">>
-                }] ++
-             fixcolumns(
-               [#{ message =>
-                       <<"function non_existing/0 undefined">>
-                 , range =>
-                       #{ 'end' => #{character => 14, line => 6}
-                        , start => #{character => 2, line => 6}}
-                 , severity => 1
-                 , source => <<"Compiler">>
-                 , code => <<"L1227">>
-                 }
-               ], Config),
+                }],
   do_crossref_test(Config, diagnostics_xref_uri, Expected).
 
 
@@ -629,8 +621,9 @@ do_crossref_test(Config, TestModule, ExpectedDiagnostics) ->
   els_mock_diagnostics:subscribe(),
   ok = els_client:did_save(Uri),
   Diagnostics = els_mock_diagnostics:wait_until_complete(),
+  CrossRefDiagnostics = [D || #{source := <<"CrossRef">>} = D <- Diagnostics],
   F = fun(#{message := M1}, #{message := M2}) -> M1 =< M2 end,
-  ?assertEqual(ExpectedDiagnostics, lists:sort(F, Diagnostics)),
+  ?assertEqual(ExpectedDiagnostics, lists:sort(F, CrossRefDiagnostics)),
   ok.
 
 %% #641
@@ -674,14 +667,7 @@ crossref_autoimport_disabled(Config) ->
   %% This testcase cannot be run from an Erlang source tree version,
   %% it needs a released version.
 
-  Expected =
-    fixcolumns(
-      [#{message =>
-         <<"function atom_to_list/1 undefined">>,
-       range =>
-         #{'end' => #{character => 22, line => 6},
-           start => #{character => 4, line => 6}},
-       severity => 1, source => <<"Compiler">>, code => <<"L1227">>}], Config),
+  Expected = [],
   do_crossref_test(Config, diagnostics_autoimport_disabled_uri, Expected).
 
 -spec unused_includes(config()) -> ok.
@@ -767,6 +753,25 @@ unused_macros(Config) ->
                      }
                 , severity => 2
                 , source => <<"UnusedMacros">>
+                }
+             ],
+  F = fun(#{message := M1}, #{message := M2}) -> M1 =< M2 end,
+  ?assertEqual(Expected, lists:sort(F, Diagnostics)),
+  ok.
+
+-spec unused_record_fields(config()) -> ok.
+unused_record_fields(Config) ->
+  Uri = ?config(diagnostics_unused_record_fields_uri, Config),
+  els_mock_diagnostics:subscribe(),
+  ok = els_client:did_save(Uri),
+  Diagnostics = els_mock_diagnostics:wait_until_complete(),
+  Expected = [ #{ message => <<"Unused record field: unused_field/field_d">>
+                , range =>
+                    #{ 'end' => #{character => 39, line => 5}
+                     , start => #{character => 32, line => 5}
+                     }
+                , severity => 2
+                , source => <<"UnusedRecordFields">>
                 }
              ],
   F = fun(#{message := M1}, #{message := M2}) -> M1 =< M2 end,

@@ -128,6 +128,7 @@ initialize_diagnostics_custom(Config) ->
              , <<"dialyzer">>
              , <<"unused_includes">>
              , <<"unused_macros">>
+             , <<"unused_record_fields">>
              ],
   Result = els_diagnostics:enabled_diagnostics(),
   ?assertEqual(Expected, Result),
@@ -148,6 +149,7 @@ initialize_diagnostics_invalid(Config) ->
              , <<"elvis">>
              , <<"unused_includes">>
              , <<"unused_macros">>
+             , <<"unused_record_fields">>
              ],
   ?assertEqual(Expected, Result),
   ok.
