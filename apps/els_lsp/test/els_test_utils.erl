@@ -156,6 +156,7 @@ sources() ->
   , diagnostics_unused_includes
   , diagnostics_unused_includes_compiler_attribute
   , diagnostics_unused_macros
+  , diagnostics_unused_record_fields
   , elvis_diagnostics
   , execute_command_suggest_spec
   , format_input
