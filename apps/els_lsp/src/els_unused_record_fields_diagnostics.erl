@@ -55,19 +55,13 @@ source() ->
 find_unused_record_fields(Document) ->
   Definitions = els_dt_document:pois(Document, [record_def_field]),
   Usages = els_dt_document:pois(Document, [record_field]),
-  UsagesIds = [Id || #{id := Id} <- Usages],
+  UsagesIds = lists:usort([Id || #{id := Id} <- Usages]),
   [POI || #{id := Id} = POI <- Definitions, not lists:member(Id, UsagesIds)].
 
 -spec make_diagnostic(poi()) -> els_diagnostics:diagnostic().
-make_diagnostic(#{id := POIId, range := POIRange}) ->
+make_diagnostic(#{id := {RecName, RecField}, range := POIRange}) ->
   Range = els_protocol:range(POIRange),
-  FullName =
-    case POIId of
-      {RecordName, RecordField} ->
-      els_utils:to_binary(
-        lists:flatten(io_lib:format("~p/~p", [RecordName, RecordField])));
-    Id -> atom_to_binary(Id, utf8)
-  end,
+  FullName = els_utils:to_binary(io_lib:format("#~p.~p", [RecName, RecField])),
   Message = <<"Unused record field: ", FullName/binary>>,
   Severity = ?DIAGNOSTIC_WARNING,
   Source = source(),

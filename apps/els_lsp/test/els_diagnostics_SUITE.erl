@@ -765,7 +765,7 @@ unused_record_fields(Config) ->
   els_mock_diagnostics:subscribe(),
   ok = els_client:did_save(Uri),
   Diagnostics = els_mock_diagnostics:wait_until_complete(),
-  Expected = [ #{ message => <<"Unused record field: unused_field/field_d">>
+  Expected = [ #{ message => <<"Unused record field: #unused_field.field_d">>
                 , range =>
                     #{ 'end' => #{character => 39, line => 5}
                      , start => #{character => 32, line => 5}
