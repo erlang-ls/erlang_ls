@@ -8,6 +8,7 @@
 %%==============================================================================
 -export([ docs/2
         , function_docs/4
+        , shell_docs/3
         ]).
 
 %%==============================================================================
@@ -81,21 +82,22 @@ docs(_Uri, _POI) ->
 -spec function_docs(application_type(), atom(), atom(), non_neg_integer()) ->
         [els_markup_content:doc_entry()].
 function_docs(Type, M, F, A) ->
-  Signature = signature(Type, M, F, A),
-  Clauses = function_clauses(M, F, A),
-  WebLinks = web_links(M, F, A),
-  Docs = case shell_docs(M, F, A) of
-           {ok, ShellDocs} ->
-             [{text, ShellDocs}];
-           {error, not_available} ->
-             lists:append(specs(M, F, A), edoc(M, F, A))
-         end,
-  L = [ [{h2, Signature}]
-      , Clauses
-      , WebLinks
-      , Docs
-      ],
-  lists:append(L).
+    case shell_docs(M, F, A) of
+        {ok, ShellDocs} ->
+            [{text, ShellDocs}];
+        {error, Error} ->
+            Signature = signature(Type, M, F, A),
+            Clauses = function_clauses(M, F, A),
+            WebLinks = web_links(M, F, A),
+            Docs = lists:append(specs(M, F, A), edoc(M, F, A)),
+            L = [ [{h2, Signature}]
+                , [{h4, "This function is internal."} || Error =:= hidden]
+                , Clauses
+                , [WebLinks || Error =/= hidden]
+                , Docs
+                ],
+            lists:append(L)
+    end.
 
 -spec get_valuetext(uri(), map()) -> list().
 get_valuetext(DefUri, #{from := From, to := To}) ->
@@ -126,7 +128,9 @@ shell_docs(M, F, A) ->
     {ok, #docs_v1{ format = ?NATIVE_FORMAT
                  , module_doc = MDoc
                  } = DocChunk} when MDoc =/= none ->
-      case shell_docs:render(M, F, A, DocChunk) of
+      case els_shell_docs:render(M, F, A, DocChunk, #{ columns => 1000000 }) of
+        {error, function_missing} ->
+          {error, hidden};
         {error, _R0} ->
           {error, not_available};
         ShellDocs ->
@@ -149,6 +153,7 @@ shell_docs(M, F, A) ->
 -spec get_doc_chunk(M :: module()) -> {ok, term()} | error.
 get_doc_chunk(M) ->
   {ok, Uri} = els_utils:find_module(M),
+
   SrcDir    = filename:dirname(els_utils:to_list(els_uri:path(Uri))),
   BeamFile  = filename:join([SrcDir, "..", "ebin", lists:concat([M, ".beam"])]),
   ChunkFile = filename:join([SrcDir, "..", "doc", "chunks",
