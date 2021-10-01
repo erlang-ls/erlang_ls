@@ -17,27 +17,19 @@
 %%
 %% %CopyrightEnd%
 %%
--module(shell_docs).
+-module(els_shell_docs).
 
 %% This module takes care of rendering and normalization of
 %% application/erlang+html style documentation.
 
-
-%% IMPORTANT!!
-%% When changing the rendering in the module, there are no tests as such
-%% that you do not break anything else. So you should use the function
-%% shell_docs_SUITE:render_all(Dir) to write all documentation to that
-%% folder and then you can use `diff -b` to see if you inadvertently changed
-%% something.
+%% It is a copy of shell_docs.erl from the erlang/otp repo that
+%% has been modified to emit markdown instead of shell.
 
 -include_lib("kernel/include/eep48.hrl").
 
 -export([render/2, render/3, render/4, render/5]).
 -export([render_type/2, render_type/3, render_type/4, render_type/5]).
 -export([render_callback/2, render_callback/3, render_callback/4, render_callback/5]).
-
-%% Used by chunks.escript in erl_docgen
--export([validate/1, normalize/1, supported_tags/0]).
 
 %% Convinience functions
 -export([get_doc/1, get_doc/3, get_type_doc/3, get_callback_doc/3]).
@@ -51,7 +43,7 @@
                   columns
                 }).
 
--define(ALL_ELEMENTS,[a,p,'div',br,h1,h2,h3,h4,h5,h6,
+-define(ALL_ELEMENTS,[a,p,'div',br,h1,h2,h3,h4,h5,h6,hr,
                       i,b,em,strong,pre,code,ul,ol,li,dl,dt,dd]).
 %% inline elements are:
 -define(INLINE,[i,b,em,strong,code,a]).
@@ -59,7 +51,7 @@
                          orelse ((ELEM) =:= i) orelse ((ELEM) =:= em)
                          orelse ((ELEM) =:= b) orelse ((ELEM) =:= strong))).
 %% non-inline elements are:
--define(BLOCK,[p,'div',pre,br,ul,ol,li,dl,dt,dd,h1,h2,h3,h4,h5,h6]).
+-define(BLOCK,[p,'div',pre,br,ul,ol,li,dl,dt,dd,h1,h2,h3,h4,h5,h6,hr]).
 -define(IS_BLOCK(ELEM),not ?IS_INLINE(ELEM)).
 -define(IS_PRE(ELEM),(((ELEM) =:= pre))).
 
@@ -80,111 +72,6 @@
                                     ol | li | dl | dt | dd |
                                     h1 | h2 | h3 | h4 | h5 | h6.
 
--spec supported_tags() -> [chunk_element_type()].
-supported_tags() ->
-    ?ALL_ELEMENTS.
-
--spec validate(Module) -> ok when
-      Module :: module() | docs_v1().
-%% Simple validation of erlang doc chunk. Check that all tags are supported and
-%% that the signature is correct.
-validate(Module) when is_atom(Module) ->
-    {ok, Doc} = code:get_doc(Module),
-    validate(Doc);
-validate(#docs_v1{ module_doc = MDocs, docs = AllDocs }) ->
-
-    %% Check some macro in-variants
-    AE = lists:sort(?ALL_ELEMENTS),
-    AE = lists:sort(?INLINE ++ ?BLOCK),
-    true = lists:all(fun(Elem) -> ?IS_INLINE(Elem) end, ?INLINE),
-    true = lists:all(fun(Elem) -> ?IS_BLOCK(Elem) end, ?BLOCK),
-
-    _ = validate_docs(MDocs),
-    lists:foreach(fun({_,_Anno, Sig, Docs, _Meta}) ->
-                          case lists:all(fun erlang:is_binary/1, Sig) of
-                              false -> throw({invalid_signature,Sig});
-                              true -> ok
-                          end,
-                          validate_docs(Docs)
-                  end, AllDocs),
-    ok.
-
-validate_docs(hidden) ->
-    ok;
-validate_docs(none) ->
-    ok;
-validate_docs(#{} = MDocs) ->
-    maps:foreach(fun(_Key,MDoc) -> validate_docs(MDoc,[]) end, MDocs),
-    ok.
-validate_docs([H|T],Path) when is_tuple(H) ->
-    _ = validate_docs(H,Path),
-    validate_docs(T,Path);
-validate_docs({br,Attr,Content} = Br,Path) ->
-    if Attr =:= [], Content =:= [] ->
-            ok;
-       true ->
-            throw({content_to_allowed_in_br,Br,Path})
-    end;
-validate_docs({Tag,Attr,Content},Path) ->
-
-    %% Test that we only have li's within ul and ol
-    case (Tag =/= li) andalso (length(Path) > 0) andalso ((hd(Path) =:= ul) orelse (hd(Path) =:= ol)) of
-        true ->
-            throw({only_li_allowed_within_ul_or_ol,Tag,Path});
-        _ ->
-            ok
-    end,
-
-    %% Test that we only have dd's and dt's within dl
-    case (Tag =/= dd) andalso (Tag =/= dt) andalso (length(Path) > 0) andalso (hd(Path) =:= dl) of
-        true ->
-            throw({only_dd_or_dt_allowed_within_dl,Tag,Path});
-        _ ->
-            ok
-    end,
-
-    %% Test that we do not have p's within p's
-    case Tag =:= p andalso lists:member(p, Path) of
-        true ->
-            throw({nested_p_not_allowed,Tag,Path});
-        false ->
-            ok
-    end,
-    %% Test that there are no block tags within a pre, h*
-    case lists:member(pre,Path) or
-        lists:any(fun(H) -> lists:member(H,Path) end, [h1,h2,h3,h4,h5,h6]) of
-        true when ?IS_BLOCK(Tag) ->
-            throw({cannot_put_block_tag_within_pre,Tag,Path});
-        _ ->
-            ok
-    end,
-    %% Test that a block tag is not within an inline tag
-    case lists:member(Tag,?BLOCK) of
-        true ->
-            case lists:any(fun(P) -> ?IS_INLINE(P) end, Path) of
-                true ->
-                    throw({cannot_put_inline_tag_outside_block, Tag, Path});
-                false ->
-                    ok
-            end;
-        false ->
-            ok
-    end,
-    case lists:member(Tag,?ALL_ELEMENTS) of
-        false ->
-            throw({invalid_tag,Tag,Path});
-        true ->
-            ok
-    end,
-    case lists:all(fun({Key,Val}) -> is_atom(Key) andalso is_binary(Val) end,Attr) of
-        true -> ok;
-        false -> throw({invalid_attribute,{Tag,Attr}})
-    end,
-    validate_docs(Content,[Tag | Path]);
-validate_docs([Chars | T], Path) when is_binary(Chars) ->
-    validate_docs(T, Path);
-validate_docs([],_) ->
-    ok.
 
 %% Follows algorithm described here:
 %% * https://medium.com/@patrickbrosset/when-does-white-space-matter-in-html-b90e8a7cdd33
@@ -374,8 +261,9 @@ render(Module, #docs_v1{ } = D) when is_atom(Module) ->
       Res :: unicode:chardata() | {error,function_missing}.
 render(Module, #docs_v1{ module_doc = ModuleDoc } = D, Config)
   when is_atom(Module), is_map(Config) ->
-    render_headers_and_docs([[{h2,[],[<<"\t",(atom_to_binary(Module))/binary>>]}]],
-                            get_local_doc(Module, ModuleDoc, D), D, Config);
+    render_headers_and_docs(
+      [[{h2,[],[<<"  "/utf8,(atom_to_binary(Module))/binary>>]}]],
+      get_local_doc(Module, ModuleDoc, D), D, Config);
 render(_Module, Function, #docs_v1{ } = D) ->
     render(_Module, Function, D, #{}).
 
@@ -602,23 +490,23 @@ render_function(FDocs, #docs_v1{ docs = Docs } = D, Config) ->
           end, #{}, lists:sort(FDocs)),
     lists:map(
       fun({Group,Members}) ->
-              Signatures = lists:flatmap(fun render_signature/1,lists:reverse(Members)),
-              case lists:search(fun({_,_,_,Doc,_}) ->
-                                        Doc =/= #{}
-                                end, Members) of
-                  {value, {_,_,_,Doc,_Meta}} ->
-                      render_headers_and_docs(
-                        Signatures, get_local_doc(Group, Doc, D), D, Config);
-                  false ->
-                      case lists:keyfind(Group, 1, Docs) of
-                          false ->
-                              render_headers_and_docs(
-                                Signatures, get_local_doc(Group, none, D), D, Config);
-                          {_,_,_,Doc,_} ->
-                              render_headers_and_docs(
-                                Signatures, get_local_doc(Group, Doc, D), D, Config)
-                      end
-              end
+              lists:map(
+                fun(Member = {_,_,_,Doc,_}) ->
+                        Sig = render_signature(Member),
+                        LocalDoc =
+                            if Doc =:= #{} ->
+                                    case lists:keyfind(Group, 1, Docs) of
+                                        false ->
+                                            get_local_doc(Group, none, D);
+                                        {_,_,_,GroupDoc,_} ->
+                                            get_local_doc(Group, GroupDoc, D)
+                                    end;
+                               true ->
+                                    get_local_doc(Group, Doc, D)
+                        end,
+                        render_headers_and_docs(
+                          [Sig], LocalDoc, D, Config)
+                end, Members)
       end, maps:to_list(Grouping)).
 
 %% Render the signature of either function, type, or anything else really.
@@ -632,12 +520,13 @@ render_signature({{_Type,_F,_A},_Anno,_Sigs,_Docs,#{ signature := Specs } = Meta
                           %% We do not want show the internals of the opaque type
                           hd(string:split(PPSpec,"::"));
                       _ ->
-                          PPSpec
+                          trim_spec(PPSpec)
                   end,
               BinSpec =
                   unicode:characters_to_binary(
                     string:trim(Spec, trailing, "\n")),
-              [{pre,[],[{strong,[],BinSpec}]}|render_meta(Meta)]
+              [{pre,[],[{strong,[],BinSpec}]},
+               {hr,[],[]}|render_meta(Meta)]
       end, Specs);
 render_signature({{_Type,_F,_A},_Anno,Sigs,_Docs,Meta}) ->
     lists:flatmap(
@@ -645,35 +534,58 @@ render_signature({{_Type,_F,_A},_Anno,Sigs,_Docs,Meta}) ->
               [{h2,[],[<<"  "/utf8,Sig/binary>>]}|render_meta(Meta)]
       end, Sigs).
 
-render_meta(M) ->
-    case render_meta_(M) of
-        [] -> [];
-        Meta ->
-            [[{dl,[],Meta}]]
-    end.
-render_meta_(#{ since := Vsn } = M) ->
-    [{dt,[],<<"Since">>},{dd,[],[Vsn]}
-    | render_meta_(maps:remove(since, M))];
-render_meta_(#{ deprecated := Depr } = M) ->
-    [{dt,[],<<"Deprecated">>},{dd,[],[Depr]}
-    | render_meta_(maps:remove(deprecated, M))];
-render_meta_(_) ->
+trim_spec(Spec) ->
+    unicode:characters_to_binary(
+      string:trim(
+        lists:join($\n,trim_spec(string:split(Spec, "\n", all),0)),
+        trailing, "\n")).
+trim_spec(["-spec " ++ Spec|T], 0) ->
+    [Spec | trim_spec(T, 6)];
+trim_spec([H|T], N) ->
+    case re:run(H,io_lib:format("(\\s{~p}\\s+)when",[N]),[{capture,all_but_first}]) of
+        {match,[{0,Indent}]} ->
+            trim_spec([H|T],Indent);
+        nomatch ->
+            case string:trim(string:slice(H, 0, N),both) of
+                "" ->
+                    [re:replace(string:slice(H, N, infinity),"  "," ",[global])|trim_spec(T, N)];
+                _ ->
+                    [re:replace(H,"  "," ",[global])|trim_spec(T, N)]
+            end
+    end;
+trim_spec([], _N) ->
     [].
+
+
+render_meta(Meta) ->
+    case lists:flatmap(
+           fun({since,Vsn}) ->
+                   [{em,[],<<"Since:">>}, <<" ">>, Vsn];
+              ({ deprecated, Depr }) ->
+                   [{em,[],<<"Deprecated: ">>}, <<" ">>, Depr];
+              (_) -> []
+           end, maps:to_list(Meta)) of
+        [] ->
+            [];
+        Docs ->
+            [Docs]
+    end.
 
 render_headers_and_docs(Headers, DocContents, D, Config) ->
     render_headers_and_docs(Headers, DocContents, init_config(D, Config)).
 render_headers_and_docs(Headers, DocContents, #config{} = Config) ->
-    ["\n",render_docs(
+    io:format("~p",[DocContents]),
+    [render_docs(
        lists:flatmap(
          fun(Header) ->
                  [{br,[],[]},Header]
-         end,Headers), Config),
+         end, Headers), Config),
      "\n",
-     render_docs(DocContents, 2, Config)].
+     render_docs(DocContents, 0, Config)].
 
 %%% Functions for rendering type/callback documentation
 render_signature_listing(Module, Type, #docs_v1{ docs = Docs } = D, Config) ->
-    Slogan = [{h2,[],[<<"\t",(atom_to_binary(Module))/binary>>]},{br,[],[]}],
+    Slogan = [{h2,[],[<<"  "/utf8,(atom_to_binary(Module))/binary>>]},{br,[],[]}],
     case lists:filter(fun({{T, _, _},_Anno,_Sig,_Doc,_Meta}) ->
                               Type =:= T
                       end, Docs) of
@@ -708,13 +620,8 @@ render_docs(DocContents, #config{} = Config) ->
 render_docs(DocContents, D, Config) when is_map(Config) ->
     render_docs(DocContents, 0, init_config(D, Config));
 render_docs(DocContents, Ind, D = #config{}) when is_integer(Ind) ->
-    init_ansi(D),
-    try
-        {Doc,_} = trimnl(render_docs(DocContents, [], 0, Ind, D)),
-        Doc
-    after
-        clean_ansi()
-    end.
+    {Doc,_} = trimnl(render_docs(DocContents, [], 0, Ind, D)),
+    Doc.
 
 init_config(D, Config) ->
     DefaultOpts = io:getopts(),
@@ -738,11 +645,12 @@ init_config(D, Config) ->
            }.
 
 render_docs(Elems,State,Pos,Ind,D) when is_list(Elems) ->
-    lists:mapfoldl(fun(Elem,P) ->
-%%%                           io:format("Elem: ~p (~p) (~p,~p)~n",[Elem,State,P,Ind]),
-                           render_docs(Elem,State,P,Ind,D)
-                   end,Pos,Elems);
+    lists:mapfoldl(
+      fun(Elem,P) ->
+              render_docs(Elem,State,P,Ind,D)
+      end,Pos,Elems);
 render_docs(Elem,State,Pos,Ind,D) ->
+%    io:format("Elem: ~p (~p) (~p,~p)~n",[Elem,State,Pos,Ind]),
     render_element(Elem,State,Pos,Ind,D).
 
 
@@ -768,18 +676,29 @@ render_docs(Elem,State,Pos,Ind,D) ->
                      Config :: #config{}) ->
           {unicode:chardata(), Pos :: non_neg_integer()}.
 
-render_element({IgnoreMe,_,Content}, State, Pos, Ind,D)
-  when IgnoreMe =:= a ->
-    render_docs(Content, State, Pos, Ind,D);
+%% render_element({IgnoreMe,_,Content}, State, Pos, Ind,D)
+%%   when IgnoreMe =:= a ->
+%%     render_docs(Content, State, Pos, Ind,D);
 
 %% Catch h* before the padding is done as they reset padding
 render_element({h1,_,Content},State,0 = Pos,_Ind,D) ->
-    trimnlnl(render_element({code,[],[{strong,[],Content}]}, State, Pos, 0, D));
+    {Docs, NewPos} = render_docs(Content,State,Pos,0,D),
+    trimnlnl({["# ", Docs], NewPos});
 render_element({h2,_,Content},State,0 = Pos,_Ind,D) ->
-    trimnlnl(render_element({strong,[],Content}, State, Pos, 0, D));
-render_element({H,_,Content},State,Pos,_Ind,D)
-  when Pos =< 2, H =:= h3 orelse H =:= h4 orelse H =:= h5 orelse H =:= h6 ->
-    trimnlnl(render_element({code,[],Content}, State, Pos, 2, D));
+    {Docs, NewPos} = render_docs(Content,State,Pos,0,D),
+    trimnlnl({["## ", Docs], NewPos});
+render_element({h3,_,Content},State,Pos,_Ind,D) when Pos =< 2 ->
+    {Docs, NewPos} = render_docs(Content,State,Pos,0,D),
+    trimnlnl({["### ", Docs], NewPos});
+render_element({h4,_,Content},State,Pos,_Ind,D) when Pos =< 2 ->
+    {Docs, NewPos} = render_docs(Content,State,Pos,0,D),
+    trimnlnl({["#### ", Docs], NewPos});
+render_element({h5,_,Content},State,Pos,_Ind,D) when Pos =< 2 ->
+    {Docs, NewPos} = render_docs(Content,State,Pos,0,D),
+    trimnlnl({["##### ", Docs], NewPos});
+render_element({h6,_,Content},State,Pos,_Ind,D) when Pos =< 2 ->
+    {Docs, NewPos} = render_docs(Content,State,Pos,0,D),
+    trimnlnl({["###### ", Docs], NewPos});
 
 render_element({pre,_Attr,_Content} = E,State,Pos,Ind,D) when Pos > Ind ->
     %% We pad `pre` with two newlines if the previous section did not indent the region.
@@ -789,8 +708,10 @@ render_element({Elem,_Attr,_Content} = E,State,Pos,Ind,D) when Pos > Ind, ?IS_BL
     {Docs,NewPos} = render_element(E,State,0,Ind,D),
     {["\n",Docs],NewPos};
 render_element({'div',[{class,What}],Content},State,Pos,Ind,D) ->
-    {Docs,_} = render_docs(Content, ['div'|State], 0, Ind+2, D),
-    trimnlnl([pad(Ind - Pos),string:titlecase(What),":\n",Docs]);
+    Title = unicode:characters_to_binary([string:titlecase(What),":"]),
+    {Header, 0} = render_element({h3,[],[Title]},State,Pos,Ind,D),
+    {Docs, 0} = render_element({'div',[],Content},['div'|State], 0, Ind+2, D),
+    {[Header,Docs],0};
 render_element({Tag,_,Content},State,Pos,Ind,D) when Tag =:= p; Tag =:= 'div' ->
     trimnlnl(render_docs(Content, [Tag|State], Pos, Ind, D));
 
@@ -798,19 +719,51 @@ render_element(Elem,State,Pos,Ind,D) when Pos < Ind ->
     {Docs,NewPos} = render_element(Elem,State,Ind,Ind,D),
     {[pad(Ind - Pos), Docs],NewPos};
 
+render_element({a,Attr,Content}, State, Pos, Ind,D) ->
+    {Docs, NewPos} = render_docs(Content, State, Pos, Ind, D),
+    case proplists:get_value(rel,Attr) of
+        <<"https://erlang.org/doc/link/seemfa">> ->
+            Href = proplists:get_value(href, Attr),
+            [_App, MFA] = string:split(Href,":"),
+            [Mod, FA] = string:split(MFA,"#"),
+            [Func, Arity] = string:split(FA,"/"),
+            {["[",Docs,"](https://erlang.org/doc/man/",Mod,".html#",Func,"-",Arity,")"],NewPos};
+        <<"https://erlang.org/doc/link/seetype">> ->
+            Href = proplists:get_value(href, Attr),
+            case string:lexemes(Href,":#/") of
+                [_App, Mod, Type, Arity] ->
+                    {["[",Docs,"](https://erlang.org/doc/man/",Mod,".html#","type-",Type,"-",Arity,")"],NewPos};
+                [_App, Mod, Type] ->
+                    {["[",Docs,"](https://erlang.org/doc/man/",Mod,".html#","type-",Type,")"],NewPos}
+            end;
+        <<"https://erlang.org/doc/link/seeerl">> ->
+            Href = proplists:get_value(href, Attr),
+            [_App, Mod|Anchor] = string:lexemes(Href,":#"),
+            {["[",Docs,"](https://erlang.org/doc/man/",Mod,".html#",Anchor,")"],NewPos};
+        _ ->
+            {Docs,NewPos}
+    end;
+
 render_element({code,_,Content},[pre|_]  = State,Pos,Ind,D) ->
     %% When code is within a pre we don't emit any underline
     render_docs(Content, [code|State], Pos, Ind,D);
 render_element({code,_,Content},State,Pos,Ind,D) ->
-    Underline = sansi(underline),
     {Docs, NewPos} = render_docs(Content, [code|State], Pos, Ind,D),
-    {[Underline,Docs,ransi(underline)], NewPos};
+    {["`",Docs,"`"], NewPos};
 
 render_element({em,Attr,Content},State,Pos,Ind,D) ->
     render_element({i,Attr,Content},State,Pos,Ind,D);
 render_element({i,_,Content},State,Pos,Ind,D) ->
-    %% Just ignore i as ansi does not have cursive style
-    render_docs(Content, State, Pos, Ind,D);
+    {Docs, NewPos} = render_docs(Content, [i|State], Pos, Ind,D),
+    case lists:member(pre,State) of
+        true ->
+            {[Docs], NewPos};
+        false ->
+            {["*",Docs,"*"], NewPos}
+    end;
+
+render_element({hr,[],[]},_State,Pos,_Ind,_D) ->
+    {"---\n",Pos};
 
 render_element({br,[],[]},_State,Pos,_Ind,_D) ->
     {"",Pos};
@@ -818,17 +771,22 @@ render_element({br,[],[]},_State,Pos,_Ind,_D) ->
 render_element({strong,Attr,Content},State,Pos,Ind,D) ->
     render_element({b,Attr,Content},State,Pos,Ind,D);
 render_element({b,_,Content},State,Pos,Ind,D) ->
-    Bold = sansi(bold),
     {Docs, NewPos} = render_docs(Content, State, Pos, Ind,D),
-    {[Bold,Docs,ransi(bold)], NewPos};
+    case lists:member(pre,State) of
+        true ->
+            {[Docs], NewPos};
+        false ->
+            {["**",Docs,"**"], NewPos}
+    end;
 
 render_element({pre,_,Content},State,Pos,Ind,D) ->
     %% For pre we make sure to respect the newlines in pre
-    trimnlnl(render_docs(Content, [pre|State], Pos, Ind+2, D));
+    {Docs, _} = trimnl(render_docs(Content, [pre|State], Pos, Ind, D)),
+    trimnlnl(["```erlang\n",Docs,"```"]);
 
 render_element({ul,[{class,<<"types">>}],Content},State,_Pos,Ind,D) ->
-    {Docs, _} = render_docs(Content, [types|State], 0, Ind+2, D),
-    trimnlnl(["Types:\n", Docs]);
+    {Docs, _} = render_docs(Content, [types|State], 0, Ind, D),
+    trimnlnl(["```erlang\n", Docs,"```"]);
 render_element({li,Attr,Content},[types|_] = State,Pos,Ind,C) ->
     Doc =
         case {proplists:get_value(name, Attr),proplists:get_value(class, Attr)} of
@@ -854,24 +812,24 @@ render_element({li,Attr,Content},[types|_] = State,Pos,Ind,C) ->
         end,
     trimnl(Doc);
 render_element({ul,[],Content},State,Pos,Ind,D) ->
-    render_docs(Content, [l|State], Pos, Ind,D);
+    trimnlnl(render_docs(Content, [ul|State], Pos, Ind,D));
 render_element({ol,[],Content},State,Pos,Ind,D) ->
-    %% For now ul and ol does the same thing
-    render_docs(Content, [l|State], Pos, Ind,D);
-render_element({li,[],Content},[l | _] = State, Pos, Ind,D) ->
-    Bullet = get_bullet(State, D#config.encoding),
-    BulletLen = string:length(Bullet),
-    {Docs, _NewPos} = render_docs(Content, [li | State], Pos + BulletLen,Ind + BulletLen, D),
-    trimnlnl([Bullet,Docs]);
+    trimnlnl(render_docs(Content, [ol|State], Pos, Ind,D));
+render_element({li,[],Content},[ul | _] = State, Pos, Ind,D) ->
+    {Docs, _NewPos} = render_docs(Content, [li | State], Pos + 2,Ind + 2, D),
+    trimnl(["* ",Docs]);
+render_element({li,[],Content},[ol | _] = State, Pos, Ind,D) ->
+    {Docs, _NewPos} = render_docs(Content, [li | State], Pos + 2,Ind + 2, D),
+    trimnl(["1. ", Docs]);
 
 render_element({dl,_,Content},State,Pos,Ind,D) ->
-    render_docs(Content, [dl|State], Pos, Ind,D);
+    trimnlnl(render_docs(Content, [dl|State], Pos, Ind,D));
 render_element({dt,_,Content},[dl | _] = State,Pos,Ind,D) ->
-    Underline = sansi(underline),
-    {Docs, _NewPos} = render_docs(Content, [li | State], Pos, Ind, D),
-    {[Underline,Docs,ransi(underline),":","\n"], 0};
+    {Docs, NewPos} = trimnl(render_docs([{em,[],Content}], [li | State], Pos + 2, Ind + 2, D)),
+    {["* ", Docs, ""], NewPos};
 render_element({dd,_,Content},[dl | _] = State,Pos,Ind,D) ->
-    trimnlnl(render_docs(Content, [li | State], Pos, Ind + 2, D));
+    {Docs, _NewPos} = render_docs(Content, [li | State], Pos+2, Ind + 2, D),
+    trimnl([pad(2 + Ind - Pos), Docs]);
 
 render_element(B, State, Pos, Ind,#config{ columns = Cols }) when is_binary(B) ->
     case lists:member(pre,State) of
@@ -937,25 +895,7 @@ nlpad(N) ->
     pad(N,"\n").
 pad(N, Extra) ->
     Pad = lists:duplicate(N," "),
-    case ansi() of
-        undefined ->
-            [Extra, Pad];
-        Ansi ->
-            ["\033[0m",Extra,Pad,Ansi]
-    end.
-
-get_bullet(_State,latin1) ->
-    <<" * ">>;
-get_bullet(State,unicode) ->
-    %% Fancy bullet point logic!
-    case length([l || l <- State]) of
-        Level when Level > 4 ->
-            get_bullet(State, latin1);
-        Level ->
-            lists:nth(Level,
-                      [<<" • "/utf8>>,<<" ￮ "/utf8>>,
-                       <<" ◼ "/utf8>>,<<" ◻ "/utf8>>])
-    end.
+    [Extra, Pad].
 
 %% Look for the length of the last line of a string
 lastline(Str) ->
@@ -979,76 +919,10 @@ trimnlnl({Chars, _Pos}) ->
 trimnlnl(Chars) ->
     nl(nl(string:trim(Chars, trailing, "\n"))).
 trimnl({Chars, _Pos}) ->
+    nl(string:trim(Chars, trailing, "\n"));
+trimnl(Chars) ->
     nl(string:trim(Chars, trailing, "\n")).
 nl({Chars, _Pos}) ->
     nl(Chars);
 nl(Chars) ->
     {[Chars,"\n"],0}.
-
-%% We keep the current ansi state in the pdict so that we know
-%% what to disable and enable when doing padding
-init_ansi(#config{ ansi = undefined, io_opts = Opts }) ->
-    %% We use this as our heuristic to see if we should print ansi or not
-    case {application:get_env(kernel, shell_docs_ansi),
-          proplists:is_defined(echo, Opts) andalso
-          proplists:is_defined(expand_fun, Opts),
-          os:type()} of
-        {{ok,false}, _, _} ->
-            put(ansi, noansi);
-        {{ok,true}, _, _} ->
-            put(ansi, []);
-        {_, _, {win32,_}} ->
-            put(ansi, noansi);
-        {_, true,_} ->
-            put(ansi, []);
-        {_, false,_} ->
-            put(ansi, noansi)
-    end;
-init_ansi(#config{ ansi = true }) ->
-    put(ansi, []);
-init_ansi(#config{ ansi = false }) ->
-    put(ansi, noansi).
-
-
-
-clean_ansi() ->
-    case get(ansi) of
-        [] -> erase(ansi);
-        noansi -> erase(ansi)
-    end,
-    ok.
-
-%% Set ansi
-sansi(Type) -> sansi(Type, get(ansi)).
-sansi(_Type, noansi) ->
-    [];
-sansi(Type, Curr) ->
-    put(ansi,[Type | Curr]),
-    ansi(get(ansi)).
-
-%% Clear ansi
-ransi(Type) -> ransi(Type, get(ansi)).
-ransi(_Type, noansi) ->
-    [];
-ransi(Type, Curr) ->
-    put(ansi,proplists:delete(Type,Curr)),
-    case ansi(get(ansi)) of
-        undefined ->
-            "\033[0m";
-        Ansi ->
-            Ansi
-    end.
-
-ansi() -> ansi(get(ansi)).
-ansi(noansi) -> undefined;
-ansi(Curr) ->
-    case lists:usort(Curr) of
-        [] ->
-            undefined;
-        [bold] ->
-            "\033[;1m";
-        [underline] ->
-            "\033[;;4m";
-        [bold,underline] ->
-            "\033[;1;4m"
-    end.
