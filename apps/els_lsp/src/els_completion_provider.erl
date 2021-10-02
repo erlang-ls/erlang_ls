@@ -561,7 +561,7 @@ record_fields(Document, RecordName) ->
     POIs ->
       [#{data := #{field_list := Fields}} | _] = els_poi:sort(POIs),
       [ item_kind_field(atom_to_label(Name))
-        || {Name, _} <- Fields
+        || Name <- Fields
       ]
   end.
 
