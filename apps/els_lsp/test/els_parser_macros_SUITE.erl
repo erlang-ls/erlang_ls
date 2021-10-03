@@ -15,6 +15,8 @@
         , type_name_macro/1
         , spec_name_macro/1
         , macro_in_application/1
+        , record_def_field_macro/1
+        , module_macro_as_record_name/1
         ]).
 
 %%==============================================================================
@@ -81,10 +83,23 @@ wild_attrbibute_macro(_Config) ->
   ok.
 
 type_name_macro(_Config) ->
-  %% Currently els_dodger cannot parse this type definition
-  %% Verify this does not prevent parsing following forms
-  Text = "-type ?M() -> integer() | t(). -spec f() -> any().",
-  ?assertMatch({ok, [#{kind := spec, id := {f, 0}}]}, els_parser:parse(Text)),
+  Text1 = "-type ?M() :: integer() | t().",
+  ?assertMatch({ok, [#{kind := type_application, id := {t, 0}},
+                     #{kind := macro, id := 'M'}]},
+               els_parser:parse(Text1)),
+
+  %% The macro is parsed as (?M()), rather than (?M)()
+  Text2 = "-type t() :: ?M().",
+  ?assertMatch({ok, [#{kind := type_definition, id := {t, 0}},
+                     #{kind := macro, id := {'M', 0}}]},
+               els_parser:parse(Text2)),
+
+  %% In this case the macro is parsed as expected as (?T)()
+  Text3 = "-type t() :: ?M:?T().",
+  ?assertMatch({ok, [#{kind := type_definition, id := {t, 0}},
+                     #{kind := macro, id := 'M'},
+                     #{kind := macro, id := 'T'}]},
+               els_parser:parse(Text3)),
   ok.
 
 spec_name_macro(_Config) ->
@@ -96,8 +111,11 @@ spec_name_macro(_Config) ->
 
   Text2 = "-spec ?MODULE:b() -> integer() | t().",
   ?assertMatch([#{id := undefined}], parse_find_pois(Text2, spec)),
-  %% TODO: Update erlfmt, a later version can parse this
-  %%?assertMatch([_], parse_find_pois(Text2, type_application, {t, 0})),
+  ?assertMatch([_], parse_find_pois(Text2, type_application, {t, 0})),
+
+  Text3 = "-spec mod:?M() -> integer() | t().",
+  ?assertMatch([#{id := undefined}], parse_find_pois(Text3, spec)),
+  ?assertMatch([_], parse_find_pois(Text3, type_application, {t, 0})),
   ok.
 
 macro_in_application(_Config) ->
@@ -121,6 +139,38 @@ macro_in_application(_Config) ->
   ?assertMatch([], parse_find_pois(Text5, macro)),
   ?assertMatch([#{id := {foo, 0}}], parse_find_pois(Text5, application)),
 
+  ok.
+
+record_def_field_macro(_Config) ->
+  Text1 = "-record(rec, {?M = 1}).",
+  ?assertMatch({ok, [#{kind := record, id := rec},
+                     #{kind := macro, id := 'M'}]},
+               els_parser:parse(Text1)),
+
+  %% typed record field
+  Text2 = "-record(rec, {?M :: integer()}).",
+  ?assertMatch({ok, [#{kind := record, id := rec},
+                     #{kind := macro, id := 'M'}]},
+               els_parser:parse(Text2)),
+  ok.
+
+module_macro_as_record_name(_Config) ->
+  Text1 = "-record(?MODULE, {f = 1}).",
+  ?assertMatch([#{data := #{field_list := [f]}}],
+               parse_find_pois(Text1, record, '?MODULE')),
+  ?assertMatch([_], parse_find_pois(Text1, record_def_field, {'?MODULE', f})),
+
+  Text2 = "-type t() :: #?MODULE{f :: integer()}.",
+  ?assertMatch([_], parse_find_pois(Text2, record_expr, '?MODULE')),
+  ?assertMatch([_], parse_find_pois(Text2, record_field, {'?MODULE', f})),
+
+  Text3 = "f(M) -> M#?MODULE.f.",
+  ?assertMatch([_], parse_find_pois(Text3, record_expr, '?MODULE')),
+  ?assertMatch([_], parse_find_pois(Text3, record_field, {'?MODULE', f})),
+
+  Text4 = "f(M) -> M#?MODULE{f = 1}.",
+  ?assertMatch([_], parse_find_pois(Text4, record_expr, '?MODULE')),
+  ?assertMatch([_], parse_find_pois(Text4, record_field, {'?MODULE', f})),
   ok.
 
 %%==============================================================================
