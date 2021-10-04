@@ -291,8 +291,7 @@ handle_call({shutdown}, From, State) ->
   #state{io_device = IoDevice} = State,
   RequestId = State#state.request_id,
   Method = <<"shutdown">>,
-  Params = #{},
-  Content = els_protocol:request(RequestId, Method, Params),
+  Content = els_protocol:request(RequestId, Method),
   send(IoDevice, Content),
   {noreply, State#state{ request_id = RequestId + 1
                        , pending    = [{RequestId, From} | State#state.pending]
