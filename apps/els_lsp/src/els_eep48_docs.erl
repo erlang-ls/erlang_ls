@@ -17,7 +17,7 @@
 %%
 %% %CopyrightEnd%
 %%
--module(els_shell_docs).
+-module(els_eep48_docs).
 
 %% This module takes care of rendering and normalization of
 %% application/erlang+html style documentation.
@@ -36,12 +36,7 @@
 
 -export_type([chunk_elements/0, chunk_element_attr/0]).
 
--record(config, { docs,
-                  encoding,
-                  ansi,
-                  io_opts = io:getopts(),
-                  columns
-                }).
+-record(config, { docs }).
 
 -define(ALL_ELEMENTS,[a,p,'div',br,h1,h2,h3,h4,h5,h6,hr,
                       i,b,em,strong,pre,code,ul,ol,li,dl,dt,dd]).
@@ -58,9 +53,7 @@
 %% If you update the below types, make sure to update the documentation in
 %% erl_docgen/doc/src/doc_storage.xml as well!!!
 -type docs_v1() :: #docs_v1{}.
--type config() :: #{ encoding => unicode | latin1,
-                     columns => pos_integer(),
-                     ansi => boolean() }.
+-type config() :: #{  }.
 -type chunk_elements() :: [chunk_element()].
 -type chunk_element() :: {chunk_element_type(),chunk_element_attrs(),
                           chunk_elements()} | binary().
@@ -467,8 +460,8 @@ get_local_doc(Missing, hidden, _D) ->
     [{p,[],[<<"The documentation for ">>,Missing,
             <<" is hidden. This probably means that it is internal "
               "and not to be used by other applications.">>]}];
-get_local_doc(Missing, None, _D) when None =:= none; None =:= #{} ->
-    [{p,[],[<<"There is no documentation for ">>,Missing]}].
+get_local_doc(_Missing, None, _D) when None =:= none; None =:= #{} ->
+    [].
 
 normalize_format(Docs, #docs_v1{ format = ?NATIVE_FORMAT }) ->
     normalize(Docs);
@@ -574,7 +567,6 @@ render_meta(Meta) ->
 render_headers_and_docs(Headers, DocContents, D, Config) ->
     render_headers_and_docs(Headers, DocContents, init_config(D, Config)).
 render_headers_and_docs(Headers, DocContents, #config{} = Config) ->
-    io:format("~p",[DocContents]),
     [render_docs(
        lists:flatmap(
          fun(Header) ->
@@ -623,26 +615,8 @@ render_docs(DocContents, Ind, D = #config{}) when is_integer(Ind) ->
     {Doc,_} = trimnl(render_docs(DocContents, [], 0, Ind, D)),
     Doc.
 
-init_config(D, Config) ->
-    DefaultOpts = io:getopts(),
-    DefaultEncoding = proplists:get_value(encoding, DefaultOpts, latin1),
-    Columns =
-        case maps:find(columns, Config) of
-            error ->
-                case io:columns() of
-                    {ok, C} ->
-                        C;
-                    _ ->
-                        80
-                end;
-            {ok, C} ->
-                C
-        end,
-    #config{ docs = D,
-             encoding = maps:get(encoding, Config, DefaultEncoding),
-             ansi = maps:get(ansi, Config, undefined),
-             columns = Columns
-           }.
+init_config(D, _Config) ->
+    #config{ docs = D }.
 
 render_docs(Elems,State,Pos,Ind,D) when is_list(Elems) ->
     lists:mapfoldl(
@@ -721,15 +695,17 @@ render_element(Elem,State,Pos,Ind,D) when Pos < Ind ->
 
 render_element({a,Attr,Content}, State, Pos, Ind,D) ->
     {Docs, NewPos} = render_docs(Content, State, Pos, Ind, D),
+    Href = proplists:get_value(href, Attr),
+    IsOTPLink = string:find(Href, ":") =/= nomatch,
     case proplists:get_value(rel,Attr) of
+        _ when not IsOTPLink ->
+           {Docs, NewPos};
         <<"https://erlang.org/doc/link/seemfa">> ->
-            Href = proplists:get_value(href, Attr),
             [_App, MFA] = string:split(Href,":"),
             [Mod, FA] = string:split(MFA,"#"),
             [Func, Arity] = string:split(FA,"/"),
             {["[",Docs,"](https://erlang.org/doc/man/",Mod,".html#",Func,"-",Arity,")"],NewPos};
         <<"https://erlang.org/doc/link/seetype">> ->
-            Href = proplists:get_value(href, Attr),
             case string:lexemes(Href,":#/") of
                 [_App, Mod, Type, Arity] ->
                     {["[",Docs,"](https://erlang.org/doc/man/",Mod,".html#","type-",Type,"-",Arity,")"],NewPos};
@@ -737,7 +713,6 @@ render_element({a,Attr,Content}, State, Pos, Ind,D) ->
                     {["[",Docs,"](https://erlang.org/doc/man/",Mod,".html#","type-",Type,")"],NewPos}
             end;
         <<"https://erlang.org/doc/link/seeerl">> ->
-            Href = proplists:get_value(href, Attr),
             [_App, Mod|Anchor] = string:lexemes(Href,":#"),
             {["[",Docs,"](https://erlang.org/doc/man/",Mod,".html#",Anchor,")"],NewPos};
         _ ->
@@ -831,14 +806,9 @@ render_element({dd,_,Content},[dl | _] = State,Pos,Ind,D) ->
     {Docs, _NewPos} = render_docs(Content, [li | State], Pos+2, Ind + 2, D),
     trimnl([pad(2 + Ind - Pos), Docs]);
 
-render_element(B, State, Pos, Ind,#config{ columns = Cols }) when is_binary(B) ->
-    case lists:member(pre,State) of
-        true ->
-            Pre = string:replace(B,"\n",[nlpad(Ind)],all),
-            {Pre, Pos + lastline(Pre)};
-        _ ->
-            render_words(split_to_words(B),State,Pos,Ind,[[]],Cols)
-    end;
+render_element(B, _State, Pos, Ind,_D) when is_binary(B) ->
+    Pre = string:replace(B,"\n",[nlpad(Ind)],all),
+    {Pre, Pos + lastline(Pre)};
 
 render_element({Tag,Attr,Content}, State, Pos, Ind,D) ->
     case lists:member(Tag,?ALL_ELEMENTS) of
@@ -849,33 +819,6 @@ render_element({Tag,Attr,Content}, State, Pos, Ind,D) ->
             ok
     end,
     render_docs(Content, State, Pos, Ind,D).
-
-render_words(Words,[_,types|State],Pos,Ind,Acc,Cols) ->
-    %% When we render words and are in the types->type state we indent
-    %% the extra lines two additional spaces to make it look nice
-    render_words(Words,State,Pos,Ind+2,Acc,Cols);
-render_words([Word|T],State,Pos,Ind,Acc,Cols) when is_binary(Word) ->
-    WordLength = string:length(Word),
-    NewPos = WordLength + Pos,
-    %% We do not want to add a newline if this word is only a punctuation
-    IsPunct = is_tuple(re:run(Word,"^\\W$",[unicode])),
-    if
-        NewPos > (Cols - 10 - Ind), Word =/= <<>>, not IsPunct ->
-            %% Word does not fit, time to add a newline and also pad to Indent level
-            render_words(T,State,WordLength+Ind+1,Ind,[[[nlpad(Ind), Word]]|Acc],Cols);
-        true ->
-            %% Word does fit on line
-            [Line | LineAcc] = Acc,
-            %% Add + 1 to length for space
-            NewPosSpc = NewPos+1,
-            render_words(T,State,NewPosSpc,Ind,[[Word|Line]|LineAcc],Cols)
-    end;
-render_words([],_State,Pos,_Ind,Acc,_Cols) ->
-    Lines = lists:map(fun(RevLine) ->
-                            Line = lists:reverse(RevLine),
-                            lists:join($ ,Line)
-                      end,lists:reverse(Acc)),
-    {iolist_to_binary(Lines), Pos}.
 
 render_type_signature(Name, #config{ docs = #docs_v1{ metadata = #{ types := AllTypes }}}) ->
     case [Type || Type = {TName,_} <- maps:keys(AllTypes), TName =:= Name] of
@@ -906,9 +849,6 @@ lastline(Str) ->
                       tl(string:next_codepoint(Match))
               end,
     string:length(LastStr).
-
-split_to_words(B) ->
-    binary:split(B,[<<" ">>],[global]).
 
 %% These functions make sure that we trim extra newlines added
 %% by the renderer. For example if we do <li><p></p></li>

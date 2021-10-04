@@ -8,7 +8,7 @@
 %%==============================================================================
 -export([ docs/2
         , function_docs/4
-        , shell_docs/3
+        , type_docs/4
         ]).
 
 %%==============================================================================
@@ -73,7 +73,9 @@ docs(Uri, #{kind := record_expr} = POI) ->
     _ ->
       []
   end;
-docs(_Uri, _POI) ->
+docs(_M, #{kind := type_application, id := {M, F, A}}) ->
+  type_docs('remote', M, F, A);
+docs(_M, _POI) ->
   [].
 
 %%==============================================================================
@@ -82,20 +84,29 @@ docs(_Uri, _POI) ->
 -spec function_docs(application_type(), atom(), atom(), non_neg_integer()) ->
         [els_markup_content:doc_entry()].
 function_docs(Type, M, F, A) ->
-    case shell_docs(M, F, A) of
-        {ok, ShellDocs} ->
-            [{text, ShellDocs}];
-        {error, Error} ->
-            Signature = signature(Type, M, F, A),
-            Clauses = function_clauses(M, F, A),
-            WebLinks = web_links(M, F, A),
-            Docs = lists:append(specs(M, F, A), edoc(M, F, A)),
-            L = [ [{h2, Signature}]
-                , [{h4, "This function is internal."} || Error =:= hidden]
-                , Clauses
-                , [WebLinks || Error =/= hidden]
-                , Docs
+    case eep48_docs(function, M, F, A) of
+        {ok, Docs} ->
+            [{text, Docs}];
+        {error, not_available} ->
+            L = [ [{h2, signature(Type, M, F, A)}]
+                , function_clauses(M, F, A)
+                , specs(M, F, A)
+                , edoc(M, F, A)
                 ],
+            lists:append(L)
+    end.
+
+-spec type_docs(application_type(), atom(), atom(), non_neg_integer()) ->
+        [els_markup_content:doc_entry()].
+type_docs(Type, M, F, A) ->
+    case eep48_docs(type, M, F, A) of
+        {ok, Docs} ->
+            [{text, Docs}];
+        {error, not_available} ->
+            Signature = signature(Type, M, F, A),
+            Docs = lists:append(specs(M, F, A)),
+            L = [ [{h2, Signature}]
+                , Docs],
             lists:append(L)
     end.
 
@@ -112,32 +123,37 @@ signature('local', _M, F, A) ->
 signature('remote', M, F, A) ->
   io_lib:format("~p:~p/~p", [M, F, A]).
 
-%% @doc Fetch Shell Docs
+%% @doc Fetch EEP-48 style Docs
 %%
-%% On modern systems (OTP 23+), use code:get_doc/1 if available.
-%% Otherwise, fetch the docs from source code.
-%%
-%% Currently uses shell_docs:render/4 which only renders plain text.
-%% Ideally, we should expand that function to support Markdown.
--spec shell_docs(atom(), atom(), non_neg_integer()) ->
+%% On modern systems (OTP 23+), Erlang has support for fetching documentation
+%% from the chunk.
+-spec eep48_docs(function | type, atom(), atom(), non_neg_integer()) ->
         {ok, string()} | {error, not_available}.
--ifdef(OTP_RELEASE).
--if(?OTP_RELEASE >= 23).
-shell_docs(M, F, A) ->
+eep48_docs(Type, M, F, A) ->
+    Render = case Type of
+             function ->
+                 render;
+             type ->
+                 render_type
+         end,
   try get_doc_chunk(M) of
     {ok, #docs_v1{ format = ?NATIVE_FORMAT
                  , module_doc = MDoc
                  } = DocChunk} when MDoc =/= none ->
-      case els_shell_docs:render(M, F, A, DocChunk, #{ columns => 1000000 }) of
-        {error, function_missing} ->
-          {error, hidden};
-        {error, _R0} ->
-          {error, not_available};
-        ShellDocs ->
-          {ok, els_utils:to_list(ShellDocs)}
-      end;
-    _R1 ->
-      {error, not_available}
+          
+          case els_eep48_docs:Render(M, F, A, DocChunk) of
+              {error, _R0} ->
+                  case els_eep48_docs:Render(M, F, DocChunk) of
+                      {error, _R0} ->
+                          {error, not_available};
+                      Docs ->
+                          {ok, els_utils:to_list(Docs)}
+                  end;
+              Docs ->
+                  {ok, els_utils:to_list(Docs)}
+          end;
+      _R1 ->
+          {error, not_available}
   catch C:E:ST ->
       %% code:get_doc/1 fails for escriptized modules, so fall back
       %% reading docs from source. See #751 for details
@@ -166,14 +182,36 @@ get_doc_chunk(M) ->
         {ok, Bin} ->
           {ok, binary_to_term(Bin)};
         _ ->
-          error
+          get_edoc_chunk(M, Uri)
       end
   end.
--else.
-shell_docs(_M, _F, _A) ->
-  {error, not_available}.
--endif.
--endif.
+
+get_edoc_chunk(M, Uri) ->
+    ?LOG_ERROR("[edoc_chunk] ~p",[Uri]),
+    case {code:ensure_loaded(edoc_doclet_chunks),
+          code:ensure_loaded(edoc_layout_chunks)} of
+        {{module,_},{module,_}} ->
+            Path = els_uri:path(Uri),
+            case edoc:run([els_utils:to_list(Path)],
+                          [{private,true},
+                           {preprocess,true},
+                           {doclet, edoc_doclet_chunks},
+                           {layout, edoc_layout_chunks},
+                           {dir,"/tmp"}]) of
+                ok ->
+                    %% Should store this is a better place...
+                    Chunk = "/tmp/chunks/"++ atom_to_list(M) ++ ".chunk",
+                    {ok, Bin} = file:read_file(Chunk),
+%                    file:del_dir_r("/tmp/chunks/"),
+                    {ok, binary_to_term(Bin)};
+                E ->
+                    ?LOG_ERROR("[edoc_chunk] error: ",[E]),
+                    error
+            end;
+        E ->
+            ?LOG_ERROR("[edoc_chunk] load error",[E]),
+            error
+    end.
 
 -spec specs(atom(), atom(), non_neg_integer()) ->
         [els_markup_content:doc_entry()].
@@ -220,8 +258,9 @@ edoc(M, F, A) ->
     {ok, Uri} = els_utils:find_module(M),
     Path      = els_uri:path(Uri),
     {M, EDoc} = edoc:get_doc( els_utils:to_list(Path)
-                            , [{private, true}]
-                            ),
+                             , [{private, true},
+                                {preprocess, true}]
+                             ),
     Internal  = xmerl:export_simple([EDoc], docsh_edoc_xmerl),
     %% TODO: Something is weird with the docsh specs.
     %%       For now, let's avoid the Dialyzer warnings.
@@ -231,9 +270,9 @@ edoc(M, F, A) ->
                                                , [doc, spec]]),
     {ok, [{{function, F, A}, _Anno, _Signature, Desc, _Metadata}|_]} = Res,
     format_edoc(Desc)
-  catch C:E ->
-      ?LOG_ERROR("[hover] Error fetching edoc [error=~p]", [{C, E}]),
-      []
+  catch C:E:ST ->
+      ?LOG_ERROR("[hover] Error fetching edoc [error=~p]", [{M, F, A, C, E, ST}]),
+      error
   end.
 
 -spec format_edoc(none | map()) -> [els_markup_content:doc_entry()].
@@ -244,36 +283,6 @@ format_edoc(Desc) when is_map(Desc) ->
   Doc          = maps:get(Lang, Desc, <<>>),
   FormattedDoc = els_utils:to_list(docsh_edoc:format_edoc(Doc, #{})),
   [{text, FormattedDoc}].
-
--spec web_links(atom(), atom(), non_neg_integer()) ->
-        [els_markup_content:doc_entry()].
-web_links(M, F, A) ->
-  case els_utils:find_module(M) of
-    {ok, Uri} ->
-      case is_part_of_otp(Uri) andalso is_function_exported(Uri, M, F, A) of
-        true ->
-          Msg = "http://erlang.org/doc/man/~p.html#~p-~p",
-          Link = io_lib:format(Msg, [M, F, A]),
-          [{text, "See: " ++ Link}];
-        false ->
-          []
-      end;
-    {error, _Reason} ->
-      []
-  end.
-
--spec is_part_of_otp(uri()) -> boolean().
-is_part_of_otp(Uri) ->
-  Path = binary_to_list(els_uri:path(Uri)),
-  OtpPath = els_config:get(otp_path),
-  string:prefix(Path, OtpPath) =/= nomatch.
-
--spec is_function_exported(uri(), atom(), atom(), non_neg_integer()) ->
-        boolean().
-is_function_exported(Uri, _Module, Function, Arity) ->
-  {ok, Doc} = els_utils:lookup_document(Uri),
-  POIs = els_dt_document:pois(Doc, [export_entry]),
-  [] =/= [{F, A} || #{id := {F, A}} <- POIs, Function =:= F, Arity =:= A].
 
 -spec macro_signature(poi_id(), [{integer(), string()}]) -> unicode:charlist().
 macro_signature({Name, _Arity}, Args) ->
