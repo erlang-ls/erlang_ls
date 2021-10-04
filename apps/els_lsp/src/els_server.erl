@@ -155,7 +155,7 @@ handle_request(#{ <<"method">> := _ReqMethod } = Request
                       , pending = Pending
                       } = State0) ->
   Method = maps:get(<<"method">>, Request),
-  Params = maps:get(<<"params">>, Request),
+  Params = maps:get(<<"params">>, Request, #{}),
   Type = case maps:is_key(<<"id">>, Request) of
            true  -> request;
            false -> notification

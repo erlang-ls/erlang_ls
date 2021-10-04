@@ -8,6 +8,7 @@
 %%==============================================================================
 %% Messaging API
 -export([ notification/2
+        , request/2
         , request/3
         , response/2
         , error/2
@@ -31,6 +32,14 @@ notification(Method, Params) ->
   Message = #{ jsonrpc => ?JSONRPC_VSN
              , method  => Method
              , params  => Params
+             },
+  content(jsx:encode(Message)).
+
+-spec request(number(), binary()) -> binary().
+request(RequestId, Method) ->
+  Message = #{ jsonrpc => ?JSONRPC_VSN
+             , method  => Method
+             , id      => RequestId
              },
   content(jsx:encode(Message)).
 
