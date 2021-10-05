@@ -25,6 +25,9 @@
 %% It is a copy of shell_docs.erl from the erlang/otp repo that
 %% has been modified to emit markdown instead of shell.
 
+-ifdef(OTP_RELEASE).
+-if(?OTP_RELEASE >= 23).
+
 -include_lib("kernel/include/eep48.hrl").
 
 -export([render/2, render/3, render/4, render/5]).
@@ -866,3 +869,6 @@ nl({Chars, _Pos}) ->
     nl(Chars);
 nl(Chars) ->
     {[Chars,"\n"],0}.
+
+-endif.
+-endif.

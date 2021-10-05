@@ -127,6 +127,7 @@ signature('remote', M, F, A) ->
 %%
 %% On modern systems (OTP 23+), Erlang has support for fetching documentation
 %% from the chunk.
+-ifdef(NATIVE_FORMAT).
 -spec eep48_docs(function | type, atom(), atom(), non_neg_integer()) ->
         {ok, string()} | {error, not_available}.
 eep48_docs(Type, M, F, A) ->
@@ -212,6 +213,12 @@ get_edoc_chunk(M, Uri) ->
             ?LOG_ERROR("[edoc_chunk] load error", [E]),
             error
     end.
+-else.
+-spec eep48_docs(function | type, atom(), atom(), non_neg_integer()) ->
+        {error, not_available}.
+eep48_docs(_Type, _M, _F, _A) ->
+    {error, not_available}.
+-endif.
 
 -spec specs(atom(), atom(), non_neg_integer()) ->
         [els_markup_content:doc_entry()].
