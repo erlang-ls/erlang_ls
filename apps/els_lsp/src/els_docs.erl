@@ -140,11 +140,11 @@ eep48_docs(Type, M, F, A) ->
     {ok, #docs_v1{ format = ?NATIVE_FORMAT
                  , module_doc = MDoc
                  } = DocChunk} when MDoc =/= none ->
-          
+
           case els_eep48_docs:Render(M, F, A, DocChunk) of
               {error, _R0} ->
                   case els_eep48_docs:Render(M, F, DocChunk) of
-                      {error, _R0} ->
+                      {error, _R1} ->
                           {error, not_available};
                       Docs ->
                           {ok, els_utils:to_list(Docs)}
@@ -186,30 +186,30 @@ get_doc_chunk(M) ->
       end
   end.
 
+-spec get_edoc_chunk(M :: module(), Uri :: uri()) -> {ok, term()} | error.
 get_edoc_chunk(M, Uri) ->
-    ?LOG_ERROR("[edoc_chunk] ~p",[Uri]),
     case {code:ensure_loaded(edoc_doclet_chunks),
           code:ensure_loaded(edoc_layout_chunks)} of
-        {{module,_},{module,_}} ->
+        {{module, _}, {module, _}} ->
             Path = els_uri:path(Uri),
             case edoc:run([els_utils:to_list(Path)],
-                          [{private,true},
-                           {preprocess,true},
+                          [{private, true},
+                           {preprocess, true},
                            {doclet, edoc_doclet_chunks},
                            {layout, edoc_layout_chunks},
-                           {dir,"/tmp"}]) of
+                           {dir, "/tmp"}]) of
                 ok ->
                     %% Should store this is a better place...
-                    Chunk = "/tmp/chunks/"++ atom_to_list(M) ++ ".chunk",
+                    Chunk = "/tmp/chunks/" ++ atom_to_list(M) ++ ".chunk",
                     {ok, Bin} = file:read_file(Chunk),
 %                    file:del_dir_r("/tmp/chunks/"),
                     {ok, binary_to_term(Bin)};
                 E ->
-                    ?LOG_ERROR("[edoc_chunk] error: ",[E]),
+                    ?LOG_ERROR("[edoc_chunk] error: ", [E]),
                     error
             end;
         E ->
-            ?LOG_ERROR("[edoc_chunk] load error",[E]),
+            ?LOG_ERROR("[edoc_chunk] load error", [E]),
             error
     end.
 
@@ -271,8 +271,9 @@ edoc(M, F, A) ->
     {ok, [{{function, F, A}, _Anno, _Signature, Desc, _Metadata}|_]} = Res,
     format_edoc(Desc)
   catch C:E:ST ->
-      ?LOG_ERROR("[hover] Error fetching edoc [error=~p]", [{M, F, A, C, E, ST}]),
-      error
+      ?LOG_ERROR("[hover] Error fetching edoc [error=~p]",
+                 [{M, F, A, C, E, ST}]),
+      []
   end.
 
 -spec format_edoc(none | map()) -> [els_markup_content:doc_entry()].
