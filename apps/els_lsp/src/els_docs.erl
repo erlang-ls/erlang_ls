@@ -193,22 +193,17 @@ get_edoc_chunk(M, Uri) ->
           code:ensure_loaded(edoc_layout_chunks)} of
         {{module, _}, {module, _}} ->
             Path = els_uri:path(Uri),
-            case edoc:run([els_utils:to_list(Path)],
+            ok = edoc:run([els_utils:to_list(Path)],
                           [{private, true},
                            {preprocess, true},
                            {doclet, edoc_doclet_chunks},
                            {layout, edoc_layout_chunks},
-                           {dir, "/tmp"}]) of
-                ok ->
-                    %% Should store this is a better place...
-                    Chunk = "/tmp/chunks/" ++ atom_to_list(M) ++ ".chunk",
-                    {ok, Bin} = file:read_file(Chunk),
-%                    file:del_dir_r("/tmp/chunks/"),
-                    {ok, binary_to_term(Bin)};
-                E ->
-                    ?LOG_ERROR("[edoc_chunk] error: ", [E]),
-                    error
-            end;
+                           {dir, "/tmp"}]),
+            %% Should store this is a better place...
+            Chunk = "/tmp/chunks/" ++ atom_to_list(M) ++ ".chunk",
+            {ok, Bin} = file:read_file(Chunk),
+            file:del_dir_r("/tmp/chunks/"),
+            {ok, binary_to_term(Bin)};
         E ->
             ?LOG_ERROR("[edoc_chunk] load error", [E]),
             error
