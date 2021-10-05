@@ -525,10 +525,7 @@ render_signature({{_Type,_F,_A},_Anno,_Sigs,_Docs,#{ signature := Specs } = Meta
                {hr,[],[]}|render_meta(Meta)]
       end, Specs);
 render_signature({{_Type,_F,_A},_Anno,Sigs,_Docs,Meta}) ->
-    lists:flatmap(
-      fun(Sig) ->
-              [{h2,[],[<<"  "/utf8,Sig/binary>>]}|render_meta(Meta)]
-      end, Sigs).
+    [{pre,[],Sigs},{hr,[],[]} | render_meta(Meta)].
 
 trim_spec(Spec) ->
     unicode:characters_to_binary(
@@ -699,7 +696,7 @@ render_element(Elem,State,Pos,Ind,D) when Pos < Ind ->
 render_element({a,Attr,Content}, State, Pos, Ind,D) ->
     {Docs, NewPos} = render_docs(Content, State, Pos, Ind, D),
     Href = proplists:get_value(href, Attr),
-    IsOTPLink = string:find(Href, ":") =/= nomatch,
+    IsOTPLink = Href =/= undefined andalso string:find(Href, ":") =/= nomatch,
     case proplists:get_value(rel,Attr) of
         _ when not IsOTPLink ->
            {Docs, NewPos};
@@ -764,28 +761,28 @@ render_element({pre,_,Content},State,Pos,Ind,D) ->
 
 render_element({ul,[{class,<<"types">>}],Content},State,_Pos,Ind,D) ->
     {Docs, _} = render_docs(Content, [types|State], 0, Ind, D),
-    trimnlnl(["```erlang\n", Docs,"```"]);
+    trimnlnl(Docs);
 render_element({li,Attr,Content},[types|_] = State,Pos,Ind,C) ->
     Doc =
         case {proplists:get_value(name, Attr),proplists:get_value(class, Attr)} of
             {undefined,Class} when Class =:= undefined; Class =:= <<"type">> ->
                 %% Inline html for types
-                render_docs(Content,[type|State],Pos,Ind,C);
+                render_docs(Content ++ [<<"  ">>],[type|State],Pos,Ind,C);
             {_,<<"description">>} ->
                 %% Inline html for type descriptions
-                render_docs(Content,[type|State],Pos,Ind+2,C);
+                render_docs(Content ++ [<<"  ">>],[type|State],Pos,Ind+2,C);
             {Name,_} ->
                 %% Try to render from type metadata
                 case render_type_signature(binary_to_atom(Name),C) of
                     undefined when Content =:= [] ->
                         %% Failed and no content, emit place-holder
-                        {["-type ",Name,"() :: term()."],0};
+                        {["```erlang\n-type ",Name,"() :: term().```"],0};
                     undefined ->
                         %% Failed with metadata, render the content
-                        render_docs(Content,[type|State],Pos,Ind,C);
+                        render_docs(Content ++ [<<"  ">>],[type|State],Pos,Ind,C);
                     Type ->
                         %% Emit the erl_pp typespec
-                        {Type,0}
+                        {["```erlang\n",Type,"```"],0}
                 end
         end,
     trimnl(Doc);
@@ -803,15 +800,44 @@ render_element({li,[],Content},[ol | _] = State, Pos, Ind,D) ->
 render_element({dl,_,Content},State,Pos,Ind,D) ->
     trimnlnl(render_docs(Content, [dl|State], Pos, Ind,D));
 render_element({dt,_,Content},[dl | _] = State,Pos,Ind,D) ->
-    {Docs, NewPos} = trimnl(render_docs([{em,[],Content}], [li | State], Pos + 2, Ind + 2, D)),
-    {["* ", Docs, ""], NewPos};
+    {Docs, NewPos} = render_docs([{b,[],Content}],
+                                 [li | State], Pos + 2, Ind + 2, D),
+    trimnl({["", string:trim(Docs, trailing, "\n"), "  "], NewPos});
 render_element({dd,_,Content},[dl | _] = State,Pos,Ind,D) ->
     {Docs, _NewPos} = render_docs(Content, [li | State], Pos+2, Ind + 2, D),
-    trimnl([pad(2 + Ind - Pos), Docs]);
+    trimnlnl([pad(2 + Ind - Pos), Docs]);
 
-render_element(B, _State, Pos, Ind,_D) when is_binary(B) ->
+render_element(B, State, Pos, Ind,_D) when is_binary(B) ->
     Pre = string:replace(B,"\n",[nlpad(Ind)],all),
-    {Pre, Pos + lastline(Pre)};
+    EscapeChars = [
+                   "\\",
+                   "`",
+                   "*",
+                   "_",
+                   "{",
+                   "}",
+                   "[",
+                   "]",
+                   "<",
+                   ">",
+                   "(",
+                   ")",
+                   "#",
+                   "+",
+                   "-",
+                   ".",
+                   "!",
+                   "|"
+                  ],
+    Str =
+        case State of
+            [pre|_] -> Pre;
+            [code|_] -> Pre;
+            _ ->
+                re:replace(Pre, ["(",lists:join($|,[["\\",C] || C <- EscapeChars]),")"],
+                           "\\\\\\1", [global])
+        end,
+    {Str, Pos + lastline(Str)};
 
 render_element({Tag,Attr,Content}, State, Pos, Ind,D) ->
     case lists:member(Tag,?ALL_ELEMENTS) of
@@ -840,7 +866,7 @@ nlpad(N) ->
     %% should be displayed.
     pad(N,"\n").
 pad(N, Extra) ->
-    Pad = lists:duplicate(N," "),
+    Pad = lists:duplicate(N,[160]),
     [Extra, Pad].
 
 %% Look for the length of the last line of a string
