@@ -209,6 +209,8 @@ get_edoc_chunk(M, Uri) ->
             error
     end.
 -else.
+-dialyzer({no_match, function_docs/4}).
+-dialyzer({no_match, type_docs/4}).
 -spec eep48_docs(function | type, atom(), atom(), non_neg_integer()) ->
         {error, not_available}.
 eep48_docs(_Type, _M, _F, _A) ->
