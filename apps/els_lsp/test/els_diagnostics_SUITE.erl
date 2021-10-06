@@ -448,8 +448,8 @@ compiler_telemetry(Config) ->
   ok.
 
 -spec code_path_extra_dirs(config()) -> ok.
-code_path_extra_dirs(Config) ->
-  RootPath = binary_to_list(?config(root_path, Config)),
+code_path_extra_dirs(_Config) ->
+  RootPath = binary_to_list(els_test_utils:root_path()),
   Dirs = [ AbsDir
            || Dir <- filelib:wildcard("*", RootPath),
            filelib:is_dir(AbsDir = filename:absname(Dir, RootPath))],
@@ -467,8 +467,8 @@ use_long_names(_Config) ->
   ok.
 
 -spec epp_with_nonexistent_macro(config()) -> ok.
-epp_with_nonexistent_macro(Config) ->
-  RootPath = ?config(root_path, Config),
+epp_with_nonexistent_macro(_Config) ->
+  RootPath = els_test_utils:root_path(),
   Path = filename:join([RootPath, <<"include">>, <<"nonexistent_macro.hrl">>]),
   Uri = els_uri:uri(Path),
   els_mock_diagnostics:subscribe(),
@@ -492,7 +492,7 @@ epp_with_nonexistent_macro(Config) ->
 -spec elvis(config()) -> ok.
 elvis(Config) ->
   {ok, Cwd} = file:get_cwd(),
-  RootPath = ?config(root_path, Config),
+  RootPath = els_test_utils:root_path(),
   try
       file:set_cwd(RootPath),
       Uri = ?config(elvis_diagnostics_uri, Config),

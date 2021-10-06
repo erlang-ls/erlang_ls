@@ -59,7 +59,7 @@ end_per_testcase(TestCase, Config) ->
 -spec format_doc(config()) -> ok.
 format_doc(Config) ->
   {ok, Cwd} = file:get_cwd(),
-  RootPath = ?config(root_path, Config),
+  RootPath = els_test_utils:root_path(),
   try
     file:set_cwd(RootPath),
     Uri = ?config(format_input_uri, Config),
