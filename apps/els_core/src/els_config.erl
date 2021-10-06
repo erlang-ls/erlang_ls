@@ -283,7 +283,15 @@ project_paths(RootPath, Dirs, Recursive) ->
                                    )
             || Dir <- Dirs
           ],
-  lists:append(Paths).
+  case Recursive of
+    false ->
+      lists:append(Paths);
+    true ->
+      Filter = fun(Path) ->
+                 string:find(Path, "SUITE_data", trailing) =:= nomatch
+               end,
+      lists:filter(Filter, lists:append(Paths))
+  end.
 
 -spec otp_paths(path(), boolean()) -> [string()].
 otp_paths(OtpPath, Recursive) ->
