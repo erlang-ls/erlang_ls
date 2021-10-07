@@ -20,11 +20,12 @@
 -ifdef(OTP_RELEASE).
 -if(?OTP_RELEASE >= 23).
 -include_lib("kernel/include/eep48.hrl").
+-export([eep48_docs/4]).
 -endif.
 -endif.
 
 %%==============================================================================
-%% Macro Definnitions
+%% Macro Definitions
 %%==============================================================================
 -define(MAX_CLAUSES, 10).
 
@@ -104,7 +105,7 @@ type_docs(Type, M, F, A) ->
             [{text, Docs}];
         {error, not_available} ->
             Signature = signature(Type, M, F, A),
-            Docs = lists:append(specs(M, F, A)),
+            Docs = specs(M, F, A),
             L = [ [{h2, Signature}]
                 , Docs],
             lists:append(L)
@@ -131,16 +132,19 @@ signature('remote', M, F, A) ->
 -spec eep48_docs(function | type, atom(), atom(), non_neg_integer()) ->
         {ok, string()} | {error, not_available}.
 eep48_docs(Type, M, F, A) ->
-    Render = case Type of
-             function ->
-                 render;
-             type ->
-                 render_type
-         end,
+  Render = case Type of
+               function ->
+                   render;
+               type ->
+                   render_type
+           end,
+  GL = setup_group_leader_proxy(),
   try get_doc_chunk(M) of
     {ok, #docs_v1{ format = ?NATIVE_FORMAT
                  , module_doc = MDoc
-                 } = DocChunk} when MDoc =/= none ->
+                 } = DocChunk} when MDoc =/= hidden ->
+
+          flush_group_leader_proxy(GL),
 
           case els_eep48_docs:Render(M, F, A, DocChunk) of
               {error, _R0} ->
@@ -148,21 +152,25 @@ eep48_docs(Type, M, F, A) ->
                       {error, _R1} ->
                           {error, not_available};
                       Docs ->
+                          %% ?LOG_ERROR("[docs] render(~ts)", [Docs]),
                           {ok, els_utils:to_list(Docs)}
                   end;
               Docs ->
                   {ok, els_utils:to_list(Docs)}
           end;
       _R1 ->
+          ?LOG_ERROR(#{ error => _R1 }),
           {error, not_available}
   catch C:E:ST ->
       %% code:get_doc/1 fails for escriptized modules, so fall back
       %% reading docs from source. See #751 for details
-      Fmt = "Error fetching docs, falling back to src."
-        " module=~p error=~p:~p st=~p",
-      Args = [M, C, E, ST],
-      ?LOG_WARNING(Fmt, Args),
-      {error, not_available}
+      IO = flush_group_leader_proxy(GL),
+      ?LOG_ERROR(#{ slogan => "Error fetching docs, falling back to src.",
+                    module => M,
+                    error => {C, E},
+                    st => ST,
+                    io => IO }),
+          {error, not_available}
   end.
 
 %% This function first tries to read the doc chunk from the .beam file
@@ -193,12 +201,11 @@ get_edoc_chunk(M, Uri) ->
           code:ensure_loaded(edoc_layout_chunks)} of
         {{module, _}, {module, _}} ->
             Path = els_uri:path(Uri),
+            ?LOG_ERROR("[edoc] run(~ts)", [Path]),
             ok = edoc:run([els_utils:to_list(Path)],
-                          [{private, true},
-                           {preprocess, true},
-                           {doclet, edoc_doclet_chunks},
+                          [{doclet, edoc_doclet_chunks},
                            {layout, edoc_layout_chunks},
-                           {dir, "/tmp"}]),
+                           {dir, "/tmp"} | edoc_options()]),
             %% Should store this is a better place...
             Chunk = "/tmp/chunks/" ++ atom_to_list(M) ++ ".chunk",
             {ok, Bin} = file:read_file(Chunk),
@@ -216,6 +223,14 @@ get_edoc_chunk(M, Uri) ->
 eep48_docs(_Type, _M, _F, _A) ->
     {error, not_available}.
 -endif.
+
+edoc_options() ->
+    [{private, true},
+     {preprocess, true},
+     {macros,
+      [{N, V} || {'d', N, V} <- els_compiler_diagnostics:macro_options()]},
+     {includes,
+      [I || {i, I} <- els_compiler_diagnostics:include_options()]}].
 
 -spec specs(atom(), atom(), non_neg_integer()) ->
         [els_markup_content:doc_entry()].
@@ -258,26 +273,40 @@ truncate_lines(Lines0) ->
 -spec edoc(atom(), atom(), non_neg_integer()) ->
           [els_markup_content:doc_entry()].
 edoc(M, F, A) ->
-  try
-    {ok, Uri} = els_utils:find_module(M),
-    Path      = els_uri:path(Uri),
-    {M, EDoc} = edoc:get_doc( els_utils:to_list(Path)
-                             , [{private, true},
-                                {preprocess, true}]
-                             ),
-    Internal  = xmerl:export_simple([EDoc], docsh_edoc_xmerl),
-    %% TODO: Something is weird with the docsh specs.
-    %%       For now, let's avoid the Dialyzer warnings.
-    Docs = erlang:apply(docsh_docs_v1, from_internal, [Internal]),
-    Res  = erlang:apply(docsh_docs_v1, lookup, [ Docs
-                                               , {M, F, A}
-                                               , [doc, spec]]),
-    {ok, [{{function, F, A}, _Anno, _Signature, Desc, _Metadata}|_]} = Res,
-    format_edoc(Desc)
-  catch C:E:ST ->
-      ?LOG_ERROR("[hover] Error fetching edoc [error=~p]",
-                 [{M, F, A, C, E, ST}]),
-      []
+  case els_utils:find_module(M) of
+      {ok, Uri} ->
+          GL = setup_group_leader_proxy(),
+          try
+              Path      = els_uri:path(Uri),
+              {M, EDoc} = edoc:get_doc(
+                            els_utils:to_list(Path)
+                           , [{private, true}
+                             , edoc_options()] ),
+              Internal  = xmerl:export_simple([EDoc], docsh_edoc_xmerl),
+              %% TODO: Something is weird with the docsh specs.
+              %%       For now, let's avoid the Dialyzer warnings.
+              Docs = erlang:apply(docsh_docs_v1, from_internal, [Internal]),
+              Res  = erlang:apply(docsh_docs_v1, lookup, [ Docs
+                                                         , {M, F, A}
+                                                         , [doc, spec]]),
+              flush_group_leader_proxy(GL),
+
+              {ok, [{{function, F, A}, _Anno,
+                     _Signature, Desc, _Metadata}|_]} = Res,
+              format_edoc(Desc)
+          catch C:E:ST ->
+                  IO = flush_group_leader_proxy(GL),
+                  ?LOG_ERROR("[hover] Error fetching edoc [error=~p]",
+                             [{M, F, A, C, E, ST, IO}]),
+                  case IO of
+                      timeout ->
+                          [];
+                      IO ->
+                          [{text, IO}]
+                  end
+          end;
+      _ ->
+          []
   end.
 
 -spec format_edoc(none | map()) -> [els_markup_content:doc_entry()].
@@ -294,3 +323,46 @@ macro_signature({Name, _Arity}, Args) ->
   [atom_to_list(Name), "(", lists:join(", ", [A || {_N, A} <- Args]), ")"];
 macro_signature(Name, none) ->
   atom_to_list(Name).
+
+-spec setup_group_leader_proxy() -> pid().
+setup_group_leader_proxy() ->
+    OrigGL = group_leader(),
+    group_leader(
+      spawn_link(
+        fun() ->
+                spawn_group_proxy([])
+        end),
+      self()),
+    OrigGL.
+
+-spec flush_group_leader_proxy(pid()) -> [term()] | term().
+flush_group_leader_proxy(OrigGL) ->
+    GL = group_leader(),
+    Ref = monitor(process, GL),
+    group_leader(OrigGL, self()),
+    GL ! {get, Ref, self()},
+    receive
+        {Ref, Msg} ->
+            demonitor(Ref, [flush]),
+            Msg;
+        {'DOWN', process, Ref, Reason} ->
+            Reason
+    end.
+
+spawn_group_proxy(Acc) ->
+    receive
+        {get, Ref, Pid} ->
+            Pid ! {Ref, lists:reverse(Acc)};
+        {io_request, From, ReplyAs, {put_chars, unicode, Chars}} ->
+            From ! {io_reply, ReplyAs, ok},
+            spawn_group_proxy([catch unicode:characters_to_binary(Chars)|Acc]);
+        {io_request, From, ReplyAs, {put_chars, unicode, M, F, As}} ->
+            From ! {io_reply, ReplyAs, ok},
+            spawn_group_proxy(
+              [catch unicode:characters_to_binary(apply(M, F, As))|Acc]);
+        {io_request, From, ReplyAs, _Request} = M ->
+            From ! {io_reply, ReplyAs, ok},
+            spawn_group_proxy([M|Acc]);
+        M ->
+            spawn_group_proxy([M|Acc])
+    end.
