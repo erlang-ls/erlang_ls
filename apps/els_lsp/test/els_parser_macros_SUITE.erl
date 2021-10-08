@@ -17,6 +17,7 @@
         , macro_in_application/1
         , record_def_field_macro/1
         , module_macro_as_record_name/1
+        , other_macro_as_record_name/1
         ]).
 
 %%==============================================================================
@@ -154,23 +155,52 @@ record_def_field_macro(_Config) ->
                els_parser:parse(Text2)),
   ok.
 
+%% Verify that record-related POIs are created with '?MODULE' name
+%% also verify that no macro POI is created in these cases
 module_macro_as_record_name(_Config) ->
   Text1 = "-record(?MODULE, {f = 1}).",
   ?assertMatch([#{data := #{field_list := [f]}}],
                parse_find_pois(Text1, record, '?MODULE')),
   ?assertMatch([_], parse_find_pois(Text1, record_def_field, {'?MODULE', f})),
+  ?assertMatch([], parse_find_pois(Text1, macro)),
 
   Text2 = "-type t() :: #?MODULE{f :: integer()}.",
   ?assertMatch([_], parse_find_pois(Text2, record_expr, '?MODULE')),
   ?assertMatch([_], parse_find_pois(Text2, record_field, {'?MODULE', f})),
+  ?assertMatch([], parse_find_pois(Text2, macro)),
 
   Text3 = "f(M) -> M#?MODULE.f.",
   ?assertMatch([_], parse_find_pois(Text3, record_expr, '?MODULE')),
   ?assertMatch([_], parse_find_pois(Text3, record_field, {'?MODULE', f})),
+  ?assertMatch([], parse_find_pois(Text3, macro)),
 
   Text4 = "f(M) -> M#?MODULE{f = 1}.",
   ?assertMatch([_], parse_find_pois(Text4, record_expr, '?MODULE')),
   ?assertMatch([_], parse_find_pois(Text4, record_field, {'?MODULE', f})),
+  ?assertMatch([], parse_find_pois(Text4, macro)),
+  ok.
+
+%% Verify macro POIs are created in record name positions
+other_macro_as_record_name(_Config) ->
+  Text1 = "-record(?M, {f = 1}).",
+  ?assertMatch([], parse_find_pois(Text1, record)),
+  ?assertMatch([], parse_find_pois(Text1, record_def_field)),
+  ?assertMatch([_], parse_find_pois(Text1, macro)),
+
+  Text2 = "-type t() :: #?M{f :: integer()}.",
+  ?assertMatch([], parse_find_pois(Text2, record_expr)),
+  ?assertMatch([], parse_find_pois(Text2, record_field)),
+  ?assertMatch([_], parse_find_pois(Text2, macro, 'M')),
+
+  Text3 = "f(M) -> M#?M.f.",
+  ?assertMatch([], parse_find_pois(Text3, record_expr)),
+  ?assertMatch([], parse_find_pois(Text3, record_field)),
+  ?assertMatch([_], parse_find_pois(Text3, macro, 'M')),
+
+  Text4 = "f(M) -> M#?M{f = 1}.",
+  ?assertMatch([], parse_find_pois(Text4, record_expr)),
+  ?assertMatch([], parse_find_pois(Text4, record_field)),
+  ?assertMatch([_], parse_find_pois(Text4, macro, 'M')),
   ok.
 
 %%==============================================================================

@@ -793,19 +793,25 @@ subtrees(Tree, macro) ->
     Args -> [Args]
   end;
 subtrees(Tree, record_access) ->
-  NameNode = erl_syntax:record_access_field(Tree),
+  NameNode = erl_syntax:record_access_type(Tree),
+  FieldNode = erl_syntax:record_access_field(Tree),
   [ [erl_syntax:record_access_argument(Tree)]
-  , skip_record_field_atom(NameNode)
+  , skip_record_name_atom(NameNode)
+  , skip_name_atom(FieldNode)
   ];
 subtrees(Tree, record_expr) ->
+  NameNode = erl_syntax:record_expr_type(Tree),
   Fields = erl_syntax:record_expr_fields(Tree),
-  case erl_syntax:record_expr_argument(Tree) of
-    none -> [Fields];
-    Arg  -> [[Arg], Fields]
-  end;
+  [ case erl_syntax:record_expr_argument(Tree) of
+      none -> [];
+      Arg  -> [Arg]
+    end
+  , skip_record_name_atom(NameNode)
+  , Fields
+  ];
 subtrees(Tree, record_field) ->
   NameNode = erl_syntax:record_field_name(Tree),
-  [ skip_record_field_atom(NameNode)
+  [ skip_name_atom(NameNode)
   , case erl_syntax:record_field_value(Tree) of
       none ->
         [];
@@ -814,17 +820,17 @@ subtrees(Tree, record_field) ->
     end];
 subtrees(Tree, record_type) ->
   NameNode = erl_syntax:record_type_name(Tree),
-  [ skip_record_field_atom(NameNode)
+  [ skip_record_name_atom(NameNode)
   , erl_syntax:record_type_fields(Tree)
   ];
 subtrees(Tree, record_type_field) ->
   NameNode = erl_syntax:record_type_field_name(Tree),
-  [ skip_record_field_atom(NameNode)
+  [ skip_name_atom(NameNode)
   , [erl_syntax:record_type_field_type(Tree)]
   ];
 subtrees(Tree, user_type_application) ->
   NameNode = erl_syntax:user_type_application_name(Tree),
-  [ skip_record_field_atom(NameNode)
+  [ skip_name_atom(NameNode)
   , erl_syntax:user_type_application_arguments(Tree)
   ];
 subtrees(Tree, type_application) ->
@@ -857,11 +863,13 @@ attribute_subtrees(AttrName, [Mod])
   when AttrName =:= module;
        AttrName =:= behavior;
        AttrName =:= behaviour ->
-  [skip_record_field_atom(Mod)];
-attribute_subtrees(record, [_RecordName, FieldsTuple]) ->
-  [[FieldsTuple]];
+  [skip_name_atom(Mod)];
+attribute_subtrees(record, [RecordName, FieldsTuple]) ->
+  [ skip_record_name_atom(RecordName)
+  , [FieldsTuple]
+  ];
 attribute_subtrees(import, [Mod, Imports]) ->
-  [ skip_record_field_atom(Mod)
+  [ skip_name_atom(Mod)
   , skip_function_entries(Imports) ];
 attribute_subtrees(AttrName, [Exports])
   when AttrName =:= export;
@@ -895,7 +903,7 @@ attribute_subtrees(AttrName, [ArgTuple])
   case erl_syntax:type(ArgTuple) of
     tuple ->
       [Type | Rest] = erl_syntax:tuple_elements(ArgTuple),
-      [skip_record_field_atom(Type), Rest];
+      [skip_name_atom(Type), Rest];
     _ ->
       [ArgTuple]
   end;
@@ -922,10 +930,20 @@ skip_function_entries(FunList) ->
       [FunList]
   end.
 
-%% Skip visiting atoms of record and record field names as they are already
-%% represented as `record_expr' or `record_field' pois
--spec skip_record_field_atom(tree()) -> [tree()].
-skip_record_field_atom(NameNode) ->
+%% Skip visiting atoms of record names as they are already
+%% represented as `record_expr' pois
+-spec skip_record_name_atom(tree()) -> [tree()].
+skip_record_name_atom(NameNode) ->
+  case is_record_name(NameNode) of
+    {true, _} ->
+      [];
+    _ ->
+      [NameNode]
+  end.
+
+%% Skip visiting atoms as they are already represented as other pois
+-spec skip_name_atom(tree()) -> [tree()].
+skip_name_atom(NameNode) ->
   case erl_syntax:type(NameNode) of
      atom ->
        [];
@@ -939,9 +957,9 @@ skip_type_name_atom(NameNode) ->
     atom ->
       [];
     module_qualifier ->
-      skip_record_field_atom(erl_syntax:module_qualifier_body(NameNode))
+      skip_name_atom(erl_syntax:module_qualifier_body(NameNode))
         ++
-        skip_record_field_atom(erl_syntax:module_qualifier_argument(NameNode));
+        skip_name_atom(erl_syntax:module_qualifier_argument(NameNode));
      _ ->
        [NameNode]
    end.
