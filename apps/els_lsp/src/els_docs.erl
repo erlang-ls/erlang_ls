@@ -21,6 +21,7 @@
 -if(?OTP_RELEASE >= 23).
 -include_lib("kernel/include/eep48.hrl").
 -export([eep48_docs/4]).
+-type docs_v1() :: #docs_v1{}.
 -endif.
 -endif.
 
@@ -126,8 +127,12 @@ signature('remote', M, F, A) ->
 
 %% @doc Fetch EEP-48 style Docs
 %%
-%% On modern systems (OTP 23+), Erlang has support for fetching documentation
-%% from the chunk.
+%% On OTP 23+ systems, Erlang has support for fetching documentation
+%% from the code or from a .chunk file. This function tries to fetch
+%% and render the documentation using EEP-48 docs if available.
+%%
+%% If it is not available it tries to create the EEP-48 style docs
+%% using edoc.
 -ifdef(NATIVE_FORMAT).
 -spec eep48_docs(function | type, atom(), atom(), non_neg_integer()) ->
         {ok, string()} | {error, not_available}.
@@ -152,7 +157,6 @@ eep48_docs(Type, M, F, A) ->
                       {error, _R1} ->
                           {error, not_available};
                       Docs ->
-                          %% ?LOG_ERROR("[docs] render(~ts)", [Docs]),
                           {ok, els_utils:to_list(Docs)}
                   end;
               Docs ->
@@ -177,23 +181,44 @@ eep48_docs(Type, M, F, A) ->
 %% and if that fails it attempts to find the .chunk file.
 -spec get_doc_chunk(M :: module()) -> {ok, term()} | error.
 get_doc_chunk(M) ->
-  {ok, Uri} = els_utils:find_module(M),
+    {ok, Uris} = els_utils:find_modules(M),
 
-  SrcDir    = filename:dirname(els_utils:to_list(els_uri:path(Uri))),
-  BeamFile  = filename:join([SrcDir, "..", "ebin", lists:concat([M, ".beam"])]),
-  ChunkFile = filename:join([SrcDir, "..", "doc", "chunks",
-                             lists:concat([M, ".chunk"])]),
-  case beam_lib:chunks(BeamFile, ["Docs"]) of
-    {ok, {_Mod, [{"Docs", Bin}]}} ->
-        {ok, binary_to_term(Bin)};
-    _ ->
-      case file:read_file(ChunkFile) of
-        {ok, Bin} ->
-          {ok, binary_to_term(Bin)};
+    %% We loop through all modules in search path to see if any
+    %% of them have any docs. In the normal case there should only
+    %% be one module in the path, but for example when developing
+    %% Erlang/OTP there will be two "lists" modules, and we want to
+    %% fetch the docs from any version that has docs built.
+
+    case lists:foldl(
+           fun(Uri, undefined) ->
+                   get_doc_chunk(M, Uri);
+              (_Uri, Chunk) ->
+                   Chunk
+           end, undefined, Uris) of
+        undefined ->
+            get_edoc_chunk(M, hd(Uris));
+        Chunk ->
+            {ok, Chunk}
+    end.
+
+-spec get_doc_chunk(module(), uri()) -> docs_v1() | undefined.
+get_doc_chunk(M, Uri) ->
+    SrcDir    = filename:dirname(els_utils:to_list(els_uri:path(Uri))),
+    BeamFile  = filename:join([SrcDir, "..", "ebin",
+                               lists:concat([M, ".beam"])]),
+    ChunkFile = filename:join([SrcDir, "..", "doc", "chunks",
+                               lists:concat([M, ".chunk"])]),
+    case beam_lib:chunks(BeamFile, ["Docs"]) of
+        {ok, {_Mod, [{"Docs", Bin}]}} ->
+            binary_to_term(Bin);
         _ ->
-          get_edoc_chunk(M, Uri)
-      end
-  end.
+            case file:read_file(ChunkFile) of
+                {ok, Bin} ->
+                    binary_to_term(Bin);
+                _ ->
+                    undefined
+            end
+    end.
 
 -spec get_edoc_chunk(M :: module(), Uri :: uri()) -> {ok, term()} | error.
 get_edoc_chunk(M, Uri) ->
