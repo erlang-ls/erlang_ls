@@ -521,7 +521,7 @@ render_signature({{_Type,_F,_A},_Anno,_Sigs,_Docs,#{ signature := Specs } = Meta
               BinSpec =
                   unicode:characters_to_binary(
                     string:trim(Spec, trailing, "\n")),
-              [{pre,[],[{strong,[],BinSpec}]},
+              [{pre,[],BinSpec},
                {hr,[],[]}|render_meta(Meta)]
       end, Specs);
 render_signature({{_Type,_F,_A},_Anno,Sigs,_Docs,Meta}) ->
