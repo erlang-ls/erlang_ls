@@ -94,12 +94,17 @@ function_docs(Type, M, F, A) ->
         {error, not_available} ->
             %% We cannot fetch the EEP-48 style docs, so instead we create
             %% something similar using the tools we have.
-            L = [ [{h2, signature(Type, M, F, A)}, {text, "---"}]
-                , function_clauses(M, F, A)
+            Sig = {h2, signature(Type, M, F, A)},
+            L = [ function_clauses(M, F, A)
                 , specs(M, F, A)
                 , edoc(M, F, A)
                 ],
-            lists:append(L)
+            case lists:append(L) of
+                [] ->
+                    [Sig];
+                Docs ->
+                    [Sig, {text, "---"}|Docs]
+            end
     end.
 
 -spec type_docs(application_type(), atom(), atom(), non_neg_integer()) ->
@@ -110,10 +115,12 @@ type_docs(Type, M, F, A) ->
             [{text, Docs}];
         {error, not_available} ->
             Signature = signature(Type, M, F, A),
-            Docs = type(M, F, A),
-            L = [ [{h2, Signature}, {text, "---"}]
-                , Docs],
-            lists:append(L)
+            case type(M, F, A) of
+                [] ->
+                    [{h2, Signature}];
+                Docs ->
+                    [{h2, Signature}, {text, "---"} | Docs]
+            end
     end.
 
 -spec get_valuetext(uri(), map()) -> list().
