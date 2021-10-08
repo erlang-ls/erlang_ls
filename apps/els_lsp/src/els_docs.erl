@@ -197,19 +197,18 @@ get_doc_chunk(M) ->
 
 -spec get_edoc_chunk(M :: module(), Uri :: uri()) -> {ok, term()} | error.
 get_edoc_chunk(M, Uri) ->
+    %% edoc in Erlang/OTP 24 and later can create doc chunks for edoc
     case {code:ensure_loaded(edoc_doclet_chunks),
           code:ensure_loaded(edoc_layout_chunks)} of
         {{module, _}, {module, _}} ->
             Path = els_uri:path(Uri),
-            ?LOG_ERROR("[edoc] run(~ts)", [Path]),
+            Dir = erlang_ls:cache_root(),
             ok = edoc:run([els_utils:to_list(Path)],
                           [{doclet, edoc_doclet_chunks},
                            {layout, edoc_layout_chunks},
-                           {dir, "/tmp"} | edoc_options()]),
-            %% Should store this is a better place...
-            Chunk = "/tmp/chunks/" ++ atom_to_list(M) ++ ".chunk",
+                           {dir, Dir} | edoc_options()]),
+            Chunk = filename:join([Dir, "chunks", atom_to_list(M) ++ ".chunk"]),
             {ok, Bin} = file:read_file(Chunk),
-            file:del_dir_r("/tmp/chunks/"),
             {ok, binary_to_term(Bin)};
         E ->
             ?LOG_ERROR("[edoc_chunk] load error", [E]),
