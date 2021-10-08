@@ -77,6 +77,8 @@ docs(Uri, #{kind := record_expr} = POI) ->
   end;
 docs(_M, #{kind := type_application, id := {M, F, A}}) ->
   type_docs('remote', M, F, A);
+docs(Uri, #{kind := type_application, id := {F, A}}) ->
+  type_docs('local', els_uri:module(Uri), F, A);
 docs(_M, _POI) ->
   [].
 
@@ -90,7 +92,9 @@ function_docs(Type, M, F, A) ->
         {ok, Docs} ->
             [{text, Docs}];
         {error, not_available} ->
-            L = [ [{h2, signature(Type, M, F, A)}]
+            %% We cannot fetch the EEP-48 style docs, so instead we create
+            %% something similar using the tools we have.
+            L = [ [{h2, signature(Type, M, F, A)}, {text, "---"}]
                 , function_clauses(M, F, A)
                 , specs(M, F, A)
                 , edoc(M, F, A)
@@ -106,8 +110,8 @@ type_docs(Type, M, F, A) ->
             [{text, Docs}];
         {error, not_available} ->
             Signature = signature(Type, M, F, A),
-            Docs = specs(M, F, A),
-            L = [ [{h2, Signature}]
+            Docs = type(M, F, A),
+            L = [ [{h2, Signature}, {text, "---"}]
                 , Docs],
             lists:append(L)
     end.
@@ -265,6 +269,26 @@ specs(M, F, A) ->
     {ok, []} ->
       []
   end.
+
+-spec type(module(), atom(), arity()) ->
+          [els_markup_content:doc_entry()].
+type(M, T, A) ->
+    case els_utils:find_module(M) of
+        {ok, Uri} ->
+            {ok, Document} = els_utils:lookup_document(Uri),
+            ExportedTypes = els_dt_document:pois(Document, [type_definition]),
+            case lists:search(
+                   fun(#{ id := Id }) ->
+                           Id =:= {T, A}
+                   end, ExportedTypes) of
+                {value, #{ range := Range }} ->
+                    [{code_line, get_valuetext(Uri, Range)}];
+                false ->
+                    []
+            end;
+        _ ->
+            []
+    end.
 
 -spec function_clauses(atom(), atom(), non_neg_integer()) ->
         [els_markup_content:doc_entry()].
