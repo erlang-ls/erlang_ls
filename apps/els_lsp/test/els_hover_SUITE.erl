@@ -86,6 +86,7 @@ local_call_with_args(Config) ->
   ?assert(maps:is_key(contents, Result)),
   Contents = maps:get(contents, Result),
   Value = <<"## local_call/2\n\n"
+            "---\n\n"
             "```erlang\n\n"
             "  local_call(Arg1, Arg2) \n\n"
             "```\n\n"
@@ -105,6 +106,7 @@ remote_call_multiple_clauses(Config) ->
   ?assert(maps:is_key(contents, Result)),
   Contents = maps:get(contents, Result),
   Value = <<"## hover_docs:multiple_clauses/1\n\n"
+            "---\n\n"
             "```erlang\n\n"
             "  multiple_clauses(L) when is_list(L)\n\n"
             "  multiple_clauses(#{data := Data}) \n\n"

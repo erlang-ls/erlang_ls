@@ -951,6 +951,7 @@ resolve_application_local(Config) ->
                           #{ kind => <<"markdown">>
                            , value =>
                                <<"## completion_resolve:call_1/0\n\n"
+                                 "---\n\n"
                                  "```erlang\n"
                                  "-spec call_1() -> 'ok'.\n"
                                  "```">>
@@ -970,6 +971,7 @@ resolve_application_remote_self(Config) ->
                           #{ kind => <<"markdown">>
                            , value =>
                                <<"## completion_resolve:call_1/0\n\n"
+                                 "---\n\n"
                                  "```erlang\n"
                                  "-spec call_1() -> 'ok'.\n"
                                  "```">>
@@ -989,6 +991,7 @@ resolve_application_remote_external(Config) ->
                           #{ kind => <<"markdown">>
                            , value =>
                                <<"## completion_resolve_2:call_1/0\n\n"
+                                 "---\n\n"
                                  "```erlang\n"
                                  "-spec call_1() -> 'ok'.\n"
                                  "```">>
