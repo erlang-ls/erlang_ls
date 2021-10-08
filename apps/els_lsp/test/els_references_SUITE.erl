@@ -403,14 +403,14 @@ undefined_record_field(Config) ->
 purge_references(_Config) ->
   els_db:clear_tables(),
   Uri   = <<"file:///tmp/foo.erl">>,
-  Text0 = <<"-spec foo(integer()) -> ok.\nfoo(_X) -> ok.\nbar() -> foo(1).">>,
-  Text1 = <<"\n-spec foo(integer()) -> ok.\nfoo(_X)-> ok.\nbar() -> foo(1).">>,
+  Text0 = <<"-spec foo() -> ok.\nfoo(_X) -> ok.\nbar() -> foo().">>,
+  Text1 = <<"\n-spec foo() -> ok.\nfoo(_X)-> ok.\nbar() -> foo().">>,
   Doc0  = els_dt_document:new(Uri, Text0),
   Doc1  = els_dt_document:new(Uri, Text1),
 
   ok = els_indexing:index(Uri, Text0, 'deep'),
   ?assertEqual({ok, [Doc0]}, els_dt_document:lookup(Uri)),
-  ?assertEqual({ok, [#{ id    => {foo, foo, 1}
+  ?assertEqual({ok, [#{ id    => {foo, foo, 0}
                       , range => #{from => {3, 10}, to => {3, 13}}
                       , uri   => <<"file:///tmp/foo.erl">>
                       }]}
@@ -419,7 +419,7 @@ purge_references(_Config) ->
 
   ok = els_indexing:index(Uri, Text1, 'deep'),
   ?assertEqual({ok, [Doc1]}, els_dt_document:lookup(Uri)),
-  ?assertEqual({ok, [#{ id    => {foo, foo, 1}
+  ?assertEqual({ok, [#{ id    => {foo, foo, 0}
                       , range => #{from => {4, 10}, to => {4, 13}}
                       , uri   => <<"file:///tmp/foo.erl">>
                       }]}

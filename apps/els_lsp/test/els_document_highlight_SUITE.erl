@@ -265,7 +265,7 @@ import_entry(Config) ->
 type(Config) ->
   Uri = ?config(code_navigation_uri, Config),
   #{result := Locations} = els_client:document_highlight(Uri, 37, 9),
-  ExpectedLocations = [ #{range => #{from => {37, 7}, to => {37, 13}}}
+  ExpectedLocations = [ #{range => #{from => {37, 1}, to => {37, 25}}}
                         %% Should also include the usage, but does not
                         %%, #{range => #{from => {55, 23}, to => {55, 29}}}
                       ],
@@ -285,7 +285,7 @@ type_application(Config) ->
 opaque(Config) ->
   Uri = ?config(code_navigation_types_uri, Config),
   #{result := Locations} = els_client:document_highlight(Uri, 7, 9),
-  ExpectedLocations = [ #{range => #{from => {7, 9}, to => {7, 22}}}
+  ExpectedLocations = [ #{range => #{from => {7, 1}, to => {7, 35}}}
                       ],
   assert_locations(ExpectedLocations, Locations),
   ok.
