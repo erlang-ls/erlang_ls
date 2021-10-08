@@ -253,8 +253,7 @@ eep48_docs(_Type, _M, _F, _A) ->
 -endif.
 
 edoc_options() ->
-    [{private, true},
-     {preprocess, true},
+    [{preprocess, true},
      {macros,
       [{N, V} || {'d', N, V} <- els_compiler_diagnostics:macro_options()]},
      {includes,
