@@ -41,10 +41,13 @@
 %% API
 %%==============================================================================
 -spec docs(uri(), poi()) -> [els_markup_content:doc_entry()].
-docs(_Uri, #{kind := application, id := {M, F, A}}) ->
+docs(_Uri, #{kind := Kind, id := {M, F, A}})
+  when Kind =:= application;
+       Kind =:= implicit_fun ->
   function_docs('remote', M, F, A);
 docs(Uri, #{kind := Kind, id := {F, A}})
   when Kind =:= application;
+       Kind =:= implicit_fun;
        Kind =:= export_entry ->
   M = els_uri:module(Uri),
   function_docs('local', M, F, A);
