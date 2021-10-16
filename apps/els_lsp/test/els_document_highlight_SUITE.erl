@@ -141,8 +141,9 @@ atom(Config) ->
                       , #{range => #{from => {16, 20}, to => {16, 27}}}
                       , #{range => #{from => {34, 44}, to => {34, 51}}}
                       , #{range => #{from => {111, 19}, to => {111, 26}}}
-                      , #{range => #{from => {115, 14}, to => {115, 21}}}
-                      , #{range => #{from => {115, 39}, to => {115, 46}}}
+                      , #{range => #{from => {113, 33}, to => {113, 40}}}
+                      , #{range => #{from => {116, 14}, to => {116, 21}}}
+                      , #{range => #{from => {116, 39}, to => {116, 46}}}
                       ],
   assert_locations(ExpectedLocations, Locations),
   ok.

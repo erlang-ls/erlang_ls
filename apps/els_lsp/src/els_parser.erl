@@ -257,18 +257,11 @@ attribute(Tree) ->
     {include_lib, [String]} ->
       [poi(Pos, include_lib, erl_syntax:string_value(String))];
     {record, [Record, Fields]} ->
-      case is_atom_node(Record) of
+      case is_record_name(Record) of
         {true, RecordName} ->
           record_attribute_pois(Tree, Record, RecordName, Fields);
         false ->
-          case is_macro_node(Record) of
-            {true, 'MODULE'} ->
-              %% [#1052] Let's handle the common ?MODULE macro case explicitly
-              RecordName = '?MODULE',
-              record_attribute_pois(Tree, Record, RecordName, Fields);
-            _ ->
-              []
-          end
+          []
       end;
     {AttrName, [ArgTuple]} when AttrName =:= type;
                                 AttrName =:= opaque ->
@@ -311,26 +304,12 @@ attribute(Tree) ->
 
 -spec record_attribute_pois(tree(), tree(), atom(), tree()) -> [poi()].
 record_attribute_pois(Tree, Record, RecordName, Fields) ->
-  %% FIXME clean FieldList up -> analyze_record_fields
-  FieldList =
-    lists:flatten(
-      [case erl_syntax:type(F) of
-         record_field ->
-           FieldName = erl_syntax:record_field_name(F),
-           {erl_syntax:atom_value(FieldName),
-            erl_syntax:record_field_value(F)};
-         typed_record_field ->
-           FF = erl_syntax:typed_record_field_body(F),
-           FieldName = erl_syntax:record_field_name(FF),
-           {erl_syntax:atom_value(FieldName),
-            erl_syntax:record_field_value(FF)}
-       end
-       || F <- erl_syntax:tuple_elements(Fields)]),
+  FieldList = record_def_field_name_list(Fields),
   ValueRange = #{ from => get_start_location(Tree),
                   to => get_end_location(Tree)},
   Data = #{field_list => FieldList, value_range => ValueRange},
   [poi(erl_syntax:get_pos(Record), record, RecordName, Data)
-  | record_def_fields(Tree, RecordName)].
+  | record_def_fields(Fields, RecordName)].
 
 -spec find_compile_options_pois(tree()) -> [poi()].
 find_compile_options_pois(Arg) ->
@@ -505,63 +484,111 @@ macro(Tree) ->
   Anno = macro_location(Tree),
   [poi(Anno, macro, macro_name(Tree))].
 
--spec record_access(tree()) -> [poi()].
-record_access(Tree) ->
-  RecordNode = erl_syntax:record_access_type(Tree),
-  FieldNode = erl_syntax:record_access_field(Tree),
-  case erl_syntax:type(RecordNode) of
-    atom ->
-      Record = erl_syntax:atom_value(RecordNode),
-      record_access_pois(Tree, Record, FieldNode);
-    macro ->
-      case macro_name(RecordNode) of
-         'MODULE' ->
-          %% [#1052] Let's handle the common ?MODULE macro case explicitly
-          record_access_pois(Tree, '?MODULE', FieldNode);
-        _ ->
-          []
-      end;
+-spec map_record_def_fields(Fun, tree(), atom()) -> [Result]
+          when Fun :: fun((tree(), atom()) -> Result).
+map_record_def_fields(Fun, Fields, RecordName) ->
+  case erl_syntax:type(Fields) of
+    tuple ->
+      lists:append(
+        [ case erl_syntax:type(FieldTree) of
+            record_field ->
+              FieldNode = FieldTree,
+              Fun(FieldNode, RecordName);
+            typed_record_field ->
+              FieldNode = erl_syntax:typed_record_field_body(FieldTree),
+              Fun(FieldNode, RecordName);
+            _ ->
+              []
+          end
+          || FieldTree <- erl_syntax:tuple_elements(Fields)
+        ]);
     _ ->
       []
   end.
 
--spec record_access_pois(tree(), atom(), tree()) -> [poi()].
-record_access_pois(Tree, Record, FieldNode) ->
+%% Fields with macro name are skipped
+-spec record_def_field_name_list(tree()) -> [atom()].
+record_def_field_name_list(Fields) ->
+  map_record_def_fields(
+    fun(FieldNode, _) ->
+        FieldName = erl_syntax:record_field_name(FieldNode),
+        case is_atom_node(FieldName) of
+          {true, NameAtom} ->
+            [NameAtom];
+          false ->
+            []
+        end
+    end,
+    Fields,
+    undefined).
+
+-spec record_def_fields(tree(), atom()) -> [poi()].
+record_def_fields(Fields, RecordName) ->
+  map_record_def_fields(
+    fun(F, R) ->
+        record_field_name(F, R, record_def_field)
+    end,
+    Fields,
+    RecordName).
+
+-spec record_access(tree()) -> [poi()].
+record_access(Tree) ->
+  RecordNode = erl_syntax:record_access_type(Tree),
+  case is_record_name(RecordNode) of
+    {true, Record} ->
+      record_access_pois(Tree, Record);
+    false ->
+      []
+  end.
+
+-spec record_access_pois(tree(), atom()) -> [poi()].
+record_access_pois(Tree, Record) ->
+  FieldNode = erl_syntax:record_access_field(Tree),
   FieldPoi =
-    case erl_syntax:type(FieldNode) of
-      atom ->
-        Field = erl_syntax:atom_value(FieldNode),
-        [poi(erl_syntax:get_pos(FieldNode), record_field, {Record, Field})];
+    case is_atom_node(FieldNode) of
+      {true, FieldName} ->
+        [poi(erl_syntax:get_pos(FieldNode), record_field, {Record, FieldName})];
       _    ->
         []
     end,
   Anno = record_access_location(Tree),
-  [ poi(Anno, record_expr, Record) | FieldPoi ].
+  [ poi(Anno, record_expr, Record)
+  | FieldPoi ].
 
 -spec record_expr(tree()) -> [poi()].
 record_expr(Tree) ->
   RecordNode = erl_syntax:record_expr_type(Tree),
-  case erl_syntax:type(RecordNode) of
-    atom ->
-      Record = erl_syntax:atom_value(RecordNode),
+  case is_record_name(RecordNode) of
+    {true, Record} ->
       record_expr_pois(Tree, RecordNode, Record);
-    macro ->
-      case macro_name(RecordNode) of
-        'MODULE' ->
-          %% [#1052] Let's handle the common ?MODULE macro case explicitly
-          record_expr_pois(Tree, RecordNode, '?MODULE');
-        _ ->
-          []
-      end;
-    _ ->
+    false ->
       []
   end.
 
 -spec record_expr_pois(tree(), tree(), atom()) -> [poi()].
 record_expr_pois(Tree, RecordNode, Record) ->
-  FieldPois  = lists:append(
-                 [record_field_name(F, Record, record_field)
-                  || F <- erl_syntax:record_expr_fields(Tree)]),
+  FieldPois = lists:append(
+                [record_field_name(F, Record, record_field)
+                 || F <- erl_syntax:record_expr_fields(Tree)]),
+  Anno = record_expr_location(Tree, RecordNode),
+  [ poi(Anno, record_expr, Record)
+  | FieldPois ].
+
+-spec record_type(tree()) -> [poi()].
+record_type(Tree) ->
+  RecordNode = erl_syntax:record_type_name(Tree),
+  case is_record_name(RecordNode) of
+    {true, Record} ->
+      record_type_pois(Tree, RecordNode, Record);
+    false ->
+      []
+  end.
+
+-spec record_type_pois(tree(), tree(), atom()) -> [poi()].
+record_type_pois(Tree, RecordNode, Record) ->
+  FieldPois = lists:append(
+                [record_field_name(F, Record, record_field)
+                 || F <- erl_syntax:record_type_fields(Tree)]),
   Anno = record_expr_location(Tree, RecordNode),
   [ poi(Anno, record_expr, Record)
   | FieldPois ].
@@ -575,56 +602,30 @@ record_field_name(FieldNode, Record, Kind) ->
       record_type_field ->
         erl_syntax:record_type_field_name(FieldNode)
     end,
-  case erl_syntax:type(NameNode) of
-    atom ->
+  case is_atom_node(NameNode) of
+    {true, NameAtom} ->
       Pos = erl_syntax:get_pos(NameNode),
-      NameAtom = erl_syntax:atom_value(NameNode),
       [poi(Pos, Kind, {Record, NameAtom})];
     _ ->
       []
   end.
 
--spec record_def_fields(tree(), atom()) -> [poi()].
-record_def_fields(AttrTree, Record) ->
-  case erl_syntax:attribute_arguments(AttrTree) of
-    none -> [];
-    [_R, T] ->
-      case erl_syntax:type(T) of
-        tuple ->
-          lists:append(
-            [record_def_field(F, Record)
-             || F <- erl_syntax:tuple_elements(T)]);
-        _ ->
-          []
-      end
-  end.
-
--spec record_def_field(tree(), atom()) -> [poi()].
-record_def_field(FieldTree, Record) ->
-  case erl_syntax:type(FieldTree) of
-    record_field ->
-      record_field_name(FieldTree, Record, record_def_field);
-    typed_record_field ->
-      F = erl_syntax:typed_record_field_body(FieldTree),
-      record_field_name(F, Record, record_def_field);
-    _ ->
-      []
-  end.
-
--spec record_type(tree()) -> [poi()].
-record_type(Tree) ->
-  RecordNode = erl_syntax:record_type_name(Tree),
-  case erl_syntax:type(RecordNode) of
+-spec is_record_name(tree()) -> {true, atom()} | false.
+is_record_name(RecordNameNode) ->
+  case erl_syntax:type(RecordNameNode) of
     atom ->
-      Record = erl_syntax:atom_value(RecordNode),
-      FieldPois  = lists:append(
-                     [record_field_name(F, Record, record_field)
-                      || F <- erl_syntax:record_type_fields(Tree)]),
-      Anno = record_expr_location(Tree, RecordNode),
-      [ poi(Anno, record_expr, Record)
-      | FieldPois ];
+      NameAtom = erl_syntax:atom_value(RecordNameNode),
+      {true, NameAtom};
+    macro ->
+      case macro_name(RecordNameNode) of
+        'MODULE' ->
+          %% [#1052] Let's handle the common ?MODULE macro case explicitly
+          {true, '?MODULE'};
+        _ ->
+          false
+      end;
     _ ->
-      []
+      false
   end.
 
 -spec type_application(tree()) -> [poi()].
@@ -716,15 +717,6 @@ is_atom_node(Tree) ->
       false
   end.
 
--spec is_macro_node(tree()) -> {true, atom()} | false.
-is_macro_node(Tree) ->
-  case erl_syntax:type(Tree) of
-    macro ->
-      {true, macro_name(Tree)};
-    _ ->
-      false
-  end.
-
 -spec get_name_arity(tree()) -> {atom(), integer()} | false.
 get_name_arity(Tree) ->
   case erl_syntax:type(Tree) of
@@ -801,19 +793,25 @@ subtrees(Tree, macro) ->
     Args -> [Args]
   end;
 subtrees(Tree, record_access) ->
-  NameNode = erl_syntax:record_access_field(Tree),
+  NameNode = erl_syntax:record_access_type(Tree),
+  FieldNode = erl_syntax:record_access_field(Tree),
   [ [erl_syntax:record_access_argument(Tree)]
-  , skip_record_field_atom(NameNode)
+  , skip_record_name_atom(NameNode)
+  , skip_name_atom(FieldNode)
   ];
 subtrees(Tree, record_expr) ->
+  NameNode = erl_syntax:record_expr_type(Tree),
   Fields = erl_syntax:record_expr_fields(Tree),
-  case erl_syntax:record_expr_argument(Tree) of
-    none -> [Fields];
-    Arg  -> [[Arg], Fields]
-  end;
+  [ case erl_syntax:record_expr_argument(Tree) of
+      none -> [];
+      Arg  -> [Arg]
+    end
+  , skip_record_name_atom(NameNode)
+  , Fields
+  ];
 subtrees(Tree, record_field) ->
   NameNode = erl_syntax:record_field_name(Tree),
-  [ skip_record_field_atom(NameNode)
+  [ skip_name_atom(NameNode)
   , case erl_syntax:record_field_value(Tree) of
       none ->
         [];
@@ -822,17 +820,17 @@ subtrees(Tree, record_field) ->
     end];
 subtrees(Tree, record_type) ->
   NameNode = erl_syntax:record_type_name(Tree),
-  [ skip_record_field_atom(NameNode)
+  [ skip_record_name_atom(NameNode)
   , erl_syntax:record_type_fields(Tree)
   ];
 subtrees(Tree, record_type_field) ->
   NameNode = erl_syntax:record_type_field_name(Tree),
-  [ skip_record_field_atom(NameNode)
+  [ skip_name_atom(NameNode)
   , [erl_syntax:record_type_field_type(Tree)]
   ];
 subtrees(Tree, user_type_application) ->
   NameNode = erl_syntax:user_type_application_name(Tree),
-  [ skip_record_field_atom(NameNode)
+  [ skip_name_atom(NameNode)
   , erl_syntax:user_type_application_arguments(Tree)
   ];
 subtrees(Tree, type_application) ->
@@ -865,11 +863,13 @@ attribute_subtrees(AttrName, [Mod])
   when AttrName =:= module;
        AttrName =:= behavior;
        AttrName =:= behaviour ->
-  [skip_record_field_atom(Mod)];
-attribute_subtrees(record, [_RecordName, FieldsTuple]) ->
-  [[FieldsTuple]];
+  [skip_name_atom(Mod)];
+attribute_subtrees(record, [RecordName, FieldsTuple]) ->
+  [ skip_record_name_atom(RecordName)
+  , [FieldsTuple]
+  ];
 attribute_subtrees(import, [Mod, Imports]) ->
-  [ skip_record_field_atom(Mod)
+  [ skip_name_atom(Mod)
   , skip_function_entries(Imports) ];
 attribute_subtrees(AttrName, [Exports])
   when AttrName =:= export;
@@ -903,7 +903,7 @@ attribute_subtrees(AttrName, [ArgTuple])
   case erl_syntax:type(ArgTuple) of
     tuple ->
       [Type | Rest] = erl_syntax:tuple_elements(ArgTuple),
-      [skip_record_field_atom(Type), Rest];
+      [skip_name_atom(Type), Rest];
     _ ->
       [ArgTuple]
   end;
@@ -930,10 +930,20 @@ skip_function_entries(FunList) ->
       [FunList]
   end.
 
-%% Skip visiting atoms of record and record field names as they are already
-%% represented as `record_expr' or `record_field' pois
--spec skip_record_field_atom(tree()) -> [tree()].
-skip_record_field_atom(NameNode) ->
+%% Skip visiting atoms of record names as they are already
+%% represented as `record_expr' pois
+-spec skip_record_name_atom(tree()) -> [tree()].
+skip_record_name_atom(NameNode) ->
+  case is_record_name(NameNode) of
+    {true, _} ->
+      [];
+    _ ->
+      [NameNode]
+  end.
+
+%% Skip visiting atoms as they are already represented as other pois
+-spec skip_name_atom(tree()) -> [tree()].
+skip_name_atom(NameNode) ->
   case erl_syntax:type(NameNode) of
      atom ->
        [];
@@ -947,9 +957,9 @@ skip_type_name_atom(NameNode) ->
     atom ->
       [];
     module_qualifier ->
-      skip_record_field_atom(erl_syntax:module_qualifier_body(NameNode))
+      skip_name_atom(erl_syntax:module_qualifier_body(NameNode))
         ++
-        skip_record_field_atom(erl_syntax:module_qualifier_argument(NameNode));
+        skip_name_atom(erl_syntax:module_qualifier_argument(NameNode));
      _ ->
        [NameNode]
    end.
