@@ -14,7 +14,8 @@
         uuid,
         getopt,
         erlfmt,
-        els_core
+        els_core,
+        gradualizer
     ]},
     {env, []},
     {modules, []},
