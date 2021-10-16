@@ -121,6 +121,11 @@ init_per_testcase(TestCase, Config) when TestCase =:= compiler_telemetry ->
   els_mock_diagnostics:setup(),
   mock_compiler_telemetry_enabled(),
   els_test_utils:init_per_testcase(TestCase, Config);
+init_per_testcase(TestCase, Config) when TestCase =:= gradualizer ->
+  meck:new(els_gradualizer_diagnostics, [passthrough, no_link]),
+  meck:expect(els_gradualizer_diagnostics, is_default, 0, true),
+  els_mock_diagnostics:setup(),
+  els_test_utils:init_per_testcase(TestCase, Config);
 init_per_testcase(TestCase, Config) ->
   els_mock_diagnostics:setup(),
   els_test_utils:init_per_testcase(TestCase, Config).
@@ -154,6 +159,11 @@ end_per_testcase(exclude_unused_includes = TestCase, Config) ->
   ok;
 end_per_testcase(TestCase, Config) when TestCase =:= compiler_telemetry ->
   unmock_compiler_telemetry_enabled(),
+  els_test_utils:end_per_testcase(TestCase, Config),
+  els_mock_diagnostics:teardown(),
+  ok;
+end_per_testcase(TestCase, Config) when TestCase =:= gradualizer ->
+  meck:unload(els_gradualizer_diagnostics),
   els_test_utils:end_per_testcase(TestCase, Config),
   els_mock_diagnostics:teardown(),
   ok;
@@ -790,7 +800,11 @@ gradualizer(Config) ->
   Diagnostics == []
     andalso ct:fail("Diagnostics should not be empty - is Gradualizer "
                     "available in the code path?"),
-  Expected = [],
+  Expected = [#{message => <<"The variable N is expected to have type "
+                             "integer() but it has type false | true\n">>,
+                range => #{'end' => #{character => 0, line => 11},
+                           start => #{character => 0, line => 10}},
+                severity => 2, source => <<"Gradualizer">>}],
   F = fun(#{message := M1}, #{message := M2}) -> M1 =< M2 end,
   ?assertEqual(Expected, lists:sort(F, Diagnostics)),
   ok.
