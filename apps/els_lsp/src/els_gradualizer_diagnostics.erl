@@ -88,7 +88,7 @@ analyzer_error({_Path, Error}) ->
   FmtOpts = [{fmt_location, brief}, {color, never}],
   FmtError = gradualizer_fmt:format_type_error(Error, FmtOpts),
   case re:run(FmtError, "([0-9]+):([0-9]+:)? (.*)",
-              [{capture, all_but_first, binary}]) of
+              [{capture, all_but_first, binary}, dotall]) of
     {match, [BinLine, _BinCol, Msg]} ->
       Line = case binary_to_integer(BinLine) of
                0 -> 1;
