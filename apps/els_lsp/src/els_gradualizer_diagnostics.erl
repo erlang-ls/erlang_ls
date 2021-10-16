@@ -85,9 +85,8 @@ start_and_load() ->
 
 -spec analyzer_error(any()) -> any().
 analyzer_error({_Path, Error}) ->
-    FmtError = gradualizer_fmt:format_type_error(
-                 Error
-                , [{fmt_location, brief}, {color, never}]),
+    FmtOpts = [{fmt_location, brief}, {color, never}],
+    FmtError = gradualizer_fmt:format_type_error(Error, FmtOpts),
     case re:run(
            FmtError, "([0-9]+):([0-9]+:)? (.*)",
            [{capture, all_but_first, binary}]) of
