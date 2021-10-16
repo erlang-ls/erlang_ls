@@ -10,6 +10,10 @@ install: all
 	@ cp _build/default/bin/erlang_ls /usr/local/bin
 	@ cp _build/dap/bin/els_dap /usr/local/bin
 
+.PHONY: clean
+clean:
+	@rm -rf _build
+
 $HOME/.dialyzer_plt:
 	dialyzer --build_plt --apps erts kernel stdlib
 
