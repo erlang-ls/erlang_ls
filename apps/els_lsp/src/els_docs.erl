@@ -104,7 +104,7 @@ function_docs(Type, M, F, A) ->
                 [] ->
                     [Sig];
                 Docs ->
-                    [Sig, {text, "---"}|Docs]
+                    [Sig, {text, "---"} | Docs]
             end
     end.
 
