@@ -114,7 +114,7 @@ render(_Module, Function, #docs_v1{ } = D) ->
 render(Module, Function, #docs_v1{ docs = Docs } = D, Config)
   when is_atom(Module), is_atom(Function), is_map(Config) ->
     render_function(
-      lists:filter(fun({{function, F, _},_Anno,_Sig,_Doc,_Meta}) ->
+      lists:filter(fun({{function, F, _},_Anno,_Sig,Doc,_Meta}) when Doc =/= none ->
                              F =:= Function;
                         (_) ->
                              false
@@ -132,7 +132,7 @@ render(_Module, Function, Arity, #docs_v1{ } = D) ->
 render(Module, Function, Arity, #docs_v1{ docs = Docs } = D, Config)
   when is_atom(Module), is_atom(Function), is_integer(Arity), is_map(Config) ->
     render_function(
-      lists:filter(fun({{function, F, A},_Anno,_Sig,_Doc,_Meta}) ->
+      lists:filter(fun({{function, F, A},_Anno,_Sig,Doc,_Meta}) when Doc =/= none->
                            F =:= Function andalso A =:= Arity;
                         (_) ->
                              false
