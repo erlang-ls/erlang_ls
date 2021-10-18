@@ -34,9 +34,6 @@
 -export([render_type/2, render_type/3, render_type/4, render_type/5]).
 -export([render_callback/2, render_callback/3, render_callback/4, render_callback/5]).
 
-%% Convinience functions
--export([get_doc/1, get_doc/3, get_type_doc/3, get_callback_doc/3]).
-
 -export_type([chunk_elements/0, chunk_element_attr/0]).
 
 -record(config, { docs }).
@@ -68,177 +65,15 @@
                                     ol | li | dl | dt | dd |
                                     h1 | h2 | h3 | h4 | h5 | h6.
 
-
-%% Follows algorithm described here:
-%% * https://medium.com/@patrickbrosset/when-does-white-space-matter-in-html-b90e8a7cdd33
-%% which in turn follows this:
-%% * https://www.w3.org/TR/css-text-3/#white-space-processing
 -spec normalize(Docs) -> NormalizedDocs when
       Docs :: chunk_elements(),
       NormalizedDocs :: chunk_elements().
 normalize(Docs) ->
-    Trimmed = normalize_trim(Docs,true),
-    normalize_space(Trimmed).
-
-normalize_trim(Bin,true) when is_binary(Bin) ->
-    %% Remove any whitespace (except \n) before or after a newline
-    NoSpace = re:replace(Bin,"[^\\S\n]*\n+[^\\S\n]*","\n",[unicode,global]),
-    %% Replace any tabs with space
-    NoTab = re:replace(NoSpace,"\t"," ",[unicode,global]),
-    %% Replace any newlines with space
-    NoNewLine = re:replace(NoTab,"\\v"," ",[unicode,global]),
-    %% Replace any sequences of \s with a single " "
-    re:replace(NoNewLine,"\\s+"," ",[unicode,global,{return,binary}]);
-normalize_trim(Bin,false) when is_binary(Bin) ->
-    Bin;
-normalize_trim([{pre,Attr,Content}|T],Trim) ->
-    [{pre,Attr,normalize_trim(Content,false)} | normalize_trim(T,Trim)];
-normalize_trim([{Tag,Attr,Content}|T],Trim) ->
-    [{Tag,Attr,normalize_trim(Content,Trim)} | normalize_trim(T,Trim)];
-normalize_trim([<<>>|T],Trim) ->
-    normalize_trim(T,Trim);
-normalize_trim([B1,B2|T],Trim) when is_binary(B1),is_binary(B2) ->
-    normalize_trim([<<B1/binary,B2/binary>> | T],Trim);
-normalize_trim([H|T],Trim) ->
-    [normalize_trim(H,Trim) | normalize_trim(T,Trim)];
-normalize_trim([],_Trim) ->
-    [].
-
-%% We want to remove any duplicate spaces, even if they
-%% cross into other inline elements.
-%% For non-inline elements we just need to make sure that any
-%% leading or trailing spaces are stripped.
-normalize_space([{Pre,Attr,Content}|T]) when ?IS_PRE(Pre) ->
-    [{Pre,Attr,trim_first_and_last(Content,$\n)} | normalize_space(T)];
-normalize_space([{Block,Attr,Content}|T]) when ?IS_BLOCK(Block) ->
-    [{Block,Attr,normalize_space(Content)} | normalize_space(T)];
-normalize_space([]) ->
-    [];
-normalize_space(Elems) ->
-    {InlineElems, T} =
-        lists:splitwith(fun(E) ->
-                                is_binary(E) orelse (is_tuple(E) andalso ?IS_INLINE(element(1,E)))
-                        end, Elems),
-    trim_inline(InlineElems) ++ normalize_space(T).
-
-trim_inline(Content) ->
-    {NewContent,_} = trim_inline(Content,false),
-    trim_first_and_last(NewContent,$ ).
-trim_inline([Bin|T],false) when is_binary(Bin) ->
-    LastElem = binary:at(Bin,byte_size(Bin)-1),
-    case trim_inline(T,LastElem =:= $ ) of
-        {[B2 | NewT],NewState} when is_binary(B2) ->
-            {[<<Bin/binary,B2/binary>>|NewT],NewState};
-        {NewT, NewState} ->
-            {[Bin|NewT],NewState}
-    end;
-trim_inline([<<" ">>|T],true) ->
-    trim_inline(T,true);
-trim_inline([<<" ",Bin/binary>>|T],true) when is_binary(Bin) ->
-    trim_inline([Bin | T],true);
-trim_inline([Bin|T],true) when is_binary(Bin) ->
-    trim_inline([Bin|T],false);
-trim_inline([{Elem,Attr,Content}|T],TrimSpace) ->
-    {NewContent,ContentTrimSpace} = trim_inline(Content,TrimSpace),
-    {NewT,TTrimSpace} = trim_inline(T,ContentTrimSpace),
-    IsAnchor = (Elem =:= a) andalso proplists:is_defined(id,Attr),
-    if NewContent == [] andalso (not IsAnchor) ->
-            %% Remove if all content has been trimmed and this is not an anchor
-            {NewT, TTrimSpace};
-       true ->
-            {[{Elem,Attr,NewContent} | NewT], TTrimSpace}
-    end;
-trim_inline([],TrimSpace) ->
-    {[],TrimSpace}.
-
-
-%% This function removes the first and last What from the content.
-%% This is complicated by the fact that the first or last element
-%% may not have any binary, or have the binary deeply nested within.
-trim_first_and_last(Content, What) when What < 256 ->
-    {FirstTrimmed, _} = trim_first(Content,What),
-    {LastTrimmed, _} = trim_last(FirstTrimmed,What),
-    LastTrimmed.
-
-trim_first([Bin|T],What) when is_binary(Bin) ->
-    case Bin of
-        <<What>> ->
-            {T,true};
-        <<What,NewBin/binary>> ->
-            {[NewBin|T],true};
-        Bin ->
-            {[Bin|T],true}
-    end;
-trim_first([{Elem,Attr,Content} = Tag|T],What) ->
-    case trim_first(Content,What) of
-        {[],true} ->
-            {T,true};
-        {NewContent,true} ->
-            {[{Elem,Attr,NewContent}|T],true};
-        {Content,false} ->
-            {NewT,NewState} = trim_first(T,What),
-            {[Tag | NewT],NewState}
-    end;
-trim_first([],_What) ->
-    {[],false}.
-
-trim_last([Bin | T],What) when is_binary(Bin) ->
-    case trim_last(T,What) of
-        {NewT,true} ->
-            {[Bin | NewT],true};
-        {T,false} ->
-            PreSz = byte_size(Bin)-1,
-            case Bin of
-                <<What>> -> {T,true};
-                <<NewBin:PreSz/binary,What>> ->
-                    {[NewBin|T],true};
-                Bin ->
-                    {[Bin|T],true}
-            end
-    end;
-trim_last([{Elem,Attr,Content} = Tag|T],What) ->
-    case trim_last(T,What) of
-        {NewT,true} ->
-            {[Tag | NewT],true};
-        {T,false} ->
-            case trim_last(Content,What) of
-                {[],true} ->
-                    %% If the content became empty and we processed some text
-                    %% we remove the element.
-                    {[],true};
-                {NewContent,NewState} ->
-                    {[{Elem,Attr,NewContent}|T],NewState}
-            end
-    end;
-trim_last([],_What) ->
-    {[],false}.
+    shell_docs:normalize(Docs).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% API function for dealing with the function documentation
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
--spec get_doc(Module :: module()) -> chunk_elements().
-get_doc(Module) ->
-    {ok, #docs_v1{ module_doc = ModuleDoc } = D } = code:get_doc(Module),
-    get_local_doc(Module, ModuleDoc, D).
-
--spec get_doc(Module :: module(), Function, Arity) ->
-          [{{Function,Arity}, Anno, Signature, chunk_elements(), Metadata}] when
-      Function :: atom(),
-      Arity :: arity(),
-      Anno :: erl_anno:anno(),
-      Signature :: [binary()],
-      Metadata :: #{}.
-get_doc(Module, Function, Arity) ->
-    {ok, #docs_v1{ docs = Docs } = D } = code:get_doc(Module),
-    FnFunctions =
-        lists:filter(fun({{function, F, A},_Anno,_Sig,_Doc,_Meta}) ->
-                             F =:= Function andalso A =:= Arity;
-                        (_) ->
-                             false
-                     end, Docs),
-
-    [{F,A,S,get_local_doc(F,Dc,D),M} || {F,A,S,Dc,M} <- FnFunctions].
-
 -spec render(Module, Docs) -> unicode:chardata() when
       Module :: module(),
       Docs :: docs_v1().
@@ -306,23 +141,6 @@ render(Module, Function, Arity, #docs_v1{ docs = Docs } = D, Config)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% API function for dealing with the type documentation
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
--spec get_type_doc(Module :: module(), Type :: atom(), Arity :: arity()) ->
-          [{{Type,Arity}, Anno, Signature, chunk_elements(), Metadata}] when
-      Type :: atom(),
-      Arity :: arity(),
-      Anno :: erl_anno:anno(),
-      Signature :: [binary()],
-      Metadata :: #{}.
-get_type_doc(Module, Type, Arity) ->
-    {ok, #docs_v1{ docs = Docs } = D } = code:get_doc(Module),
-    FnFunctions =
-        lists:filter(fun({{type, T, A},_Anno,_Sig,_Doc,_Meta}) ->
-                             T =:= Type andalso A =:= Arity;
-                        (_) ->
-                             false
-                     end, Docs),
-    [{F,A,S,get_local_doc(F, Dc, D),M} || {F,A,S,Dc,M} <- FnFunctions].
-
 -spec render_type(Module, Docs) -> unicode:chardata() when
       Module :: module(),
       Docs :: docs_v1().
@@ -377,23 +195,6 @@ render_type(_Module, Type, Arity, #docs_v1{ docs = Docs } = D, Config) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% API function for dealing with the callback documentation
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
--spec get_callback_doc(Module :: module(), Callback :: atom(), Arity :: arity()) ->
-          [{{Callback,Arity}, Anno, Signature, chunk_elements(), Metadata}] when
-      Callback :: atom(),
-      Arity :: arity(),
-      Anno :: erl_anno:anno(),
-      Signature :: [binary()],
-      Metadata :: #{}.
-get_callback_doc(Module, Callback, Arity) ->
-    {ok, #docs_v1{ docs = Docs } = D } = code:get_doc(Module),
-    FnFunctions =
-        lists:filter(fun({{callback, T, A},_Anno,_Sig,_Doc,_Meta}) ->
-                             T =:= Callback andalso A =:= Arity;
-                        (_) ->
-                             false
-                     end, Docs),
-    [{F,A,S,get_local_doc(F, Dc, D),M} || {F,A,S,Dc,M} <- FnFunctions].
-
 -spec render_callback(Module, Docs) -> unicode:chardata() when
       Module :: module(),
       Docs :: docs_v1().
