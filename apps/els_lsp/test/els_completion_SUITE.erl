@@ -311,12 +311,20 @@ attribute_export_type(Config) ->
   Expected = [ #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
                 , kind => ?COMPLETION_ITEM_KIND_TYPE_PARAM
                 , label => <<"unexported_type/0">>
-                , data => #{}
+                , data => #{
+                    module => <<"completion_attributes">>
+                  , type => <<"unexported_type">>
+                  , arity => 0
+                  }
                 }
              , #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
                 , kind => ?COMPLETION_ITEM_KIND_TYPE_PARAM
                 , label => <<"unexported_opaque/0">>
-                , data => #{}
+                , data => #{
+                  module => <<"completion_attributes">>
+                , type => <<"unexported_opaque">>
+                , arity => 0
+                }
                 }
              ],
   NotExpected = [ #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
@@ -498,7 +506,10 @@ exported_types(Config) ->
                 , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
                 , kind => ?COMPLETION_ITEM_KIND_TYPE_PARAM
                 , label => <<T/binary, "/0">>
-                , data => #{}
+                , data => #{ module => <<"file">>
+                  , type => T
+                  , arity => 0
+                  }
                 }
                || T <- Types
              ],
@@ -760,25 +771,37 @@ types(Config) ->
                 , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
                 , kind             => ?COMPLETION_ITEM_KIND_TYPE_PARAM
                 , label            => <<"type_a/0">>
-                , data             => #{}
+                , data             => #{ module => <<"code_navigation">>
+                                       , type => <<"type_a">>
+                                       , arity => 0
+                                      }
                 }
              , #{ insertText       => <<"included_type_a()">>
                 , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
                 , kind             => ?COMPLETION_ITEM_KIND_TYPE_PARAM
                 , label            => <<"included_type_a/0">>
-                , data             => #{}
+                , data             => #{ module => <<"code_navigation">>
+                                       , type => <<"included_type_a">>
+                                       , arity => 0
+                                      }
                 }
              , #{ insertText       => <<"'INCLUDED_TYPE'(${1:T})">>
                 , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
                 , kind             => ?COMPLETION_ITEM_KIND_TYPE_PARAM
                 , label            => <<"'INCLUDED_TYPE'/1">>
-                , data             => #{}
+                , data             => #{ module => <<"code_navigation">>
+                                       , type => <<"INCLUDED_TYPE">>
+                                       , arity => 1
+                                      }
                 }
              , #{ insertText       => <<"type_b()">>
                 , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
                 , kind             => ?COMPLETION_ITEM_KIND_TYPE_PARAM
                 , label            => <<"type_b/0">>
-                , data             => #{}
+                , data             => #{ module => <<"code_navigation">>
+                                       , type => <<"type_b">>
+                                       , arity => 0
+                                      }
                 }
              ],
 
@@ -802,17 +825,26 @@ types_export_list(Config) ->
   Expected = [ #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
                 , kind             => ?COMPLETION_ITEM_KIND_TYPE_PARAM
                 , label            => <<"type_b/0">>
-                , data             => #{}
+                , data             => #{ module => <<"code_navigation_types">>
+                                       , type => <<"type_b">>
+                                       , arity => 0
+                                     }
                 }
              , #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
                 , kind             => ?COMPLETION_ITEM_KIND_TYPE_PARAM
                 , label            => <<"user_type_a/0">>
-                , data             => #{}
+                , data             => #{ module => <<"code_navigation_types">>
+                                       , type => <<"user_type_a">>
+                                       , arity => 0
+                                     }
                 }
              , #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
                 , kind             => ?COMPLETION_ITEM_KIND_TYPE_PARAM
                 , label            => <<"user_type_b/0">>
-                , data             => #{}
+                , data             => #{ module => <<"code_navigation_types">>
+                                       , type => <<"user_type_b">>
+                                       , arity => 0
+                                     }
                 }
              ],
   ct:comment("Types in an export_type section is provided with arity"),
