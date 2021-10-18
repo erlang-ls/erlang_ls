@@ -56,7 +56,8 @@ docs(Uri, #{kind := Kind, id := {F, A}})
   function_docs('local', M, F, A);
 docs(Uri, #{kind := macro, id := Name} = POI) ->
   case els_code_navigation:goto_definition(Uri, POI) of
-    {ok, DefUri, #{data := #{args := Args, value_range := ValueRange}}} ->
+    {ok, DefUri, #{data := #{args := Args, value_range := ValueRange}}}
+        when is_list(Args); is_atom(Name) ->
       NameStr = macro_signature(Name, Args),
 
       ValueText = get_valuetext(DefUri, ValueRange),
