@@ -23,12 +23,6 @@
 -include_lib("kernel/include/logger.hrl").
 
 %%==============================================================================
-%% Type Definitions
-%%==============================================================================
-%% -type macro_config() :: #{string() => string()}.
-%% -type macro_option() :: {atom()} | {atom(), any()}.
-
-%%==============================================================================
 %% Callback Functions
 %%==============================================================================
 
@@ -66,15 +60,8 @@ start_and_load() ->
                     filelib:wildcard(filename:join(Dir, "*.erl"))
                 end,
                 els_config:get(apps_paths) ++ els_config:get(deps_paths)),
-      case erlang:function_exported(
-             gradualizer_db, import_erl_files, 2) of
-        true ->
-          ok = gradualizer_db:import_erl_files(
-                 Files,
-                 els_config:get(include_paths));
-        false ->
-          ok = gradualizer_db:import_erl_files(Files)
-      end,
+      ok = gradualizer_db:import_erl_files(Files,
+                                           els_config:get(include_paths)),
       true;
     {ok, []} ->
       true
@@ -94,13 +81,10 @@ analyzer_error({_Path, Error}) ->
                0 -> 1;
                L -> L
              end,
-      Range = els_protocol:range(
-                #{ from => {Line, 1},
-                   to => {Line + 1, 1} }),
-      [#{ range => Range,
-          message => Msg,
-          severity => ?DIAGNOSTIC_WARNING,
-          source => source() }];
+      Range = els_protocol:range(#{ from => {Line, 1},
+                                    to => {Line + 1, 1} }),
+      [els_diagnostics:make_diagnostic(Range, Msg, ?DIAGNOSTIC_WARNING,
+                                       source())];
     _ ->
       []
   end.
