@@ -63,7 +63,9 @@ docs(Uri, #{kind := macro, id := Name} = POI) ->
     _ ->
       []
   end;
-docs(Uri, #{kind := record_expr} = POI) ->
+docs(Uri, #{kind := Kind} = POI)
+  when Kind =:= record_expr;
+       Kind =:= type_application ->
   case els_code_navigation:goto_definition(Uri, POI) of
     {ok, DefUri, #{data := #{value_range := ValueRange}}} ->
       ValueText = get_valuetext(DefUri, ValueRange),

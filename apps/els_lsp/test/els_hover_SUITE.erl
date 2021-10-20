@@ -25,6 +25,11 @@
         , macro_with_args/1
         , local_record/1
         , included_record/1
+        , local_type/1
+        , remote_type/1
+        , local_opaque/1
+        , remote_opaque/1
+        , nonexisting_type/1
         ]).
 
 %%==============================================================================
@@ -229,5 +234,52 @@ included_record(Config) ->
   Expected = #{contents => #{ kind  => <<"markdown">>
                             , value => Value
                             }},
+  ?assertEqual(Expected, Result),
+  ok.
+
+local_type(Config) ->
+  Uri = ?config(hover_type_uri, Config),
+  #{result := Result} = els_client:hover(Uri, 6, 10),
+  Value = <<"```erlang\n-type type_a() :: any()\n```">>,
+  Expected = #{contents => #{ kind  => <<"markdown">>
+                            , value => Value
+                            }},
+  ?assertEqual(Expected, Result),
+  ok.
+
+remote_type(Config) ->
+  Uri = ?config(hover_type_uri, Config),
+  #{result := Result} = els_client:hover(Uri, 10, 10),
+  Value = <<"```erlang\n-type type_a() :: atom()\n```">>,
+  Expected = #{contents => #{ kind  => <<"markdown">>
+                            , value => Value
+                            }},
+  ?assertEqual(Expected, Result),
+  ok.
+
+local_opaque(Config) ->
+  Uri = ?config(hover_type_uri, Config),
+  #{result := Result} = els_client:hover(Uri, 14, 10),
+  Value = <<"```erlang\n-opaque opaque_type_a() :: any()\n```">>,
+  Expected = #{contents => #{ kind  => <<"markdown">>
+                            , value => Value
+                            }},
+  ?assertEqual(Expected, Result),
+  ok.
+
+remote_opaque(Config) ->
+  Uri = ?config(hover_type_uri, Config),
+  #{result := Result} = els_client:hover(Uri, 18, 10),
+  Value = <<"```erlang\n-opaque opaque_type_a() :: atom()\n```">>,
+  Expected = #{contents => #{ kind  => <<"markdown">>
+                            , value => Value
+                            }},
+  ?assertEqual(Expected, Result),
+  ok.
+
+nonexisting_type(Config) ->
+  Uri = ?config(hover_type_uri, Config),
+  #{result := Result} = els_client:hover(Uri, 22, 10),
+  Expected = null,
   ?assertEqual(Expected, Result),
   ok.

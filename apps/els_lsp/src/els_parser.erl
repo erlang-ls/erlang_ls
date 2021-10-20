@@ -267,10 +267,19 @@ attribute(Tree) ->
                                 AttrName =:= opaque ->
       [Type, _, ArgsListTree] = erl_syntax:tuple_elements(ArgTuple),
       TypeArgs = erl_syntax:list_elements(ArgsListTree),
+      %% Start from beginning of line to include -type / -opaque
+      From = case get_start_location(ArgTuple) of
+               {Line, _Col} -> {Line, 1};
+               Line         -> {Line, 1}
+             end,
+      ValueRange = #{ from => From,
+                      to => get_end_location(ArgTuple)},
       case is_atom_node(Type) of
         {true, TypeName} ->
           [poi(erl_syntax:get_pos(Type), type_definition,
-               {TypeName, length(TypeArgs)}, #{ args => type_args(TypeArgs)})];
+               {TypeName, length(TypeArgs)}, #{ args => type_args(TypeArgs),
+                                                value_range => ValueRange
+                                              })];
         _ ->
           []
       end;
