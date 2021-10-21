@@ -240,7 +240,7 @@ included_record(Config) ->
 local_type(Config) ->
   Uri = ?config(hover_type_uri, Config),
   #{result := Result} = els_client:hover(Uri, 6, 10),
-  Value = <<"```erlang\n-type type_a() :: any()\n```">>,
+  Value = <<"```erlang\n-type type_a() :: any().\n```">>,
   Expected = #{contents => #{ kind  => <<"markdown">>
                             , value => Value
                             }},
@@ -250,7 +250,7 @@ local_type(Config) ->
 remote_type(Config) ->
   Uri = ?config(hover_type_uri, Config),
   #{result := Result} = els_client:hover(Uri, 10, 10),
-  Value = <<"```erlang\n-type type_a() :: atom()\n```">>,
+  Value = <<"```erlang\n-type type_a() :: atom().\n```">>,
   Expected = #{contents => #{ kind  => <<"markdown">>
                             , value => Value
                             }},
@@ -260,7 +260,7 @@ remote_type(Config) ->
 local_opaque(Config) ->
   Uri = ?config(hover_type_uri, Config),
   #{result := Result} = els_client:hover(Uri, 14, 10),
-  Value = <<"```erlang\n-opaque opaque_type_a() :: any()\n```">>,
+  Value = <<"```erlang\n-opaque opaque_type_a() :: any().\n```">>,
   Expected = #{contents => #{ kind  => <<"markdown">>
                             , value => Value
                             }},
@@ -270,7 +270,7 @@ local_opaque(Config) ->
 remote_opaque(Config) ->
   Uri = ?config(hover_type_uri, Config),
   #{result := Result} = els_client:hover(Uri, 18, 10),
-  Value = <<"```erlang\n-opaque opaque_type_a() :: atom()\n```">>,
+  Value = <<"```erlang\n-opaque opaque_type_a() :: atom().\n```">>,
   Expected = #{contents => #{ kind  => <<"markdown">>
                             , value => Value
                             }},
