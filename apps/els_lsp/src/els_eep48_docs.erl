@@ -30,13 +30,13 @@
 
 -include_lib("kernel/include/eep48.hrl").
 
--export([render/2, render/3, render/4, render/5]).
--export([render_type/2, render_type/3, render_type/4, render_type/5]).
--export([render_callback/2, render_callback/3, render_callback/4, render_callback/5]).
+-export([render/3, render/4, render/5]).
+-export([render_type/3, render_type/4, render_type/5]).
+-export([render_callback/3, render_callback/4, render_callback/5]).
 
 -export_type([chunk_elements/0, chunk_element_attr/0]).
 
--record(config, { docs }).
+-record(config, { docs :: docs_v1() }).
 
 -define(ALL_ELEMENTS,[a,p,'div',br,h1,h2,h3,h4,h5,h6,hr,
                       i,b,em,strong,pre,code,ul,ol,li,dl,dt,dd]).
@@ -52,7 +52,12 @@
 
 %% If you update the below types, make sure to update the documentation in
 %% erl_docgen/doc/src/doc_storage.xml as well!!!
--type docs_v1() :: #docs_v1{}.
+-type docs_v1() :: #docs_v1{ docs :: [chunk_entry()], format :: binary(), module_doc :: chunk_elements() }.
+-type chunk_entry() :: {{Type :: function | type | callback, Name :: atom(), Arity :: non_neg_integer()},
+                        Anno :: erl_anno:anno(),
+                        Sigs :: [binary()],
+                        Docs :: none | hidden | #{ binary() => chunk_elements() },
+                        Meta :: #{ signature := term() }}.
 -type config() :: #{  }.
 -type chunk_elements() :: [chunk_element()].
 -type chunk_element() :: {chunk_element_type(),chunk_element_attrs(),
@@ -74,27 +79,11 @@ normalize(Docs) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% API function for dealing with the function documentation
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
--spec render(Module, Docs) -> unicode:chardata() when
-      Module :: module(),
-      Docs :: docs_v1().
-render(Module, #docs_v1{ } = D) when is_atom(Module) ->
-    render(Module, D, #{}).
-
--spec render(Module, Docs, Config) -> unicode:chardata() when
-      Module :: module(),
-      Docs :: docs_v1(),
-      Config :: config();
-
-            (Module, Function, Docs) -> Res when
+-spec render(Module, Function, Docs) -> Res when
       Module :: module(),
       Function :: atom(),
       Docs :: docs_v1(),
       Res :: unicode:chardata() | {error,function_missing}.
-render(Module, #docs_v1{ module_doc = ModuleDoc } = D, Config)
-  when is_atom(Module), is_map(Config) ->
-    render_headers_and_docs(
-      [[{h2,[],[<<"  "/utf8,(atom_to_binary(Module))/binary>>]}]],
-      get_local_doc(Module, ModuleDoc, D), D, Config);
 render(_Module, Function, #docs_v1{ } = D) ->
     render(_Module, Function, D, #{}).
 
@@ -141,22 +130,10 @@ render(Module, Function, Arity, #docs_v1{ docs = Docs } = D, Config)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% API function for dealing with the type documentation
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
--spec render_type(Module, Docs) -> unicode:chardata() when
-      Module :: module(),
-      Docs :: docs_v1().
-render_type(Module, D) ->
-    render_type(Module, D, #{}).
-
--spec render_type(Module, Docs, Config) -> unicode:chardata() when
-      Module :: module(),
-      Docs :: docs_v1(),
-      Config :: config();
-                 (Module, Type, Docs) -> Res when
+-spec render_type(Module, Type, Docs) -> Res when
       Module :: module(), Type :: atom(),
       Docs :: docs_v1(),
       Res :: unicode:chardata() | {error, type_missing}.
-render_type(Module, D = #docs_v1{}, Config) ->
-    render_signature_listing(Module, type, D, Config);
 render_type(Module, Type, D = #docs_v1{}) ->
     render_type(Module, Type, D, #{}).
 
@@ -195,24 +172,12 @@ render_type(_Module, Type, Arity, #docs_v1{ docs = Docs } = D, Config) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% API function for dealing with the callback documentation
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
--spec render_callback(Module, Docs) -> unicode:chardata() when
-      Module :: module(),
-      Docs :: docs_v1().
-render_callback(Module, D) ->
-    render_callback(Module, D, #{}).
-
--spec render_callback(Module, Docs, Config) -> unicode:chardata() when
-      Module :: module(),
-      Docs :: docs_v1(),
-      Config :: config();
-                     (Module, Callback, Docs) -> Res when
+-spec render_callback(Module, Callback, Docs) -> Res when
       Module :: module(), Callback :: atom(),
       Docs :: docs_v1(),
       Res :: unicode:chardata() | {error, callback_missing}.
 render_callback(_Module, Callback, #docs_v1{ } = D) ->
-    render_callback(_Module, Callback, D, #{});
-render_callback(Module, D, Config) ->
-    render_signature_listing(Module, callback, D, Config).
+    render_callback(_Module, Callback, D, #{}).
 
 -spec render_callback(Module, Callback, Docs, Config) -> Res when
       Module :: module(), Callback :: atom(),
@@ -247,6 +212,7 @@ render_callback(_Module, Callback, Arity, #docs_v1{ docs = Docs } = D, Config) -
                    end, Docs), D, Config).
 
 %% Get the docs in the correct locale if it exists.
+-spec get_local_doc(_, 'hidden' | 'none' | map(), #docs_v1{}) -> chunk_elements().
 get_local_doc(MissingMod, Docs, D) when is_atom(MissingMod) ->
     get_local_doc(atom_to_binary(MissingMod), Docs, D);
 get_local_doc({F,A}, Docs, D) ->
@@ -267,12 +233,14 @@ get_local_doc(Missing, hidden, _D) ->
 get_local_doc(_Missing, None, _D) when None =:= none; None =:= #{} ->
     [].
 
+-spec normalize_format(chunk_elements(), #docs_v1{}) -> chunk_elements().
 normalize_format(Docs, #docs_v1{ format = ?NATIVE_FORMAT }) ->
     normalize(Docs);
 normalize_format(Docs, #docs_v1{ format = <<"text/", _/binary>> }) when is_binary(Docs) ->
     [{pre, [], [Docs]}].
 
 %%% Functions for rendering reference documentation
+-spec render_function([chunk_entry()], #docs_v1{}, map()) -> unicode:chardata() | {'error', 'function_missing'}.
 render_function([], _D, _Config) ->
     {error,function_missing};
 render_function(FDocs, #docs_v1{ docs = Docs } = D, Config) ->
@@ -307,6 +275,7 @@ render_function(FDocs, #docs_v1{ docs = Docs } = D, Config) ->
       end, maps:to_list(Grouping)).
 
 %% Render the signature of either function, type, or anything else really.
+-spec render_signature(chunk_entry()) -> chunk_elements().
 render_signature({{_Type,_F,_A},_Anno,_Sigs,_Docs,#{ signature := Specs } = Meta}) ->
     lists:flatmap(
       fun(ASTSpec) ->
@@ -328,11 +297,13 @@ render_signature({{_Type,_F,_A},_Anno,_Sigs,_Docs,#{ signature := Specs } = Meta
 render_signature({{_Type,_F,_A},_Anno,Sigs,_Docs,Meta}) ->
     [{pre,[],Sigs},{hr,[],[]} | render_meta(Meta)].
 
+-spec trim_spec(unicode:chardata()) -> unicode:chardata().
 trim_spec(Spec) ->
     unicode:characters_to_binary(
       string:trim(
         lists:join($\n,trim_spec(string:split(Spec, "\n", all),0)),
         trailing, "\n")).
+-spec trim_spec([unicode:chardata()], non_neg_integer()) -> unicode:chardata().
 trim_spec(["-spec " ++ Spec|T], 0) ->
     [Spec | trim_spec(T, 6)];
 trim_spec([H|T], N) ->
@@ -350,7 +321,7 @@ trim_spec([H|T], N) ->
 trim_spec([], _N) ->
     [].
 
-
+-spec render_meta(map()) -> chunk_elements().
 render_meta(Meta) ->
     case lists:flatmap(
            fun({since,Vsn}) ->
@@ -362,11 +333,13 @@ render_meta(Meta) ->
         [] ->
             [];
         Docs ->
-            [Docs]
+            Docs
     end.
 
+-spec render_headers_and_docs([chunk_elements()], chunk_elements(), #docs_v1{}, map()) -> unicode:chardata().
 render_headers_and_docs(Headers, DocContents, D, Config) ->
     render_headers_and_docs(Headers, DocContents, init_config(D, Config)).
+-spec render_headers_and_docs([chunk_elements()], chunk_elements(), #config{}) -> unicode:chardata().
 render_headers_and_docs(Headers, DocContents, #config{} = Config) ->
     [render_docs(
        lists:flatmap(
@@ -376,49 +349,38 @@ render_headers_and_docs(Headers, DocContents, #config{} = Config) ->
      "\n",
      render_docs(DocContents, 0, Config)].
 
-%%% Functions for rendering type/callback documentation
-render_signature_listing(Module, Type, #docs_v1{ docs = Docs } = D, Config) ->
-    Slogan = [{h2,[],[<<"  "/utf8,(atom_to_binary(Module))/binary>>]},{br,[],[]}],
-    case lists:filter(fun({{T, _, _},_Anno,_Sig,_Doc,_Meta}) ->
-                              Type =:= T
-                      end, Docs) of
-        [] ->
-            render_docs(
-              Slogan ++ [<<"There are no ",(atom_to_binary(Type))/binary,"s "
-                           "in this module">>], D, Config);
-        Headers ->
-            Hdr = lists:flatmap(
-                    fun(Header) ->
-                            [{br,[],[]},render_signature(Header)]
-                    end,Headers),
-            render_docs(
-              Slogan ++
-                  [{p,[],[<<"These ",(atom_to_binary(Type))/binary,"s "
-                            "are documented in this module:">>]},
-                   {br,[],[]}, Hdr], D, Config)
-    end.
-
+-spec render_typecb_docs([TypeCB] | TypeCB, #config{}) -> unicode:chardata() | {'error', 'type_missing'} when
+    TypeCB :: {{type | callback, Name :: atom(), Arity :: non_neg_integer()},
+                Encoding :: binary(), Sig :: [binary()], none | hidden | #{ binary() => chunk_elements()}}.
 render_typecb_docs([], _C) ->
     {error,type_missing};
 render_typecb_docs(TypeCBs, #config{} = C) when is_list(TypeCBs) ->
     [render_typecb_docs(TypeCB, C) || TypeCB <- TypeCBs];
 render_typecb_docs({F,_,_Sig,Docs,_Meta} = TypeCB, #config{docs = D} = C) ->
     render_headers_and_docs(render_signature(TypeCB), get_local_doc(F,Docs,D), C).
+-spec render_typecb_docs(chunk_elements(), #docs_v1{}, _) -> unicode:chardata() | {'error', 'type_missing'}.
 render_typecb_docs(Docs, D, Config) ->
     render_typecb_docs(Docs, init_config(D, Config)).
 
 %%% General rendering functions
+-spec render_docs([chunk_element()], #config{}) -> unicode:chardata().
 render_docs(DocContents, #config{} = Config) ->
     render_docs(DocContents, 0, Config).
-render_docs(DocContents, D, Config) when is_map(Config) ->
-    render_docs(DocContents, 0, init_config(D, Config));
+-spec render_docs([chunk_element()], 0, #config{}) -> unicode:chardata().
 render_docs(DocContents, Ind, D = #config{}) when is_integer(Ind) ->
     {Doc,_} = trimnl(render_docs(DocContents, [], 0, Ind, D)),
     Doc.
 
+-spec init_config(#docs_v1{}, _) -> #config{}.
 init_config(D, _Config) ->
     #config{ docs = D }.
 
+-spec render_docs(Elems :: [chunk_element()],
+                  Stack :: [chunk_element_type()],
+                  non_neg_integer(),
+                  non_neg_integer(),
+                  #config{}) ->
+    {unicode:chardata(), non_neg_integer()}.
 render_docs(Elems,State,Pos,Ind,D) when is_list(Elems) ->
     lists:mapfoldl(
       fun(Elem,P) ->
@@ -650,6 +612,7 @@ render_element({Tag,Attr,Content}, State, Pos, Ind,D) ->
     end,
     render_docs(Content, State, Pos, Ind,D).
 
+-spec render_type_signature(atom(), #config{}) -> 'undefined' | unicode:chardata().
 render_type_signature(Name, #config{ docs = #docs_v1{ metadata = #{ types := AllTypes }}}) ->
     case [Type || Type = {TName,_} <- maps:keys(AllTypes), TName =:= Name] of
         [] ->
@@ -659,17 +622,18 @@ render_type_signature(Name, #config{ docs = #docs_v1{ metadata = #{ types := All
     end.
 
 %% Pad N spaces (and possibly pre-prend newline), disabling any ansi formatting while doing so.
+-spec pad(non_neg_integer()) -> unicode:chardata().
 pad(N) ->
     pad(N,"").
+-spec nlpad(non_neg_integer()) -> unicode:chardata().
 nlpad(N) ->
-    %% It is important that we disable the ansi code before the new-line as otherwise the
-    %% ansi decoration may be enabled when c:paged_output tries to ask if more content
-    %% should be displayed.
     pad(N,"\n").
+-spec pad(non_neg_integer(), unicode:chardata()) -> unicode:chardata().
 pad(N, Extra) ->
     Pad = lists:duplicate(N,[160]),
     [Extra, Pad].
 
+-spec lastline(unicode:chardata()) -> non_neg_integer().
 %% Look for the length of the last line of a string
 lastline(Str) ->
     LastStr = case string:find(Str,"\n",trailing) of
@@ -684,14 +648,17 @@ lastline(Str) ->
 %% by the renderer. For example if we do <li><p></p></li>
 %% that would add 4 \n at after the last </li>. This is trimmed
 %% here to only be 2 \n
+-spec trimnlnl(unicode:chardata() | {unicode:chardata(), non_neg_integer()}) -> {unicode:chardata(), 0}.
 trimnlnl({Chars, _Pos}) ->
     nl(nl(string:trim(Chars, trailing, "\n")));
 trimnlnl(Chars) ->
     nl(nl(string:trim(Chars, trailing, "\n"))).
+-spec trimnl(unicode:chardata() | {unicode:chardata(), non_neg_integer()}) -> {unicode:chardata(), 0}.
 trimnl({Chars, _Pos}) ->
     nl(string:trim(Chars, trailing, "\n"));
 trimnl(Chars) ->
     nl(string:trim(Chars, trailing, "\n")).
+-spec nl(unicode:chardata() | {unicode:chardata(), non_neg_integer()}) -> {unicode:chardata(), 0}.
 nl({Chars, _Pos}) ->
     nl(Chars);
 nl(Chars) ->

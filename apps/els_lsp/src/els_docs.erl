@@ -260,6 +260,8 @@ eep48_docs(_Type, _M, _F, _A) ->
     {error, not_available}.
 -endif.
 
+-spec edoc_options() -> [{'includes' | 'macros', [any()]} |
+                         {'preprocess', 'true'}].
 edoc_options() ->
     [{preprocess, true},
      {macros,
@@ -404,10 +406,11 @@ flush_group_leader_proxy(OrigGL) ->
             Reason
     end.
 
+-spec spawn_group_proxy([any()]) -> ok.
 spawn_group_proxy(Acc) ->
     receive
         {get, Ref, Pid} ->
-            Pid ! {Ref, lists:reverse(Acc)};
+            Pid ! {Ref, lists:reverse(Acc)}, ok;
         {io_request, From, ReplyAs, {put_chars, unicode, Chars}} ->
             From ! {io_reply, ReplyAs, ok},
             spawn_group_proxy([catch unicode:characters_to_binary(Chars)|Acc]);
