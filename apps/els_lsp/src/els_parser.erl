@@ -269,8 +269,12 @@ attribute(Tree) ->
       TypeArgs = erl_syntax:list_elements(ArgsListTree),
       case is_atom_node(Type) of
         {true, TypeName} ->
-          [poi(Pos, type_definition,
-               {TypeName, length(TypeArgs)}, #{ args => type_args(TypeArgs)})];
+          Id = {TypeName, length(TypeArgs)},
+          [poi(Pos, type_definition, Id,
+                 #{ name => els_range:range(
+                                erl_syntax:get_pos(Type),
+                                type_definition, Id, undefined),
+                    args => type_args(TypeArgs)})];
         _ ->
           []
       end;
