@@ -234,36 +234,16 @@ bound_var_in_pattern(Config) ->
   ok.
 
 -spec compiler(config()) -> ok.
-compiler(Config) ->
-  Uri = ?config(diagnostics_uri, Config),
-  els_mock_diagnostics:subscribe(),
-  ok = els_client:did_save(Uri),
-  Diagnostics = els_mock_diagnostics:wait_until_complete(),
-  ?assertEqual(5, length(Diagnostics)),
-  Warnings = [D || #{severity := ?DIAGNOSTIC_WARNING} = D <- Diagnostics],
-  Errors   = [D || #{severity := ?DIAGNOSTIC_ERROR}   = D <- Diagnostics],
-  ?assertEqual(2, length(Warnings)),
-  ?assertEqual(3, length(Errors)),
-  WarningRanges = [ Range || #{range := Range} <- Warnings],
-  ExpectedWarningRanges =
-    [#{'end' => #{character => 35, line => 3}
-      , start => #{character => 0, line => 3}}
-    ] ++
-    fixcolumns(
-      [ #{'end' => #{character => 4, line => 6}
-         , start => #{character => 0, line => 6}}], Config),
-
-  ?assertEqual(ExpectedWarningRanges, sort_ranges(WarningRanges)),
-  ErrorRanges = [ Range || #{range := Range} <- Errors],
-  ExpectedErrorRanges =
-        [ #{'end' => #{character => 35, line => 3}
-           , start => #{character => 0,  line => 3}},
-          #{'end' => #{character => 35, line => 3}
-           , start => #{character => 0,  line => 3}}] ++
-        fixcolumns(
-          [ #{'end' => #{character => 44, line => 5}
-             , start => #{character => 30, line => 5}}], Config),
-  ?assertEqual(ExpectedErrorRanges, sort_ranges(ErrorRanges)),
+compiler(_Config) ->
+  Path = filename:join(["code_navigation", "src", "diagnostics.erl"]),
+  {ok, Session} = els_test:start_session(Path),
+  Diagnostics = els_test:wait_for_diagnostics(Session, <<"Compiler">>),
+  els_test:assert_errors([ #{code => <<"L0000">>, range => {{3, 0}, {3, 35}}}
+                         , #{code => <<"L0000">>, range => {{3, 0}, {3, 35}}}
+                         , #{code => <<"L1295">>, range => {{5, 0}, {6, 0}}}
+                         ], Diagnostics),
+  els_test:assert_warnings([ #{code => <<"L1230">> , range => {{6, 0}, {7, 0}}}
+                           ], Diagnostics),
   ok.
 
 -spec compiler_with_behaviour(config()) -> ok.
