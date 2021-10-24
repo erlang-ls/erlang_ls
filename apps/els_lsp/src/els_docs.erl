@@ -110,18 +110,12 @@ function_docs(Type, M, F, A) ->
 
 -spec type_docs(application_type(), atom(), atom(), non_neg_integer()) ->
         [els_markup_content:doc_entry()].
-type_docs(Type, M, F, A) ->
+type_docs(_Type, M, F, A) ->
     case eep48_docs(type, M, F, A) of
         {ok, Docs} ->
             [{text, Docs}];
         {error, not_available} ->
-            Signature = signature(Type, M, F, A),
-            case type(M, F, A) of
-                [] ->
-                    [{h2, Signature}];
-                Docs ->
-                    [{h2, Signature}, {text, "---"} | Docs]
-            end
+            type(M, F, A)
     end.
 
 -spec get_valuetext(uri(), map()) -> list().

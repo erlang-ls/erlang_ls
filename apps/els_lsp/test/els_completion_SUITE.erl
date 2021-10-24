@@ -1095,13 +1095,13 @@ resolve_type_application_local(Config) ->
     els_client:completion(Uri, 14, 16, CompletionKind, <<"">>),
   [Selected] = select_completionitems(CompletionItems, ?COMPLETION_ITEM_KIND_TYPE_PARAM, <<"mytype/0">>),
   #{result := Result} = els_client:completionitem_resolve(Selected),
+  Value = case has_eep48_edoc() of
+    true -> <<"```erlang\n-type mytype() :: completion_resolve_type:myopaque().\n```\n\n---\n\nThis is my type\n">>;
+    false -> <<"```erlang\n-type mytype() :: completion_resolve_type:myopaque().\n```">>
+  end,
   Expected = Selected#{ documentation =>
                           #{ kind => <<"markdown">>
-                           , value => <<"## completion_resolve_type:mytype/0\n\n"
-                                        "---\n\n"
-                                        "```erlang\n"
-                                        "-type mytype() :: completion_resolve_type:myopaque().\n"
-                                        "```">>
+                           , value => Value
                            }
                       },
   ?assertEqual(Expected, Result).
@@ -1116,9 +1116,7 @@ resolve_opaque_application_local(Config) ->
   #{result := Result} = els_client:completionitem_resolve(Selected),
   Value = case has_eep48_edoc() of
             true -> <<"```erlang\n-opaque myopaque() \n```\n\n---\n\nThis is my opaque\n">>;
-            false -> <<"## completion_resolve_type:myopaque/0\n\n"
-                       "---\n\n"
-                       "```erlang\n"
+            false -> <<"```erlang\n"
                        "-opaque myopaque() :: term().\n"
                        "```">>
           end,
@@ -1140,9 +1138,7 @@ resolve_opaque_application_remote_self(Config) ->
 
   Value = case has_eep48_edoc() of
     true -> <<"```erlang\n-opaque myopaque() \n```\n\n---\n\nThis is my opaque\n">>;
-    false -> <<"## completion_resolve_type:myopaque/0\n\n"
-               "---\n\n"
-               "```erlang\n"
+    false -> <<"```erlang\n"
                "-opaque myopaque() :: term().\n"
                "```">>
   end,
@@ -1164,7 +1160,7 @@ resolve_type_application_remote_external(Config) ->
   #{result := Result} = els_client:completionitem_resolve(Selected),
   Value = case has_eep48_edoc() of
             true -> <<"```erlang\n-type mytype(T) :: [T].\n```\n\n---\n\nHello\n">>;
-            false -> <<"## completion_resolve_type_2:mytype/1\n\n---\n\n```erlang\n-type mytype(T) :: [T].\n```">>
+            false -> <<"```erlang\n-type mytype(T) :: [T].\n```">>
           end,
   Expected = Selected#{ documentation =>
                           #{ kind => <<"markdown">>
@@ -1183,7 +1179,7 @@ resolve_opaque_application_remote_external(Config) ->
   #{result := Result} = els_client:completionitem_resolve(Selected),
   Value = case has_eep48_edoc() of
             true -> <<"```erlang\n-opaque myopaque(T) \n```\n\n---\n\nIs there anybody in there\n">>;
-            false -> <<"## completion_resolve_type_2:myopaque/1\n\n---\n\n```erlang\n-opaque myopaque(T) :: [T].\n```">>
+            false -> <<"```erlang\n-opaque myopaque(T) :: [T].\n```">>
           end,
   Expected = Selected#{ documentation =>
                           #{ kind => <<"markdown">>
@@ -1202,7 +1198,7 @@ resolve_type_application_remote_otp(Config) ->
   #{result := Result} = els_client:completionitem_resolve(Selected),
   Value = case has_eep48(file) of
             true -> <<"```erlang\n-type name_all() ::\n     string() | atom() | deep_list() | (RawFilename :: binary()).\n```\n\n---\n\nIf VM is in Unicode filename mode, characters are allowed to be \\> 255\\. `RawFilename` is a filename not subject to Unicode translation, meaning that it can contain characters not conforming to the Unicode encoding expected from the file system \\(that is, non\\-UTF\\-8 characters although the VM is started in Unicode filename mode\\)\\. Null characters \\(integer value zero\\) are *not* allowed in filenames \\(not even at the end\\)\\.\n">>;
-            false -> <<"## file:name_all/0\n\n---\n\n```erlang\n-type name_all()  :: string() | atom() | deep_list() | (RawFilename :: binary()).\n```">>
+            false -> <<"```erlang\n-type name_all()  :: string() | atom() | deep_list() | (RawFilename :: binary()).\n```">>
           end,
   Expected = Selected#{ documentation =>
                           #{ kind => <<"markdown">>
