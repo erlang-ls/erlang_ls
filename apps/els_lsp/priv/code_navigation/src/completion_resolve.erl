@@ -5,6 +5,7 @@
         , main/0
         ]).
 
+%% @doc Call me maybe
 -spec call_1() -> 'ok'.
 call_1() ->
   ok.

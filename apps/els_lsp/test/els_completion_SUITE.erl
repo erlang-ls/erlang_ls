@@ -976,17 +976,14 @@ resolve_application_local(Config) ->
   Uri = ?config(completion_resolve_uri, Config),
   CompletionKind = ?COMPLETION_TRIGGER_KIND_INVOKED,
   #{result := CompletionItems} =
-    els_client:completion(Uri, 17, 5, CompletionKind, <<"">>),
+    els_client:completion(Uri, 18, 5, CompletionKind, <<"">>),
   [Selected] = select_completionitems(CompletionItems),
   #{result := Result} = els_client:completionitem_resolve(Selected),
   Expected = Selected#{ documentation =>
                           #{ kind => <<"markdown">>
-                           , value =>
-                               <<"## completion_resolve:call_1/0\n\n"
-                                 "---\n\n"
-                                 "```erlang\n"
-                                 "-spec call_1() -> 'ok'.\n"
-                                 "```">>
+                           , value => call_1_markdown(
+                                  <<"completion_resolve:call_1/0">>,
+                                  <<"Call me maybe">>)
                            }
                       },
   ?assertEqual(Expected, Result).
@@ -996,17 +993,15 @@ resolve_application_remote_self(Config) ->
   Uri = ?config(completion_resolve_uri, Config),
   CompletionKind = ?COMPLETION_TRIGGER_KIND_INVOKED,
   #{result := CompletionItems} =
-    els_client:completion(Uri, 16, 23, CompletionKind, <<":">>),
+    els_client:completion(Uri, 17, 23, CompletionKind, <<":">>),
   [Selected] = select_completionitems(CompletionItems),
   #{result := Result} = els_client:completionitem_resolve(Selected),
+
   Expected = Selected#{ documentation =>
                           #{ kind => <<"markdown">>
-                           , value =>
-                               <<"## completion_resolve:call_1/0\n\n"
-                                 "---\n\n"
-                                 "```erlang\n"
-                                 "-spec call_1() -> 'ok'.\n"
-                                 "```">>
+                           , value => call_1_markdown(
+                                <<"completion_resolve:call_1/0">>,
+                                <<"Call me maybe">>)
                            }
                       },
   ?assertEqual(Expected, Result).
@@ -1016,17 +1011,14 @@ resolve_application_remote_external(Config) ->
   Uri = ?config(completion_resolve_uri, Config),
   CompletionKind = ?COMPLETION_TRIGGER_KIND_INVOKED,
   #{result := CompletionItems} =
-    els_client:completion(Uri, 18, 25, CompletionKind, <<":">>),
+    els_client:completion(Uri, 19, 25, CompletionKind, <<":">>),
   [Selected] = select_completionitems(CompletionItems),
   #{result := Result} = els_client:completionitem_resolve(Selected),
   Expected = Selected#{ documentation =>
                           #{ kind => <<"markdown">>
-                           , value =>
-                               <<"## completion_resolve_2:call_1/0\n\n"
-                                 "---\n\n"
-                                 "```erlang\n"
-                                 "-spec call_1() -> 'ok'.\n"
-                                 "```">>
+                           , value => call_1_markdown(
+                                <<"completion_resolve_2:call_1/0">>,
+                                <<"I just met you">>)
                            }
                       },
   ?assertEqual(Expected, Result).
@@ -1035,3 +1027,20 @@ select_completionitems(CompletionItems) ->
   [CI || #{ kind := ?COMPLETION_ITEM_KIND_FUNCTION
           , label := <<"call_1/0">>
           } = CI <- CompletionItems].
+
+call_1_markdown(MFA, Doc) ->
+  case list_to_integer(erlang:system_info(otp_release)) of
+    Vsn when Vsn >= 24 ->
+      <<"```erlang\n"
+        "call_1() -> ok.\n"
+        "```\n\n"
+        "---\n\n",
+        Doc/binary,"\n">>;
+    _ ->
+      <<"## ",MFA/binary,"\n\n"
+        "---\n\n"
+        "```erlang\n"
+        "-spec call_1() -> 'ok'.\n"
+        "```\n\n",
+        Doc/binary,"\n\n">>
+  end.
