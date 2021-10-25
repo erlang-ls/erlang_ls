@@ -132,7 +132,8 @@ local_call_edoc(Config) ->
   Contents = maps:get(contents, Result),
   Value = case has_eep48_edoc() of
     true -> <<"```erlang\nedoc() -> ok.\n```\n\n---\n\nAn edoc hover item\n">>;
-    false -> <<"## edoc/0\n\n---\n\n```erlang\n-spec edoc() -> ok.\n```\n\nAn edoc hover item\n\n">>
+    false -> <<"## edoc/0\n\n---\n\n```erlang\n-spec edoc() -> ok.\n```\n\n"
+               "An edoc hover item\n\n">>
   end,
   Expected = #{ kind  => <<"markdown">>
               , value => Value
@@ -147,7 +148,8 @@ remote_call_edoc(Config) ->
   Contents = maps:get(contents, Result),
   Value = case has_eep48_edoc() of
     true -> <<"```erlang\nedoc() -> ok.\n```\n\n---\n\nAn edoc hover item\n">>;
-    false -> <<"## hover_docs:edoc/0\n\n---\n\n```erlang\n-spec edoc() -> ok.\n```\n\nAn edoc hover item\n\n">>
+    false -> <<"## hover_docs:edoc/0\n\n---\n\n```erlang\n-spec edoc() -> ok.\n"
+               "```\n\nAn edoc hover item\n\n">>
   end,
   Expected = #{ kind  => <<"markdown">>
               , value => Value
@@ -161,8 +163,27 @@ remote_call_otp(Config) ->
   ?assert(maps:is_key(contents, Result)),
   Contents = maps:get(contents, Result),
   Value = case has_eep48(file) of
-    true -> <<"```erlang\nwrite(IoDevice, Bytes) -> ok | {error, Reason}\nwhen\n  IoDevice :: io_device() | atom(),\n  Bytes :: iodata(),\n  Reason :: posix() | badarg | terminated.\n```\n\n---\n\nWrites `Bytes` to the file referenced by `IoDevice`\\. This function is the only way to write to a file opened in `raw` mode \\(although it works for normally opened files too\\)\\. Returns `ok` if successful, and `{error, Reason}` otherwise\\.\n\nIf the file is opened with `encoding` set to something else than `latin1`, each byte written can result in many bytes being written to the file, as the byte range 0\\.\\.255 can represent anything between one and four bytes depending on value and UTF encoding type\\.\n\nTypical error reasons:\n\n**`ebadf`**  \nÂ Â The file is not opened for writing\\.\n\n**`enospc`**  \nÂ Â No space is left on the device\\.\n">>;
-    false -> <<"## file:write/2\n\n---\n\n```erlang\n\n  write(File, Bytes) when is_pid(File) orelse is_atom(File)\n\n  write(#file_descriptor{module = Module} = Handle, Bytes) \n\n  write(_, _) \n\n```\n\n```erlang\n-spec write(IoDevice, Bytes) -> ok | {error, Reason} when\n      IoDevice :: io_device() | atom(),\n      Bytes :: iodata(),\n      Reason :: posix() | badarg | terminated.\n```">>
+    true -> <<"```erlang\nwrite(IoDevice, Bytes) -> ok | {error, Reason}\n"
+              "when\n  IoDevice :: io_device() | atom(),\n  Bytes :: iodata(),"
+              "\n  Reason :: posix() | badarg | terminated.\n```\n\n---\n\n"
+              "Writes `Bytes` to the file referenced by `IoDevice`\\. This "
+              "function is the only way to write to a file opened in `raw` "
+              "mode \\(although it works for normally opened files too\\)\\. "
+              "Returns `ok` if successful, and `{error, Reason}` otherwise\\."
+              "\n\nIf the file is opened with `encoding` set to something else "
+              "than `latin1`, each byte written can result in many bytes being "
+              "written to the file, as the byte range 0\\.\\.255 can represent "
+              "anything between one and four bytes depending on value and UTF "
+              "encoding type\\.\n\nTypical error reasons:\n\n**`ebadf`**  \n"
+              "Â Â The file is not opened for writing\\.\n\n**`enospc`**  \n"
+              "Â Â No space is left on the device\\.\n">>;
+    false -> <<"## file:write/2\n\n---\n\n```erlang\n\n  write(File, Bytes) "
+               "when is_pid(File) orelse is_atom(File)\n\n  write(#file_"
+               "descriptor{module = Module} = Handle, Bytes) \n\n  "
+               "write(_, _) \n\n```\n\n```erlang\n-spec write(IoDevice, Bytes)"
+               " -> ok | {error, Reason} when\n      IoDevice :: io_device() |"
+               " atom(),\n      Bytes :: iodata(),\n      Reason :: posix() | "
+               "badarg | terminated.\n```">>
   end,
   Expected = #{ kind  => <<"markdown">>
               , value => Value

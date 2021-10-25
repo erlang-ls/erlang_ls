@@ -985,11 +985,12 @@ resolve_application_local(Config) ->
   CompletionKind = ?COMPLETION_TRIGGER_KIND_INVOKED,
   #{result := CompletionItems} =
     els_client:completion(Uri, 14, 5, CompletionKind, <<"">>),
-  [Selected] = select_completionitems(CompletionItems, ?COMPLETION_ITEM_KIND_FUNCTION, <<"call_1/0">>),
+  [Selected] = select_completionitems(CompletionItems,
+                  ?COMPLETION_ITEM_KIND_FUNCTION, <<"call_1/0">>),
   #{result := Result} = els_client:completionitem_resolve(Selected),
   Expected = Selected#{ documentation =>
                           #{ kind => <<"markdown">>
-                           , value => call_1_markdown(
+                           , value => call_markdown(
                                   <<"call_1">>,
                                   <<"Call me maybe">>)
                            }
@@ -1002,11 +1003,12 @@ resolve_application_unexported_local(Config) ->
   CompletionKind = ?COMPLETION_TRIGGER_KIND_INVOKED,
   #{result := CompletionItems} =
     els_client:completion(Uri, 14, 5, CompletionKind, <<"">>),
-  [Selected] = select_completionitems(CompletionItems, ?COMPLETION_ITEM_KIND_FUNCTION, <<"call_2/0">>),
+  [Selected] = select_completionitems(CompletionItems,
+                  ?COMPLETION_ITEM_KIND_FUNCTION, <<"call_2/0">>),
   #{result := Result} = els_client:completionitem_resolve(Selected),
   Expected = Selected#{ documentation =>
                           #{ kind => <<"markdown">>
-                           , value => call_1_markdown(
+                           , value => call_markdown(
                             <<"call_2">>,
                             <<"Call me sometime">>)
                            }
@@ -1019,12 +1021,13 @@ resolve_application_remote_self(Config) ->
   CompletionKind = ?COMPLETION_TRIGGER_KIND_INVOKED,
   #{result := CompletionItems} =
     els_client:completion(Uri, 13, 23, CompletionKind, <<":">>),
-  [Selected] = select_completionitems(CompletionItems, ?COMPLETION_ITEM_KIND_FUNCTION, <<"call_1/0">>),
+  [Selected] = select_completionitems(CompletionItems,
+                  ?COMPLETION_ITEM_KIND_FUNCTION, <<"call_1/0">>),
   #{result := Result} = els_client:completionitem_resolve(Selected),
 
   Expected = Selected#{ documentation =>
                           #{ kind => <<"markdown">>
-                           , value => call_1_markdown(
+                           , value => call_markdown(
                                 <<"call_1">>,
                                 <<"Call me maybe">>)
                            }
@@ -1037,11 +1040,12 @@ resolve_application_remote_external(Config) ->
   CompletionKind = ?COMPLETION_TRIGGER_KIND_INVOKED,
   #{result := CompletionItems} =
     els_client:completion(Uri, 15, 25, CompletionKind, <<":">>),
-  [Selected] = select_completionitems(CompletionItems, ?COMPLETION_ITEM_KIND_FUNCTION, <<"call_1/0">>),
+  [Selected] = select_completionitems(CompletionItems,
+                  ?COMPLETION_ITEM_KIND_FUNCTION, <<"call_1/0">>),
   #{result := Result} = els_client:completionitem_resolve(Selected),
   Expected = Selected#{ documentation =>
                           #{ kind => <<"markdown">>
-                           , value => call_1_markdown(
+                           , value => call_markdown(
                                 <<"completion_resolve_2">>,
                                 <<"call_1">>,
                                 <<"I just met you">>)
@@ -1055,11 +1059,31 @@ resolve_application_remote_otp(Config) ->
   CompletionKind = ?COMPLETION_TRIGGER_KIND_INVOKED,
   #{result := CompletionItems} =
     els_client:completion(Uri, 16, 8, CompletionKind, <<":">>),
-  [Selected] = select_completionitems(CompletionItems, ?COMPLETION_ITEM_KIND_FUNCTION, <<"write/2">>),
+  [Selected] = select_completionitems(CompletionItems,
+                  ?COMPLETION_ITEM_KIND_FUNCTION, <<"write/2">>),
   #{result := Result} = els_client:completionitem_resolve(Selected),
   Value = case has_eep48(file) of
-            true -> <<"```erlang\nwrite(IoDevice, Bytes) -> ok | {error, Reason}\nwhen\n  IoDevice :: io_device() | atom(),\n  Bytes :: iodata(),\n  Reason :: posix() | badarg | terminated.\n```\n\n---\n\nWrites `Bytes` to the file referenced by `IoDevice`\\. This function is the only way to write to a file opened in `raw` mode \\(although it works for normally opened files too\\)\\. Returns `ok` if successful, and `{error, Reason}` otherwise\\.\n\nIf the file is opened with `encoding` set to something else than `latin1`, each byte written can result in many bytes being written to the file, as the byte range 0\\.\\.255 can represent anything between one and four bytes depending on value and UTF encoding type\\.\n\nTypical error reasons:\n\n**`ebadf`**  \nÂ Â The file is not opened for writing\\.\n\n**`enospc`**  \nÂ Â No space is left on the device\\.\n">>;
-            false -> <<"## file:write/2\n\n---\n\n```erlang\n\n  write(File, Bytes) when is_pid(File) orelse is_atom(File)\n\n  write(#file_descriptor{module = Module} = Handle, Bytes) \n\n  write(_, _) \n\n```\n\n```erlang\n-spec write(IoDevice, Bytes) -> ok | {error, Reason} when\n      IoDevice :: io_device() | atom(),\n      Bytes :: iodata(),\n      Reason :: posix() | badarg | terminated.\n```">>
+            true -> <<"```erlang\nwrite(IoDevice, Bytes) -> ok | {error, "
+            "Reason}\nwhen\n  IoDevice :: io_device() | atom(),\n  Bytes ::"
+            " iodata(),\n  Reason :: posix() | badarg | terminated.\n```\n\n"
+            "---\n\nWrites `Bytes` to the file referenced by `IoDevice`\\. "
+            "This function is the only way to write to a file opened in `raw`"
+            " mode \\(although it works for normally opened files too\\)\\. "
+            "Returns `ok` if successful, and `{error, Reason}` otherwise\\."
+            "\n\nIf the file is opened with `encoding` set to something else "
+            "than `latin1`, each byte written can result in many bytes being "
+            "written to the file, as the byte range 0\\.\\.255 can represent "
+            "anything between one and four bytes depending on value and UTF "
+            "encoding type\\.\n\nTypical error reasons:\n\n**`ebadf`**  \n"
+            "Â Â The file is not opened for writing\\.\n\n**`enospc`**  \n"
+            "Â Â No space is left on the device\\.\n">>;
+            false -> <<"## file:write/2\n\n---\n\n```erlang\n\n  write(File, "
+              "Bytes) when is_pid(File) orelse is_atom(File)\n\n  write(#file_"
+              "descriptor{module = Module} = Handle, Bytes) \n\n  write(_, _) "
+              "\n\n```\n\n```erlang\n-spec write(IoDevice, Bytes) -> ok | "
+              "{error, Reason} when\n      IoDevice :: io_device() | atom(),"
+              "\n      Bytes :: iodata(),\n      Reason :: posix() | "
+              "badarg | terminated.\n```">>
           end,
   Expected = Selected#{ documentation =>
                           #{ kind => <<"markdown">>
@@ -1068,9 +1092,9 @@ resolve_application_remote_otp(Config) ->
                       },
   ?assertEqual(Expected, Result).
 
-call_1_markdown(F, Doc) ->
-  call_1_markdown(<<"completion_resolve">>, F, Doc).
-call_1_markdown(M, F, Doc) ->
+call_markdown(F, Doc) ->
+  call_markdown(<<"completion_resolve">>, F, Doc).
+call_markdown(M, F, Doc) ->
   case has_eep48_edoc() of
     true ->
       <<"```erlang\n",
@@ -1093,11 +1117,15 @@ resolve_type_application_local(Config) ->
   CompletionKind = ?COMPLETION_TRIGGER_KIND_INVOKED,
   #{result := CompletionItems} =
     els_client:completion(Uri, 14, 16, CompletionKind, <<"">>),
-  [Selected] = select_completionitems(CompletionItems, ?COMPLETION_ITEM_KIND_TYPE_PARAM, <<"mytype/0">>),
+  [Selected] = select_completionitems(CompletionItems,
+                  ?COMPLETION_ITEM_KIND_TYPE_PARAM, <<"mytype/0">>),
   #{result := Result} = els_client:completionitem_resolve(Selected),
   Value = case has_eep48_edoc() of
-    true -> <<"```erlang\n-type mytype() :: completion_resolve_type:myopaque().\n```\n\n---\n\nThis is my type\n">>;
-    false -> <<"```erlang\n-type mytype() :: completion_resolve_type:myopaque().\n```">>
+    true -> <<"```erlang\n-type mytype() :: "
+              "completion_resolve_type:myopaque().\n```"
+              "\n\n---\n\nThis is my type\n">>;
+    false -> <<"```erlang\n-type mytype() :: "
+               "completion_resolve_type:myopaque().\n```">>
   end,
   Expected = Selected#{ documentation =>
                           #{ kind => <<"markdown">>
@@ -1112,13 +1140,14 @@ resolve_opaque_application_local(Config) ->
   CompletionKind = ?COMPLETION_TRIGGER_KIND_INVOKED,
   #{result := CompletionItems} =
     els_client:completion(Uri, 14, 17, CompletionKind, <<"">>),
-  [Selected] = select_completionitems(CompletionItems, ?COMPLETION_ITEM_KIND_TYPE_PARAM, <<"myopaque/0">>),
+  [Selected] = select_completionitems(CompletionItems,
+                  ?COMPLETION_ITEM_KIND_TYPE_PARAM, <<"myopaque/0">>),
   #{result := Result} = els_client:completionitem_resolve(Selected),
   Value = case has_eep48_edoc() of
-            true -> <<"```erlang\n-opaque myopaque() \n```\n\n---\n\nThis is my opaque\n">>;
+            true -> <<"```erlang\n-opaque myopaque() \n```\n\n---\n\n"
+                      "This is my opaque\n">>;
             false -> <<"```erlang\n"
-                       "-opaque myopaque() :: term().\n"
-                       "```">>
+                       "-opaque myopaque() :: term().\n```">>
           end,
   Expected = Selected#{ documentation =>
                           #{ kind => <<"markdown">>
@@ -1133,11 +1162,13 @@ resolve_opaque_application_remote_self(Config) ->
   CompletionKind = ?COMPLETION_TRIGGER_KIND_INVOKED,
   #{result := CompletionItems} =
     els_client:completion(Uri, 14, 48, CompletionKind, <<":">>),
-  [Selected] = select_completionitems(CompletionItems, ?COMPLETION_ITEM_KIND_TYPE_PARAM, <<"myopaque/0">>),
+  [Selected] = select_completionitems(CompletionItems,
+                  ?COMPLETION_ITEM_KIND_TYPE_PARAM, <<"myopaque/0">>),
   #{result := Result} = els_client:completionitem_resolve(Selected),
 
   Value = case has_eep48_edoc() of
-    true -> <<"```erlang\n-opaque myopaque() \n```\n\n---\n\nThis is my opaque\n">>;
+    true -> <<"```erlang\n-opaque myopaque() \n```\n\n---\n\n"
+              "This is my opaque\n">>;
     false -> <<"```erlang\n"
                "-opaque myopaque() :: term().\n"
                "```">>
@@ -1156,10 +1187,12 @@ resolve_type_application_remote_external(Config) ->
   CompletionKind = ?COMPLETION_TRIGGER_KIND_INVOKED,
   #{result := CompletionItems} =
     els_client:completion(Uri, 15, 40, CompletionKind, <<":">>),
-  [Selected] = select_completionitems(CompletionItems, ?COMPLETION_ITEM_KIND_TYPE_PARAM, <<"mytype/1">>),
+  [Selected] = select_completionitems(CompletionItems,
+                  ?COMPLETION_ITEM_KIND_TYPE_PARAM, <<"mytype/1">>),
   #{result := Result} = els_client:completionitem_resolve(Selected),
   Value = case has_eep48_edoc() of
-            true -> <<"```erlang\n-type mytype(T) :: [T].\n```\n\n---\n\nHello\n">>;
+            true -> <<"```erlang\n-type mytype(T) :: [T].\n```\n\n---\n\n"
+                      "Hello\n">>;
             false -> <<"```erlang\n-type mytype(T) :: [T].\n```">>
           end,
   Expected = Selected#{ documentation =>
@@ -1175,10 +1208,12 @@ resolve_opaque_application_remote_external(Config) ->
   CompletionKind = ?COMPLETION_TRIGGER_KIND_INVOKED,
   #{result := CompletionItems} =
     els_client:completion(Uri, 15, 40, CompletionKind, <<":">>),
-  [Selected] = select_completionitems(CompletionItems, ?COMPLETION_ITEM_KIND_TYPE_PARAM, <<"myopaque/1">>),
+  [Selected] = select_completionitems(CompletionItems,
+                  ?COMPLETION_ITEM_KIND_TYPE_PARAM, <<"myopaque/1">>),
   #{result := Result} = els_client:completionitem_resolve(Selected),
   Value = case has_eep48_edoc() of
-            true -> <<"```erlang\n-opaque myopaque(T) \n```\n\n---\n\nIs there anybody in there\n">>;
+            true -> <<"```erlang\n-opaque myopaque(T) \n```\n\n---\n\n"
+                      "Is there anybody in there\n">>;
             false -> <<"```erlang\n-opaque myopaque(T) :: [T].\n```">>
           end,
   Expected = Selected#{ documentation =>
@@ -1194,11 +1229,24 @@ resolve_type_application_remote_otp(Config) ->
   CompletionKind = ?COMPLETION_TRIGGER_KIND_INVOKED,
   #{result := CompletionItems} =
     els_client:completion(Uri, 17, 8, CompletionKind, <<":">>),
-  [Selected] = select_completionitems(CompletionItems, ?COMPLETION_ITEM_KIND_TYPE_PARAM, <<"name_all/0">>),
+  [Selected] = select_completionitems(CompletionItems,
+                  ?COMPLETION_ITEM_KIND_TYPE_PARAM, <<"name_all/0">>),
   #{result := Result} = els_client:completionitem_resolve(Selected),
   Value = case has_eep48(file) of
-            true -> <<"```erlang\n-type name_all() ::\n     string() | atom() | deep_list() | (RawFilename :: binary()).\n```\n\n---\n\nIf VM is in Unicode filename mode, characters are allowed to be \\> 255\\. `RawFilename` is a filename not subject to Unicode translation, meaning that it can contain characters not conforming to the Unicode encoding expected from the file system \\(that is, non\\-UTF\\-8 characters although the VM is started in Unicode filename mode\\)\\. Null characters \\(integer value zero\\) are *not* allowed in filenames \\(not even at the end\\)\\.\n">>;
-            false -> <<"```erlang\n-type name_all()  :: string() | atom() | deep_list() | (RawFilename :: binary()).\n```">>
+            true -> <<"```erlang\n-type name_all() ::\n     string() |"
+                      " atom() | deep_list() | (RawFilename :: binary()).\n"
+                      "```\n\n---\n\nIf VM is in Unicode filename mode, "
+                      "characters are allowed to be \\> 255\\. `RawFilename`"
+                      " is a filename not subject to Unicode translation, "
+                      "meaning that it can contain characters not conforming"
+                      " to the Unicode encoding expected from the file system"
+                      " \\(that is, non\\-UTF\\-8 characters although the VM is"
+                      " started in Unicode filename mode\\)\\. Null characters "
+                      "\\(integer value zero\\) are *not* allowed in filenames "
+                      "\\(not even at the end\\)\\.\n">>;
+            false -> <<"```erlang\n-type name_all()  :: "
+                       "string() | atom() | deep_list() | "
+                       "(RawFilename :: binary()).\n```">>
           end,
   Expected = Selected#{ documentation =>
                           #{ kind => <<"markdown">>
