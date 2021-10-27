@@ -34,6 +34,17 @@ print_version() ->
   io:format("Version: ~s~n", [Vsn]),
   ok.
 
+-spec doctor() -> ok.
+doctor() ->
+  {ok, _Pid} = net_kernel:start([els_doctor, shortnames]),
+  io:format("Erlang LS Doctor~n", []),
+  Nodes = els_doctor:nodes(),
+  [begin
+     io:format("Node:~w~n", [Node]),
+     io:format("Config:~p~n", [lists:flatten(els_doctor:config(Node))])
+   end || Node <- Nodes],
+  ok.
+
 %%==============================================================================
 %% Argument parsing
 %%==============================================================================
@@ -43,6 +54,9 @@ parse_args(Args) ->
   case getopt:parse(opt_spec_list(), Args) of
     {ok, {[version | _], _BadArgs}} ->
       print_version(),
+      halt(1);
+    {ok, {[doctor | _], _BadArgs}} ->
+      doctor(),
       halt(1);
     {ok, {ParsedArgs, _BadArgs}} ->
       set_args(ParsedArgs);
@@ -77,11 +91,18 @@ opt_spec_list() ->
     , {string, ?DEFAULT_LOGGING_LEVEL}
     , "The log level that should be used."
     }
+  , { doctor
+    , $x
+    , "doctor"
+    , undefined
+    , "Run the Erlang LS doctor"
+    }
   ].
 
 -spec set_args([] | [getopt:compound_option()]) -> ok.
 set_args([]) -> ok;
 set_args([version | Rest]) -> set_args(Rest);
+set_args([doctor | Rest]) -> set_args(Rest);
 set_args([{Arg, Val} | Rest]) ->
   set(Arg, Val),
   set_args(Rest).
