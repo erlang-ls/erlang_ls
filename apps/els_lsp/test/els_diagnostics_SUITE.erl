@@ -176,44 +176,15 @@ end_per_testcase(TestCase, Config) ->
 %% Testcases
 %%==============================================================================
 -spec bound_var_in_pattern(config()) -> ok.
-bound_var_in_pattern(Config) ->
-  Uri = ?config(diagnostics_bound_var_in_pattern_uri, Config),
-  els_mock_diagnostics:subscribe(),
-  ok = els_client:did_save(Uri),
-  Diagnostics = lists:filter(fun (#{source := <<"BoundVarInPattern">>}) -> true;
-                                 (_) -> false end,
-                             els_mock_diagnostics:wait_until_complete()),
-  Expected =
-    [ #{message => <<"Bound variable in pattern: Var1">>,
-        range =>
-          #{'end' => #{character => 6, line => 5},
-            start => #{character => 2, line => 5}},
-        severity => 4,
-        source => <<"BoundVarInPattern">>},
-      #{message => <<"Bound variable in pattern: Var2">>,
-        range =>
-          #{'end' => #{character => 13, line => 9},
-            start => #{character => 9, line => 9}},
-        severity => 4,
-        source => <<"BoundVarInPattern">>},
-      #{message => <<"Bound variable in pattern: Var3">>,
-        range =>
-          #{'end' => #{character => 14, line => 15},
-            start => #{character => 10, line => 15}},
-        severity => 4,
-        source => <<"BoundVarInPattern">>},
-      #{message => <<"Bound variable in pattern: Var4">>,
-        range =>
-          #{'end' => #{character => 12, line => 17},
-            start => #{character => 8, line => 17}},
-        severity => 4,
-        source => <<"BoundVarInPattern">>},
-      #{message => <<"Bound variable in pattern: Var5">>,
-        range =>
-          #{'end' => #{character => 10, line => 23},
-            start => #{character => 6, line => 23}},
-        severity => 4,
-        source => <<"BoundVarInPattern">>}
+bound_var_in_pattern(_Config) ->
+  Path = filename:join([ "code_navigation"
+                       , "src"
+                       , "diagnostics_bound_var_in_pattern.erl"]),
+  {ok, Session} = els_test:start_session(Path),
+  Diagnostics = els_test:wait_for_diagnostics(Session, <<"BoundVarInPattern">>),
+  els_test:assert_hints([ #{code => <<"L1230">> , range => {{6, 0}, {7, 0}}}
+                        ], Diagnostics),
+  ok.
       %% erl_syntax_lib:annotate_bindings does not handle named funs correctly
       %% #{message => <<"Bound variable in pattern: New">>,
       %%   range =>
@@ -227,23 +198,28 @@ bound_var_in_pattern(Config) ->
       %%       start => #{character => 6, line => 29}},
       %%   severity => 4,
       %%   source => <<"BoundVarInPattern">>}
-    ],
-  F = fun(#{message := M1}, #{message := M2}) -> M1 =< M2 end,
-  Hints = [D || #{severity := ?DIAGNOSTIC_HINT} = D <- Diagnostics],
-  ?assertEqual(Expected, lists:sort(F, Hints)),
-  ok.
 
 -spec compiler(config()) -> ok.
 compiler(_Config) ->
   Path = filename:join(["code_navigation", "src", "diagnostics.erl"]),
   {ok, Session} = els_test:start_session(Path),
   Diagnostics = els_test:wait_for_diagnostics(Session, <<"Compiler">>),
-  els_test:assert_errors([ #{code => <<"L0000">>, range => {{3, 0}, {3, 35}}}
-                         , #{code => <<"L0000">>, range => {{3, 0}, {3, 35}}}
-                         , #{code => <<"L1295">>, range => {{5, 0}, {6, 0}}}
-                         ], Diagnostics),
-  els_test:assert_warnings([ #{code => <<"L1230">> , range => {{6, 0}, {7, 0}}}
-                           ], Diagnostics),
+  els_test:assert_errors(
+    [ #{ code => <<"L0000">>
+       , message =>  <<"Issue in included file (1): bad attribute">>
+       , range => {{3, 0}, {3, 35}}}
+    , #{ code => <<"L0000">>
+       , message =>  <<"Issue in included file (3): bad attribute">>
+       , range => {{3, 0}, {3, 35}}}
+    , #{ code => <<"L1295">>
+       , message => <<"type undefined_type() undefined">>
+       , range => {{5, 0}, {6, 0}}}
+    ], Diagnostics),
+  els_test:assert_warnings(
+    [ #{ code => <<"L1230">>
+       , message => <<"function main/1 is unused">>
+       , range => {{6, 0}, {7, 0}}}
+    ], Diagnostics),
   ok.
 
 -spec compiler_with_behaviour(config()) -> ok.

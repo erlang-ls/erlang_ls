@@ -15,6 +15,7 @@
         , wait_for_diagnostics/2
         , assert_errors/2
         , assert_warnings/2
+        , assert_hints/2
         ]).
 
 -spec start_session(string()) -> {ok, session()}.
@@ -36,27 +37,37 @@ wait_for_diagnostics(#{uri := Uri}, Source) ->
 assert_errors(Expected, Diagnostics) ->
   Filtered = [D || #{severity := ?DIAGNOSTIC_ERROR} = D <- Diagnostics],
   Simplified = [simplify_diagnostic(D) || D  <- Filtered],
+  erlang:display({Expected, Simplified}),
   ?assertMatch(Expected, Simplified, Filtered).
 
 -spec assert_warnings([els_diagnostics:diagnostic()], any()) -> ok.
 assert_warnings(Expected, Diagnostics) ->
   Filtered = [D || #{severity := ?DIAGNOSTIC_WARNING} = D <- Diagnostics],
   Simplified = [simplify_diagnostic(D) || D  <- Filtered],
+  %% TODO: Display actual value of "Expected"
+  ?assertMatch(Expected, Simplified, Filtered).
+
+-spec assert_hints([els_diagnostics:diagnostic()], any()) -> ok.
+assert_hints(Expected, Diagnostics) ->
+  Filtered = [D || #{severity := ?DIAGNOSTIC_HINT} = D <- Diagnostics],
+  Simplified = [simplify_diagnostic(D) || D  <- Filtered],
   ?assertMatch(Expected, Simplified, Filtered).
 
 -spec simplify_diagnostic(els_diagnostics:diagnostic()) ->
         simplified_diagnostic().
 simplify_diagnostic(Diagnostic) ->
-  #{ code := Code
-   , range := #{ start := #{ character := CharacterStart
-                           , line := LineStart
-                           }
-               , 'end' := #{ character := CharacterEnd
-                           , line := LineEnd
-                           }
-               } } = Diagnostic,
-  #{ code => Code
-   , range => { {LineStart, CharacterStart}
-              , {LineEnd, CharacterEnd}
-              }
-   }.
+  Range = simplify_range(maps:get(range, Diagnostic)),
+  maps:put(range, Range,
+           maps:remove(severity,
+                       maps:remove(source, Diagnostic))).
+
+-spec simplify_range(range()) -> {pos(), pos()}.
+simplify_range(Range) ->
+  #{ start := #{ character := CharacterStart
+               , line := LineStart
+               }
+   , 'end' := #{ character := CharacterEnd
+               , line := LineEnd
+               }
+   } = Range,
+  {{LineStart, CharacterStart}, {LineEnd, CharacterEnd}}.
