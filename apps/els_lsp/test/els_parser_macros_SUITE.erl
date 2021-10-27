@@ -86,6 +86,7 @@ wild_attrbibute_macro(_Config) ->
 type_name_macro(_Config) ->
   Text1 = "-type ?M() :: integer() | t().",
   ?assertMatch({ok, [#{kind := type_application, id := {t, 0}},
+                     #{kind := type_application, id := {erlang, integer, 0}},
                      #{kind := macro, id := 'M'}]},
                els_parser:parse(Text1)),
 
@@ -151,6 +152,7 @@ record_def_field_macro(_Config) ->
   %% typed record field
   Text2 = "-record(rec, {?M :: integer()}).",
   ?assertMatch({ok, [#{kind := record, id := rec},
+                     #{kind := type_application, id := {erlang, integer, 0}},
                      #{kind := macro, id := 'M'}]},
                els_parser:parse(Text2)),
   ok.

@@ -35,8 +35,16 @@
         , remote_fun/1
         , snippets/1
         , resolve_application_local/1
+        , resolve_opaque_application_local/1
+        , resolve_application_unexported_local/1
         , resolve_application_remote_self/1
         , resolve_application_remote_external/1
+        , resolve_application_remote_otp/1
+        , resolve_type_application_local/1
+        , resolve_opaque_application_remote_self/1
+        , resolve_type_application_remote_external/1
+        , resolve_opaque_application_remote_external/1
+        , resolve_type_application_remote_otp/1
         ]).
 
 %%==============================================================================
@@ -311,12 +319,20 @@ attribute_export_type(Config) ->
   Expected = [ #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
                 , kind => ?COMPLETION_ITEM_KIND_TYPE_PARAM
                 , label => <<"unexported_type/0">>
-                , data => #{}
+                , data => #{
+                    module => <<"completion_attributes">>
+                  , type => <<"unexported_type">>
+                  , arity => 0
+                  }
                 }
              , #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
                 , kind => ?COMPLETION_ITEM_KIND_TYPE_PARAM
                 , label => <<"unexported_opaque/0">>
-                , data => #{}
+                , data => #{
+                  module => <<"completion_attributes">>
+                , type => <<"unexported_opaque">>
+                , arity => 0
+                }
                 }
              ],
   NotExpected = [ #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
@@ -498,7 +514,10 @@ exported_types(Config) ->
                 , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
                 , kind => ?COMPLETION_ITEM_KIND_TYPE_PARAM
                 , label => <<T/binary, "/0">>
-                , data => #{}
+                , data => #{ module => <<"file">>
+                  , type => T
+                  , arity => 0
+                  }
                 }
                || T <- Types
              ],
@@ -760,25 +779,37 @@ types(Config) ->
                 , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
                 , kind             => ?COMPLETION_ITEM_KIND_TYPE_PARAM
                 , label            => <<"type_a/0">>
-                , data             => #{}
+                , data             => #{ module => <<"code_navigation">>
+                                       , type => <<"type_a">>
+                                       , arity => 0
+                                      }
                 }
              , #{ insertText       => <<"included_type_a()">>
                 , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
                 , kind             => ?COMPLETION_ITEM_KIND_TYPE_PARAM
                 , label            => <<"included_type_a/0">>
-                , data             => #{}
+                , data             => #{ module => <<"code_navigation">>
+                                       , type => <<"included_type_a">>
+                                       , arity => 0
+                                      }
                 }
              , #{ insertText       => <<"'INCLUDED_TYPE'(${1:T})">>
                 , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
                 , kind             => ?COMPLETION_ITEM_KIND_TYPE_PARAM
                 , label            => <<"'INCLUDED_TYPE'/1">>
-                , data             => #{}
+                , data             => #{ module => <<"code_navigation">>
+                                       , type => <<"INCLUDED_TYPE">>
+                                       , arity => 1
+                                      }
                 }
              , #{ insertText       => <<"type_b()">>
                 , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
                 , kind             => ?COMPLETION_ITEM_KIND_TYPE_PARAM
                 , label            => <<"type_b/0">>
-                , data             => #{}
+                , data             => #{ module => <<"code_navigation">>
+                                       , type => <<"type_b">>
+                                       , arity => 0
+                                      }
                 }
              ],
 
@@ -802,17 +833,26 @@ types_export_list(Config) ->
   Expected = [ #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
                 , kind             => ?COMPLETION_ITEM_KIND_TYPE_PARAM
                 , label            => <<"type_b/0">>
-                , data             => #{}
+                , data             => #{ module => <<"code_navigation_types">>
+                                       , type => <<"type_b">>
+                                       , arity => 0
+                                     }
                 }
              , #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
                 , kind             => ?COMPLETION_ITEM_KIND_TYPE_PARAM
                 , label            => <<"user_type_a/0">>
-                , data             => #{}
+                , data             => #{ module => <<"code_navigation_types">>
+                                       , type => <<"user_type_a">>
+                                       , arity => 0
+                                     }
                 }
              , #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
                 , kind             => ?COMPLETION_ITEM_KIND_TYPE_PARAM
                 , label            => <<"user_type_b/0">>
-                , data             => #{}
+                , data             => #{ module => <<"code_navigation_types">>
+                                       , type => <<"user_type_b">>
+                                       , arity => 0
+                                     }
                 }
              ],
   ct:comment("Types in an export_type section is provided with arity"),
@@ -944,16 +984,33 @@ resolve_application_local(Config) ->
   Uri = ?config(completion_resolve_uri, Config),
   CompletionKind = ?COMPLETION_TRIGGER_KIND_INVOKED,
   #{result := CompletionItems} =
-    els_client:completion(Uri, 17, 5, CompletionKind, <<"">>),
-  [Selected] = select_completionitems(CompletionItems),
+    els_client:completion(Uri, 14, 5, CompletionKind, <<"">>),
+  [Selected] = select_completionitems(CompletionItems,
+                  ?COMPLETION_ITEM_KIND_FUNCTION, <<"call_1/0">>),
   #{result := Result} = els_client:completionitem_resolve(Selected),
   Expected = Selected#{ documentation =>
                           #{ kind => <<"markdown">>
-                           , value =>
-                               <<"## completion_resolve:call_1/0\n\n"
-                                 "```erlang\n"
-                                 "-spec call_1() -> 'ok'.\n"
-                                 "```">>
+                           , value => call_markdown(
+                                  <<"call_1">>,
+                                  <<"Call me maybe">>)
+                           }
+                      },
+  ?assertEqual(Expected, Result).
+
+-spec resolve_application_unexported_local(config()) -> ok.
+resolve_application_unexported_local(Config) ->
+  Uri = ?config(completion_resolve_uri, Config),
+  CompletionKind = ?COMPLETION_TRIGGER_KIND_INVOKED,
+  #{result := CompletionItems} =
+    els_client:completion(Uri, 14, 5, CompletionKind, <<"">>),
+  [Selected] = select_completionitems(CompletionItems,
+                  ?COMPLETION_ITEM_KIND_FUNCTION, <<"call_2/0">>),
+  #{result := Result} = els_client:completionitem_resolve(Selected),
+  Expected = Selected#{ documentation =>
+                          #{ kind => <<"markdown">>
+                           , value => call_markdown(
+                            <<"call_2">>,
+                            <<"Call me sometime">>)
                            }
                       },
   ?assertEqual(Expected, Result).
@@ -963,16 +1020,16 @@ resolve_application_remote_self(Config) ->
   Uri = ?config(completion_resolve_uri, Config),
   CompletionKind = ?COMPLETION_TRIGGER_KIND_INVOKED,
   #{result := CompletionItems} =
-    els_client:completion(Uri, 16, 23, CompletionKind, <<":">>),
-  [Selected] = select_completionitems(CompletionItems),
+    els_client:completion(Uri, 13, 23, CompletionKind, <<":">>),
+  [Selected] = select_completionitems(CompletionItems,
+                  ?COMPLETION_ITEM_KIND_FUNCTION, <<"call_1/0">>),
   #{result := Result} = els_client:completionitem_resolve(Selected),
+
   Expected = Selected#{ documentation =>
                           #{ kind => <<"markdown">>
-                           , value =>
-                               <<"## completion_resolve:call_1/0\n\n"
-                                 "```erlang\n"
-                                 "-spec call_1() -> 'ok'.\n"
-                                 "```">>
+                           , value => call_markdown(
+                                <<"call_1">>,
+                                <<"Call me maybe">>)
                            }
                       },
   ?assertEqual(Expected, Result).
@@ -982,21 +1039,230 @@ resolve_application_remote_external(Config) ->
   Uri = ?config(completion_resolve_uri, Config),
   CompletionKind = ?COMPLETION_TRIGGER_KIND_INVOKED,
   #{result := CompletionItems} =
-    els_client:completion(Uri, 18, 25, CompletionKind, <<":">>),
-  [Selected] = select_completionitems(CompletionItems),
+    els_client:completion(Uri, 15, 25, CompletionKind, <<":">>),
+  [Selected] = select_completionitems(CompletionItems,
+                  ?COMPLETION_ITEM_KIND_FUNCTION, <<"call_1/0">>),
   #{result := Result} = els_client:completionitem_resolve(Selected),
   Expected = Selected#{ documentation =>
                           #{ kind => <<"markdown">>
-                           , value =>
-                               <<"## completion_resolve_2:call_1/0\n\n"
-                                 "```erlang\n"
-                                 "-spec call_1() -> 'ok'.\n"
-                                 "```">>
+                           , value => call_markdown(
+                                <<"completion_resolve_2">>,
+                                <<"call_1">>,
+                                <<"I just met you">>)
                            }
                       },
   ?assertEqual(Expected, Result).
 
-select_completionitems(CompletionItems) ->
-  [CI || #{ kind := ?COMPLETION_ITEM_KIND_FUNCTION
-          , label := <<"call_1/0">>
-          } = CI <- CompletionItems].
+-spec resolve_application_remote_otp(config()) -> ok.
+resolve_application_remote_otp(Config) ->
+  Uri = ?config(completion_resolve_uri, Config),
+  CompletionKind = ?COMPLETION_TRIGGER_KIND_INVOKED,
+  #{result := CompletionItems} =
+    els_client:completion(Uri, 16, 8, CompletionKind, <<":">>),
+  [Selected] = select_completionitems(CompletionItems,
+                  ?COMPLETION_ITEM_KIND_FUNCTION, <<"write/2">>),
+  #{result := Result} = els_client:completionitem_resolve(Selected),
+  Value = case has_eep48(file) of
+            true -> <<"```erlang\nwrite(IoDevice, Bytes) -> ok | {error, "
+            "Reason}\nwhen\n  IoDevice :: io_device() | atom(),\n  Bytes ::"
+            " iodata(),\n  Reason :: posix() | badarg | terminated.\n```\n\n"
+            "---\n\nWrites `Bytes` to the file referenced by `IoDevice`\\. "
+            "This function is the only way to write to a file opened in `raw`"
+            " mode \\(although it works for normally opened files too\\)\\. "
+            "Returns `ok` if successful, and `{error, Reason}` otherwise\\."
+            "\n\nIf the file is opened with `encoding` set to something else "
+            "than `latin1`, each byte written can result in many bytes being "
+            "written to the file, as the byte range 0\\.\\.255 can represent "
+            "anything between one and four bytes depending on value and UTF "
+            "encoding type\\.\n\nTypical error reasons:\n\n**`ebadf`**  \n"
+            "Â Â The file is not opened for writing\\.\n\n**`enospc`**  \n"
+            "Â Â No space is left on the device\\.\n">>;
+            false -> <<"## file:write/2\n\n---\n\n```erlang\n\n  write(File, "
+              "Bytes) when is_pid(File) orelse is_atom(File)\n\n  write(#file_"
+              "descriptor{module = Module} = Handle, Bytes) \n\n  write(_, _) "
+              "\n\n```\n\n```erlang\n-spec write(IoDevice, Bytes) -> ok | "
+              "{error, Reason} when\n      IoDevice :: io_device() | atom(),"
+              "\n      Bytes :: iodata(),\n      Reason :: posix() | "
+              "badarg | terminated.\n```">>
+          end,
+  Expected = Selected#{ documentation =>
+                          #{ kind => <<"markdown">>
+                           , value => Value
+                           }
+                      },
+  ?assertEqual(Expected, Result).
+
+call_markdown(F, Doc) ->
+  call_markdown(<<"completion_resolve">>, F, Doc).
+call_markdown(M, F, Doc) ->
+  case has_eep48_edoc() of
+    true ->
+      <<"```erlang\n",
+        F/binary, "() -> ok.\n"
+        "```\n\n"
+        "---\n\n",
+        Doc/binary, "\n">>;
+    false ->
+      <<"## ", M/binary, ":", F/binary, "/0\n\n"
+        "---\n\n"
+        "```erlang\n"
+        "-spec ", F/binary, "() -> 'ok'.\n"
+        "```\n\n",
+        Doc/binary, "\n\n">>
+  end.
+
+-spec resolve_type_application_local(config()) -> ok.
+resolve_type_application_local(Config) ->
+  Uri = ?config(completion_resolve_type_uri, Config),
+  CompletionKind = ?COMPLETION_TRIGGER_KIND_INVOKED,
+  #{result := CompletionItems} =
+    els_client:completion(Uri, 14, 16, CompletionKind, <<"">>),
+  [Selected] = select_completionitems(CompletionItems,
+                  ?COMPLETION_ITEM_KIND_TYPE_PARAM, <<"mytype/0">>),
+  #{result := Result} = els_client:completionitem_resolve(Selected),
+  Value = case has_eep48_edoc() of
+    true -> <<"```erlang\n-type mytype() :: "
+              "completion_resolve_type:myopaque().\n```"
+              "\n\n---\n\nThis is my type\n">>;
+    false -> <<"```erlang\n-type mytype() :: "
+               "completion_resolve_type:myopaque().\n```">>
+  end,
+  Expected = Selected#{ documentation =>
+                          #{ kind => <<"markdown">>
+                           , value => Value
+                           }
+                      },
+  ?assertEqual(Expected, Result).
+
+-spec resolve_opaque_application_local(config()) -> ok.
+resolve_opaque_application_local(Config) ->
+  Uri = ?config(completion_resolve_type_uri, Config),
+  CompletionKind = ?COMPLETION_TRIGGER_KIND_INVOKED,
+  #{result := CompletionItems} =
+    els_client:completion(Uri, 14, 17, CompletionKind, <<"">>),
+  [Selected] = select_completionitems(CompletionItems,
+                  ?COMPLETION_ITEM_KIND_TYPE_PARAM, <<"myopaque/0">>),
+  #{result := Result} = els_client:completionitem_resolve(Selected),
+  Value = case has_eep48_edoc() of
+            true -> <<"```erlang\n-opaque myopaque() \n```\n\n---\n\n"
+                      "This is my opaque\n">>;
+            false -> <<"```erlang\n"
+                       "-opaque myopaque() :: term().\n```">>
+          end,
+  Expected = Selected#{ documentation =>
+                          #{ kind => <<"markdown">>
+                           , value => Value
+                           }
+                      },
+  ?assertEqual(Expected, Result).
+
+-spec resolve_opaque_application_remote_self(config()) -> ok.
+resolve_opaque_application_remote_self(Config) ->
+  Uri = ?config(completion_resolve_type_uri, Config),
+  CompletionKind = ?COMPLETION_TRIGGER_KIND_INVOKED,
+  #{result := CompletionItems} =
+    els_client:completion(Uri, 14, 48, CompletionKind, <<":">>),
+  [Selected] = select_completionitems(CompletionItems,
+                  ?COMPLETION_ITEM_KIND_TYPE_PARAM, <<"myopaque/0">>),
+  #{result := Result} = els_client:completionitem_resolve(Selected),
+
+  Value = case has_eep48_edoc() of
+    true -> <<"```erlang\n-opaque myopaque() \n```\n\n---\n\n"
+              "This is my opaque\n">>;
+    false -> <<"```erlang\n"
+               "-opaque myopaque() :: term().\n"
+               "```">>
+  end,
+
+  Expected = Selected#{ documentation =>
+                          #{ kind => <<"markdown">>
+                           , value => Value
+                           }
+                      },
+  ?assertEqual(Expected, Result).
+
+-spec resolve_type_application_remote_external(config()) -> ok.
+resolve_type_application_remote_external(Config) ->
+  Uri = ?config(completion_resolve_type_uri, Config),
+  CompletionKind = ?COMPLETION_TRIGGER_KIND_INVOKED,
+  #{result := CompletionItems} =
+    els_client:completion(Uri, 15, 40, CompletionKind, <<":">>),
+  [Selected] = select_completionitems(CompletionItems,
+                  ?COMPLETION_ITEM_KIND_TYPE_PARAM, <<"mytype/1">>),
+  #{result := Result} = els_client:completionitem_resolve(Selected),
+  Value = case has_eep48_edoc() of
+            true -> <<"```erlang\n-type mytype(T) :: [T].\n```\n\n---\n\n"
+                      "Hello\n">>;
+            false -> <<"```erlang\n-type mytype(T) :: [T].\n```">>
+          end,
+  Expected = Selected#{ documentation =>
+                          #{ kind => <<"markdown">>
+                           , value => Value
+                           }
+                      },
+  ?assertEqual(Expected, Result).
+
+-spec resolve_opaque_application_remote_external(config()) -> ok.
+resolve_opaque_application_remote_external(Config) ->
+  Uri = ?config(completion_resolve_type_uri, Config),
+  CompletionKind = ?COMPLETION_TRIGGER_KIND_INVOKED,
+  #{result := CompletionItems} =
+    els_client:completion(Uri, 15, 40, CompletionKind, <<":">>),
+  [Selected] = select_completionitems(CompletionItems,
+                  ?COMPLETION_ITEM_KIND_TYPE_PARAM, <<"myopaque/1">>),
+  #{result := Result} = els_client:completionitem_resolve(Selected),
+  Value = case has_eep48_edoc() of
+            true -> <<"```erlang\n-opaque myopaque(T) \n```\n\n---\n\n"
+                      "Is there anybody in there\n">>;
+            false -> <<"```erlang\n-opaque myopaque(T) :: [T].\n```">>
+          end,
+  Expected = Selected#{ documentation =>
+                          #{ kind => <<"markdown">>
+                           , value => Value
+                           }
+                      },
+  ?assertEqual(Expected, Result).
+
+-spec resolve_type_application_remote_otp(config()) -> ok.
+resolve_type_application_remote_otp(Config) ->
+  Uri = ?config(completion_resolve_type_uri, Config),
+  CompletionKind = ?COMPLETION_TRIGGER_KIND_INVOKED,
+  #{result := CompletionItems} =
+    els_client:completion(Uri, 17, 8, CompletionKind, <<":">>),
+  [Selected] = select_completionitems(CompletionItems,
+                  ?COMPLETION_ITEM_KIND_TYPE_PARAM, <<"name_all/0">>),
+  #{result := Result} = els_client:completionitem_resolve(Selected),
+  Value = case has_eep48(file) of
+            true -> <<"```erlang\n-type name_all() ::\n     string() |"
+                      " atom() | deep_list() | (RawFilename :: binary()).\n"
+                      "```\n\n---\n\nIf VM is in Unicode filename mode, "
+                      "characters are allowed to be \\> 255\\. `RawFilename`"
+                      " is a filename not subject to Unicode translation, "
+                      "meaning that it can contain characters not conforming"
+                      " to the Unicode encoding expected from the file system"
+                      " \\(that is, non\\-UTF\\-8 characters although the VM is"
+                      " started in Unicode filename mode\\)\\. Null characters "
+                      "\\(integer value zero\\) are *not* allowed in filenames "
+                      "\\(not even at the end\\)\\.\n">>;
+            false -> <<"```erlang\n-type name_all()  :: "
+                       "string() | atom() | deep_list() | "
+                       "(RawFilename :: binary()).\n```">>
+          end,
+  Expected = Selected#{ documentation =>
+                          #{ kind => <<"markdown">>
+                           , value => Value
+                           }
+                      },
+  ?assertEqual(Expected, Result).
+
+select_completionitems(CompletionItems, Kind, Label) ->
+  [CI || #{ kind := K , label := L
+          } = CI <- CompletionItems, L =:= Label, K =:= Kind].
+
+has_eep48_edoc() ->
+  list_to_integer(erlang:system_info(otp_release)) >= 24.
+has_eep48(Module) ->
+  case catch code:get_doc(Module) of
+    {ok, _} -> true;
+    _ -> false
+  end.

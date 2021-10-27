@@ -156,6 +156,8 @@ editable_range(#{kind := type_application, id := {M, T, _A}, range := Range}) ->
   EditToC = EditFromC + length(atom_to_string(T)),
   els_protocol:range(#{ from => {FromL, EditFromC}
                       , to => {FromL, EditToC} });
+editable_range(#{kind := type_definition, data := #{ name := Range }}) ->
+  els_protocol:range(Range);
 editable_range(#{kind := _Kind, range := Range}) ->
   els_protocol:range(Range).
 

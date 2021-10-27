@@ -114,8 +114,9 @@ record_def_with_types(_Config) ->
 
   Text3 = "-record(r1, {f1 :: t1(integer())}).",
   ?assertMatch([_], parse_find_pois(Text3, type_application, {t1, 1})),
-  %% No POI for builtin types like integer()
-  ?assertMatch([#{id := {t1, 1}}], parse_find_pois(Text3, type_application)),
+  %% POI for builtin types like integer()
+  ?assertMatch([#{id := {t1, 1}}, #{id := {erlang, integer, 0}} ],
+                parse_find_pois(Text3, type_application)),
 
   Text4 = "-record(r1, {f1 :: m:t1(integer())}).",
   ?assertMatch([_], parse_find_pois(Text4, type_application, {m, t1, 1})),
@@ -172,7 +173,7 @@ assert_recursive_types(Text) ->
                parse_find_pois(Text, record_field)),
   ?assertMatch([#{id := {m, t1, 1}},
                 #{id := {t2, 1}},
-                #{id := {t3, 0}}],
+                #{id := {t3, 0}} | _],
                parse_find_pois(Text, type_application)),
   ok.
 

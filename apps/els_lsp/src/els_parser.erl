@@ -269,8 +269,12 @@ attribute(Tree) ->
       TypeArgs = erl_syntax:list_elements(ArgsListTree),
       case is_atom_node(Type) of
         {true, TypeName} ->
-          [poi(erl_syntax:get_pos(Type), type_definition,
-               {TypeName, length(TypeArgs)}, #{ args => type_args(TypeArgs)})];
+          Id = {TypeName, length(TypeArgs)},
+          [poi(Pos, type_definition, Id,
+                 #{ name => els_range:range(
+                                erl_syntax:get_pos(Type),
+                                type_definition, Id, undefined),
+                    args => type_args(TypeArgs)})];
         _ ->
           []
       end;
@@ -642,9 +646,11 @@ type_application(Tree) ->
       Id = {Name, Arity},
       Pos = erl_syntax:get_pos(erl_syntax:user_type_application_name(Tree)),
       [poi(Pos, type_application, Id)];
-    {_Name, _Arity} when Type =:= type_application  ->
-      %% No POIs for built-in types
-      []
+    {Name, Arity} when Type =:= type_application  ->
+      %% Built-in types
+      Id = {erlang, Name, Arity},
+      Pos = erl_syntax:get_pos(erl_syntax:type_application_name(Tree)),
+      [poi(Pos, type_application, Id)]
   end.
 
 -spec variable(tree()) -> [poi()].

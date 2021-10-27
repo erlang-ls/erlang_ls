@@ -88,6 +88,17 @@ resolve(#{ <<"kind">> := ?COMPLETION_ITEM_KIND_FUNCTION
                                    , binary_to_atom(Function, utf8)
                                    , Arity),
   CompletionItem#{documentation => els_markup_content:new(Entries)};
+resolve(#{ <<"kind">> := ?COMPLETION_ITEM_KIND_TYPE_PARAM
+         , <<"data">> := #{ <<"module">> := Module
+                          , <<"type">> := Type
+                          , <<"arity">> := Arity
+                        }
+         } = CompletionItem) ->
+  Entries = els_docs:type_docs('remote'
+          , binary_to_atom(Module, utf8)
+          , binary_to_atom(Type, utf8)
+          , Arity),
+  CompletionItem#{ documentation => els_markup_content:new(Entries) };
 resolve(CompletionItem) ->
   CompletionItem.
 
@@ -508,6 +519,13 @@ resolve_definitions(Uri, Functions, ExportsFA, ExportedOnly, ArityOnly) ->
 resolve_definition(Uri, #{kind := 'function', id := {F, A}} = POI, ArityOnly) ->
   Data = #{ <<"module">> => els_uri:module(Uri)
           , <<"function">> => F
+          , <<"arity">> => A
+          },
+  completion_item(POI, Data, ArityOnly);
+resolve_definition(Uri, #{kind := 'type_definition', id := {T, A}} = POI,
+                   ArityOnly) ->
+  Data = #{ <<"module">> => els_uri:module(Uri)
+          , <<"type">> => T
           , <<"arity">> => A
           },
   completion_item(POI, Data, ArityOnly);
