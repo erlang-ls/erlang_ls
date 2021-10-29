@@ -331,7 +331,7 @@ behaviour(Config) ->
 callback(Config) ->
   Uri = ?config(rename_uri, Config),
   #{result := Locations} = els_client:document_highlight(Uri, 3, 10),
-  ExpectedLocations = [ #{range => #{from => {3, 1}, to => {3, 20}}}
+  ExpectedLocations = [ #{range => #{from => {3, 1}, to => {3, 34}}}
                       ],
   assert_locations(ExpectedLocations, Locations),
   ok.

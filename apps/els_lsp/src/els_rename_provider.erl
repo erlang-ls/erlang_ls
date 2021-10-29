@@ -110,53 +110,19 @@ workspace_edits(_Uri, _POIs, _NewName) ->
   null.
 
 -spec editable_range(poi()) -> range().
-editable_range(#{kind := callback, range := Range}) ->
-  #{ from := {FromL, FromC} } = Range,
-  EditFromC = FromC + string:length("-callback "),
-  els_protocol:range(Range#{ from := {FromL, EditFromC } });
-editable_range(#{kind := export_entry, id := {F, _A}, range := Range}) ->
-  #{ from := {FromL, FromC} } = Range,
-  EditToC = FromC + string:length(atom_to_string(F)),
-  els_protocol:range(Range#{ to := {FromL, EditToC} });
-editable_range(#{kind := export_type_entry, id := {T, _A}, range := Range}) ->
-  #{ from := {FromL, FromC} } = Range,
-  EditToC = FromC + length(atom_to_string(T)),
-  els_protocol:range(Range#{ to := {FromL, EditToC} });
-editable_range(#{kind := spec, id := {F, _A}, range := Range}) ->
-  #{ from := {FromL, FromC}, to := {_ToL, _ToC} } = Range,
-  EditFromC = FromC + string:length("-spec "),
-  EditToC = EditFromC + string:length(atom_to_string(F)),
-  els_protocol:range(Range#{ from := {FromL, EditFromC}
-                           , to := {FromL, EditToC} });
-editable_range(#{kind := implicit_fun, id := {M, F, _A}, range := Range}) ->
-  #{ from := {FromL, FromC}, to := {_ToL, _ToC} } = Range,
-  EditFromC = FromC + length("fun " ++ atom_to_string(M) ++ ":"),
-  EditToC = EditFromC + length(atom_to_string(F)),
-  els_protocol:range(#{ from => {FromL, EditFromC}
-                      , to => {FromL, EditToC} });
-editable_range(#{kind := implicit_fun, id := {F, _A}, range := Range}) ->
-  #{ from := {FromL, FromC}, to := {_ToL, _ToC} } = Range,
-  EditFromC = FromC + length("fun "),
-  EditToC = EditFromC + length(atom_to_string(F)),
-  els_protocol:range(#{ from => {FromL, EditFromC}
-                      , to => {FromL, EditToC} });
-editable_range(#{kind := import_entry, id := {_M, F, _A}, range := Range}) ->
-  #{ from := {FromL, FromC} } = Range,
-  EditToC = FromC + length(atom_to_string(F)),
-  els_protocol:range(Range#{ to := {FromL, EditToC} });
-editable_range(#{kind := application, id := {M, F, _A}, range := Range}) ->
-  #{ from := {FromL, FromC}, to := {_ToL, _ToC} } = Range,
-  EditFromC = FromC + length(atom_to_string(M) ++ ":"),
-  EditToC = EditFromC + length(atom_to_string(F)),
-  els_protocol:range(#{ from => {FromL, EditFromC}
-                      , to => {FromL, EditToC} });
-editable_range(#{kind := type_application, id := {M, T, _A}, range := Range}) ->
-  #{ from := {FromL, FromC}, to := {_ToL, _ToC} } = Range,
-  EditFromC = FromC + length(atom_to_string(M) ++ ":"),
-  EditToC = EditFromC + length(atom_to_string(T)),
-  els_protocol:range(#{ from => {FromL, EditFromC}
-                      , to => {FromL, EditToC} });
-editable_range(#{kind := type_definition, data := #{ name := Range }}) ->
+editable_range(#{kind := Kind, data := #{name_range := Range}})
+  when Kind =:= application;
+       Kind =:= implicit_fun;
+       Kind =:= callback;
+       Kind =:= spec;
+       Kind =:= export_entry;
+       Kind =:= export_type_entry;
+       Kind =:= import_entry;
+       Kind =:= type_application;
+       Kind =:= type_definition ->
+  %% application POI of a local call and
+  %% type_application POI of a built-in type don't have name_range data
+  %% they are handled by the next clause
   els_protocol:range(Range);
 editable_range(#{kind := _Kind, range := Range}) ->
   els_protocol:range(Range).
@@ -305,13 +271,4 @@ import_changes(_Uri, _POI, _NewName) ->
 
 -spec change(poi(), binary()) -> text_edit().
 change(POI, NewName) ->
-  %% TODO: editable_range expects only `fun foo/0' in source so
-  %% so for example if `fun   foo/0' is in the source it will result in invalid
-  %% changes as the text that the POI corresponds to is lost.
-  %% This is a deep fundamental flaw in how POIs are parsed and need to be
-  %% addressed in the parser
   #{range => editable_range(POI), newText => NewName}.
-
--spec atom_to_string(atom()) -> string().
-atom_to_string(Atom) ->
-  io_lib:write(Atom).
