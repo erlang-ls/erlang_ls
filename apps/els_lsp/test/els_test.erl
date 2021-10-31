@@ -18,6 +18,7 @@
         , assert_warnings/3
         , assert_hints/3
         , assert_contains/2
+        , compiler_returns_column_numbers/0
         ]).
 
 -spec run_diagnostics_test(string(), source(),
@@ -100,13 +101,10 @@ simplify_range(Range) ->
   {{LineStart, CharacterStart}, {LineEnd, CharacterEnd}}.
 
 maybe_fix_range(<<"Compiler">>, Diagnostic) ->
-  %% If epp:open/5 is exported we know that columns are not
-  %% returned by the compiler warnings and errors.
-  %% Should find a better heuristic for this.
-  case erlang:function_exported(epp, open, 5) of
-    true ->
-      fix_range(Diagnostic);
+  case compiler_returns_column_numbers() of
     false ->
+      fix_range(Diagnostic);
+    true ->
       Diagnostic
   end;
 maybe_fix_range(_Source, Diagnostic) ->
@@ -123,3 +121,9 @@ fix_range(Diagnostic) ->
     false ->
       Diagnostic
   end.
+
+compiler_returns_column_numbers() ->
+  %% If epp:open/5 is exported we know that columns are not
+  %% returned by the compiler warnings and errors.
+  %% Should find a better heuristic for this.
+  not erlang:function_exported(epp, open, 5).

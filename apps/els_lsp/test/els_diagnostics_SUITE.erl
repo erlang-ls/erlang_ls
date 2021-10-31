@@ -248,12 +248,12 @@ compiler_with_broken_behaviour(_Config) ->
      , range => {{2, 0}, {2, 24}}}, Diagnostics).
 
 -spec compiler_with_custom_macros(config()) -> ok.
-compiler_with_custom_macros(Config) ->
+compiler_with_custom_macros(_Config) ->
   %% This test uses priv/code_navigation/erlang_ls.config to define
   %% some macros.
   Path = src_path("diagnostics_macros.erl"),
   Source = <<"Compiler">>,
-  Errors = case ?config(columns, Config) of
+  Errors = case els_test:compiler_returns_column_numbers() of
              true ->
                %% diagnostic_macro has a spec with no '.' at the end
                %% which causes the poi for the spec to becomes the
@@ -271,10 +271,7 @@ compiler_with_custom_macros(Config) ->
                   }
                ]
            end,
-  Warnings = [ #{ code => <<"L1268">>
-                , message => <<"variable 'Args' is unused">>
-                , range => {{6, 0}, {7, 0}}}
-             ],
+  Warnings = [],
   Hints = [],
   els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
 
@@ -352,7 +349,7 @@ compiler_with_parse_transform_deps(_Config) ->
   els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
 
 -spec compiler_telemetry(config()) -> ok.
-compiler_telemetry(_Config) ->
+compiler_telemetry(Config) ->
   Path = src_path("diagnostics.erl"),
   Source = <<"Compiler">>,
   Errors = [ #{ code => <<"L0000">>
@@ -379,7 +376,7 @@ compiler_telemetry(_Config) ->
    , uri := UriT
    , diagnostics := DiagnosticsCodes }  = Telemetry,
   ?assertEqual(<<"erlang-diagnostic-codes">>, Type),
-  Uri = els_uri:uri(Path),
+  Uri = ?config(diagnostics_uri, Config),
   ?assertEqual(Uri, UriT),
   ?assertEqual([ <<"L1230">>, <<"L0000">>, <<"L0000">>, <<"L1295">>]
                , DiagnosticsCodes),
