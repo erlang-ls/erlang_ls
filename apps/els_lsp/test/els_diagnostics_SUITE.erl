@@ -1,4 +1,3 @@
-%% Fixcolumns
 -module(els_diagnostics_SUITE).
 
 %% CT Callbacks
