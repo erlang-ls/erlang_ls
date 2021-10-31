@@ -367,7 +367,7 @@ compiler_telemetry(Config) ->
            ],
   Warnings = [ #{ code => <<"L1230">>
                 , message => <<"function main/1 is unused">>
-                , range => {{6, 0}, {7, 0}}}
+                , range => {{6, 0}, {6, 4}}}
              ],
   Hints = [],
   els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints),
