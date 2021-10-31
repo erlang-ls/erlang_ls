@@ -226,7 +226,7 @@ compiler_with_behaviour(_Config) ->
                 , message =>
                     <<"undefined callback function one/0 "
                       "(behaviour 'diagnostics_behaviour')">>
-                , range => {{2, 0}, {3, 0}}},
+                , range => {{2, 0}, {2, 34}}},
                #{ code => <<"L1284">>
                 , message =>
                     <<"undefined callback function two/0 "
@@ -362,7 +362,7 @@ compiler_telemetry(Config) ->
               }
            , #{ code => <<"L1295">>
               , message => <<"type undefined_type() undefined">>
-              , range => {{5, 0}, {6, 0}}
+              , range => {{5, 30}, {5, 44}}
               }
            ],
   Warnings = [ #{ code => <<"L1230">>
