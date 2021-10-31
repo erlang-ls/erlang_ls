@@ -1,9 +1,4 @@
 %% Fixcolumns
-%% Refactor like crossref to avoid repetition
-%% Dialyzer diagnostics type
-%% Sort diagnostics
-%% Telemetry
-%% Split diagnostics by backend
 -module(els_diagnostics_SUITE).
 
 %% CT Callbacks
@@ -73,11 +68,7 @@ all() ->
 
 -spec init_per_suite(config()) -> config().
 init_per_suite(Config) ->
-  %% If epp:open/5 is exported we know that columns are not
-  %% returned by the compiler warnings and errors.
-  %% Should find a better heuristic for this.
-  [{columns, not erlang:function_exported(epp, open, 5)} |
-   els_test_utils:init_per_suite(Config)].
+  els_test_utils:init_per_suite(Config).
 
 -spec end_per_suite(config()) -> ok.
 end_per_suite(Config) ->
@@ -218,11 +209,11 @@ compiler(_Config) ->
               , range => {{3, 0}, {3, 35}}}
            , #{ code => <<"L1295">>
               , message => <<"type undefined_type() undefined">>
-              , range => {{5, 0}, {6, 0}}}
+              , range => {{5, 30}, {5, 44}}}
            ],
   Warnings = [ #{ code => <<"L1230">>
                 , message => <<"function main/1 is unused">>
-                , range => {{6, 0}, {7, 0}}}
+                , range => {{6, 0}, {6, 4}}}
              ],
   Hints = [],
   els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
@@ -241,7 +232,7 @@ compiler_with_behaviour(_Config) ->
                 , message =>
                     <<"undefined callback function two/0 "
                       "(behaviour 'diagnostics_behaviour')">>
-                , range => {{2, 0}, {3, 0}}}
+                , range => {{2, 0}, {2, 34}}}
              ],
   Hints = [],
   els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
@@ -288,7 +279,6 @@ compiler_with_custom_macros(Config) ->
   Hints = [],
   els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
 
-
 -spec compiler_with_parse_transform(config()) -> ok.
 compiler_with_parse_transform(_Config) ->
   _ = code:delete(diagnostics_parse_transform),
@@ -298,7 +288,7 @@ compiler_with_parse_transform(_Config) ->
   Errors = [],
   Warnings = [ #{ code => <<"L1268">>
                 , message => <<"variable 'Args' is unused">>
-                , range => {{6, 0}, {7, 0}}}
+                , range => {{6, 5}, {6, 9}}}
              ],
   Hints = [],
   els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
@@ -312,7 +302,7 @@ compiler_with_parse_transform_list(_Config) ->
   Errors = [],
   Warnings = [ #{ code => <<"L1268">>
                 , message => <<"variable 'Args' is unused">>
-                , range => {{6, 0}, {7, 0}}}
+                , range => {{6, 5}, {6, 9}}}
              ],
   Hints = [],
   els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
@@ -326,7 +316,7 @@ compiler_with_parse_transform_included(_Config) ->
   Errors = [],
   Warnings = [ #{ code => <<"L1268">>
                 , message => <<"variable 'Args' is unused">>
-                , range => {{6, 0}, {7, 0}}}
+                , range => {{6, 5}, {6, 9}}}
              ],
   Hints = [],
   els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
@@ -357,7 +347,7 @@ compiler_with_parse_transform_deps(_Config) ->
   Errors = [],
   Warnings = [ #{ code => <<"L1230">>
                 , message => <<"function unused/0 is unused">>
-                , range => {{4, 0}, {5, 0}}}
+                , range => {{4, 0}, {4, 6}}}
              ],
   Hints = [],
   els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
@@ -384,7 +374,17 @@ compiler_telemetry(_Config) ->
                 , range => {{6, 0}, {7, 0}}}
              ],
   Hints = [],
-  els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
+  els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints),
+  Telemetry = wait_for_compiler_telemetry(),
+  #{ type := Type
+   , uri := UriT
+   , diagnostics := DiagnosticsCodes }  = Telemetry,
+  ?assertEqual(<<"erlang-diagnostic-codes">>, Type),
+  Uri = els_uri:uri(Path),
+  ?assertEqual(Uri, UriT),
+  ?assertEqual([ <<"L1230">>, <<"L0000">>, <<"L0000">>, <<"L1295">>]
+               , DiagnosticsCodes),
+  ok.
 
 -spec code_path_extra_dirs(config()) -> ok.
 code_path_extra_dirs(_Config) ->
@@ -700,12 +700,12 @@ mock_compiler_telemetry_enabled() ->
              ),
   ok.
 
-%% -spec wait_for_compiler_telemetry() -> {uri(), [els_diagnostics:diagnostic()]}.
-%% wait_for_compiler_telemetry() ->
-%%   receive
-%%     {on_complete_telemetry, Params} ->
-%%       Params
-%%   end.
+-spec wait_for_compiler_telemetry() -> {uri(), [els_diagnostics:diagnostic()]}.
+wait_for_compiler_telemetry() ->
+  receive
+    {on_complete_telemetry, Params} ->
+      Params
+  end.
 
 unmock_compiler_telemetry_enabled() ->
   meck:unload(els_config),

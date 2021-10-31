@@ -14,9 +14,9 @@
 -export([ run_diagnostics_test/5
         , start_session/1
         , wait_for_diagnostics/2
-        , assert_errors/2
-        , assert_warnings/2
-        , assert_hints/2
+        , assert_errors/3
+        , assert_warnings/3
+        , assert_hints/3
         , assert_contains/2
         ]).
 
@@ -27,9 +27,9 @@
 run_diagnostics_test(Path, Source, Errors, Warnings, Hints) ->
   {ok, Session} = start_session(Path),
   Diagnostics = wait_for_diagnostics(Session, Source),
-  assert_errors(Errors, Diagnostics),
-  assert_warnings(Warnings, Diagnostics),
-  assert_hints(Hints, Diagnostics).
+  assert_errors(Source, Errors, Diagnostics),
+  assert_warnings(Source, Warnings, Diagnostics),
+  assert_hints(Source, Hints, Diagnostics).
 
 -spec start_session(string()) -> {ok, session()}.
 start_session(Path0) ->
@@ -46,24 +46,23 @@ wait_for_diagnostics(#{uri := Uri}, Source) ->
   Diagnostics = els_mock_diagnostics:wait_until_complete(),
   [D || #{source := S} = D <- Diagnostics, S =:= Source].
 
--spec assert_errors([els_diagnostics:diagnostic()],
+-spec assert_errors(source(),
+                    [els_diagnostics:diagnostic()],
                     [els_diagnostics:diagnostic()]) -> ok.
-assert_errors(Expected, Diagnostics) ->
-  assert_diagnostics(Expected, Diagnostics, ?DIAGNOSTIC_ERROR).
+assert_errors(Source, Expected, Diagnostics) ->
+  assert_diagnostics(Source, Expected, Diagnostics, ?DIAGNOSTIC_ERROR).
 
--spec assert_warnings([els_diagnostics:diagnostic()],
+-spec assert_warnings(source(),
+                      [els_diagnostics:diagnostic()],
                       [els_diagnostics:diagnostic()]) -> ok.
-assert_warnings(Expected, Diagnostics) ->
-  assert_diagnostics(Expected, Diagnostics, ?DIAGNOSTIC_WARNING).
+assert_warnings(Source, Expected, Diagnostics) ->
+  assert_diagnostics(Source, Expected, Diagnostics, ?DIAGNOSTIC_WARNING).
 
--spec assert_hints([els_diagnostics:diagnostic()],
+-spec assert_hints(source(),
+                   [els_diagnostics:diagnostic()],
                    [els_diagnostics:diagnostic()]) -> ok.
-assert_hints(Expected, Diagnostics) ->
-  assert_diagnostics(Expected, Diagnostics, ?DIAGNOSTIC_HINT).
-
--spec assert_diagnostics([els_diagnostics:diagnostic()],
-                         [els_diagnostics:diagnostic()],
-                         els_diagnostics:severity()) -> ok.
+assert_hints(Source, Expected, Diagnostics) ->
+  assert_diagnostics(Source, Expected, Diagnostics, ?DIAGNOSTIC_HINT).
 
 -spec assert_contains(els_diagnostics:diagnostic(),
                       [els_diagnostics:diagnostic()]) -> ok.
@@ -71,10 +70,15 @@ assert_contains(Diagnostic, Diagnostics) ->
   Simplified = [simplify_diagnostic(D) || D  <- Diagnostics],
   ?assert(lists:member(Diagnostic, Simplified)).
 
-assert_diagnostics(Expected, Diagnostics, Severity) ->
+-spec assert_diagnostics(source(),
+                         [els_diagnostics:diagnostic()],
+                         [els_diagnostics:diagnostic()],
+                         els_diagnostics:severity()) -> ok.
+assert_diagnostics(Source, Expected, Diagnostics, Severity) ->
   Filtered = [D || #{severity := S} = D <- Diagnostics, S =:= Severity],
   Simplified = [simplify_diagnostic(D) || D  <- Filtered],
-  ?assertEqual(Expected, Simplified, Filtered).
+  FixedExpected = [maybe_fix_range(Source, D) || D <- Expected],
+  ?assertEqual(FixedExpected, Simplified, Filtered).
 
 -spec simplify_diagnostic(els_diagnostics:diagnostic()) ->
         simplified_diagnostic().
@@ -94,3 +98,28 @@ simplify_range(Range) ->
                }
    } = Range,
   {{LineStart, CharacterStart}, {LineEnd, CharacterEnd}}.
+
+maybe_fix_range(<<"Compiler">>, Diagnostic) ->
+  %% If epp:open/5 is exported we know that columns are not
+  %% returned by the compiler warnings and errors.
+  %% Should find a better heuristic for this.
+  case erlang:function_exported(epp, open, 5) of
+    true ->
+      fix_range(Diagnostic);
+    false ->
+      Diagnostic
+  end;
+maybe_fix_range(_Source, Diagnostic) ->
+  Diagnostic.
+
+fix_range(#{code := <<"L0000">>} = Diagnostic) ->
+  Diagnostic;
+fix_range(Diagnostic) ->
+  #{ range := Range } = Diagnostic,
+  {{StartLine, StartCol}, {EndLine, EndCol}} = Range,
+  case StartCol =/= 0 orelse EndCol =/= 0 of
+    true ->
+      Diagnostic#{range => {{StartLine, 0}, {EndLine + 1, 0}}};
+    false ->
+      Diagnostic
+  end.
