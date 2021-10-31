@@ -147,8 +147,11 @@ application(Tree) ->
         false -> [poi(Pos, application, {F, A})]
       end;
     MFA ->
-      Pos = erl_syntax:get_pos(erl_syntax:application_operator(Tree)),
-      [poi(Pos, application, MFA)]
+      ModFunTree = erl_syntax:application_operator(Tree),
+      Pos = erl_syntax:get_pos(ModFunTree),
+      FunTree = erl_syntax:module_qualifier_body(ModFunTree),
+      [poi(Pos, application, MFA,
+           #{name_range => els_range:range(erl_syntax:get_pos(FunTree))})]
   end.
 
 -spec application_mfa(tree()) ->
@@ -271,9 +274,7 @@ attribute(Tree) ->
         {true, TypeName} ->
           Id = {TypeName, length(TypeArgs)},
           [poi(Pos, type_definition, Id,
-                 #{ name => els_range:range(
-                                erl_syntax:get_pos(Type),
-                                type_definition, Id, undefined),
+                 #{ name_range => els_range:range(erl_syntax:get_pos(Type)),
                     args => type_args(TypeArgs)})];
         _ ->
           []
@@ -283,12 +284,8 @@ attribute(Tree) ->
       case spec_function_name(FATree) of
         {F, A} ->
           [FTree, _] = erl_syntax:tuple_elements(FATree),
-          Anno = erl_syntax:get_pos(FTree),
-          %% FIXME this is weird:
-          %% starts at '-', ends at the end of callback function name
-          Start = get_start_location(Tree),
-          CallbackAnno = erl_anno:set_location(Start, Anno),
-          [poi(CallbackAnno, callback, {F, A})];
+          [poi(Pos, callback, {F, A},
+               #{name_range => els_range:range(erl_syntax:get_pos(FTree))})];
         undefined ->
           []
       end;
@@ -296,7 +293,9 @@ attribute(Tree) ->
       [FATree | _] = erl_syntax:tuple_elements(ArgTuple),
       case spec_function_name(FATree) of
         {F, A} ->
-          [poi(Pos, spec, {F, A})];
+          [FTree, _] = erl_syntax:tuple_elements(FATree),
+          [poi(Pos, spec, {F, A},
+               #{name_range => els_range:range(erl_syntax:get_pos(FTree))})];
         undefined ->
           [poi(Pos, spec, undefined)]
       end;
@@ -357,7 +356,9 @@ find_export_entry_pois(EntryPoiKind, Exports) ->
   lists:flatten(
     [ case get_name_arity(FATree) of
         {F, A} ->
-          poi(erl_syntax:get_pos(FATree), EntryPoiKind, {F, A});
+          FTree = erl_syntax:arity_qualifier_body(FATree),
+          poi(erl_syntax:get_pos(FATree), EntryPoiKind, {F, A},
+              #{name_range => els_range:range(erl_syntax:get_pos(FTree))});
         false ->
           []
       end
@@ -369,7 +370,9 @@ find_import_entry_pois(M, Imports) ->
   lists:flatten(
     [ case get_name_arity(FATree) of
         {F, A} ->
-          poi(erl_syntax:get_pos(FATree), import_entry, {M, F, A});
+          FTree = erl_syntax:arity_qualifier_body(FATree),
+          poi(erl_syntax:get_pos(FATree), import_entry, {M, F, A},
+              #{name_range => els_range:range(erl_syntax:get_pos(FTree))});
         false ->
           []
       end
@@ -480,7 +483,18 @@ implicit_fun(Tree) ->
             end,
   case FunSpec of
     undefined -> [];
-    _ -> [poi(erl_syntax:get_pos(Tree), implicit_fun, FunSpec)]
+    _ ->
+      NameTree = erl_syntax:implicit_fun_name(Tree),
+      FunTree =
+        case FunSpec of
+          {_, _, _} ->
+            erl_syntax:arity_qualifier_body(
+              erl_syntax:module_qualifier_body(NameTree));
+          {_, _} ->
+            erl_syntax:arity_qualifier_body(NameTree)
+        end,
+      [poi(erl_syntax:get_pos(Tree), implicit_fun, FunSpec,
+           #{name_range => els_range:range(erl_syntax:get_pos(FunTree))})]
   end.
 
 -spec macro(tree()) -> [poi()].
@@ -639,8 +653,11 @@ type_application(Tree) ->
     {Module, {Name, Arity}} ->
       %% remote type
       Id = {Module, Name, Arity},
-      Pos = erl_syntax:get_pos(erl_syntax:type_application_name(Tree)),
-      [poi(Pos, type_application, Id)];
+      ModTypeTree = erl_syntax:type_application_name(Tree),
+      Pos = erl_syntax:get_pos(ModTypeTree),
+      TypeTree = erl_syntax:module_qualifier_body(ModTypeTree),
+      [poi(Pos, type_application, Id,
+           #{name_range => els_range:range(erl_syntax:get_pos(TypeTree))})];
     {Name, Arity} when Type =:= user_type_application ->
       %% user-defined local type
       Id = {Name, Arity},
