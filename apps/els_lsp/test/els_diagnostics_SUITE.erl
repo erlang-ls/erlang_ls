@@ -3,7 +3,7 @@
 %% Dialyzer diagnostics type
 %% Sort diagnostics
 %% Telemetry
-%% Refactor path join
+%% Split diagnostics by backend
 -module(els_diagnostics_SUITE).
 
 %% CT Callbacks
@@ -184,68 +184,67 @@ end_per_testcase(TestCase, Config) ->
 -spec bound_var_in_pattern(config()) -> ok.
 bound_var_in_pattern(_Config) ->
   Path = src_path("diagnostics_bound_var_in_pattern.erl"),
-  {ok, Session} = els_test:start_session(Path),
-  Diagnostics = els_test:wait_for_diagnostics(Session, <<"BoundVarInPattern">>),
-  els_test:assert_hints(
-    [ #{ message => <<"Bound variable in pattern: Var1">>
-       , range => {{5, 2}, {5, 6}}}
-    , #{ message => <<"Bound variable in pattern: Var2">>
-       , range => {{9, 9}, {9, 13}}}
-    , #{ message => <<"Bound variable in pattern: Var4">>
-       , range => {{17, 8}, {17, 12}}}
-    , #{ message => <<"Bound variable in pattern: Var3">>
-       , range => {{15, 10}, {15, 14}}}
-    , #{ message => <<"Bound variable in pattern: Var5">>
-       , range => {{23, 6}, {23, 10}}}
-      %% erl_syntax_lib:annotate_bindings does not handle named funs
-      %% correctly
-      %% , #{ message => <<"Bound variable in pattern: New">>
-      %%    , range => {{28, 6}, {28, 9}}}
-      %% , #{ message => <<"Bound variable in pattern: F">>
-      %%    , range => {{29, 6}, {29, 9}}}
-    ], Diagnostics),
-  ok.
+  Source = <<"BoundVarInPattern">>,
+  Errors = [],
+  Warnings = [],
+  Hints = [ #{ message => <<"Bound variable in pattern: Var1">>
+             , range => {{5, 2}, {5, 6}}}
+          , #{ message => <<"Bound variable in pattern: Var2">>
+             , range => {{9, 9}, {9, 13}}}
+          , #{ message => <<"Bound variable in pattern: Var4">>
+             , range => {{17, 8}, {17, 12}}}
+          , #{ message => <<"Bound variable in pattern: Var3">>
+             , range => {{15, 10}, {15, 14}}}
+          , #{ message => <<"Bound variable in pattern: Var5">>
+             , range => {{23, 6}, {23, 10}}}
+            %% erl_syntax_lib:annotate_bindings does not handle named funs
+            %% correctly
+            %% , #{ message => <<"Bound variable in pattern: New">>
+            %%    , range => {{28, 6}, {28, 9}}}
+            %% , #{ message => <<"Bound variable in pattern: F">>
+            %%    , range => {{29, 6}, {29, 9}}}
+          ],
+  els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
 
 -spec compiler(config()) -> ok.
 compiler(_Config) ->
   Path = src_path("diagnostics.erl"),
-  {ok, Session} = els_test:start_session(Path),
-  Diagnostics = els_test:wait_for_diagnostics(Session, <<"Compiler">>),
-  els_test:assert_errors(
-    [ #{ code => <<"L0000">>
-       , message =>  <<"Issue in included file (1): bad attribute">>
-       , range => {{3, 0}, {3, 35}}}
-    , #{ code => <<"L0000">>
-       , message =>  <<"Issue in included file (3): bad attribute">>
-       , range => {{3, 0}, {3, 35}}}
-    , #{ code => <<"L1295">>
-       , message => <<"type undefined_type() undefined">>
-       , range => {{5, 0}, {6, 0}}}
-    ], Diagnostics),
-  els_test:assert_warnings(
-    [ #{ code => <<"L1230">>
-       , message => <<"function main/1 is unused">>
-       , range => {{6, 0}, {7, 0}}}
-    ], Diagnostics),
-  ok.
+  Source = <<"Compiler">>,
+  Errors = [ #{ code => <<"L0000">>
+              , message =>  <<"Issue in included file (1): bad attribute">>
+              , range => {{3, 0}, {3, 35}}}
+           , #{ code => <<"L0000">>
+              , message =>  <<"Issue in included file (3): bad attribute">>
+              , range => {{3, 0}, {3, 35}}}
+           , #{ code => <<"L1295">>
+              , message => <<"type undefined_type() undefined">>
+              , range => {{5, 0}, {6, 0}}}
+           ],
+  Warnings = [ #{ code => <<"L1230">>
+                , message => <<"function main/1 is unused">>
+                , range => {{6, 0}, {7, 0}}}
+             ],
+  Hints = [],
+  els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
 
 -spec compiler_with_behaviour(config()) -> ok.
 compiler_with_behaviour(_Config) ->
   Path = src_path("diagnostics_behaviour_impl.erl"),
-  {ok, Session} = els_test:start_session(Path),
-  Diagnostics = els_test:wait_for_diagnostics(Session, <<"Compiler">>),
-  els_test:assert_warnings(
-    [ #{ code => <<"L1284">>
-       , message =>
-           <<"undefined callback function one/0 "
-             "(behaviour 'diagnostics_behaviour')">>
-       , range => {{2, 0}, {3, 0}}},
-      #{ code => <<"L1284">>
-       , message =>
-           <<"undefined callback function two/0 "
-             "(behaviour 'diagnostics_behaviour')">>
-       , range => {{2, 0}, {3, 0}}}
-    ], Diagnostics).
+  Source = <<"Compiler">>,
+  Errors = [],
+  Warnings = [ #{ code => <<"L1284">>
+                , message =>
+                    <<"undefined callback function one/0 "
+                      "(behaviour 'diagnostics_behaviour')">>
+                , range => {{2, 0}, {3, 0}}},
+               #{ code => <<"L1284">>
+                , message =>
+                    <<"undefined callback function two/0 "
+                      "(behaviour 'diagnostics_behaviour')">>
+                , range => {{2, 0}, {3, 0}}}
+             ],
+  Hints = [],
+  els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
 
 %% Testing #614
 -spec compiler_with_broken_behaviour(config()) -> ok.
@@ -263,121 +262,129 @@ compiler_with_custom_macros(Config) ->
   %% This test uses priv/code_navigation/erlang_ls.config to define
   %% some macros.
   Path = src_path("diagnostics_macros.erl"),
-  {ok, Session} = els_test:start_session(Path),
-  Diagnostics = els_test:wait_for_diagnostics(Session, <<"Compiler">>),
-  case ?config(columns, Config) of
-    true ->
-      %% diagnostic_macro has a spec with no '.' at the end
-      %% which causes the poi for the spec to becomes the
-      %% entire spec + function. So this range here is 8
-      %% lines long.
-      els_test:assert_errors(
-        [#{ code => <<"E1507">>
-          , message => <<"undefined macro 'UNDEFINED'">>
-          , range => {{2, 0}, {10, 6}}
-          }
-        ], Diagnostics);
-    false ->
-      els_test:assert_errors(
-        [#{ code => <<"E1507">>
-          , message => <<"undefined macro 'UNDEFINED'">>
-          , range => {{8, 0}, {9, 0}}
-          }
-        ], Diagnostics)
-  end.
+  Source = <<"Compiler">>,
+  Errors = case ?config(columns, Config) of
+             true ->
+               %% diagnostic_macro has a spec with no '.' at the end
+               %% which causes the poi for the spec to becomes the
+               %% entire spec + function. So this range here is 8
+               %% lines long.
+               [ #{ code => <<"E1507">>
+                  , message => <<"undefined macro 'UNDEFINED'">>
+                  , range => {{2, 0}, {10, 6}}
+                  }
+               ];
+             false ->
+               [ #{ code => <<"E1507">>
+                  , message => <<"undefined macro 'UNDEFINED'">>
+                  , range => {{8, 0}, {9, 0}}
+                  }
+               ]
+           end,
+  Warnings = [ #{ code => <<"L1268">>
+                , message => <<"variable 'Args' is unused">>
+                , range => {{6, 0}, {7, 0}}}
+             ],
+  Hints = [],
+  els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
+
 
 -spec compiler_with_parse_transform(config()) -> ok.
 compiler_with_parse_transform(_Config) ->
   _ = code:delete(diagnostics_parse_transform),
   _ = code:purge(diagnostics_parse_transform),
   Path = src_path("diagnostics_parse_transform_usage.erl"),
-  {ok, Session} = els_test:start_session(Path),
-  Diagnostics = els_test:wait_for_diagnostics(Session, <<"Compiler">>),
-  els_test:assert_warnings(
-    [#{ code => <<"L1268">>
-      , message => <<"variable 'Args' is unused">>
-      , range => {{6, 0}, {7, 0}}}
-    ], Diagnostics).
+  Source = <<"Compiler">>,
+  Errors = [],
+  Warnings = [ #{ code => <<"L1268">>
+                , message => <<"variable 'Args' is unused">>
+                , range => {{6, 0}, {7, 0}}}
+             ],
+  Hints = [],
+  els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
 
 -spec compiler_with_parse_transform_list(config()) -> ok.
 compiler_with_parse_transform_list(_Config) ->
   _ = code:delete(diagnostics_parse_transform),
   _ = code:purge(diagnostics_parse_transform),
   Path = src_path("diagnostics_parse_transform_usage_list.erl"),
-  {ok, Session} = els_test:start_session(Path),
-  Diagnostics = els_test:wait_for_diagnostics(Session, <<"Compiler">>),
-  els_test:assert_warnings(
-    [#{ code => <<"L1268">>
-      , message => <<"variable 'Args' is unused">>
-      , range => {{6, 0}, {7, 0}}}
-    ], Diagnostics).
+  Source = <<"Compiler">>,
+  Errors = [],
+  Warnings = [ #{ code => <<"L1268">>
+                , message => <<"variable 'Args' is unused">>
+                , range => {{6, 0}, {7, 0}}}
+             ],
+  Hints = [],
+  els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
 
 -spec compiler_with_parse_transform_included(config()) -> ok.
 compiler_with_parse_transform_included(_Config) ->
   _ = code:delete(diagnostics_parse_transform),
   _ = code:purge(diagnostics_parse_transform),
   Path = src_path("diagnostics_parse_transform_usage_included.erl"),
-  {ok, Session} = els_test:start_session(Path),
-  Diagnostics = els_test:wait_for_diagnostics(Session, <<"Compiler">>),
-  els_test:assert_warnings(
-    [#{ code => <<"L1268">>
-      , message => <<"variable 'Args' is unused">>
-      , range => {{6, 0}, {7, 0}}}
-    ], Diagnostics).
+  Source = <<"Compiler">>,
+  Errors = [],
+  Warnings = [ #{ code => <<"L1268">>
+                , message => <<"variable 'Args' is unused">>
+                , range => {{6, 0}, {7, 0}}}
+             ],
+  Hints = [],
+  els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
 
 -spec compiler_with_parse_transform_broken(config()) -> ok.
 compiler_with_parse_transform_broken(_Config) ->
   Path = src_path("diagnostics_parse_transform_usage_broken.erl"),
-  {ok, Session} = els_test:start_session(Path),
-  Diagnostics = els_test:wait_for_diagnostics(Session, <<"Compiler">>),
-  els_test:assert_warnings([], Diagnostics),
-  els_test:assert_errors(
-    [#{ code => <<"L0000">>
-      , message => <<"Issue in included file (10): syntax error before: ">>
-      , range => {{4, 27}, {4, 61}}
-      }
+  Source = <<"Compiler">>,
+  Errors =
+    [ #{ code => <<"L0000">>
+       , message => <<"Issue in included file (10): syntax error before: ">>
+       , range => {{4, 27}, {4, 61}}
+       }
     , #{ code => <<"C1008">>
        , message => <<"undefined parse transform "
                       "'diagnostics_parse_transform_broken'">>
        , range => {{0, 0}, {1, 0}}
        }
-    ], Diagnostics).
+    ],
+  Warnings = [],
+  Hints = [],
+  els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
 
 -spec compiler_with_parse_transform_deps(config()) -> ok.
 compiler_with_parse_transform_deps(_Config) ->
   Path = src_path("diagnostics_parse_transform_deps_a.erl"),
-  {ok, Session} = els_test:start_session(Path),
-  Diagnostics = els_test:wait_for_diagnostics(Session, <<"Compiler">>),
-  els_test:assert_warnings(
-    [ #{ code => <<"L1230">>
-       , message => <<"function unused/0 is unused">>
-       , range => {{4, 0}, {5, 0}}}
-    ], Diagnostics),
-  els_test:assert_errors([], Diagnostics).
+  Source = <<"Compiler">>,
+  Errors = [],
+  Warnings = [ #{ code => <<"L1230">>
+                , message => <<"function unused/0 is unused">>
+                , range => {{4, 0}, {5, 0}}}
+             ],
+  Hints = [],
+  els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
 
 -spec compiler_telemetry(config()) -> ok.
 compiler_telemetry(_Config) ->
   Path = src_path("diagnostics.erl"),
-  {ok, Session} = els_test:start_session(Path),
-  Diagnostics = els_test:wait_for_diagnostics(Session, <<"Compiler">>),
-  els_test:assert_warnings(
-    [ #{ code => <<"L1230">>
-       , message => <<"function main/1 is unused">>
-       , range => {{6, 0}, {7, 0}}}
-    ], Diagnostics),
-  els_test:assert_errors(
-    [ #{ code => <<"L0000">>
-       , message => <<"Issue in included file (1): bad attribute">>
-       , range => {{3, 0}, {3, 35}}
-       }
-    , #{ code => <<"L0000">>
-       , message => <<"Issue in included file (3): bad attribute">>
-       , range => {{3, 0}, {3, 35}}
-       }
-    , #{ code => <<"L1295">>
-       , message => <<"type undefined_type() undefined">>
-       , range => {{5, 0}, {6, 0}}
-       }], Diagnostics).
+  Source = <<"Compiler">>,
+  Errors = [ #{ code => <<"L0000">>
+              , message => <<"Issue in included file (1): bad attribute">>
+              , range => {{3, 0}, {3, 35}}
+              }
+           , #{ code => <<"L0000">>
+              , message => <<"Issue in included file (3): bad attribute">>
+              , range => {{3, 0}, {3, 35}}
+              }
+           , #{ code => <<"L1295">>
+              , message => <<"type undefined_type() undefined">>
+              , range => {{5, 0}, {6, 0}}
+              }
+           ],
+  Warnings = [ #{ code => <<"L1230">>
+                , message => <<"function main/1 is unused">>
+                , range => {{6, 0}, {7, 0}}}
+             ],
+  Hints = [],
+  els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
 
 -spec code_path_extra_dirs(config()) -> ok.
 code_path_extra_dirs(_Config) ->
@@ -401,23 +408,23 @@ use_long_names(_Config) ->
 -spec epp_with_nonexistent_macro(config()) -> ok.
 epp_with_nonexistent_macro(_Config) ->
   Path = include_path("nonexistent_macro.hrl"),
-  {ok, Session} = els_test:start_session(Path),
-  Diagnostics = els_test:wait_for_diagnostics(Session, <<"Compiler">>),
-  els_test:assert_warnings([], Diagnostics),
-  els_test:assert_errors(
-    [ #{ code => <<"E1516">>
-       , message => <<"can't find include file \"nonexisten-file.hrl\"">>
-       , range => {{2, 0}, {3, 0}}
-       }
-    , #{ code => <<"E1507">>
-       , message => <<"undefined macro 'MODULE'">>
-       , range => {{4, 0}, {5, 0}}
-       }
-    , #{ code => <<"E1522">>
-       , message => <<"-error(\"including nonexistent_macro.hrl "
-                      "is not allowed\").">>
-       , range => {{6, 0}, {7, 0}}}
-    ], Diagnostics).
+  Source = <<"Compiler">>,
+  Errors = [ #{ code => <<"E1516">>
+              , message => <<"can't find include file \"nonexisten-file.hrl\"">>
+              , range => {{2, 0}, {3, 0}}
+              }
+           , #{ code => <<"E1507">>
+              , message => <<"undefined macro 'MODULE'">>
+              , range => {{4, 0}, {5, 0}}
+              }
+           , #{ code => <<"E1522">>
+              , message => <<"-error(\"including nonexistent_macro.hrl "
+                             "is not allowed\").">>
+              , range => {{6, 0}, {7, 0}}}
+           ],
+  Warnings = [],
+  Hints = [],
+  els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
 
 -spec elvis(config()) -> ok.
 elvis(_Config) ->
@@ -426,21 +433,21 @@ elvis(_Config) ->
   try
       file:set_cwd(RootPath),
       Path = src_path("elvis_diagnostics.erl"),
-      {ok, Session} = els_test:start_session(Path),
-      Diagnostics = els_test:wait_for_diagnostics(Session, <<"Elvis">>),
-      els_test:assert_errors([], Diagnostics),
-      els_test:assert_warnings(
-        [ #{ code => operator_spaces
-           , message => <<"Missing space right \",\" on line 6">>
-           , range => {{5, 0}, {6, 0}}
-           , relatedInformation => []
-           }
-        , #{ code => operator_spaces
-           , message => <<"Missing space right \",\" on line 7">>
-           , range => {{6, 0}, {7, 0}}
-           , relatedInformation => []
-           }
-        ], Diagnostics)
+      Source = <<"Elvis">>,
+      Errors = [],
+      Warnings = [ #{ code => operator_spaces
+                    , message => <<"Missing space right \",\" on line 6">>
+                    , range => {{5, 0}, {6, 0}}
+                    , relatedInformation => []
+                    }
+                 , #{ code => operator_spaces
+                    , message => <<"Missing space right \",\" on line 7">>
+                    , range => {{6, 0}, {7, 0}}
+                    , relatedInformation => []
+                    }
+                 ],
+      Hints = [],
+      els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints)
   catch _Err ->
       file:set_cwd(Cwd)
   end,
@@ -449,36 +456,34 @@ elvis(_Config) ->
 -spec escript(config()) -> ok.
 escript(_Config) ->
   Path = src_path("diagnostics.escript"),
-  {ok, Session} = els_test:start_session(Path),
-  Diagnostics = els_test:wait_for_diagnostics(Session, <<"Compiler">>),
-  els_test:assert_warnings([], Diagnostics),
-  els_test:assert_errors([], Diagnostics).
+  Source = <<"Compiler">>,
+  els_test:run_diagnostics_test(Path, Source, [], [], []).
 
 -spec escript_warnings(config()) -> ok.
 escript_warnings(_Config) ->
   Path = src_path("diagnostics_warnings.escript"),
-  {ok, Session} = els_test:start_session(Path),
-  Diagnostics = els_test:wait_for_diagnostics(Session, <<"Compiler">>),
-  els_test:assert_warnings(
-    [ #{ code => <<"L1230">>
-       , message => <<"function unused/0 is unused">>
-       , range => {{23, 0}, {24, 0}}
-       }
-    ], Diagnostics),
-  els_test:assert_errors([], Diagnostics).
+  Source = <<"Compiler">>,
+  Errors = [],
+  Warnings = [ #{ code => <<"L1230">>
+                , message => <<"function unused/0 is unused">>
+                , range => {{23, 0}, {24, 0}}
+                }
+             ],
+  Hints = [],
+  els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
 
 -spec escript_errors(config()) -> ok.
 escript_errors(_Config) ->
   Path = src_path("diagnostics_errors.escript"),
-  {ok, Session} = els_test:start_session(Path),
-  Diagnostics = els_test:wait_for_diagnostics(Session, <<"Compiler">>),
-  els_test:assert_errors(
-    [ #{ code => <<"P1711">>
-       , message => <<"syntax error before: tion_with_error">>
-       , range => {{23, 0}, {24, 0}}
-       }
-    ], Diagnostics),
-  els_test:assert_warnings([], Diagnostics).
+  Source = <<"Compiler">>,
+  Errors = [ #{ code => <<"P1711">>
+              , message => <<"syntax error before: tion_with_error">>
+              , range => {{23, 0}, {24, 0}}
+              }
+           ],
+  Warnings = [],
+  Hints = [],
+  els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
 
 -spec code_reload(config()) -> ok.
 code_reload(Config) ->
@@ -511,7 +516,9 @@ code_reload_sticky_mod(Config) ->
 
 -spec crossref(config()) -> ok.
 crossref(_Config) ->
-  Expected =
+  Path = src_path("diagnostics_xref.erl"),
+  Source = <<"CrossRef">>,
+  Errors =
     [ #{ message => <<"Cannot find definition for function non_existing/0">>
        , range => {{6, 2}, {6, 14}}
        }
@@ -519,7 +526,9 @@ crossref(_Config) ->
        , range => {{5, 2}, {5, 11}}
        }
     ],
-  do_crossref_test("diagnostics_xref.erl", Expected).
+  Warnings = [],
+  Hints = [],
+  els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
 
 %% #641
 -spec crossref_pseudo_functions(config()) -> ok.
@@ -563,72 +572,76 @@ crossref_autoimport_disabled(_Config) ->
 -spec unused_includes(config()) -> ok.
 unused_includes(_Config) ->
   Path = src_path("diagnostics_unused_includes.erl"),
-  {ok, Session} = els_test:start_session(Path),
-  Diagnostics = els_test:wait_for_diagnostics(Session, <<"UnusedIncludes">>),
-  Expected = [#{ message => <<"Unused file: et.hrl">>
+  Source = <<"UnusedIncludes">>,
+  Errors = [],
+  Warnings = [#{ message => <<"Unused file: et.hrl">>
                , range => {{3, 0}, {3, 34}}
-               }],
-  els_test:assert_warnings(Expected, Diagnostics).
+               }
+             ],
+  Hints = [],
+  els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
 
 -spec unused_includes_compiler_attribute(config()) -> ok.
 unused_includes_compiler_attribute(_Config) ->
   Path = src_path("diagnostics_unused_includes_compiler_attribute.erl"),
-  {ok, Session} = els_test:start_session(Path),
-  Diagnostics = els_test:wait_for_diagnostics(Session, <<"UnusedIncludes">>),
-  Expected = [#{ message => <<"Unused file: file.hrl">>
-               , range => {{3, 0}, {3, 40}}
-               }],
-  els_test:assert_warnings(Expected, Diagnostics).
+  Source = <<"UnusedIncludes">>,
+  Errors = [],
+  Warnings = [ #{ message => <<"Unused file: file.hrl">>
+                , range => {{3, 0}, {3, 40}}
+                }
+             ],
+  Hints = [],
+  els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
 
 -spec exclude_unused_includes(config()) -> ok.
 exclude_unused_includes(_Config) ->
   Path = src_path("diagnostics_unused_includes.erl"),
-  {ok, Session} = els_test:start_session(Path),
-  Diagnostics = els_test:wait_for_diagnostics(Session, <<"UnusedIncludes">>),
-  Expected = [],
-  els_test:assert_warnings(Expected, Diagnostics).
+  Source = <<"UnusedIncludes">>,
+  Errors = [],
+  Warnings = [],
+  Hints = [],
+  els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
 
 -spec unused_macros(config()) -> ok.
 unused_macros(_Config) ->
   Path = src_path("diagnostics_unused_macros.erl"),
-  {ok, Session} = els_test:start_session(Path),
-  Diagnostics = els_test:wait_for_diagnostics(Session, <<"UnusedMacros">>),
-  Expected =
-    [ #{ message => <<"Unused macro: UNUSED_MACRO">>
-       , range => {{5, 8}, {5, 20}}
-       },
-      #{ message => <<"Unused macro: UNUSED_MACRO_WITH_ARG/1">>
-       , range => {{6, 8}, {6, 29}}
-       }
-    ],
-  els_test:assert_warnings(Expected, Diagnostics).
+  Source = <<"UnusedMacros">>,
+  Errors = [],
+  Warnings = [ #{ message => <<"Unused macro: UNUSED_MACRO">>
+                , range => {{5, 8}, {5, 20}}
+                },
+               #{ message => <<"Unused macro: UNUSED_MACRO_WITH_ARG/1">>
+                , range => {{6, 8}, {6, 29}}
+                }
+             ],
+  Hints = [],
+  els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
 
 -spec unused_record_fields(config()) -> ok.
 unused_record_fields(_Config) ->
   Path = src_path("diagnostics_unused_record_fields.erl"),
-  {ok, Session} = els_test:start_session(Path),
-  Diagnostics =
-    els_test:wait_for_diagnostics(Session, <<"UnusedRecordFields">>),
-  Expected =
+  Source = <<"UnusedRecordFields">>,
+  Errors = [],
+  Warnings =
     [ #{ message => <<"Unused record field: #unused_field.field_d">>
        , range => {{5, 32}, {5, 39}}
        }
     ],
-  els_test:assert_warnings(Expected, Diagnostics).
+  Hints = [],
+  els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
 
 -spec gradualizer(config()) -> ok.
 gradualizer(_Config) ->
   Path = src_path("diagnostics_gradualizer.erl"),
-  {ok, Session} = els_test:start_session(Path),
-  Diagnostics =
-    els_test:wait_for_diagnostics(Session, <<"Gradualizer">>),
-  Expected =
-    [ #{ message =>
-           <<"The variable N is expected to have type integer() "
-             "but it has type false | true\n">>
-       , range => {{10, 0}, {11, 0}}}
-    ],
-  els_test:assert_warnings(Expected, Diagnostics).
+  Source = <<"Gradualizer">>,
+  Errors = [],
+  Warnings = [ #{ message =>
+                    <<"The variable N is expected to have type integer() "
+                      "but it has type false | true\n">>
+                , range => {{10, 0}, {11, 0}}}
+             ],
+  Hints = [],
+  els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
 
 %%==============================================================================
 %% Internal Functions

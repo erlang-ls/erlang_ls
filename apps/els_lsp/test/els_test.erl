@@ -27,9 +27,9 @@
 run_diagnostics_test(Path, Source, Errors, Warnings, Hints) ->
   {ok, Session} = start_session(Path),
   Diagnostics = wait_for_diagnostics(Session, Source),
-  els_test:assert_errors(Diagnostics, Errors),
-  els_test:assert_warnings(Diagnostics, Warnings),
-  els_test:assert_hints(Diagnostics, Hints).
+  assert_errors(Errors, Diagnostics),
+  assert_warnings(Warnings, Diagnostics),
+  assert_hints(Hints, Diagnostics).
 
 -spec start_session(string()) -> {ok, session()}.
 start_session(Path0) ->
