@@ -2,6 +2,8 @@
 %% Refactor like crossref to avoid repetition
 %% Dialyzer diagnostics type
 %% Sort diagnostics
+%% Telemetry
+%% Refactor path join
 -module(els_diagnostics_SUITE).
 
 %% CT Callbacks
@@ -181,9 +183,7 @@ end_per_testcase(TestCase, Config) ->
 %%==============================================================================
 -spec bound_var_in_pattern(config()) -> ok.
 bound_var_in_pattern(_Config) ->
-  Path = filename:join([ "code_navigation"
-                       , "src"
-                       , "diagnostics_bound_var_in_pattern.erl"]),
+  Path = src_path("diagnostics_bound_var_in_pattern.erl"),
   {ok, Session} = els_test:start_session(Path),
   Diagnostics = els_test:wait_for_diagnostics(Session, <<"BoundVarInPattern">>),
   els_test:assert_hints(
@@ -208,7 +208,7 @@ bound_var_in_pattern(_Config) ->
 
 -spec compiler(config()) -> ok.
 compiler(_Config) ->
-  Path = filename:join(["code_navigation", "src", "diagnostics.erl"]),
+  Path = src_path("diagnostics.erl"),
   {ok, Session} = els_test:start_session(Path),
   Diagnostics = els_test:wait_for_diagnostics(Session, <<"Compiler">>),
   els_test:assert_errors(
@@ -231,10 +231,7 @@ compiler(_Config) ->
 
 -spec compiler_with_behaviour(config()) -> ok.
 compiler_with_behaviour(_Config) ->
-  Path = filename:join([ "code_navigation"
-                       , "src"
-                       , "diagnostics_behaviour_impl.erl"
-                       ]),
+  Path = src_path("diagnostics_behaviour_impl.erl"),
   {ok, Session} = els_test:start_session(Path),
   Diagnostics = els_test:wait_for_diagnostics(Session, <<"Compiler">>),
   els_test:assert_warnings(
@@ -253,7 +250,7 @@ compiler_with_behaviour(_Config) ->
 %% Testing #614
 -spec compiler_with_broken_behaviour(config()) -> ok.
 compiler_with_broken_behaviour(_Config) ->
-  Path = filename:join(["code_navigation", "src", "code_navigation.erl"]),
+  Path = src_path("code_navigation.erl"),
   {ok, Session} = els_test:start_session(Path),
   Diagnostics = els_test:wait_for_diagnostics(Session, <<"Compiler">>),
   els_test:assert_contains(
@@ -265,7 +262,7 @@ compiler_with_broken_behaviour(_Config) ->
 compiler_with_custom_macros(Config) ->
   %% This test uses priv/code_navigation/erlang_ls.config to define
   %% some macros.
-  Path = filename:join(["code_navigation", "src", "diagnostics_macros.erl"]),
+  Path = src_path("diagnostics_macros.erl"),
   {ok, Session} = els_test:start_session(Path),
   Diagnostics = els_test:wait_for_diagnostics(Session, <<"Compiler">>),
   case ?config(columns, Config) of
@@ -293,10 +290,7 @@ compiler_with_custom_macros(Config) ->
 compiler_with_parse_transform(_Config) ->
   _ = code:delete(diagnostics_parse_transform),
   _ = code:purge(diagnostics_parse_transform),
-  Path = filename:join([ "code_navigation"
-                       , "src"
-                       , "diagnostics_parse_transform_usage.erl"
-                       ]),
+  Path = src_path("diagnostics_parse_transform_usage.erl"),
   {ok, Session} = els_test:start_session(Path),
   Diagnostics = els_test:wait_for_diagnostics(Session, <<"Compiler">>),
   els_test:assert_warnings(
@@ -309,10 +303,7 @@ compiler_with_parse_transform(_Config) ->
 compiler_with_parse_transform_list(_Config) ->
   _ = code:delete(diagnostics_parse_transform),
   _ = code:purge(diagnostics_parse_transform),
-  Path = filename:join([ "code_navigation"
-                       , "src"
-                       , "diagnostics_parse_transform_usage_list.erl"
-                       ]),
+  Path = src_path("diagnostics_parse_transform_usage_list.erl"),
   {ok, Session} = els_test:start_session(Path),
   Diagnostics = els_test:wait_for_diagnostics(Session, <<"Compiler">>),
   els_test:assert_warnings(
@@ -325,10 +316,7 @@ compiler_with_parse_transform_list(_Config) ->
 compiler_with_parse_transform_included(_Config) ->
   _ = code:delete(diagnostics_parse_transform),
   _ = code:purge(diagnostics_parse_transform),
-  Path = filename:join([ "code_navigation"
-                       , "src"
-                       , "diagnostics_parse_transform_usage_included.erl"
-                       ]),
+  Path = src_path("diagnostics_parse_transform_usage_included.erl"),
   {ok, Session} = els_test:start_session(Path),
   Diagnostics = els_test:wait_for_diagnostics(Session, <<"Compiler">>),
   els_test:assert_warnings(
@@ -339,10 +327,7 @@ compiler_with_parse_transform_included(_Config) ->
 
 -spec compiler_with_parse_transform_broken(config()) -> ok.
 compiler_with_parse_transform_broken(_Config) ->
-  Path = filename:join([ "code_navigation"
-                       , "src"
-                       , "diagnostics_parse_transform_usage_broken.erl"
-                       ]),
+  Path = src_path("diagnostics_parse_transform_usage_broken.erl"),
   {ok, Session} = els_test:start_session(Path),
   Diagnostics = els_test:wait_for_diagnostics(Session, <<"Compiler">>),
   els_test:assert_warnings([], Diagnostics),
@@ -360,10 +345,7 @@ compiler_with_parse_transform_broken(_Config) ->
 
 -spec compiler_with_parse_transform_deps(config()) -> ok.
 compiler_with_parse_transform_deps(_Config) ->
-  Path = filename:join([ "code_navigation"
-                       , "src"
-                       , "diagnostics_parse_transform_deps_a.erl"
-                       ]),
+  Path = src_path("diagnostics_parse_transform_deps_a.erl"),
   {ok, Session} = els_test:start_session(Path),
   Diagnostics = els_test:wait_for_diagnostics(Session, <<"Compiler">>),
   els_test:assert_warnings(
@@ -375,10 +357,7 @@ compiler_with_parse_transform_deps(_Config) ->
 
 -spec compiler_telemetry(config()) -> ok.
 compiler_telemetry(_Config) ->
-  Path = filename:join([ "code_navigation"
-                       , "src"
-                       , "diagnostics.erl"
-                       ]),
+  Path = src_path("diagnostics.erl"),
   {ok, Session} = els_test:start_session(Path),
   Diagnostics = els_test:wait_for_diagnostics(Session, <<"Compiler">>),
   els_test:assert_warnings(
@@ -421,10 +400,7 @@ use_long_names(_Config) ->
 
 -spec epp_with_nonexistent_macro(config()) -> ok.
 epp_with_nonexistent_macro(_Config) ->
-  Path = filename:join([ "code_navigation"
-                       , "include"
-                       , "nonexistent_macro.hrl"
-                       ]),
+  Path = include_path("nonexistent_macro.hrl"),
   {ok, Session} = els_test:start_session(Path),
   Diagnostics = els_test:wait_for_diagnostics(Session, <<"Compiler">>),
   els_test:assert_warnings([], Diagnostics),
@@ -449,10 +425,7 @@ elvis(_Config) ->
   RootPath = els_test_utils:root_path(),
   try
       file:set_cwd(RootPath),
-      Path = filename:join([ "code_navigation"
-                           , "src"
-                           , "elvis_diagnostics.erl"
-                           ]),
+      Path = src_path("elvis_diagnostics.erl"),
       {ok, Session} = els_test:start_session(Path),
       Diagnostics = els_test:wait_for_diagnostics(Session, <<"Elvis">>),
       els_test:assert_errors([], Diagnostics),
@@ -475,10 +448,7 @@ elvis(_Config) ->
 
 -spec escript(config()) -> ok.
 escript(_Config) ->
-  Path = filename:join([ "code_navigation"
-                       , "src"
-                       , "diagnostics.escript"
-                       ]),
+  Path = src_path("diagnostics.escript"),
   {ok, Session} = els_test:start_session(Path),
   Diagnostics = els_test:wait_for_diagnostics(Session, <<"Compiler">>),
   els_test:assert_warnings([], Diagnostics),
@@ -486,10 +456,7 @@ escript(_Config) ->
 
 -spec escript_warnings(config()) -> ok.
 escript_warnings(_Config) ->
-  Path = filename:join([ "code_navigation"
-                       , "src"
-                       , "diagnostics_warnings.escript"
-                       ]),
+  Path = src_path("diagnostics_warnings.escript"),
   {ok, Session} = els_test:start_session(Path),
   Diagnostics = els_test:wait_for_diagnostics(Session, <<"Compiler">>),
   els_test:assert_warnings(
@@ -502,10 +469,7 @@ escript_warnings(_Config) ->
 
 -spec escript_errors(config()) -> ok.
 escript_errors(_Config) ->
-  Path = filename:join([ "code_navigation"
-                       , "src"
-                       , "diagnostics_errors.escript"
-                       ]),
+  Path = src_path("diagnostics_errors.escript"),
   {ok, Session} = els_test:start_session(Path),
   Diagnostics = els_test:wait_for_diagnostics(Session, <<"Compiler">>),
   els_test:assert_errors(
@@ -560,13 +524,16 @@ crossref(_Config) ->
 %% #641
 -spec crossref_pseudo_functions(config()) -> ok.
 crossref_pseudo_functions(_Config) ->
-  Expected =
+  Path = src_path("diagnostics_xref_pseudo.erl"),
+  Errors =
     [ #{ message =>
-          <<"Cannot find definition for function unknown_module:nonexistent/0">>
+           <<"Cannot find definition for function "
+             "unknown_module:nonexistent/0">>
        , range => {{34, 2}, {34, 28}}
        }
     , #{ message =>
-          <<"Cannot find definition for function unknown_module:module_info/1">>
+           <<"Cannot find definition for function "
+             "unknown_module:module_info/1">>
        , range => {{13, 2}, {13, 28}}
        }
     , #{ message =>
@@ -575,44 +542,27 @@ crossref_pseudo_functions(_Config) ->
        , range => {{12, 2}, {12, 28}}
        }
     ],
-  do_crossref_test("diagnostics_xref_pseudo.erl", Expected).
+  els_test:run_diagnostics_test(Path, <<"CrossRef">>, Errors, [], []).
 
 %% #860
 -spec crossref_autoimport(config()) -> ok.
 crossref_autoimport(_Config) ->
-
   %% This testcase cannot be run from an Erlang source tree version,
   %% it needs a released version.
-
-  Expected = [],
-  do_crossref_test("diagnostics_autoimport.erl", Expected).
+  Path = src_path("diagnostics_autoimport.erl"),
+  els_test:run_diagnostics_test(Path, <<"CrossRef">>, [], [], []).
 
 %% #860
 -spec crossref_autoimport_disabled(config()) -> ok.
 crossref_autoimport_disabled(_Config) ->
-
   %% This testcase cannot be run from an Erlang source tree version,
   %% it needs a released version.
-
-  Expected = [],
-  do_crossref_test("diagnostics_autoimport_disabled.erl", Expected).
-
--spec do_crossref_test(string(), [els_diagnostics:diagnostic()]) -> ok.
-do_crossref_test(TestModule, Expected) ->
-  Path = filename:join([ "code_navigation"
-                       , "src"
-                       , TestModule
-                       ]),
-  {ok, Session} = els_test:start_session(Path),
-  Diagnostics = els_test:wait_for_diagnostics(Session, <<"CrossRef">>),
-  els_test:assert_errors(Expected, Diagnostics).
+  Path = src_path("diagnostics_autoimport_disabled.erl"),
+  els_test:run_diagnostics_test(Path, <<"CrossRef">>, [], [], []).
 
 -spec unused_includes(config()) -> ok.
 unused_includes(_Config) ->
-  Path = filename:join([ "code_navigation"
-                       , "src"
-                       , "diagnostics_unused_includes.erl"
-                       ]),
+  Path = src_path("diagnostics_unused_includes.erl"),
   {ok, Session} = els_test:start_session(Path),
   Diagnostics = els_test:wait_for_diagnostics(Session, <<"UnusedIncludes">>),
   Expected = [#{ message => <<"Unused file: et.hrl">>
@@ -622,10 +572,7 @@ unused_includes(_Config) ->
 
 -spec unused_includes_compiler_attribute(config()) -> ok.
 unused_includes_compiler_attribute(_Config) ->
-  Path = filename:join([ "code_navigation"
-                       , "src"
-                       , "diagnostics_unused_includes_compiler_attribute.erl"
-                       ]),
+  Path = src_path("diagnostics_unused_includes_compiler_attribute.erl"),
   {ok, Session} = els_test:start_session(Path),
   Diagnostics = els_test:wait_for_diagnostics(Session, <<"UnusedIncludes">>),
   Expected = [#{ message => <<"Unused file: file.hrl">>
@@ -635,10 +582,7 @@ unused_includes_compiler_attribute(_Config) ->
 
 -spec exclude_unused_includes(config()) -> ok.
 exclude_unused_includes(_Config) ->
-  Path = filename:join([ "code_navigation"
-                       , "src"
-                       , "diagnostics_unused_includes.erl"
-                       ]),
+  Path = src_path("diagnostics_unused_includes.erl"),
   {ok, Session} = els_test:start_session(Path),
   Diagnostics = els_test:wait_for_diagnostics(Session, <<"UnusedIncludes">>),
   Expected = [],
@@ -646,10 +590,7 @@ exclude_unused_includes(_Config) ->
 
 -spec unused_macros(config()) -> ok.
 unused_macros(_Config) ->
-  Path = filename:join([ "code_navigation"
-                       , "src"
-                       , "diagnostics_unused_macros.erl"
-                       ]),
+  Path = src_path("diagnostics_unused_macros.erl"),
   {ok, Session} = els_test:start_session(Path),
   Diagnostics = els_test:wait_for_diagnostics(Session, <<"UnusedMacros">>),
   Expected =
@@ -664,10 +605,7 @@ unused_macros(_Config) ->
 
 -spec unused_record_fields(config()) -> ok.
 unused_record_fields(_Config) ->
-  Path = filename:join([ "code_navigation"
-                       , "src"
-                       , "diagnostics_unused_record_fields.erl"
-                       ]),
+  Path = src_path("diagnostics_unused_record_fields.erl"),
   {ok, Session} = els_test:start_session(Path),
   Diagnostics =
     els_test:wait_for_diagnostics(Session, <<"UnusedRecordFields">>),
@@ -680,10 +618,7 @@ unused_record_fields(_Config) ->
 
 -spec gradualizer(config()) -> ok.
 gradualizer(_Config) ->
-  Path = filename:join([ "code_navigation"
-                       , "src"
-                       , "diagnostics_gradualizer.erl"
-                       ]),
+  Path = src_path("diagnostics_gradualizer.erl"),
   {ok, Session} = els_test:start_session(Path),
   Diagnostics =
     els_test:wait_for_diagnostics(Session, <<"Gradualizer">>),
@@ -762,3 +697,9 @@ mock_compiler_telemetry_enabled() ->
 unmock_compiler_telemetry_enabled() ->
   meck:unload(els_config),
   meck:unload(els_server).
+
+src_path(Module) ->
+  filename:join(["code_navigation", "src", Module]).
+
+include_path(Header) ->
+  filename:join(["code_navigation", "include", Header]).

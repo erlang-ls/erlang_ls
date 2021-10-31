@@ -11,13 +11,25 @@
                                   }.
 -export_type([ session/0 ]).
 
--export([ start_session/1
+-export([ run_diagnostics_test/5
+        , start_session/1
         , wait_for_diagnostics/2
         , assert_errors/2
         , assert_warnings/2
         , assert_hints/2
         , assert_contains/2
         ]).
+
+-spec run_diagnostics_test(string(), source(),
+                           [els_diagnostics:diagnostic()],
+                           [els_diagnostics:diagnostic()],
+                           [els_diagnostics:diagnostic()]) -> ok.
+run_diagnostics_test(Path, Source, Errors, Warnings, Hints) ->
+  {ok, Session} = start_session(Path),
+  Diagnostics = wait_for_diagnostics(Session, Source),
+  els_test:assert_errors(Diagnostics, Errors),
+  els_test:assert_warnings(Diagnostics, Warnings),
+  els_test:assert_hints(Diagnostics, Hints).
 
 -spec start_session(string()) -> {ok, session()}.
 start_session(Path0) ->
