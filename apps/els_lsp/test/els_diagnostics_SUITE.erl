@@ -1,3 +1,7 @@
+%% Fixcolumns
+%% Refactor like crossref to avoid repetition
+%% Dialyzer diagnostics type
+%% Sort diagnostics
 -module(els_diagnostics_SUITE).
 
 %% CT Callbacks
@@ -542,204 +546,154 @@ code_reload_sticky_mod(Config) ->
   ok.
 
 -spec crossref(config()) -> ok.
-crossref(Config) ->
-  Expected = [ #{ message =>
-                    <<"Cannot find definition for function lists:map/3">>
-                , range =>
-                    #{ 'end' => #{character => 11, line => 5}
-                     , start => #{character => 2, line => 5}}
-                , severity => 1, source => <<"CrossRef">>}
-             , #{ message =>
-                    <<"Cannot find definition for function non_existing/0">>
-                , range =>
-                    #{ 'end' => #{character => 14, line => 6}
-                     , start => #{character => 2, line => 6}}
-                , severity => 1
-                , source => <<"CrossRef">>
-                }],
-  do_crossref_test(Config, diagnostics_xref_uri, Expected).
-
-
--spec do_crossref_test(config(), atom(), [map()]) -> ok.
-do_crossref_test(Config, TestModule, ExpectedDiagnostics) ->
-  Uri = ?config(TestModule, Config),
-  els_mock_diagnostics:subscribe(),
-  ok = els_client:did_save(Uri),
-  Diagnostics = els_mock_diagnostics:wait_until_complete(),
-  CrossRefDiagnostics = [D || #{source := <<"CrossRef">>} = D <- Diagnostics],
-  F = fun(#{message := M1}, #{message := M2}) -> M1 =< M2 end,
-  ?assertEqual(ExpectedDiagnostics, lists:sort(F, CrossRefDiagnostics)),
-  ok.
+crossref(_Config) ->
+  Expected =
+    [ #{ message => <<"Cannot find definition for function non_existing/0">>
+       , range => {{6, 2}, {6, 14}}
+       }
+    , #{ message => <<"Cannot find definition for function lists:map/3">>
+       , range => {{5, 2}, {5, 11}}
+       }
+    ],
+  do_crossref_test("diagnostics_xref.erl", Expected).
 
 %% #641
 -spec crossref_pseudo_functions(config()) -> ok.
-crossref_pseudo_functions(Config) ->
+crossref_pseudo_functions(_Config) ->
   Expected =
-    [#{message =>
-         <<"Cannot find definition for function unknown_module:module_info/0">>,
-       range =>
-         #{'end' => #{character => 28, line => 12},
-           start => #{character => 2, line => 12}},
-       severity => 1, source => <<"CrossRef">>},
-     #{message =>
-         <<"Cannot find definition for function unknown_module:module_info/1">>,
-       range =>
-         #{'end' => #{character => 28, line => 13},
-           start => #{character => 2, line => 13}},
-       severity => 1, source => <<"CrossRef">>},
-     #{message =>
-         <<"Cannot find definition for function unknown_module:nonexistent/0">>,
-       range =>
-         #{'end' => #{character => 28, line => 34},
-           start => #{character => 2, line => 34}},
-       severity => 1, source => <<"CrossRef">>}],
-  do_crossref_test(Config, diagnostics_xref_pseudo_uri, Expected).
+    [ #{ message =>
+          <<"Cannot find definition for function unknown_module:nonexistent/0">>
+       , range => {{34, 2}, {34, 28}}
+       }
+    , #{ message =>
+          <<"Cannot find definition for function unknown_module:module_info/1">>
+       , range => {{13, 2}, {13, 28}}
+       }
+    , #{ message =>
+           <<"Cannot find definition for function "
+             "unknown_module:module_info/0">>
+       , range => {{12, 2}, {12, 28}}
+       }
+    ],
+  do_crossref_test("diagnostics_xref_pseudo.erl", Expected).
 
 %% #860
 -spec crossref_autoimport(config()) -> ok.
-crossref_autoimport(Config) ->
+crossref_autoimport(_Config) ->
 
   %% This testcase cannot be run from an Erlang source tree version,
   %% it needs a released version.
 
   Expected = [],
-  do_crossref_test(Config, diagnostics_autoimport_uri, Expected).
+  do_crossref_test("diagnostics_autoimport.erl", Expected).
 
 %% #860
 -spec crossref_autoimport_disabled(config()) -> ok.
-crossref_autoimport_disabled(Config) ->
+crossref_autoimport_disabled(_Config) ->
 
   %% This testcase cannot be run from an Erlang source tree version,
   %% it needs a released version.
 
   Expected = [],
-  do_crossref_test(Config, diagnostics_autoimport_disabled_uri, Expected).
+  do_crossref_test("diagnostics_autoimport_disabled.erl", Expected).
+
+-spec do_crossref_test(string(), [els_diagnostics:diagnostic()]) -> ok.
+do_crossref_test(TestModule, Expected) ->
+  Path = filename:join([ "code_navigation"
+                       , "src"
+                       , TestModule
+                       ]),
+  {ok, Session} = els_test:start_session(Path),
+  Diagnostics = els_test:wait_for_diagnostics(Session, <<"CrossRef">>),
+  els_test:assert_errors(Expected, Diagnostics).
 
 -spec unused_includes(config()) -> ok.
-unused_includes(Config) ->
-  Uri = ?config(diagnostics_unused_includes_uri, Config),
-  els_mock_diagnostics:subscribe(),
-  ok = els_client:did_save(Uri),
-  Diagnostics = els_mock_diagnostics:wait_until_complete(),
-  Expected = [ #{ message => <<"Unused file: et.hrl">>
-                , range =>
-                    #{ 'end' => #{ character => 34
-                                 , line => 3
-                                 }
-                     , start => #{ character => 0
-                                 , line => 3
-                                 }
-                     }
-                , severity => 2
-                , source => <<"UnusedIncludes">>
-                }
-             ],
-  F = fun(#{message := M1}, #{message := M2}) -> M1 =< M2 end,
-  ?assertEqual(Expected, lists:sort(F, Diagnostics)),
-  ok.
+unused_includes(_Config) ->
+  Path = filename:join([ "code_navigation"
+                       , "src"
+                       , "diagnostics_unused_includes.erl"
+                       ]),
+  {ok, Session} = els_test:start_session(Path),
+  Diagnostics = els_test:wait_for_diagnostics(Session, <<"UnusedIncludes">>),
+  Expected = [#{ message => <<"Unused file: et.hrl">>
+               , range => {{3, 0}, {3, 34}}
+               }],
+  els_test:assert_warnings(Expected, Diagnostics).
 
 -spec unused_includes_compiler_attribute(config()) -> ok.
-unused_includes_compiler_attribute(Config) ->
-  Uri = ?config(diagnostics_unused_includes_compiler_attribute_uri, Config),
-  els_mock_diagnostics:subscribe(),
-  ok = els_client:did_save(Uri),
-  Diagnostics = els_mock_diagnostics:wait_until_complete(),
-  Expected = [ #{ message => <<"Unused file: file.hrl">>
-                , range =>
-                    #{ 'end' => #{ character => 40
-                                 , line => 3
-                                 }
-                     , start => #{ character => 0
-                                 , line => 3
-                                 }
-                     }
-                , severity => 2
-                , source => <<"UnusedIncludes">>
-                }
-             ],
-  ?assertEqual(Expected, Diagnostics),
-  ok.
+unused_includes_compiler_attribute(_Config) ->
+  Path = filename:join([ "code_navigation"
+                       , "src"
+                       , "diagnostics_unused_includes_compiler_attribute.erl"
+                       ]),
+  {ok, Session} = els_test:start_session(Path),
+  Diagnostics = els_test:wait_for_diagnostics(Session, <<"UnusedIncludes">>),
+  Expected = [#{ message => <<"Unused file: file.hrl">>
+               , range => {{3, 0}, {3, 40}}
+               }],
+  els_test:assert_warnings(Expected, Diagnostics).
 
 -spec exclude_unused_includes(config()) -> ok.
-exclude_unused_includes(Config) ->
-  Uri = ?config(diagnostics_unused_includes_uri, Config),
-  els_mock_diagnostics:subscribe(),
-  ok = els_client:did_save(Uri),
-  Diagnostics = els_mock_diagnostics:wait_until_complete(),
-  ?assertEqual([], Diagnostics),
-  ok.
+exclude_unused_includes(_Config) ->
+  Path = filename:join([ "code_navigation"
+                       , "src"
+                       , "diagnostics_unused_includes.erl"
+                       ]),
+  {ok, Session} = els_test:start_session(Path),
+  Diagnostics = els_test:wait_for_diagnostics(Session, <<"UnusedIncludes">>),
+  Expected = [],
+  els_test:assert_warnings(Expected, Diagnostics).
 
 -spec unused_macros(config()) -> ok.
-unused_macros(Config) ->
-  Uri = ?config(diagnostics_unused_macros_uri, Config),
-  els_mock_diagnostics:subscribe(),
-  ok = els_client:did_save(Uri),
-  Diagnostics = els_mock_diagnostics:wait_until_complete(),
-  Expected = [ #{ message => <<"Unused macro: UNUSED_MACRO">>
-                , range =>
-                    #{ 'end' => #{ character => 20
-                                 , line => 5
-                                 }
-                     , start => #{ character => 8
-                                 , line => 5
-                                 }
-                     }
-                , severity => 2
-                , source => <<"UnusedMacros">>
-                },
-                #{ message => <<"Unused macro: UNUSED_MACRO_WITH_ARG/1">>
-                , range =>
-                    #{ 'end' => #{ character => 29
-                                 , line => 6
-                                 }
-                     , start => #{ character => 8
-                                 , line => 6
-                                 }
-                     }
-                , severity => 2
-                , source => <<"UnusedMacros">>
-                }
-             ],
-  F = fun(#{message := M1}, #{message := M2}) -> M1 =< M2 end,
-  ?assertEqual(Expected, lists:sort(F, Diagnostics)),
-  ok.
+unused_macros(_Config) ->
+  Path = filename:join([ "code_navigation"
+                       , "src"
+                       , "diagnostics_unused_macros.erl"
+                       ]),
+  {ok, Session} = els_test:start_session(Path),
+  Diagnostics = els_test:wait_for_diagnostics(Session, <<"UnusedMacros">>),
+  Expected =
+    [ #{ message => <<"Unused macro: UNUSED_MACRO">>
+       , range => {{5, 8}, {5, 20}}
+       },
+      #{ message => <<"Unused macro: UNUSED_MACRO_WITH_ARG/1">>
+       , range => {{6, 8}, {6, 29}}
+       }
+    ],
+  els_test:assert_warnings(Expected, Diagnostics).
 
 -spec unused_record_fields(config()) -> ok.
-unused_record_fields(Config) ->
-  Uri = ?config(diagnostics_unused_record_fields_uri, Config),
-  els_mock_diagnostics:subscribe(),
-  ok = els_client:did_save(Uri),
-  Diagnostics = els_mock_diagnostics:wait_until_complete(),
-  Expected = [ #{ message => <<"Unused record field: #unused_field.field_d">>
-                , range =>
-                    #{ 'end' => #{character => 39, line => 5}
-                     , start => #{character => 32, line => 5}
-                     }
-                , severity => 2
-                , source => <<"UnusedRecordFields">>
-                }
-             ],
-  F = fun(#{message := M1}, #{message := M2}) -> M1 =< M2 end,
-  ?assertEqual(Expected, lists:sort(F, Diagnostics)),
-  ok.
+unused_record_fields(_Config) ->
+  Path = filename:join([ "code_navigation"
+                       , "src"
+                       , "diagnostics_unused_record_fields.erl"
+                       ]),
+  {ok, Session} = els_test:start_session(Path),
+  Diagnostics =
+    els_test:wait_for_diagnostics(Session, <<"UnusedRecordFields">>),
+  Expected =
+    [ #{ message => <<"Unused record field: #unused_field.field_d">>
+       , range => {{5, 32}, {5, 39}}
+       }
+    ],
+  els_test:assert_warnings(Expected, Diagnostics).
 
 -spec gradualizer(config()) -> ok.
-gradualizer(Config) ->
-  Uri = ?config(diagnostics_gradualizer_uri, Config),
-  els_mock_diagnostics:subscribe(),
-  ok = els_client:did_save(Uri),
-  Diagnostics = els_mock_diagnostics:wait_until_complete(),
-  Diagnostics == []
-    andalso ct:fail("Diagnostics should not be empty - is Gradualizer "
-                    "available in the code path?"),
-  Expected = [#{message => <<"The variable N is expected to have type "
-                             "integer() but it has type false | true\n">>,
-                range => #{'end' => #{character => 0, line => 11},
-                           start => #{character => 0, line => 10}},
-                severity => 2, source => <<"Gradualizer">>}],
-  F = fun(#{message := M1}, #{message := M2}) -> M1 =< M2 end,
-  ?assertEqual(Expected, lists:sort(F, Diagnostics)),
-  ok.
+gradualizer(_Config) ->
+  Path = filename:join([ "code_navigation"
+                       , "src"
+                       , "diagnostics_gradualizer.erl"
+                       ]),
+  {ok, Session} = els_test:start_session(Path),
+  Diagnostics =
+    els_test:wait_for_diagnostics(Session, <<"Gradualizer">>),
+  Expected =
+    [ #{ message =>
+           <<"The variable N is expected to have type integer() "
+             "but it has type false | true\n">>
+       , range => {{10, 0}, {11, 0}}}
+    ],
+  els_test:assert_warnings(Expected, Diagnostics).
 
 %%==============================================================================
 %% Internal Functions
