@@ -192,7 +192,7 @@ macro_string_to_term(Value) ->
       true
   end.
 
-%% @doc Folds over all files in a directory recursively
+%% @doc Folds over all files in a directory
 %%
 %% Applies function F to each file and the accumulator,
 %% skipping all symlinks.
@@ -260,7 +260,7 @@ do_fold_files(F, Filter, Dir, [File | Rest], Acc0) ->
   %% Symbolic links are not regular files
   Acc  = case filelib:is_regular(Path) of
            true  -> do_fold_file(F, Filter, Path, Acc0);
-           false -> do_fold_dir(F, Filter, Path, Acc0)
+           false -> Acc0
          end,
   do_fold_files(F, Filter, Dir, Rest, Acc).
 
