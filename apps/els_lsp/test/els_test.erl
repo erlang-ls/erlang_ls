@@ -16,6 +16,7 @@
         , assert_errors/2
         , assert_warnings/2
         , assert_hints/2
+        , assert_contains/2
         ]).
 
 -spec start_session(string()) -> {ok, session()}.
@@ -33,25 +34,35 @@ wait_for_diagnostics(#{uri := Uri}, Source) ->
   Diagnostics = els_mock_diagnostics:wait_until_complete(),
   [D || #{source := S} = D <- Diagnostics, S =:= Source].
 
--spec assert_errors([els_diagnostics:diagnostic()], any()) -> ok.
+-spec assert_errors([els_diagnostics:diagnostic()],
+                    [els_diagnostics:diagnostic()]) -> ok.
 assert_errors(Expected, Diagnostics) ->
-  Filtered = [D || #{severity := ?DIAGNOSTIC_ERROR} = D <- Diagnostics],
-  Simplified = [simplify_diagnostic(D) || D  <- Filtered],
-  erlang:display({Expected, Simplified}),
-  ?assertMatch(Expected, Simplified, Filtered).
+  assert_diagnostics(Expected, Diagnostics, ?DIAGNOSTIC_ERROR).
 
--spec assert_warnings([els_diagnostics:diagnostic()], any()) -> ok.
+-spec assert_warnings([els_diagnostics:diagnostic()],
+                      [els_diagnostics:diagnostic()]) -> ok.
 assert_warnings(Expected, Diagnostics) ->
-  Filtered = [D || #{severity := ?DIAGNOSTIC_WARNING} = D <- Diagnostics],
-  Simplified = [simplify_diagnostic(D) || D  <- Filtered],
-  %% TODO: Display actual value of "Expected"
-  ?assertMatch(Expected, Simplified, Filtered).
+  assert_diagnostics(Expected, Diagnostics, ?DIAGNOSTIC_WARNING).
 
--spec assert_hints([els_diagnostics:diagnostic()], any()) -> ok.
+-spec assert_hints([els_diagnostics:diagnostic()],
+                   [els_diagnostics:diagnostic()]) -> ok.
 assert_hints(Expected, Diagnostics) ->
-  Filtered = [D || #{severity := ?DIAGNOSTIC_HINT} = D <- Diagnostics],
+  assert_diagnostics(Expected, Diagnostics, ?DIAGNOSTIC_HINT).
+
+-spec assert_diagnostics([els_diagnostics:diagnostic()],
+                         [els_diagnostics:diagnostic()],
+                         els_diagnostics:severity()) -> ok.
+
+-spec assert_contains(els_diagnostics:diagnostic(),
+                      [els_diagnostics:diagnostic()]) -> ok.
+assert_contains(Diagnostic, Diagnostics) ->
+  Simplified = [simplify_diagnostic(D) || D  <- Diagnostics],
+  ?assert(lists:member(Diagnostic, Simplified)).
+
+assert_diagnostics(Expected, Diagnostics, Severity) ->
+  Filtered = [D || #{severity := S} = D <- Diagnostics, S =:= Severity],
   Simplified = [simplify_diagnostic(D) || D  <- Filtered],
-  ?assertMatch(Expected, Simplified, Filtered).
+  ?assertEqual(Expected, Simplified, Filtered).
 
 -spec simplify_diagnostic(els_diagnostics:diagnostic()) ->
         simplified_diagnostic().

@@ -182,22 +182,25 @@ bound_var_in_pattern(_Config) ->
                        , "diagnostics_bound_var_in_pattern.erl"]),
   {ok, Session} = els_test:start_session(Path),
   Diagnostics = els_test:wait_for_diagnostics(Session, <<"BoundVarInPattern">>),
-  els_test:assert_hints([ #{code => <<"L1230">> , range => {{6, 0}, {7, 0}}}
-                        ], Diagnostics),
+  els_test:assert_hints(
+    [ #{ message => <<"Bound variable in pattern: Var1">>
+       , range => {{5, 2}, {5, 6}}}
+    , #{ message => <<"Bound variable in pattern: Var2">>
+       , range => {{9, 9}, {9, 13}}}
+    , #{ message => <<"Bound variable in pattern: Var4">>
+       , range => {{17, 8}, {17, 12}}}
+    , #{ message => <<"Bound variable in pattern: Var3">>
+       , range => {{15, 10}, {15, 14}}}
+    , #{ message => <<"Bound variable in pattern: Var5">>
+       , range => {{23, 6}, {23, 10}}}
+      %% erl_syntax_lib:annotate_bindings does not handle named funs
+      %% correctly
+      %% , #{ message => <<"Bound variable in pattern: New">>
+      %%    , range => {{28, 6}, {28, 9}}}
+      %% , #{ message => <<"Bound variable in pattern: F">>
+      %%    , range => {{29, 6}, {29, 9}}}
+    ], Diagnostics),
   ok.
-      %% erl_syntax_lib:annotate_bindings does not handle named funs correctly
-      %% #{message => <<"Bound variable in pattern: New">>,
-      %%   range =>
-      %%     #{'end' => #{character => 9, line => 28},
-      %%       start => #{character => 6, line => 28}},
-      %%   severity => 4,
-      %%   source => <<"BoundVarInPattern">>},
-      %% #{message => <<"Bound variable in pattern: F">>,
-      %%   range =>
-      %%     #{'end' => #{character => 7, line => 29},
-      %%       start => #{character => 6, line => 29}},
-      %%   severity => 4,
-      %%   source => <<"BoundVarInPattern">>}
 
 -spec compiler(config()) -> ok.
 compiler(_Config) ->
@@ -223,198 +226,175 @@ compiler(_Config) ->
   ok.
 
 -spec compiler_with_behaviour(config()) -> ok.
-compiler_with_behaviour(Config) ->
-  Uri = ?config(diagnostics_behaviour_impl_uri, Config),
-  els_mock_diagnostics:subscribe(),
-  ok = els_client:did_save(Uri),
-  Diagnostics = els_mock_diagnostics:wait_until_complete(),
-  ?assertEqual(2, length(Diagnostics)),
-  Warnings = [D || #{severity := ?DIAGNOSTIC_WARNING} = D <- Diagnostics],
-  ?assertEqual(2, length(Warnings)),
-  ErrorRanges = [ Range || #{range := Range} <- Warnings],
-  ExpectedErrorRanges =
-        fixcolumns(
-          [#{ 'end' => #{character => 34, line => 2}
-            , start => #{character => 0, line => 2}},
-           #{ 'end' => #{character => 34, line => 2}
-            , start => #{character => 0, line => 2}}],
-          Config),
-  ?assertEqual(ExpectedErrorRanges, ErrorRanges),
-  ok.
+compiler_with_behaviour(_Config) ->
+  Path = filename:join([ "code_navigation"
+                       , "src"
+                       , "diagnostics_behaviour_impl.erl"
+                       ]),
+  {ok, Session} = els_test:start_session(Path),
+  Diagnostics = els_test:wait_for_diagnostics(Session, <<"Compiler">>),
+  els_test:assert_warnings(
+    [ #{ code => <<"L1284">>
+       , message =>
+           <<"undefined callback function one/0 "
+             "(behaviour 'diagnostics_behaviour')">>
+       , range => {{2, 0}, {3, 0}}},
+      #{ code => <<"L1284">>
+       , message =>
+           <<"undefined callback function two/0 "
+             "(behaviour 'diagnostics_behaviour')">>
+       , range => {{2, 0}, {3, 0}}}
+    ], Diagnostics).
 
 %% Testing #614
 -spec compiler_with_broken_behaviour(config()) -> ok.
-compiler_with_broken_behaviour(Config) ->
-  Uri = ?config(code_navigation_uri, Config),
-  els_mock_diagnostics:subscribe(),
-  ok = els_client:did_save(Uri),
-  Diagnostics = els_mock_diagnostics:wait_until_complete(),
-  CompilerDiagnostics = [D || #{source := <<"Compiler">>} = D <- Diagnostics],
-  ?assertEqual(22, length(CompilerDiagnostics)),
-  Warnings = [D || #{severity := ?DIAGNOSTIC_WARNING} = D
-                     <- CompilerDiagnostics],
-  ?assertEqual(16, length(Warnings)),
-  Errors = [D || #{severity := ?DIAGNOSTIC_ERROR} = D <- CompilerDiagnostics],
-  ?assertEqual(6, length(Errors)),
-  [BehaviourError | _ ] = Errors,
-  ExpectedError =
-        #{message =>
-              <<"Issue in included file (5): syntax error before: ">>
-         , range =>
-              #{'end' => #{character => 24, line => 2}
-               , start => #{character => 0, line => 2}}
-         , severity => 1
-         , source => <<"Compiler">>
-         , code => <<"L0000">>},
-  ?assertEqual(ExpectedError, BehaviourError),
-  ok.
+compiler_with_broken_behaviour(_Config) ->
+  Path = filename:join(["code_navigation", "src", "code_navigation.erl"]),
+  {ok, Session} = els_test:start_session(Path),
+  Diagnostics = els_test:wait_for_diagnostics(Session, <<"Compiler">>),
+  els_test:assert_contains(
+    #{ code => <<"L0000">>
+     , message => <<"Issue in included file (5): syntax error before: ">>
+     , range => {{2, 0}, {2, 24}}}, Diagnostics).
 
 -spec compiler_with_custom_macros(config()) -> ok.
 compiler_with_custom_macros(Config) ->
-  %% This test uses priv/code_navigation/erlang_ls.config to define some macros.
-  Uri = ?config(diagnostics_macros_uri, Config),
-  els_mock_diagnostics:subscribe(),
-  ok = els_client:did_save(Uri),
-  Diagnostics = els_mock_diagnostics:wait_until_complete(),
-  ?assertEqual(1, length(Diagnostics)),
-  Errors   = [D || #{severity := ?DIAGNOSTIC_ERROR}   = D <- Diagnostics],
-  ?assertEqual(1, length(Errors)),
-  [ErrorRange] = [ Range || #{range := Range} <- Errors],
-  ExpectedErrorRange =
-        case ?config(columns, Config) of
-            true ->
-                %% diagnostic_macro has a spec with no '.' at the end
-                %% which causes the poi for the spec to becomes the
-                %% entire spec + function. So this range here is 8
-                %% lines long.
-                #{ 'end' => #{character => 6, line => 10},
-                    start => #{character => 0, line => 2}};
-            false ->
-                #{ 'end' => #{character => 0, line => 9},
-                    start => #{character => 0, line => 8}}
-        end,
-  ?assertEqual(ExpectedErrorRange, ErrorRange),
-  ok.
+  %% This test uses priv/code_navigation/erlang_ls.config to define
+  %% some macros.
+  Path = filename:join(["code_navigation", "src", "diagnostics_macros.erl"]),
+  {ok, Session} = els_test:start_session(Path),
+  Diagnostics = els_test:wait_for_diagnostics(Session, <<"Compiler">>),
+  case ?config(columns, Config) of
+    true ->
+      %% diagnostic_macro has a spec with no '.' at the end
+      %% which causes the poi for the spec to becomes the
+      %% entire spec + function. So this range here is 8
+      %% lines long.
+      els_test:assert_errors(
+        [#{ code => <<"E1507">>
+          , message => <<"undefined macro 'UNDEFINED'">>
+          , range => {{2, 0}, {10, 6}}
+          }
+        ], Diagnostics);
+    false ->
+      els_test:assert_errors(
+        [#{ code => <<"E1507">>
+          , message => <<"undefined macro 'UNDEFINED'">>
+          , range => {{8, 0}, {9, 0}}
+          }
+        ], Diagnostics)
+  end.
 
 -spec compiler_with_parse_transform(config()) -> ok.
-compiler_with_parse_transform(Config) ->
+compiler_with_parse_transform(_Config) ->
   _ = code:delete(diagnostics_parse_transform),
   _ = code:purge(diagnostics_parse_transform),
-  Uri = ?config(diagnostics_parse_transform_usage_uri, Config),
-  els_mock_diagnostics:subscribe(),
-  ok = els_client:did_save(Uri),
-  Diagnostics = els_mock_diagnostics:wait_until_complete(),
-  ?assertEqual(1, length(Diagnostics)),
-  Warnings = [D || #{severity := ?DIAGNOSTIC_WARNING} = D <- Diagnostics],
-  ?assertEqual(1, length(Warnings)),
-  WarningRanges = [ Range || #{range := Range} <- Warnings],
-  ExpectedWarningsRanges = fixcolumns(
-                             [ #{ 'end' => #{character => 9, line => 6}
-                                , start => #{character => 5, line => 6}}
-                             ], Config),
-  ?assertEqual(ExpectedWarningsRanges, WarningRanges),
-  ok.
+  Path = filename:join([ "code_navigation"
+                       , "src"
+                       , "diagnostics_parse_transform_usage.erl"
+                       ]),
+  {ok, Session} = els_test:start_session(Path),
+  Diagnostics = els_test:wait_for_diagnostics(Session, <<"Compiler">>),
+  els_test:assert_warnings(
+    [#{ code => <<"L1268">>
+      , message => <<"variable 'Args' is unused">>
+      , range => {{6, 0}, {7, 0}}}
+    ], Diagnostics).
 
 -spec compiler_with_parse_transform_list(config()) -> ok.
-compiler_with_parse_transform_list(Config) ->
+compiler_with_parse_transform_list(_Config) ->
   _ = code:delete(diagnostics_parse_transform),
   _ = code:purge(diagnostics_parse_transform),
-  Uri = ?config(diagnostics_parse_transform_usage_list_uri, Config),
-  els_mock_diagnostics:subscribe(),
-  ok = els_client:did_save(Uri),
-  Diagnostics = els_mock_diagnostics:wait_until_complete(),
-  ?assertEqual(1, length(Diagnostics)),
-  Warnings = [D || #{severity := ?DIAGNOSTIC_WARNING} = D <- Diagnostics],
-  ?assertEqual(1, length(Warnings)),
-  WarningRanges = [ Range || #{range := Range} <- Warnings],
-  ExpectedWarningsRanges = fixcolumns(
-                             [ #{ 'end' => #{character => 9, line => 6}
-                                , start => #{character => 5, line => 6}}
-                             ], Config),
-  ?assertEqual(ExpectedWarningsRanges, WarningRanges),
-  ok.
+  Path = filename:join([ "code_navigation"
+                       , "src"
+                       , "diagnostics_parse_transform_usage_list.erl"
+                       ]),
+  {ok, Session} = els_test:start_session(Path),
+  Diagnostics = els_test:wait_for_diagnostics(Session, <<"Compiler">>),
+  els_test:assert_warnings(
+    [#{ code => <<"L1268">>
+      , message => <<"variable 'Args' is unused">>
+      , range => {{6, 0}, {7, 0}}}
+    ], Diagnostics).
 
 -spec compiler_with_parse_transform_included(config()) -> ok.
-compiler_with_parse_transform_included(Config) ->
+compiler_with_parse_transform_included(_Config) ->
   _ = code:delete(diagnostics_parse_transform),
   _ = code:purge(diagnostics_parse_transform),
-  Uri = ?config(diagnostics_parse_transform_usage_included_uri, Config),
-  els_mock_diagnostics:subscribe(),
-  ok = els_client:did_save(Uri),
-  Diagnostics = els_mock_diagnostics:wait_until_complete(),
-  ?assertEqual(1, length(Diagnostics)),
-  Warnings = [D || #{severity := ?DIAGNOSTIC_WARNING} = D <- Diagnostics],
-  ?assertEqual(1, length(Warnings)),
-  WarningRanges = [ Range || #{range := Range} <- Warnings],
-  ExpectedWarningsRanges =
-        fixcolumns(
-          [ #{ 'end' => #{character => 9, line => 6}
-             , start => #{character => 5, line => 6}}], Config),
-  ?assertEqual(ExpectedWarningsRanges, sort_ranges(WarningRanges)),
-  ok.
+  Path = filename:join([ "code_navigation"
+                       , "src"
+                       , "diagnostics_parse_transform_usage_included.erl"
+                       ]),
+  {ok, Session} = els_test:start_session(Path),
+  Diagnostics = els_test:wait_for_diagnostics(Session, <<"Compiler">>),
+  els_test:assert_warnings(
+    [#{ code => <<"L1268">>
+      , message => <<"variable 'Args' is unused">>
+      , range => {{6, 0}, {7, 0}}}
+    ], Diagnostics).
 
 -spec compiler_with_parse_transform_broken(config()) -> ok.
-compiler_with_parse_transform_broken(Config) ->
-  Uri = ?config(diagnostics_parse_transform_usage_broken_uri, Config),
-  els_mock_diagnostics:subscribe(),
-  ok = els_client:did_save(Uri),
-  Diagnostics = els_mock_diagnostics:wait_until_complete(),
-  ?assertEqual(2, length(Diagnostics)),
-  Warnings = [D || #{severity := ?DIAGNOSTIC_WARNING} = D <- Diagnostics],
-  ?assertEqual(0, length(Warnings)),
-  Errors = [D || #{severity := ?DIAGNOSTIC_ERROR} = D <- Diagnostics],
-  ?assertEqual(2, length(Errors)),
-  ErrorsRanges = [ Range || #{range := Range} <- Errors],
-  ExpectedErrorsRanges = [#{'end' => #{character => 0, line => 1},
-                            start => #{character => 0, line => 0}},
-                          #{'end' => #{character => 61, line => 4},
-                            start => #{character => 27, line => 4}}
-                          ],
-  ?assertEqual(ExpectedErrorsRanges, sort_ranges(ErrorsRanges)),
-  ok.
+compiler_with_parse_transform_broken(_Config) ->
+  Path = filename:join([ "code_navigation"
+                       , "src"
+                       , "diagnostics_parse_transform_usage_broken.erl"
+                       ]),
+  {ok, Session} = els_test:start_session(Path),
+  Diagnostics = els_test:wait_for_diagnostics(Session, <<"Compiler">>),
+  els_test:assert_warnings([], Diagnostics),
+  els_test:assert_errors(
+    [#{ code => <<"L0000">>
+      , message => <<"Issue in included file (10): syntax error before: ">>
+      , range => {{4, 27}, {4, 61}}
+      }
+    , #{ code => <<"C1008">>
+       , message => <<"undefined parse transform "
+                      "'diagnostics_parse_transform_broken'">>
+       , range => {{0, 0}, {1, 0}}
+       }
+    ], Diagnostics).
 
 -spec compiler_with_parse_transform_deps(config()) -> ok.
-compiler_with_parse_transform_deps(Config) ->
-  Uri = ?config(diagnostics_parse_transform_deps_a_uri, Config),
-  els_mock_diagnostics:subscribe(),
-  ok = els_client:did_save(Uri),
-  Diagnostics = els_mock_diagnostics:wait_until_complete(),
-  ?assertEqual(1, length(Diagnostics)),
-  Warnings = [D || #{severity := ?DIAGNOSTIC_WARNING} = D <- Diagnostics],
-  ?assertEqual(1, length(Warnings)),
-  Errors = [D || #{severity := ?DIAGNOSTIC_ERROR} = D <- Diagnostics],
-  ?assertEqual(0, length(Errors)),
-  WarningsRanges = [ Range || #{range := Range} <- Warnings],
-  ExpectedWarningsRanges = fixcolumns(
-                             [#{'end' => #{character => 6, line => 4},
-                                start => #{character => 0, line => 4}}],
-                             Config),
-  ?assertEqual(ExpectedWarningsRanges, WarningsRanges),
-  ok.
+compiler_with_parse_transform_deps(_Config) ->
+  Path = filename:join([ "code_navigation"
+                       , "src"
+                       , "diagnostics_parse_transform_deps_a.erl"
+                       ]),
+  {ok, Session} = els_test:start_session(Path),
+  Diagnostics = els_test:wait_for_diagnostics(Session, <<"Compiler">>),
+  els_test:assert_warnings(
+    [ #{ code => <<"L1230">>
+       , message => <<"function unused/0 is unused">>
+       , range => {{4, 0}, {5, 0}}}
+    ], Diagnostics),
+  els_test:assert_errors([], Diagnostics).
 
 -spec compiler_telemetry(config()) -> ok.
-compiler_telemetry(Config) ->
-  Uri = ?config(diagnostics_uri, Config),
-  els_mock_diagnostics:subscribe(),
-  ok = els_client:did_save(Uri),
-  Diagnostics = els_mock_diagnostics:wait_until_complete(),
-  ?assertEqual(5, length(Diagnostics)),
-  Warnings = [D || #{severity := ?DIAGNOSTIC_WARNING} = D <- Diagnostics],
-  Errors   = [D || #{severity := ?DIAGNOSTIC_ERROR}   = D <- Diagnostics],
-  ?assertEqual(2, length(Warnings)),
-  ?assertEqual(3, length(Errors)),
-  ?assertEqual([<<"L1230">>], [Code || #{ code := Code } <- Warnings ]),
-  ?assertEqual([<<"L0000">>, <<"L0000">>, <<"L1295">>]
-              , [Code || #{ code := Code } <- Errors ]),
-  Telemetry = wait_for_compiler_telemetry(),
-  #{ type := Type
-   , uri := UriT
-   , diagnostics := DiagnosticsCodes }  = Telemetry,
-  ?assertEqual(<<"erlang-diagnostic-codes">>, Type),
-  ?assertEqual(Uri, UriT),
-  ?assertEqual([ <<"L1230">>, <<"L0000">>, <<"L0000">>, <<"L1295">>]
-               , DiagnosticsCodes),
-  ok.
+compiler_telemetry(_Config) ->
+  Path = filename:join([ "code_navigation"
+                       , "src"
+                       , "diagnostics.erl"
+                       ]),
+  {ok, Session} = els_test:start_session(Path),
+  Diagnostics = els_test:wait_for_diagnostics(Session, <<"Compiler">>),
+  els_test:assert_warnings(
+    [ #{ code => <<"L1230">>
+       , message => <<"function main/1 is unused">>
+       , range => {{6, 0}, {7, 0}}}
+    ], Diagnostics),
+  els_test:assert_errors(
+    [ #{ code => <<"L0000">>
+       , message => <<"Issue in included file (1): bad attribute">>
+       , range => {{3, 0}, {3, 35}}
+       }
+    , #{ code => <<"L0000">>
+       , message => <<"Issue in included file (3): bad attribute">>
+       , range => {{3, 0}, {3, 35}}
+       }
+    , #{ code => <<"L1295">>
+       , message => <<"type undefined_type() undefined">>
+       , range => {{5, 0}, {6, 0}}
+       }], Diagnostics).
 
 -spec code_path_extra_dirs(config()) -> ok.
 code_path_extra_dirs(_Config) ->
