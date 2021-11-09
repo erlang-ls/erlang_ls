@@ -262,6 +262,7 @@ attributes() ->
   , snippet(attribute_import)
   , snippet(attribute_include)
   , snippet(attribute_include_lib)
+  , snippet(attribute_module)
   , snippet(attribute_on_load)
   , snippet(attribute_opaque)
   , snippet(attribute_record)
@@ -373,6 +374,8 @@ snippet(attribute_include) ->
   snippet(<<"-include().">>, <<"include(${1:}).">>);
 snippet(attribute_include_lib) ->
   snippet(<<"-include_lib().">>, <<"include_lib(${1:}).">>);
+snippet(attribute_module) ->
+  snippet(<<"-module().">>, <<"module(${1:Module}).">>);
 snippet(attribute_type) ->
   snippet(<<"-type name() :: definition.">>,
           <<"type ${1:name}() :: ${2:definition}.">>);
