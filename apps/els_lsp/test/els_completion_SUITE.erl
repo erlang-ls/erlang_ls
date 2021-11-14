@@ -133,6 +133,11 @@ attributes(Config) ->
                 , kind => ?COMPLETION_ITEM_KIND_SNIPPET
                 , label => <<"-include().">>
                 }
+             , #{ insertText => <<"module(${1:Module}).">>
+                , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+                , kind => ?COMPLETION_ITEM_KIND_SNIPPET
+                , label => <<"-module().">>
+                }
              , #{ insertText => <<"include_lib(${1:}).">>
                 , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
                 , kind => ?COMPLETION_ITEM_KIND_SNIPPET
