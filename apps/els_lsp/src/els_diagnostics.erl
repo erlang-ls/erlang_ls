@@ -64,6 +64,7 @@ available_diagnostics() ->
   , <<"elvis">>
   , <<"unused_includes">>
   , <<"unused_macros">>
+  , <<"referl_unused_macros">>
   , <<"unused_record_fields">>
   ].
 
