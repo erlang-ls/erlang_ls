@@ -7,6 +7,7 @@
 %% Behaviours
 %%==============================================================================
 -behaviour(els_diagnostics).
+-behaviour(els_referl).
 
 %%==============================================================================
 %% Exports
@@ -21,7 +22,7 @@
 %%==============================================================================
 -include("els_lsp.hrl").
 -define(MAX_RECURSION_DEPTH, 10).
--define(TIME_OUT, 3000).
+
 
 %%==============================================================================
 %% Callback Functions
@@ -39,11 +40,11 @@ run(Uri)->
 run(Uri, RecursionDepth) when RecursionDepth < ?MAX_RECURSION_DEPTH ->
   case filename:extension(Uri) of
     <<".erl">> -> 
-      case referl_node() of
+      case els_referl:referl_node() of
         disabled ->
           [];
         Node -> 
-          case rpc:call(Node, ri, add, [binary_to_list(els_uri:path(Uri))], ?TIME_OUT) of
+          case rpc:call(Node, ri, add, [binary_to_list(els_uri:path(Uri))], els_referl:time_out()) of
             {badrpc, _} ->
               els_server:send_notification(<<"window/showMessage">>, #{ type => ?MESSAGE_TYPE_ERROR, message => <<"Refactor Erl node is down {badrpc}!">> }),
               [];
@@ -52,8 +53,8 @@ run(Uri, RecursionDepth) when RecursionDepth < ?MAX_RECURSION_DEPTH ->
               run(Uri, RecursionDepth + 1);
             _ ->
               ModuleName = filename:rootname(filename:basename(binary_to_list(els_uri:path(Uri)))),
-              ReferlResult = rpc:call(Node, refusr_sq, run, [[{positions, linecol}, {output, msg}], [], "mods[name=" ++ ModuleName ++ "].macros[not .references]"], ?TIME_OUT), % TODO: Robi sq run második paramba @ utén
-              Pois = convertToPoi(ReferlResult),
+              ReferlResult = rpc:call(Node, refusr_sq, run, [[{positions, linecol}, {output, msg}], [], "mods[name=" ++ ModuleName ++ "].macros[not .references]"], els_referl:time_out()), % TODO: Robi sq run második paramba @ utén
+              Pois = els_referl:convertToPoi(ReferlResult),
               [make_diagnostic(Poi) || Poi <- Pois]
           end
         end;
@@ -73,20 +74,6 @@ source() ->
 %% Internal Functions
 %%==============================================================================
 
--spec convertToPoi(any()) -> poi(). 
-convertToPoi(ReferlResult) ->
-case ReferlResult of
-    [{_, _, _, DataList}] -> % [{Option, Tuple, Atom, DataList}] = Out
-      convertToPoi(DataList);
-    [{{_, {FromLine, FromCol}, {ToLine, ToCol}}, MacroName} | Tail] -> %  [ {{Path, StartPos, EndPos}, MacroName} | Tail] = DataList
-      Range = #{ from => {FromLine, FromCol}, to => {ToLine, ToCol} },
-      Id = referl_atom2, %"{module(), 'atom()', 'arity()''}",
-      Poi = els_poi:new(Range, macro, Id, MacroName), % Additional Data param can be added
-      [ Poi | convertToPoi(Tail) ];
-    _ ->
-        []
-end.
-
 -spec make_diagnostic(poi()) -> els_diagnostics:diagnostic().
 make_diagnostic(#{ data := PoiData, range := PoiRange}) -> %#{id := POIId, range := POIRange} .   
     Range = els_protocol:range(PoiRange),
@@ -96,40 +83,3 @@ make_diagnostic(#{ data := PoiData, range := PoiRange}) -> %#{id := POIId, range
     Source = source(),
     els_diagnostics:make_diagnostic(Range, Message, Severity, Source).
 
--spec referl_node() -> atom(). % If called with no args, then try to get it from config
-referl_node() ->
-  case els_config:get(refactorerl) of
-    {checked, #{"node" := Node}} ->
-      Node;
-    {config, #{"node" := NodeStr}} ->
-      Node = els_utils:compose_node_name(NodeStr, els_config_runtime:get_name_type()),
-      case referl_node(Node) of
-        error ->
-          els_server:send_notification(<<"window/showMessage">>, #{ type => ?MESSAGE_TYPE_INFO, message => <<"RefactorErl is not connected! (error)">> }),
-          disabled;
-        badrpc -> % TODO: Robi Try other nodes. (default nodes like: referl@host)
-          els_server:send_notification(<<"window/showMessage">>, #{ type => ?MESSAGE_TYPE_INFO, message => <<"RefactorErl is not connected! (badrpc/timeout)!">> }),
-          disabled;
-        Node ->
-          els_server:send_notification(<<"window/showMessage">>, #{ type => ?MESSAGE_TYPE_INFO, message => <<"RefactorErl is connected!">> }),
-          Node
-        end;
-    {config, disabled} ->
-      disabled;
-    {error, _} ->
-      disabled
-  end.
-
--spec referl_node(atom()) -> atom().
-referl_node(Node) ->
-  Response = rpc:call(Node, ri, ls, [], 10000), % TODO: ROBI van e valami referl ping?
-  case Response of
-    {{ok, _}, {error, _}} ->
-      Node;
-    ok->
-      Node;
-    {badrpc, _} -> %TODO: Robi Separate timeout issues
-      badrpc;
-    _ ->
-      error
-  end.
