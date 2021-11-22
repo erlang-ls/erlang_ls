@@ -67,7 +67,7 @@ run(_, RecursionDepth) when RecursionDepth >= ?MAX_RECURSION_DEPTH ->
 
 -spec source() -> binary().
 source() ->
-  <<"UnusedMacros_RefactorErl">>.
+  <<"Unused Macros (Referl)">>.
 
 %%==============================================================================
 %% Internal Functions
@@ -107,7 +107,7 @@ referl_node() ->
         error ->
           els_server:send_notification(<<"window/showMessage">>, #{ type => ?MESSAGE_TYPE_INFO, message => <<"RefactorErl is not connected! (error)">> }),
           disabled;
-        badrpc -> % TODO: Try other nodes. (default nodes like: referl@host)
+        badrpc -> % TODO: Robi Try other nodes. (default nodes like: referl@host)
           els_server:send_notification(<<"window/showMessage">>, #{ type => ?MESSAGE_TYPE_INFO, message => <<"RefactorErl is not connected! (badrpc/timeout)!">> }),
           disabled;
         Node ->
@@ -128,7 +128,7 @@ referl_node(Node) ->
       Node;
     ok->
       Node;
-    {badrpc, _} -> %TODO: Separate timeout issues
+    {badrpc, _} -> %TODO: Robi Separate timeout issues
       badrpc;
     _ ->
       error
