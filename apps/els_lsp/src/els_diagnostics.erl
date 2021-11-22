@@ -65,6 +65,7 @@ available_diagnostics() ->
   , <<"unused_includes">>
   , <<"unused_macros">>
   , <<"referl_unused_macros">>
+  , <<"referl_unsecure_calls">>
   , <<"unused_record_fields">>
   ].
 
