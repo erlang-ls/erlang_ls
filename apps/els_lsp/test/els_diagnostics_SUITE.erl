@@ -20,6 +20,7 @@
         , compiler_with_parse_transform_included/1
         , compiler_with_parse_transform_broken/1
         , compiler_with_parse_transform_deps/1
+        , compiler_with_parse_transform_error/1
         , compiler_telemetry/1
         , code_path_extra_dirs/1
         , use_long_names/1
@@ -345,6 +346,20 @@ compiler_with_parse_transform_deps(_Config) ->
                 , message => <<"function unused/0 is unused">>
                 , range => {{4, 0}, {4, 6}}}
              ],
+  Hints = [],
+  els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
+
+%% Issue 1140
+-spec compiler_with_parse_transform_error(config()) -> ok.
+compiler_with_parse_transform_error(_Config) ->
+  Path = src_path("diagnostics_parse_transform_error.erl"),
+  Source = <<"Compiler">>,
+  Errors = [#{ code => <<"my_parse_transform">>
+             , message => <<"custom_description">>
+             , range => {{41, 0}, {42, 0}}
+             }
+           ],
+  Warnings = [],
   Hints = [],
   els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
 
