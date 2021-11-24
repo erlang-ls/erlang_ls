@@ -169,13 +169,13 @@ eep48_docs(Type, M, F, A) ->
                   {ok, els_utils:to_list(Docs)}
           end;
       _R1 ->
-          ?LOG_ERROR(#{ error => _R1 }),
+          ?LOG_DEBUG(#{ error => _R1 }),
           {error, not_available}
   catch C:E:ST ->
       %% code:get_doc/1 fails for escriptized modules, so fall back
       %% reading docs from source. See #751 for details
       IO = flush_group_leader_proxy(GL),
-      ?LOG_ERROR(#{ slogan => "Error fetching docs, falling back to src.",
+      ?LOG_DEBUG(#{ slogan => "Error fetching docs, falling back to src.",
                     module => M,
                     error => {C, E},
                     st => ST,
@@ -242,7 +242,7 @@ get_edoc_chunk(M, Uri) ->
             {ok, Bin} = file:read_file(Chunk),
             {ok, binary_to_term(Bin)};
         E ->
-            ?LOG_ERROR("[edoc_chunk] load error", [E]),
+            ?LOG_DEBUG("[edoc_chunk] load error", [E]),
             error
     end.
 -else.
@@ -322,42 +322,42 @@ truncate_lines(Lines0) ->
   lists:append(Lines, [{code_block_line, "[...]"}]).
 
 -spec edoc(atom(), atom(), non_neg_integer()) ->
-          [els_markup_content:doc_entry()].
+        [els_markup_content:doc_entry()].
 edoc(M, F, A) ->
   case els_utils:find_module(M) of
-      {ok, Uri} ->
-          GL = setup_group_leader_proxy(),
-          try
-              Path      = els_uri:path(Uri),
-              {M, EDoc} = edoc:get_doc(
-                            els_utils:to_list(Path)
-                           , [{private, true}
-                             , edoc_options()] ),
-              Internal  = xmerl:export_simple([EDoc], docsh_edoc_xmerl),
-              %% TODO: Something is weird with the docsh specs.
-              %%       For now, let's avoid the Dialyzer warnings.
-              Docs = erlang:apply(docsh_docs_v1, from_internal, [Internal]),
-              Res  = erlang:apply(docsh_docs_v1, lookup, [ Docs
-                                                         , {M, F, A}
-                                                         , [doc, spec]]),
-              flush_group_leader_proxy(GL),
+    {ok, Uri} ->
+      GL = setup_group_leader_proxy(),
+      try
+        Path      = els_uri:path(Uri),
+        {M, EDoc} = edoc:get_doc(
+                      els_utils:to_list(Path)
+                     , [{private, true}
+                       , edoc_options()] ),
+        Internal  = xmerl:export_simple([EDoc], docsh_edoc_xmerl),
+        %% TODO: Something is weird with the docsh specs.
+        %%       For now, let's avoid the Dialyzer warnings.
+        Docs = erlang:apply(docsh_docs_v1, from_internal, [Internal]),
+        Res  = erlang:apply(docsh_docs_v1, lookup, [ Docs
+                                                   , {M, F, A}
+                                                   , [doc, spec]]),
+        flush_group_leader_proxy(GL),
 
-              {ok, [{{function, F, A}, _Anno,
-                     _Signature, Desc, _Metadata}|_]} = Res,
-              format_edoc(Desc)
-          catch C:E:ST ->
-                  IO = flush_group_leader_proxy(GL),
-                  ?LOG_ERROR("[hover] Error fetching edoc [error=~p]",
-                             [{M, F, A, C, E, ST, IO}]),
-                  case IO of
-                      timeout ->
-                          [];
-                      IO ->
-                          [{text, IO}]
-                  end
-          end;
-      _ ->
-          []
+        {ok, [{{function, F, A}, _Anno,
+               _Signature, Desc, _Metadata}|_]} = Res,
+        format_edoc(Desc)
+      catch C:E:ST ->
+          IO = flush_group_leader_proxy(GL),
+          ?LOG_DEBUG("[hover] Error fetching edoc [error=~p]",
+                     [{M, F, A, C, E, ST, IO}]),
+          case IO of
+            timeout ->
+              [];
+            IO ->
+              [{text, IO}]
+          end
+      end;
+    _ ->
+      []
   end.
 
 -spec format_edoc(none | map()) -> [els_markup_content:doc_entry()].
