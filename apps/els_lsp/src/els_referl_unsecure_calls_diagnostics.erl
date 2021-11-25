@@ -39,11 +39,11 @@ run(Uri)->
 run(Uri, RecursionDepth) when RecursionDepth < ?MAX_RECURSION_DEPTH ->
   case filename:extension(Uri) of
     <<".erl">> -> 
-      case els_referl:referl_node() of
+      case els_refactorerl_utis:referl_node() of
         disabled ->
           [];
         Node -> 
-          case rpc:call(Node, ri, add, [binary_to_list(els_uri:path(Uri))], els_referl:maxtimeout()) of
+          case rpc:call(Node, ri, add, [binary_to_list(els_uri:path(Uri))], els_refactorerl_utis:maxtimeout()) of
             {badrpc, _} ->
               els_server:send_notification(<<"window/showMessage">>, #{ type => ?MESSAGE_TYPE_ERROR, message => <<"Refactor Erl node is down {badrpc}!">> }),
               [];
@@ -53,7 +53,7 @@ run(Uri, RecursionDepth) when RecursionDepth < ?MAX_RECURSION_DEPTH ->
             _ ->
               ModuleName = filename:rootname(filename:basename(binary_to_list(els_uri:path(Uri)))),
               ReferlResult = rpc:call(Node, refusr_sq, run, [[{positions, linecol}, {output, msg}], [], "mods[name=" ++ ModuleName ++ "].funs.unsecure_calls"]),
-              Pois = els_referl:convertToPoi(ReferlResult),
+              Pois = els_refactorerl_utis:convert_to_poi(ReferlResult),
               [make_diagnostic(Poi) || Poi <- Pois]
           end
       end;
