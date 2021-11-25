@@ -1,12 +1,12 @@
 %%==============================================================================
 %% Eralang LS & Refactor Erl conversion
 %%==============================================================================
--module(els_referl).
+-module(els_refactorerl_utis).
 
 %%==============================================================================
 %% API
 %%==============================================================================
--export([ convertToPoi/1
+-export([ convert_to_poi/1
         , referl_node/0
         , maxtimeout/0
         ]).
@@ -20,16 +20,16 @@
 %% Internal Functions
 %%==============================================================================
 
--spec convertToPoi(any()) -> poi(). 
-convertToPoi(ReferlResult) ->
+-spec convert_to_poi(any()) -> poi(). 
+convert_to_poi(ReferlResult) ->
 case ReferlResult of
     [{_, _, _, DataList}] -> % [{Option, Tuple, Atom, DataList}] = Out
-      convertToPoi(DataList);
+      convert_to_poi(DataList);
     [{{_, {FromLine, FromCol}, {ToLine, ToCol}}, Name} | Tail] -> %  [ {{Path, StartPos, EndPos}, MacroName} | Tail] = DataList
       Range = #{ from => {FromLine, FromCol}, to => {ToLine, ToCol} },
       Id = referl_atom_unsec, %"{module(), 'atom()', 'arity()''}",
       Poi = els_poi:new(Range, application, Id, Name), % Additional Data param can be added
-      [ Poi | convertToPoi(Tail) ];
+      [ Poi | convert_to_poi(Tail) ];
     _ ->
         [] %TODO Robi notify
 end.
