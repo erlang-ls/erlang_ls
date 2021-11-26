@@ -18,42 +18,49 @@
 -include("els_lsp.hrl").
 
 %%==============================================================================
+%% API
+%%==============================================================================
+%% If called with no args try to get the node from config. Use the referl_node/1 to validate.
+%% If the node once was validated there will be no display messages.
+%% 
+%% Node can be:
+%%  - NodeStr
+%%  - {Status, Node} where both are atoms. 
+%%  - Status can be:
+%%    - validated:    node is running
+%%    - disconnected: node is not running
+%%  - disabled: RefactorErl is turned off for this session. This can happen after an unsuccessfull query attempt.
+-spec referl_node() -> atom() | {error, disconnected} | {error, disabled} | {error, other}.
+referl_node() -> 
+  case els_config:get(refactorerl) of
+    #{"node" := {Node, validated}} ->
+      Node;
+    #{"node" := {Node, disconnected}} ->
+      try_connect_node({retry, Node});
+    #{"node" := disabled} ->
+      {error, disabled};
+    #{"node" := NodeStr} ->
+      Node = els_utils:compose_node_name(NodeStr, els_config_runtime:get_name_type()),
+      try_connect_node({validate, Node});
+    _ -> 
+      {error, other}
+  end.
+
+  
+%%==============================================================================
 %% Internal Functions
 %%==============================================================================
 
 -spec disable_node() -> atom().
 disable_node() ->
   els_server:send_notification(<<"window/showMessage">>, #{ type => ?MESSAGE_TYPE_ERROR, message => <<"RefactorErl is disconnected! Reload ELS after you fixed theRefactorErl node!">> }),
-  xels_config:set(refactorerl, #{"node" => disabled}),
-  disabled.
+  els_config:set(refactorerl, #{"node" => disabled}),
+  {error, disabled}.
 
--spec try_connect_node({validate | retry, atom()}) -> atom().
-try_connect_node({Status, Node}) ->
-  case {Status, referl_node(Node)} of
-    {validate, {error, _}} ->
-      els_server:send_notification(<<"window/showMessage">>, #{ type => ?MESSAGE_TYPE_INFO, message => <<"RefactorErl is not connected!">> }),
-      els_config:set(refactorerl, #{"node" => {Node, disconnected}}),
-      disconnected;
-    {retry, {error, _}} ->
-      els_config:set(refactorerl, #{"node" => {Node, disconnected}}),
-      disconnected;
-    {_ ,Node} ->
-      els_server:send_notification(<<"window/showMessage">>, #{ type => ?MESSAGE_TYPE_INFO, message => <<"RefactorErl is connected!">> }),
-      els_config:set(refactorerl, #{"node" => {Node, validated}}),
-      Node
-  end.
-
-
--spec query(any()) -> any().
-query(Query) ->
+-spec query(string()) -> list() | {error, disabled}.
+query(Query) -> 
   %% rpc:call(referl@fikoMac, refusr_sq, run, [[{positions, linecol}, {output, msg}], [], "mods.fun"], 3000)
   case referl_node() of
-    disabled ->
-      [];
-    disconnected ->
-      [];
-    error ->
-      [];
     {error, _} ->
       [];
     Node ->
@@ -63,15 +70,10 @@ query(Query) ->
           disable_node(); % Returns disabled
         error ->
           busy; % RefactorErl node is probably busy. 
-        A ->
-          log(A),
-          A
+        _ ->
+          Response
       end
   end.
-
--spec log(any()) -> any().
-log(A) -> A.
-
 
 -spec convert_to_poi(any()) -> poi(). 
 convert_to_poi(ReferlResult) ->
@@ -87,35 +89,8 @@ case ReferlResult of
         [] %TODO Robi notify
 end.
   
-%% If called with no args try to get the node from config. Use the referl_node/1 to validate.
-%% If the node once was validated there will be no display messages.
-%% 
-%% Node can be:
-%%  - NodeStr
-%%  - {Status, Node} where both are atoms.
-%%  - Status can be:
-%%    - validated:    node is running
-%%    - disconnected: node is not running
-%%  - disabled: RefactorErl is turned off for this session. This can happen after an unsuccessfull query attempt.
--spec referl_node() -> atom().  % Can return: Node | disconnected | disabled
-referl_node() ->
-  case els_config:get(refactorerl) of
-    #{"node" := {Node, validated}} ->
-      Node;
-    #{"node" := {Node, disconnected}} ->
-      try_connect_node({retry, Node});
-    #{"node" := disabled} ->
-      disabled;
-    #{"node" := NodeStr} ->
-      Node = els_utils:compose_node_name(NodeStr, els_config_runtime:get_name_type()),
-      try_connect_node({validate, Node});
-    A -> %TODO
-      log(A),
-      dis
-  end.
-
--spec referl_node(atom()) -> atom().
-referl_node(Node) ->
+-spec check_node(atom()) -> {error, timeout} | {error, badrpc} | {error, other} | atom().
+check_node(Node) ->
   Response = rpc:call(Node, ri, ls, [], 10000), % Calls the RefactorErl node, to check if it's alive
   case Response of
     {{ok, _}, {error, _}} ->
@@ -128,6 +103,22 @@ referl_node(Node) ->
       {error, badrpc};
     _ ->
       {error, other}
+  end.
+
+-spec try_connect_node({validate | retry, atom()}) -> {error, disconnected} | atom() .
+try_connect_node({Status, Node}) ->
+  case {Status, check_node(Node)} of
+    {validate, {error, _}} ->
+      els_server:send_notification(<<"window/showMessage">>, #{ type => ?MESSAGE_TYPE_INFO, message => <<"RefactorErl is not connected!">> }),
+      els_config:set(refactorerl, #{"node" => {Node, disconnected}}),
+      {error, disconnected};
+    {retry, {error, _}} ->
+      els_config:set(refactorerl, #{"node" => {Node, disconnected}}),
+      {error, disconnected};
+    {_ ,Node} ->
+      els_server:send_notification(<<"window/showMessage">>, #{ type => ?MESSAGE_TYPE_INFO, message => <<"RefactorErl is connected!">> }),
+      els_config:set(refactorerl, #{"node" => {Node, validated}}),
+      Node
   end.
 
 
