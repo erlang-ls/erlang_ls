@@ -554,7 +554,8 @@ exported_definitions(Module, POIKind, ExportFormat) ->
 
 -spec module_name(els_dt_document:item()) -> [binary()].
 module_name(#{uri := Uri}) ->
-  ModuleName = filename:basename(lists:last(filename:split(Uri)), ".erl"),
+  ModuleName = filename:basename(lists:last(filename:split(Uri)),
+  filename:extension(Uri)),
   PurifiedName = case binary:match(ModuleName, <<"-">>) of
     nomatch -> ModuleName;
     _ -> list_to_binary(
