@@ -201,6 +201,9 @@ find_completions( Prefix
     %% Check for "-anything"
     [{atom, _, _}, {'-', _}] ->
       attributes();
+    %% Check for "-module("
+    [{'(', _}, {atom, _, module}, {'-', _}] ->
+      [item_kind_file(Path) || Path <- module_name(Document)];
     %% Check for "-export(["
     [{'[', _}, {'(', _}, {atom, _, export}, {'-', _}] ->
       unexported_definitions(Document, function);
@@ -375,7 +378,7 @@ snippet(attribute_include) ->
 snippet(attribute_include_lib) ->
   snippet(<<"-include_lib().">>, <<"include_lib(${1:}).">>);
 snippet(attribute_module) ->
-  snippet(<<"-module().">>, <<"module(${1:Module}).">>);
+  snippet(<<"-module().">>, <<"module(${1:}).">>);
 snippet(attribute_type) ->
   snippet(<<"-type name() :: definition.">>,
           <<"type ${1:name}() :: ${2:definition}.">>);
@@ -549,6 +552,17 @@ exported_definitions(Module, POIKind, ExportFormat) ->
       []
   end.
 
+-spec module_name(els_dt_document:item()) -> [binary()].
+module_name(#{uri := Uri}) ->
+  ModuleName = filename:basename(lists:last(filename:split(Uri)), ".erl"),
+  PurifiedName = case binary:match(ModuleName, <<"-">>) of
+    nomatch -> ModuleName;
+    _ -> list_to_binary(
+      string:join(["'" ++ X ++ "'" || X <-
+        [binary_to_list(ModuleName)]], ""))
+  end,
+
+  [PurifiedName].
 %%==============================================================================
 %% Variables
 %%==============================================================================
