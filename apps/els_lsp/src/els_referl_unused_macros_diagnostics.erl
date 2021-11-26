@@ -40,21 +40,20 @@ run(Uri)->
 run(Uri, RecursionDepth) when RecursionDepth < ?MAX_RECURSION_DEPTH ->
   case filename:extension(Uri) of
     <<".erl">> -> 
-      case els_refactorerl_utis:referl_node() of
+      case els_refactorerl_utils:referl_node() of
         disabled ->
           [];
         Node -> 
-          case rpc:call(Node, ri, add, [binary_to_list(els_uri:path(Uri))], els_refactorerl_utis:maxtimeout()) of
-            {badrpc, _} ->
-              els_server:send_notification(<<"window/showMessage">>, #{ type => ?MESSAGE_TYPE_ERROR, message => <<"Refactor Erl node is down {badrpc}!">> }),
-              [];
-            error ->
+          case rpc:call(Node, ri, add, [binary_to_list(els_uri:path(Uri))], els_refactorerl_utils:maxtimeout()) of
+            error -> % TODO R ezt is kiemelni
               timer:sleep(1000),
               run(Uri, RecursionDepth + 1);
+            disabled ->
+              [];
             _ ->
               ModuleName = filename:rootname(filename:basename(binary_to_list(els_uri:path(Uri)))),
-              ReferlResult = rpc:call(Node, refusr_sq, run, [[{positions, linecol}, {output, msg}], [], "mods[name=" ++ ModuleName ++ "].macros[not .references]"], els_refactorerl_utis:time_out()), % TODO: Robi sq run második paramba @ utén
-              Pois = els_refactorerl_utis:convert_to_poi(ReferlResult),
+              ReferlResult = els_refactorerl_utils:query("mods[name=" ++ ModuleName ++ "].macros[not .references]"), 
+              Pois = els_refactorerl_utils:convert_to_poi(ReferlResult),
               [make_diagnostic(Poi) || Poi <- Pois]
           end
         end;
