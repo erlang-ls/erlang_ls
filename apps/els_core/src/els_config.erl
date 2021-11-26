@@ -77,7 +77,7 @@
                   , indexing_enabled => boolean()
                   , bsp_enabled      => boolean() | auto
                   , compiler_telemetry_enabled => boolean()
-                  , refactorerl => {atom(), atom() | 'disabled'}
+                  , refactorerl => { map() | 'disabled'}
                   }.
 
 %%==============================================================================
@@ -128,7 +128,7 @@ do_initialize(RootUri, Capabilities, InitOptions, {ConfigPath, Config}) ->
 
   IndexingEnabled = maps:get(<<"indexingEnabled">>, InitOptions, true),
 
-  RefactorErl = {config, maps:get("refactorerl", Config, disabled)},
+  RefactorErl = maps:get("refactorerl", Config, disabled),
 
   %% Passed by the LSP client
   ok = set(root_uri       , RootUri),
