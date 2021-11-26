@@ -1,14 +1,17 @@
 %%==============================================================================
-%% The erlang_ls parser. It uses the epp_dodger OTP library.
+%% The erlang_ls parser. It uses the parser of erlfmt library.
 %%==============================================================================
 -module(els_parser).
 
 %%==============================================================================
 %% Exports
 %%==============================================================================
--export([ parse/1
-        , parse_file/1
+-export([ parse/1]).
+
+%% For manual use only, to test the parser
+-export([ parse_file/1
         , parse_text/1
+        , parse_incomplete_text/2
         ]).
 
 %%==============================================================================
@@ -49,6 +52,18 @@ forms_to_ast({ok, Forms, _ErrorInfo}) ->
 forms_to_ast({error, _ErrorInfo} = Error) ->
   Error.
 
+-spec parse_incomplete_text(string(), {erl_anno:line(), erl_anno:column()})
+                           -> {ok, tree()} | error.
+parse_incomplete_text(Text, {_Line, _Col} = StartLoc) ->
+  Tokens = scan_text(Text, StartLoc),
+  case parse_incomplete_tokens(Tokens) of
+    {ok, Form} ->
+      Tree = els_erlfmt_ast:erlfmt_to_st(Form),
+      {ok, Tree};
+    error ->
+      error
+  end.
+
 %%==============================================================================
 %% Internal Functions
 %%==============================================================================
@@ -66,13 +81,75 @@ parse_forms(Forms) ->
 
 -spec parse_form(erlfmt_parse:abstract_node()) -> deep_list(poi()).
 parse_form({raw_string, Anno, Text}) ->
-  Start = erlfmt_scan:get_anno(location, Anno),
-  {ok, RangeTokens, _EndLocation} = erl_scan:string(Text, Start, [text]),
-  find_attribute_tokens(RangeTokens);
+  StartLoc = erlfmt_scan:get_anno(location, Anno),
+  RangeTokens = scan_text(Text, StartLoc),
+  case parse_incomplete_tokens(RangeTokens) of
+    {ok, Form} ->
+      parse_form(Form);
+    error ->
+      find_attribute_tokens(RangeTokens)
+  end;
 parse_form(Form) ->
   Tree = els_erlfmt_ast:erlfmt_to_st(Form),
   POIs = points_of_interest(Tree),
   POIs.
+
+-spec scan_text(string(), {erl_anno:line(), erl_anno:column()})
+               -> [erlfmt_scan:token()].
+scan_text(Text, StartLoc) ->
+  PaddedText = pad_text(Text, StartLoc),
+  {ok, Tokens, _Comments, _Cont} = erlfmt_scan:string_node(PaddedText),
+  ensure_dot(Tokens).
+
+-spec parse_incomplete_tokens([erlfmt_scan:token()])
+                             -> {ok, erlfmt_parse:abstract_node()} | error.
+parse_incomplete_tokens([{dot, _}]) ->
+  error;
+parse_incomplete_tokens(Tokens) ->
+  case erlfmt_parse:parse_node(Tokens) of
+    {ok, Form} ->
+      {ok, Form};
+    {error, {ErrorLoc, erlfmt_parse, _Reason}} ->
+      TrimmedTokens = tokens_until(Tokens, ErrorLoc),
+      parse_incomplete_tokens(TrimmedTokens)
+  end.
+
+%% @doc Drop tokens after given location but keep final dot, to preserve its
+%% location
+-spec tokens_until([erlfmt_scan:token()], erl_anno:location())
+                  -> [erlfmt_scan:token()].
+tokens_until([_Hd, {dot, _} = Dot], _Loc) ->
+  %% We need to drop at least one token before the dot.
+  %% Otherwise if error location is at the dot, we cannot just drop the dot and
+  %% add a dot again, because it would result in an infinite loop.
+  [Dot];
+tokens_until([Hd | Tail], Loc) ->
+  case erlfmt_scan:get_anno(location, Hd) < Loc of
+    true ->
+      [Hd | tokens_until(Tail, Loc)];
+    false ->
+      tokens_until(Tail, Loc)
+  end.
+
+%% `erlfmt_scan' does not support start location other than {1,1}
+%% so we have to shift the text with newlines and spaces
+-spec pad_text(string(), {erl_anno:line(), erl_anno:column()}) -> string().
+pad_text(Text, {StartLine, StartColumn}) ->
+  lists:duplicate(StartLine - 1, $\n)
+    ++ lists:duplicate(StartColumn - 1, $\s)
+    ++ Text.
+
+-spec ensure_dot([erlfmt_scan:token()]) -> [erlfmt_scan:token()].
+ensure_dot(Tokens) ->
+  case lists:last(Tokens) of
+    {dot, _} ->
+      Tokens;
+    T ->
+      EndLocation = erlfmt_scan:get_anno(end_location, T),
+      %% Add a dot which has zero length (invisible) so it does not modify the
+      %% end location of the whole form
+      Tokens ++ [{dot, #{location => EndLocation, end_location => EndLocation}}]
+  end.
 
 %% @doc Resolve POI for specific sections
 %%
@@ -81,30 +158,19 @@ parse_form(Form) ->
 %% completion items. Using the tokens provides accurate position for the
 %% beginning and end for this sections, and can also handle the situations when
 %% the code is not parsable.
--spec find_attribute_tokens([erl_scan:token()]) -> [poi()].
+-spec find_attribute_tokens([erlfmt_scan:token()]) -> [poi()].
 find_attribute_tokens([ {'-', Anno}, {atom, _, Name} | [_|_] = Rest])
   when Name =:= export;
        Name =:= export_type ->
-  From = erl_anno:location(Anno),
-  To = token_end_location(lists:last(Rest)),
+  From = erlfmt_scan:get_anno(location, Anno),
+  To = erlfmt_scan:get_anno(end_location, lists:last(Rest)),
   [poi({From, To}, Name, From)];
 find_attribute_tokens([ {'-', Anno}, {atom, _, spec} | [_|_] = Rest]) ->
-  From = erl_anno:location(Anno),
-  To = token_end_location(lists:last(Rest)),
+  From = erlfmt_scan:get_anno(location, Anno),
+  To = erlfmt_scan:get_anno(end_location, lists:last(Rest)),
   [poi({From, To}, spec, undefined)];
 find_attribute_tokens(_) ->
   [].
-
-%% Inspired by erlfmt_scan:dot_anno
--spec token_end_location(erl_scan:token()) -> erl_anno:location().
-token_end_location({dot, Anno}) ->
-  %% Special handling for dot tokens, which by definition contain a dot char
-  %% followed by a whitespace char. We don't want to count the whitespace (which
-  %% is usually a newline) as part of the form.
-  {Line, Col} = erl_anno:location(Anno),
-  {Line, Col + 1};
-token_end_location(Token) ->
-  erl_scan:end_location(Token).
 
 -spec points_of_interest(tree()) -> [[poi()]].
 points_of_interest(Tree) ->
