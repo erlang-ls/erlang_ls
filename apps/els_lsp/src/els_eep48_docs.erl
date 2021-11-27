@@ -520,7 +520,7 @@ render_element({b,_,Content},State,Pos,Ind,D) ->
 render_element({pre,_,Content},State,Pos,Ind,D) ->
     %% For pre we make sure to respect the newlines in pre
     {Docs, _} = trimnl(render_docs(Content, [pre|State], Pos, Ind, D)),
-    trimnlnl(["```erlang\n",Docs,"```"]);
+    trimnlnl(["```erlang\n",pad(Ind),Docs,pad(Ind),"```"]);
 
 render_element({ul,[{class,<<"types">>}],Content},State,_Pos,Ind,D) ->
     {Docs, _} = render_docs(Content, [types|State], 0, Ind, D),
@@ -565,7 +565,7 @@ render_element({dl,_,Content},State,Pos,Ind,D) ->
 render_element({dt,_,Content},[dl | _] = State,Pos,Ind,D) ->
     {Docs, NewPos} = render_docs([{b,[],Content}],
                                  [li | State], Pos + 2, Ind + 2, D),
-    trimnl({["", string:trim(Docs, trailing, "\n"), "  "], NewPos});
+    trimnl({["* ", string:trim(Docs, trailing, "\n"), "  "], NewPos});
 render_element({dd,_,Content},[dl | _] = State,Pos,Ind,D) ->
     {Docs, _NewPos} = render_docs(Content, [li | State], Pos+2, Ind + 2, D),
     trimnlnl([pad(2 + Ind - Pos), Docs]);
@@ -630,7 +630,7 @@ nlpad(N) ->
     pad(N,"\n").
 -spec pad(non_neg_integer(), unicode:chardata()) -> unicode:chardata().
 pad(N, Extra) ->
-    Pad = lists:duplicate(N,[160]),
+    Pad = lists:duplicate(N,[$ ]),
     [Extra, Pad].
 
 -spec lastline(unicode:chardata()) -> non_neg_integer().
