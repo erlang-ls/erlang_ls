@@ -63,6 +63,7 @@ available_diagnostics() ->
   , <<"dialyzer">>
   , <<"gradualizer">>
   , <<"elvis">>
+  , <<"sheldon">>
   , <<"unused_includes">>
   , <<"unused_macros">>
   , <<"unused_record_fields">>
@@ -78,7 +79,9 @@ enabled_diagnostics() ->
   Default = default_diagnostics(),
   Enabled = maps:get("enabled", Config, []),
   Disabled = maps:get("disabled", Config, []),
-  lists:usort((Default ++ valid(Enabled)) -- valid(Disabled)).
+  Diagnostics = lists:usort((Default ++ valid(Enabled)) -- valid(Disabled)),
+  ok = extra(Diagnostics),
+  Diagnostics.
 
 -spec make_diagnostic(range(), binary(), severity(), binary()) -> diagnostic().
 make_diagnostic(Range, Message, Severity, Source) ->
@@ -146,3 +149,12 @@ valid(Ids0) ->
                                     })
   end,
   Valid.
+
+-spec extra(list()) -> ok.
+extra([]) ->
+  ok;
+extra([<<"sheldon">>|_]) ->
+  {ok, _} = application:ensure_all_started(rebar3_sheldon),
+  ok;
+extra([_|T]) ->
+  extra(T).

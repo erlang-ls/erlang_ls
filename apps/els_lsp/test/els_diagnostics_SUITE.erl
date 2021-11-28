@@ -41,6 +41,7 @@
         , unused_macros/1
         , unused_record_fields/1
         , gradualizer/1
+        , sheldon/1
         ]).
 
 %%==============================================================================
@@ -123,6 +124,11 @@ init_per_testcase(TestCase, Config) when TestCase =:= gradualizer ->
   meck:expect(els_gradualizer_diagnostics, is_default, 0, true),
   els_mock_diagnostics:setup(),
   els_test_utils:init_per_testcase(TestCase, Config);
+init_per_testcase(TestCase, Config) when TestCase =:= sheldon ->
+  meck:new(els_sheldon_diagnostics, [passthrough, no_link]),
+  meck:expect(els_sheldon_diagnostics, is_default, 0, true),
+  els_mock_diagnostics:setup(),
+  els_test_utils:init_per_testcase(TestCase, Config);
 init_per_testcase(TestCase, Config) ->
   els_mock_diagnostics:setup(),
   els_test_utils:init_per_testcase(TestCase, Config).
@@ -161,6 +167,11 @@ end_per_testcase(TestCase, Config) when TestCase =:= compiler_telemetry ->
   ok;
 end_per_testcase(TestCase, Config) when TestCase =:= gradualizer ->
   meck:unload(els_gradualizer_diagnostics),
+  els_test_utils:end_per_testcase(TestCase, Config),
+  els_mock_diagnostics:teardown(),
+  ok;
+end_per_testcase(TestCase, Config) when TestCase =:= sheldon ->
+  meck:unload(els_sheldon_diagnostics),
   els_test_utils:end_per_testcase(TestCase, Config),
   els_mock_diagnostics:teardown(),
   ok;
@@ -653,6 +664,41 @@ gradualizer(_Config) ->
              ],
   Hints = [],
   els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
+
+-spec sheldon(config()) -> ok.
+sheldon(_Config) ->
+  case list_to_integer(erlang:system_info(otp_release)) >= 23 of
+    true ->
+      {ok, Cwd} = file:get_cwd(),
+      RootPath = els_test_utils:root_path(),
+      try
+          file:set_cwd(RootPath),
+          Path = src_path("diagnostics_sheldon.erl"),
+          Source = <<"Sheldon">>,
+          Errors = [],
+          Warnings = [ #{ code => spellcheck
+                        , message => <<"The word \"sheldon\" in "
+                                       "comment is unknown. "
+                                       "Maybe you wanted to use \"Sheldon\"?">>
+                        , range => {{2, 0}, {3, 0}}
+                        , relatedInformation => []
+                        }
+                     , #{ code => spellcheck
+                        , message => <<"The word \"somestrange\" in comment is "
+                                        "unknown.">>
+                        , range => {{0, 0}, {1, 0}}
+                        , relatedInformation => []
+                        }
+                     ],
+          Hints = [],
+          els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints)
+      catch _Err ->
+          file:set_cwd(Cwd)
+      end,
+      ok;
+    false ->
+      {skipped, "Sheldon diagnostics should run on OTP23+"}
+  end.
 
 %%==============================================================================
 %% Internal Functions
