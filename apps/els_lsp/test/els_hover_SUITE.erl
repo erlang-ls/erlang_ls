@@ -174,9 +174,9 @@ remote_call_otp(Config) ->
               "than `latin1`, each byte written can result in many bytes being "
               "written to the file, as the byte range 0\\.\\.255 can represent "
               "anything between one and four bytes depending on value and UTF "
-              "encoding type\\.\n\nTypical error reasons:\n\n**`ebadf`**  \n"
-              "Â Â The file is not opened for writing\\.\n\n**`enospc`**  \n"
-              "Â Â No space is left on the device\\.\n">>;
+              "encoding type\\.\n\nTypical error reasons:\n\n* **`ebadf`**  \n"
+              "  The file is not opened for writing\\.\n\n* **`enospc`**  \n"
+              "  No space is left on the device\\.\n">>;
     false -> <<"## file:write/2\n\n---\n\n```erlang\n\n  write(File, Bytes) "
                "when is_pid(File) orelse is_atom(File)\n\n  write(#file_"
                "descriptor{module = Module} = Handle, Bytes) \n\n  "
