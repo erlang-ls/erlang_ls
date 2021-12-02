@@ -41,8 +41,7 @@ run(Uri) ->
     RelFile ->
       try
         RegEx = "[_@./#&+-=*]",
-        Mod = rebar3_sheldon_ast,
-        Mod:spellcheck([RelFile], RegEx)
+        rebar3_sheldon_ast:spellcheck([RelFile], RegEx)
       of
         [] -> [];
         Problems -> format_diagnostics(Problems)
@@ -70,9 +69,9 @@ format_rules([]) ->
   [];
 format_rules([#{reason := #{misspelled_words := Miss}} = Data | EItems]) ->
   ItemDiags = format_item(Miss, Data),
-  [lists:flatten(ItemDiags) | format_rules(EItems)].
+  [ItemDiags | format_rules(EItems)].
 
--spec format_item([any()], map()) -> [[map()]].
+-spec format_item([map()], map()) -> [map()].
 format_item([#{candidates := [], word := Word} | Items], Data) ->
   #{line := Line, type := Type} = Data,
   Msg = format_text("The word ~p in ~p is unknown.", [Word, Type]),
@@ -88,17 +87,17 @@ format_item([#{candidates := Candidates, word := Word} | Items], Data) ->
 format_item([], _) ->
   [].
 
--spec diagnostic( any(), integer(),  els_diagnostics:severity()) -> [map()].
+-spec diagnostic( any(), integer(),  els_diagnostics:severity()) -> map().
 diagnostic(Msg, Ln, Severity) ->
   Range   = els_protocol:range(#{from => {Ln, 1}, to => {Ln + 1, 1}}),
   Message = els_utils:to_binary(Msg),
-  [#{ range    => Range
+  #{ range    => Range
     , severity => Severity
     , code     => spellcheck
     , source   => source()
     , message  => Message
     , relatedInformation => []
-    }].
+    }.
 
 -spec format_sheldon_candidates([any()], [[[any()] | char()]]) -> list().
 format_sheldon_candidates([], Acc) ->

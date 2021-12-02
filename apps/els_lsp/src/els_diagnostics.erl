@@ -154,7 +154,7 @@ valid(Ids0) ->
 extra([]) ->
   ok;
 extra([<<"sheldon">>|_]) ->
-  {ok, _} = application:ensure_all_started(rebar3_sheldon),
+  {ok, _} = application:ensure_all_started(sheldon),
   ok;
 extra([_|T]) ->
   extra(T).
