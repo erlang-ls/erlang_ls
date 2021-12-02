@@ -1,5 +1,5 @@
 %%==============================================================================
-%% Compiler diagnostics
+%% Sheldon diagnostics
 %%==============================================================================
 
 -module(els_sheldon_diagnostics).
@@ -14,7 +14,8 @@
 %% Exports
 %%==============================================================================
 
--export([ is_default/0
+-export([ init/0
+        , is_default/0
         , run/1
         , source/0
         ]).
@@ -29,6 +30,14 @@
 %%==============================================================================
 %% Callback Functions
 %%==============================================================================
+
+-spec init() -> ok.
+init() ->
+  %% By default "sheldon" is not started by reason that he spend few seconds
+  %% to prepare and load dictionary. The "sheldon" shoulld be load only once
+  %% when diagnostic is enabled.
+  application:ensure_all_started(sheldon),
+  ok.
 
 -spec is_default() -> boolean().
 is_default() ->
@@ -45,8 +54,10 @@ run(Uri) ->
       of
         [] -> [];
         Problems -> format_diagnostics(Problems)
-      catch _:Err ->
-        ?LOG_WARNING("Sheldon error.[Err=~p] ", [Err]),
+      catch Type:Error:Stacktrace ->
+        ?LOG_WARNING( "Sheldon error: [type=~p] [error=~p] [stacktrace=~p]"
+                    , [Type, Error, Stacktrace]
+                    ),
         []
       end
     end.

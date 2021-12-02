@@ -39,7 +39,8 @@
 -callback run(uri())                         -> [diagnostic()].
 -callback source()                           -> binary().
 -callback on_complete(uri(), [diagnostic()]) -> ok.
--optional_callbacks([ on_complete/2 ]).
+-callback init()                             -> ok.
+-optional_callbacks([ on_complete/2, init/0 ]).
 
 %%==============================================================================
 %% API
@@ -79,9 +80,7 @@ enabled_diagnostics() ->
   Default = default_diagnostics(),
   Enabled = maps:get("enabled", Config, []),
   Disabled = maps:get("disabled", Config, []),
-  Diagnostics = lists:usort((Default ++ valid(Enabled)) -- valid(Disabled)),
-  ok = extra(Diagnostics),
-  Diagnostics.
+  lists:usort((Default ++ valid(Enabled)) -- valid(Disabled)).
 
 -spec make_diagnostic(range(), binary(), severity(), binary()) -> diagnostic().
 make_diagnostic(Range, Message, Severity, Source) ->
@@ -119,6 +118,7 @@ run_diagnostic(Uri, Id) ->
                     els_diagnostics_provider:notify(Diagnostics, self())
                 end
             },
+  ok = init_diagnostic(CbModule),
   {ok, Pid} = els_background_job:new(Config),
   Pid.
 
@@ -150,11 +150,11 @@ valid(Ids0) ->
   end,
   Valid.
 
--spec extra(list()) -> ok.
-extra([]) ->
-  ok;
-extra([<<"sheldon">>|_]) ->
-  {ok, _} = application:ensure_all_started(sheldon),
-  ok;
-extra([_|T]) ->
-  extra(T).
+-spec init_diagnostic(atom()) -> ok.
+init_diagnostic(CbModule) ->
+  case erlang:function_exported(CbModule, init, 0) of
+    true ->
+      CbModule:init();
+    false ->
+      ok
+  end.
