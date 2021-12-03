@@ -23,14 +23,14 @@ start_listener(Cb) ->
 -spec init({function(), atom() | pid()}) -> no_return().
 init({Cb, IoDevice}) ->
   ?LOG_INFO("Starting stdio server..."),
-  ok = io:setopts(IoDevice, [binary, {encoding, unicode}]),
+  ok = io:setopts(IoDevice, [binary, {encoding, latin1}]),
   {ok, Server} = application:get_env(els_core, server),
   ok = Server:set_io_device(IoDevice),
   ?MODULE:loop([], IoDevice, Cb, [return_maps]).
 
 -spec send(atom() | pid(), binary()) -> ok.
 send(IoDevice, Payload) ->
-  io:format(IoDevice, "~ts", [Payload]).
+  io:format(IoDevice, "~s", [Payload]).
 
 %%==============================================================================
 %% Listener loop function
