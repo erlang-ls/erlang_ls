@@ -67,6 +67,7 @@ available_diagnostics() ->
   , <<"referl_unused_macros">>
   , <<"referl_unsecure_calls">>
   , <<"unused_record_fields">>
+  , <<"refactorerl">>
   ].
 
 -spec default_diagnostics() -> [diagnostic_id()].
