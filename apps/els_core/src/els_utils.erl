@@ -5,6 +5,7 @@
         , filename_to_atom/1
         , find_header/1
         , find_module/1
+        , find_modules/1
         , fold_files/4
         , halt/1
         , lookup_document/1
@@ -113,16 +114,26 @@ find_header(Id) ->
 %% @doc Look for a module in the DB
 -spec find_module(atom()) -> {ok, uri()} | {error, any()}.
 find_module(Id) ->
+  case find_modules(Id) of
+      {ok, [Uri | _]} ->
+          {ok, Uri};
+      Else ->
+          Else
+  end.
+
+%% @doc Look for all versions of a module in the DB
+-spec find_modules(atom()) -> {ok, [uri()]} | {error, any()}.
+find_modules(Id) ->
   {ok, Candidates} = els_dt_document_index:lookup(Id),
   case [Uri || #{kind := module, uri := Uri} <- Candidates] of
-    [Uri] ->
-      {ok, Uri};
-    [_|_] = Uris ->
-      [Uri|_] = prioritize_uris(Uris),
-      {ok, Uri};
-    [] ->
-      FileName = atom_to_list(Id) ++ ".erl",
-      els_indexing:find_and_index_file(FileName)
+      [] ->
+          FileName = atom_to_list(Id) ++ ".erl",
+          case els_indexing:find_and_index_file(FileName) of
+              {ok, Uri} -> {ok, [Uri]};
+              Error -> Error
+          end;
+      Uris ->
+          {ok, prioritize_uris(Uris)}
   end.
 
 %% @doc Look for a document in the DB.
@@ -181,7 +192,7 @@ macro_string_to_term(Value) ->
       true
   end.
 
-%% @doc Folds over all files in a directory recursively
+%% @doc Folds over all files in a directory
 %%
 %% Applies function F to each file and the accumulator,
 %% skipping all symlinks.
@@ -249,7 +260,7 @@ do_fold_files(F, Filter, Dir, [File | Rest], Acc0) ->
   %% Symbolic links are not regular files
   Acc  = case filelib:is_regular(Path) of
            true  -> do_fold_file(F, Filter, Path, Acc0);
-           false -> do_fold_dir(F, Filter, Path, Acc0)
+           false -> Acc0
          end,
   do_fold_files(F, Filter, Dir, Rest, Acc).
 

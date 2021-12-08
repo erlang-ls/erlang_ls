@@ -18,6 +18,7 @@
         , rename_function/1
         , rename_function_quoted_atom/1
         , rename_type/1
+        , rename_opaque/1
         , rename_parametrized_macro/1
         , rename_macro_from_usage/1
         , rename_record/1
@@ -250,6 +251,24 @@ rename_type(Config) ->
                      , change(NewName, {4, 30}, {4, 33})
                      , change(NewName, {1, 14}, {1, 17})
                      , change(NewName, {3, 6}, {3, 9})
+                     ]}},
+  assert_changes(Expected, Result).
+
+-spec rename_opaque(config()) -> ok.
+rename_opaque(Config) ->
+  Uri = ?config(rename_type_uri, Config),
+  NewName = <<"new_opaque">>,
+  %% Definition
+  #{result := Result} = els_client:document_rename(Uri, 4, 10, NewName),
+  %% Application
+  #{result := Result} = els_client:document_rename(Uri, 5, 29, NewName),
+  %% Export
+  #{result := Result} = els_client:document_rename(Uri, 1, 24, NewName),
+  Expected = #{changes =>
+                 #{binary_to_atom(Uri, utf8) =>
+                     [ change(NewName, {5, 26}, {5, 29})
+                     , change(NewName, {1, 21}, {1, 24})
+                     , change(NewName, {4, 8}, {4, 11})
                      ]}},
   assert_changes(Expected, Result).
 

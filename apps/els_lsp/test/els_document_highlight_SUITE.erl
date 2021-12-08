@@ -141,8 +141,9 @@ atom(Config) ->
                       , #{range => #{from => {16, 20}, to => {16, 27}}}
                       , #{range => #{from => {34, 44}, to => {34, 51}}}
                       , #{range => #{from => {111, 19}, to => {111, 26}}}
-                      , #{range => #{from => {115, 14}, to => {115, 21}}}
-                      , #{range => #{from => {115, 39}, to => {115, 46}}}
+                      , #{range => #{from => {113, 33}, to => {113, 40}}}
+                      , #{range => #{from => {116, 14}, to => {116, 21}}}
+                      , #{range => #{from => {116, 39}, to => {116, 46}}}
                       ],
   assert_locations(ExpectedLocations, Locations),
   ok.
@@ -264,7 +265,7 @@ import_entry(Config) ->
 type(Config) ->
   Uri = ?config(code_navigation_uri, Config),
   #{result := Locations} = els_client:document_highlight(Uri, 37, 9),
-  ExpectedLocations = [ #{range => #{from => {37, 7}, to => {37, 13}}}
+  ExpectedLocations = [ #{range => #{from => {37, 1}, to => {37, 25}}}
                         %% Should also include the usage, but does not
                         %%, #{range => #{from => {55, 23}, to => {55, 29}}}
                       ],
@@ -284,7 +285,7 @@ type_application(Config) ->
 opaque(Config) ->
   Uri = ?config(code_navigation_types_uri, Config),
   #{result := Locations} = els_client:document_highlight(Uri, 7, 9),
-  ExpectedLocations = [ #{range => #{from => {7, 9}, to => {7, 22}}}
+  ExpectedLocations = [ #{range => #{from => {7, 1}, to => {7, 35}}}
                       ],
   assert_locations(ExpectedLocations, Locations),
   ok.
@@ -330,7 +331,7 @@ behaviour(Config) ->
 callback(Config) ->
   Uri = ?config(rename_uri, Config),
   #{result := Locations} = els_client:document_highlight(Uri, 3, 10),
-  ExpectedLocations = [ #{range => #{from => {3, 1}, to => {3, 20}}}
+  ExpectedLocations = [ #{range => #{from => {3, 1}, to => {3, 34}}}
                       ],
   assert_locations(ExpectedLocations, Locations),
   ok.

@@ -69,8 +69,8 @@ end_per_testcase(TestCase, Config) ->
 %%==============================================================================
 
 -spec initialize_default(config()) -> ok.
-initialize_default(Config) ->
-  RootUri  = ?config(root_uri, Config),
+initialize_default(_Config) ->
+  RootUri  = els_test_utils:root_uri(),
   els_client:initialize(RootUri),
   Result = els_config:get(macros),
   Expected = [#{"name" => "DEFINED_WITHOUT_VALUE"},
@@ -79,8 +79,8 @@ initialize_default(Config) ->
   ok.
 
 -spec initialize_custom_relative(config()) -> ok.
-initialize_custom_relative(Config) ->
-  RootUri  = ?config(root_uri, Config),
+initialize_custom_relative(_Config) ->
+  RootUri  = els_test_utils:root_uri(),
   ConfigPath = <<"../rebar3_release/erlang_ls.config">>,
   InitOpts = #{ <<"erlang">>
               => #{ <<"config_path">> => ConfigPath }},
@@ -91,8 +91,8 @@ initialize_custom_relative(Config) ->
   ok.
 
 -spec initialize_custom_absolute(config()) -> ok.
-initialize_custom_absolute(Config) ->
-  RootUri  = ?config(root_uri, Config),
+initialize_custom_absolute(_Config) ->
+  RootUri  = els_test_utils:root_uri(),
   ConfigPath = filename:join( els_uri:path(RootUri)
                             , "../rebar3_release/erlang_ls.config"),
   InitOpts = #{ <<"erlang">>
@@ -105,7 +105,7 @@ initialize_custom_absolute(Config) ->
 
 -spec initialize_diagnostics_default(config()) -> ok.
 initialize_diagnostics_default(Config) ->
-  RootUri = ?config(root_uri, Config),
+  RootUri = els_test_utils:root_uri(),
   DataDir = ?config(data_dir, Config),
   ConfigPath = filename:join(DataDir, "diagnostics_default.config"),
   InitOpts = #{ <<"erlang">> => #{ <<"config_path">> => ConfigPath }},
@@ -117,7 +117,7 @@ initialize_diagnostics_default(Config) ->
 
 -spec initialize_diagnostics_custom(config()) -> ok.
 initialize_diagnostics_custom(Config) ->
-  RootUri = ?config(root_uri, Config),
+  RootUri = els_test_utils:root_uri(),
   DataDir = ?config(data_dir, Config),
   ConfigPath = filename:join(DataDir, "diagnostics_custom.config"),
   InitOpts = #{ <<"erlang">> => #{ <<"config_path">> => ConfigPath }},
@@ -136,7 +136,7 @@ initialize_diagnostics_custom(Config) ->
 
 -spec initialize_diagnostics_invalid(config()) -> ok.
 initialize_diagnostics_invalid(Config) ->
-  RootUri = ?config(root_uri, Config),
+  RootUri = els_test_utils:root_uri(),
   DataDir = ?config(data_dir, Config),
   ConfigPath = filename:join(DataDir, "diagnostics_invalid.config"),
   InitOpts = #{ <<"erlang">> => #{ <<"config_path">> => ConfigPath }},
@@ -156,7 +156,7 @@ initialize_diagnostics_invalid(Config) ->
 
 -spec initialize_lenses_default(config()) -> ok.
 initialize_lenses_default(Config) ->
-  RootUri = ?config(root_uri, Config),
+  RootUri = els_test_utils:root_uri(),
   DataDir = ?config(data_dir, Config),
   ConfigPath = filename:join(DataDir, "lenses_default.config"),
   InitOpts = #{ <<"erlang">> => #{ <<"config_path">> => ConfigPath }},
@@ -168,7 +168,7 @@ initialize_lenses_default(Config) ->
 
 -spec initialize_lenses_custom(config()) -> ok.
 initialize_lenses_custom(Config) ->
-  RootUri = ?config(root_uri, Config),
+  RootUri = els_test_utils:root_uri(),
   DataDir = ?config(data_dir, Config),
   ConfigPath = filename:join(DataDir, "lenses_custom.config"),
   InitOpts = #{ <<"erlang">> => #{ <<"config_path">> => ConfigPath }},
@@ -183,7 +183,7 @@ initialize_lenses_custom(Config) ->
 
 -spec initialize_lenses_invalid(config()) -> ok.
 initialize_lenses_invalid(Config) ->
-  RootUri = ?config(root_uri, Config),
+  RootUri = els_test_utils:root_uri(),
   DataDir = ?config(data_dir, Config),
   ConfigPath = filename:join(DataDir, "lenses_invalid.config"),
   InitOpts = #{ <<"erlang">> => #{ <<"config_path">> => ConfigPath }},

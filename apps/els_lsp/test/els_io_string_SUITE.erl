@@ -48,8 +48,8 @@ end_per_testcase(_TestCase, _Config) -> ok.
 %%==============================================================================
 
 -spec scan_forms(config()) -> ok.
-scan_forms(Config) ->
-  Path         = path(Config),
+scan_forms(_Config) ->
+  Path         = path(),
   {ok, IoFile} = file:open(Path, [read]),
   Expected     = scan_all_forms(IoFile, []),
   ok           = file:close(IoFile),
@@ -76,7 +76,7 @@ scan_all_forms(IoDevice, Acc) ->
       Acc
   end.
 
--spec path(config()) -> string().
-path(Config) ->
-  RootPath = ?config(root_path, Config) ,
+-spec path() -> string().
+path() ->
+  RootPath = els_test_utils:root_path(),
   filename:join([RootPath, "src", "code_navigation.erl"]).

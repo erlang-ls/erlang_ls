@@ -41,6 +41,7 @@
         , record_expr_macro_name/1
         , record_field/1
         , record_field_included/1
+        , record_type_macro_name/1
         , type_application_remote/1
         , type_application_undefined/1
         , type_application_user/1
@@ -302,10 +303,10 @@ macro_with_args_included(Config) ->
 -spec macro_with_implicit_args(config()) -> ok.
 macro_with_implicit_args(Config) ->
   Uri = ?config(code_navigation_uri, Config),
-  Def = els_client:definition(Uri, 123, 5),
+  Def = els_client:definition(Uri, 124, 5),
   #{result := #{range := Range, uri := DefUri}} = Def,
   ?assertEqual(Uri, DefUri),
-  ?assertEqual( els_protocol:range(#{from => {117, 9}, to => {117, 16}})
+  ?assertEqual( els_protocol:range(#{from => {118, 9}, to => {118, 16}})
               , Range),
   ok.
 
@@ -342,7 +343,7 @@ record_access_included(Config) ->
 -spec record_access_macro_name(config()) -> ok.
 record_access_macro_name(Config) ->
   Uri = ?config(code_navigation_uri, Config),
-  Def = els_client:definition(Uri, 115, 33),
+  Def = els_client:definition(Uri, 116, 33),
   #{result := #{range := Range, uri := DefUri}} = Def,
   ?assertEqual(Uri, DefUri),
   ?assertEqual( els_protocol:range(#{from => {111, 9}, to => {111, 16}})
@@ -374,7 +375,7 @@ record_expr_included(Config) ->
 -spec record_expr_macro_name(config()) -> ok.
 record_expr_macro_name(Config) ->
   Uri = ?config(code_navigation_uri, Config),
-  Def = els_client:definition(Uri, 114, 11),
+  Def = els_client:definition(Uri, 115, 11),
   #{result := #{range := Range, uri := DefUri}} = Def,
   ?assertEqual(Uri, DefUri),
   ?assertEqual( els_protocol:range(#{from => {111, 9}, to => {111, 16}})
@@ -401,6 +402,16 @@ record_field_included(Config) ->
               , Range),
   ok.
 
+-spec record_type_macro_name(config()) -> ok.
+record_type_macro_name(Config) ->
+  Uri = ?config(code_navigation_uri, Config),
+  Def = els_client:definition(Uri, 113, 28),
+  #{result := #{range := Range, uri := DefUri}} = Def,
+  ?assertEqual(Uri, DefUri),
+  ?assertEqual( els_protocol:range(#{from => {111, 9}, to => {111, 16}})
+              , Range),
+  ok.
+
 -spec type_application_remote(config()) -> ok.
 type_application_remote(Config) ->
   ExtraUri = ?config(code_navigation_extra_uri, Config),
@@ -408,7 +419,7 @@ type_application_remote(Config) ->
   Def = els_client:definition(ExtraUri, 11, 38),
   #{result := #{range := Range, uri := DefUri}} = Def,
   ?assertEqual(TypesUri, DefUri),
-  ?assertEqual( els_protocol:range(#{from => {3, 7}, to => {3, 13}})
+  ?assertEqual( els_protocol:range(#{from => {3, 1}, to => {3, 26}})
               , Range),
   ok.
 
@@ -431,7 +442,7 @@ type_application_user(Config) ->
   Def = els_client:definition(Uri, 55, 25),
   #{result := #{range := Range, uri := DefUri}} = Def,
   ?assertEqual(Uri, DefUri),
-  ?assertEqual( els_protocol:range(#{from => {37, 7}, to => {37, 13}})
+  ?assertEqual( els_protocol:range(#{from => {37, 1}, to => {37, 25}})
               , Range),
   ok.
 
@@ -441,7 +452,7 @@ type_export_entry(Config) ->
   Def = els_client:definition(Uri, 9, 17),
   #{result := #{range := Range, uri := DefUri}} = Def,
   ?assertEqual(Uri, DefUri),
-  ?assertEqual( els_protocol:range(#{from => {37, 7}, to => {37, 13}})
+  ?assertEqual( els_protocol:range(#{from => {37, 1}, to => {37, 25}})
               , Range),
   ok.
 
@@ -476,7 +487,7 @@ opaque_application_remote(Config) ->
   Def = els_client:definition(ExtraUri, 16, 61),
   #{result := #{range := Range, uri := DefUri}} = Def,
   ?assertEqual(TypesUri, DefUri),
-  ?assertEqual( els_protocol:range(#{from => {7, 9}, to => {7, 22}})
+  ?assertEqual( els_protocol:range(#{from => {7, 1}, to => {7, 35}})
               , Range),
   ok.
 
@@ -486,6 +497,6 @@ opaque_application_user(Config) ->
   Def      = els_client:definition(ExtraUri, 16, 24),
   #{result := #{range := Range, uri := DefUri}} = Def,
   ?assertEqual(ExtraUri, DefUri),
-  ?assertEqual( els_protocol:range(#{from => {20, 9}, to => {20, 21}})
+  ?assertEqual( els_protocol:range(#{from => {20, 1}, to => {20, 34}})
               , Range),
   ok.

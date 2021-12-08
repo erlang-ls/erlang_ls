@@ -61,6 +61,7 @@ available_diagnostics() ->
   , <<"compiler">>
   , <<"crossref">>
   , <<"dialyzer">>
+  , <<"gradualizer">>
   , <<"elvis">>
   , <<"unused_includes">>
   , <<"unused_macros">>

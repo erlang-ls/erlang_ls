@@ -10,6 +10,8 @@
         , wait_for/2
         , wait_for_fun/3
         , wait_until_mock_called/2
+        , root_path/0
+        , root_uri/0
         ]).
 
 -include_lib("common_test/include/ct.hrl").
@@ -17,13 +19,12 @@
 %%==============================================================================
 %% Defines
 %%==============================================================================
--define(TEST_APP, <<"code_navigation">>).
+-define(TEST_APP, "code_navigation").
 
 %%==============================================================================
 %% Types
 %%==============================================================================
 -type config() :: [{atom(), any()}].
--type file_type() :: src | test | include | escript.
 
 %%==============================================================================
 %% API
@@ -40,14 +41,8 @@ all(Module, Functions) ->
 
 -spec init_per_suite(config()) -> config().
 init_per_suite(Config) ->
-  PrivDir = code:priv_dir(els_lsp),
-  RootPath = filename:join([ els_utils:to_binary(PrivDir)
-                           , ?TEST_APP]),
-  RootUri = els_uri:uri(RootPath),
   application:load(els_core),
-  [ {root_uri, RootUri}
-  , {root_path, RootPath}
-  | Config ].
+  Config.
 
 -spec end_per_suite(config()) -> ok.
 end_per_suite(_Config) ->
@@ -58,18 +53,12 @@ init_per_testcase(_TestCase, Config) ->
   meck:new(els_distribution_server, [no_link, passthrough]),
   meck:expect(els_distribution_server, connect, 0, ok),
   Started   = start(),
-  RootPath  = ?config(root_path, Config),
-  RootUri   = ?config(root_uri, Config),
-  els_client:initialize(RootUri, #{indexingEnabled => false}),
+  els_client:initialize(root_uri(), #{indexingEnabled => false}),
   els_client:initialized(),
-  SrcConfig = lists:flatten(
-                [index_file(RootPath, src, S) || S <- sources()]),
-  TestConfig = lists:flatten(
-                 [index_file(RootPath, test, S) || S <- tests()]),
-  EscriptConfig = lists:flatten(
-                    [index_file(RootPath, escript, S) || S <- escripts()]),
-  IncludeConfig = lists:flatten(
-                    [index_file(RootPath, include, S) || S <- includes()]),
+  SrcConfig = lists:flatten([index_file(S) || S <- sources()]),
+  TestConfig = lists:flatten([index_file(S) || S <- tests()]),
+  EscriptConfig = lists:flatten([index_file(S) || S <- escripts()]),
+  IncludeConfig = lists:flatten([index_file(S) || S <- includes()]),
   lists:append( [ SrcConfig
                 , TestConfig
                 , EscriptConfig
@@ -118,133 +107,48 @@ wait_for_fun(CheckFun, WaitTime, Retries) ->
       wait_for_fun(CheckFun, WaitTime, Retries - 1)
   end.
 
--spec sources() -> [atom()].
+-spec sources() -> [binary()].
 sources() ->
-  [ 'diagnostics.new'
-  , behaviour_a
-  , code_lens_function_references
-  , code_navigation
-  , code_navigation_extra
-  , code_navigation_types
-  , code_navigation_undefined
-  , 'Code.Navigation.Elixirish'
-  , completion
-  , completion_caller
-  , completion_resolve
-  , completion_resolve_2
-  , completion_snippets
-  , completion_attributes
-  , completion_incomplete
-  , diagnostics
-  , diagnostics_bound_var_in_pattern
-  , diagnostics_autoimport
-  , diagnostics_autoimport_disabled
-  , diagnostics_behaviour
-  , diagnostics_behaviour_impl
-  , diagnostics_macros
-  , diagnostics_parse_transform
-  , diagnostics_parse_transform_broken
-  , diagnostics_parse_transform_deps_a
-  , diagnostics_parse_transform_deps_b
-  , diagnostics_parse_transform_deps_c
-  , diagnostics_parse_transform_usage
-  , diagnostics_parse_transform_usage_list
-  , diagnostics_parse_transform_usage_broken
-  , diagnostics_parse_transform_usage_included
-  , diagnostics_xref
-  , diagnostics_xref_pseudo
-  , diagnostics_unused_includes
-  , diagnostics_unused_includes_compiler_attribute
-  , diagnostics_unused_macros
-  , diagnostics_unused_record_fields
-  , elvis_diagnostics
-  , execute_command_suggest_spec
-  , format_input
-  , hover_docs
-  , hover_docs_caller
-  , hover_macro
-  , hover_record_expr
-  , implementation
-  , implementation_a
-  , implementation_b
-  , my_gen_server
-  , rename
-  , rename_function
-  , rename_function_import
-  , rename_type
-  , rename_usage1
-  , rename_usage2
-  , rename_variable
-  , call_hierarchy_a
-  , call_hierarchy_b
-  , call_hierarchy_c
-  ].
+  wildcard("*.erl", "src").
 
+-spec tests() -> [binary()].
 tests() ->
-  [ sample_SUITE
-  ].
+  wildcard("*.erl", "test").
 
--spec escripts() -> [atom()].
+-spec escripts() -> [binary()].
 escripts() ->
-  [ diagnostics
-  , diagnostics_warnings
-  , diagnostics_errors
-  ].
+  wildcard("*.escript", "src").
 
--spec includes() -> [atom()].
+-spec includes() -> [binary()].
 includes() ->
-  [ code_navigation
-  , transitive
-  , definition
-  , diagnostics
-  , rename
-  ].
+  wildcard("*.hrl", "include").
 
 %% @doc Index a file and produce the respective config entries
 %%
-%%      Given an identifier representing a source or include file,
-%%      index it and produce a config containing the respective path,
-%%      uri and text to simplify accessing this information from test
-%%      cases.
--spec index_file(binary(), file_type(), atom()) -> [{atom(), any()}].
-index_file(RootPath, Type, Id) ->
-  BinaryId = atom_to_binary(Id, utf8),
-  Ext = extension(Type),
-  Dir = directory(Type),
-  Path = filename:join([RootPath, Dir, <<BinaryId/binary, Ext/binary>>]),
+%%      Given the path to a source file, index it and produce a config
+%%      containing the respective path, uri and text to simplify
+%%      accessing this information from test cases.
+-spec index_file(binary()) -> [{atom(), any()}].
+index_file(Path) ->
   {ok, Uri} = els_indexing:index_file(Path),
   {ok, Text} = file:read_file(Path),
-  ConfigId = config_id(Id, Type),
+  ConfigId = config_id(Path),
   [ {atoms_append(ConfigId, '_path'), Path}
   , {atoms_append(ConfigId, '_uri'), Uri}
   , {atoms_append(ConfigId, '_text'), Text}
   ].
 
--spec config_id(atom(), file_type()) -> atom().
-config_id(Id, src) -> Id;
-config_id(Id, test) -> Id;
-config_id(Id, include) -> list_to_atom(atom_to_list(Id) ++ "_h");
-config_id(Id, escript) -> list_to_atom(atom_to_list(Id) ++ "_escript").
+-spec suffix(binary()) -> binary().
+suffix(<<".erl">>) -> <<"">>;
+suffix(<<".hrl">>) -> <<"_h">>;
+suffix(<<".escript">>) -> <<"_escript">>.
 
--spec directory(file_type()) -> binary().
-directory(src) ->
-  <<"src">>;
-directory(test) ->
-  <<"test">>;
-directory(include) ->
-  <<"include">>;
-directory(escript) ->
-  <<"src">>.
-
--spec extension(file_type()) -> binary().
-extension(src) ->
-  <<".erl">>;
-extension(test) ->
-  <<".erl">>;
-extension(include) ->
-  <<".hrl">>;
-extension(escript) ->
-  <<".escript">>.
+-spec config_id(string()) -> atom().
+config_id(Path) ->
+  Extension = filename:extension(Path),
+  BaseName = filename:basename(Path, Extension),
+  Suffix = suffix(Extension),
+  binary_to_atom(<<BaseName/binary, Suffix/binary>>, utf8).
 
 -spec atoms_append(atom(), atom()) -> atom().
 atoms_append(Atom1, Atom2) ->
@@ -261,3 +165,18 @@ wait_until_mock_called(M, F) ->
     _ ->
       ok
   end.
+
+-spec root_path() -> binary().
+root_path() ->
+  PrivDir = code:priv_dir(els_lsp),
+  els_utils:to_binary(filename:join([PrivDir, ?TEST_APP])).
+
+-spec root_uri() -> els_uri:uri().
+root_uri() ->
+  els_uri:uri(root_path()).
+
+-spec wildcard(string(), string()) -> [binary()].
+wildcard(Extension, Dir) ->
+  RootDir = els_utils:to_list(root_path()),
+  [els_utils:to_binary(filename:join([RootDir, Dir, Path])) ||
+    Path <- filelib:wildcard(Extension, filename:join([RootDir, Dir]))].
