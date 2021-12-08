@@ -71,7 +71,6 @@ run(Uri)->
 
 -spec run(uri(), number()) -> [els_diagnostics:diagnostic()]. 
 run(Uri, RecursionDepth) when RecursionDepth < ?MAX_RECURSION_DEPTH ->
-  els_server:send_notification(<<"window/showMessage">>, #{ type => ?MESSAGE_TYPE_ERROR, message => <<"HERH!">> }),
   case filename:extension(Uri) of
     <<".erl">> -> 
       case els_refactorerl_utils:referl_node() of
