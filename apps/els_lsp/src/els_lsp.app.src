@@ -15,7 +15,8 @@
         getopt,
         erlfmt,
         els_core,
-        gradualizer
+        gradualizer,
+        rebar3_sheldon
     ]},
     {env, []},
     {modules, []},

@@ -29,3 +29,4 @@ doc
 # Emacs temporary files
 .#*
 *#
+rebar3

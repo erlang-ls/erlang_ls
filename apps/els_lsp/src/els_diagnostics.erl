@@ -39,12 +39,14 @@
 -callback run(uri())                         -> [diagnostic()].
 -callback source()                           -> binary().
 -callback on_complete(uri(), [diagnostic()]) -> ok.
--optional_callbacks([ on_complete/2 ]).
+-callback init()                             -> ok.
+-optional_callbacks([ on_complete/2, init/0 ]).
 
 %%==============================================================================
 %% API
 %%==============================================================================
--export([ available_diagnostics/0
+-export([ init/0
+        , available_diagnostics/0
         , default_diagnostics/0
         , enabled_diagnostics/0
         , make_diagnostic/4
@@ -55,6 +57,15 @@
 %% API
 %%==============================================================================
 
+-spec init() -> ok.
+init() ->
+  case els_config:get(diagnostics) of
+    undefined ->
+      ok;
+    _ ->
+      init_diagnostics(enabled_diagnostics())
+  end.
+
 -spec available_diagnostics() -> [diagnostic_id()].
 available_diagnostics() ->
   [ <<"bound_var_in_pattern">>
@@ -63,6 +74,7 @@ available_diagnostics() ->
   , <<"dialyzer">>
   , <<"gradualizer">>
   , <<"elvis">>
+  , <<"sheldon">>
   , <<"unused_includes">>
   , <<"unused_macros">>
   , <<"unused_record_fields">>
@@ -146,3 +158,16 @@ valid(Ids0) ->
                                     })
   end,
   Valid.
+
+-spec init_diagnostics([binary()]) -> ok.
+init_diagnostics([]) ->
+  ok;
+init_diagnostics([Id|T]) ->
+  CbModule = cb_module(Id),
+  case erlang:function_exported(CbModule, init, 0) of
+    true ->
+      CbModule:init();
+    false ->
+      ok
+  end,
+  init_diagnostics(T).
