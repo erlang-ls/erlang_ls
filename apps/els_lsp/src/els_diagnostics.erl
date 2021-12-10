@@ -45,7 +45,8 @@
 %%==============================================================================
 %% API
 %%==============================================================================
--export([ available_diagnostics/0
+-export([ init/0
+        , available_diagnostics/0
         , default_diagnostics/0
         , enabled_diagnostics/0
         , make_diagnostic/4
@@ -55,6 +56,15 @@
 %%==============================================================================
 %% API
 %%==============================================================================
+
+-spec init() -> ok.
+init() ->
+  case els_config:get(diagnostics) of
+    undefined ->
+      ok;
+    _ ->
+      init_diagnostics(enabled_diagnostics())
+  end.
 
 -spec available_diagnostics() -> [diagnostic_id()].
 available_diagnostics() ->
@@ -118,7 +128,6 @@ run_diagnostic(Uri, Id) ->
                     els_diagnostics_provider:notify(Diagnostics, self())
                 end
             },
-  ok = init_diagnostic(CbModule),
   {ok, Pid} = els_background_job:new(Config),
   Pid.
 
@@ -150,11 +159,15 @@ valid(Ids0) ->
   end,
   Valid.
 
--spec init_diagnostic(atom()) -> ok.
-init_diagnostic(CbModule) ->
+-spec init_diagnostics([binary()]) -> ok.
+init_diagnostics([]) ->
+  ok;
+init_diagnostics([Id|T]) ->
+  CbModule = cb_module(Id),
   case erlang:function_exported(CbModule, init, 0) of
     true ->
       CbModule:init();
     false ->
       ok
-  end.
+  end,
+  init_diagnostics(T).

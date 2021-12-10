@@ -42,6 +42,7 @@ options() ->
 
 -spec init() -> state().
 init() ->
+  ok = els_diagnostics:init(),
   #{ in_progress => [] }.
 
 %% LSP 3.15 introduce versioning for diagnostics. Until all clients
