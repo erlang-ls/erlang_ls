@@ -41,6 +41,7 @@
         , unused_macros/1
         , unused_record_fields/1
         , gradualizer/1
+        , module_name_check/1
         ]).
 
 %%==============================================================================
@@ -651,6 +652,20 @@ gradualizer(_Config) ->
                       "but it has type false | true\n">>
                 , range => {{10, 0}, {11, 0}}}
              ],
+  Hints = [],
+  els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
+
+-spec module_name_check(config()) -> ok.
+module_name_check(_Config) ->
+  Path = src_path("diagnostics_module_name_check.erl"),
+  Source = <<"Compiler (via Erlang LS)">>,
+  Errors = [ #{ message =>
+                  <<"Module name 'module_name_check' does not match "
+                    "file name 'diagnostics_module_name_check'">>
+              , range => {{0, 8}, {0, 25}}
+              }
+           ],
+  Warnings = [],
   Hints = [],
   els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
 
