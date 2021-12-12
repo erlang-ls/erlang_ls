@@ -9,6 +9,8 @@
 %% Test cases
 -export([ specs_location/1
         , parse_invalid_code/1
+        , parse_incomplete_function/1
+        , parse_incomplete_spec/1
         , underscore_macro/1
         , specs_with_record/1
         , types_with_record/1
@@ -58,11 +60,48 @@ specs_location(_Config) ->
   ?assertMatch([_], parse_find_pois(Text, spec, {foo, 1})),
   ok.
 
-%% Issue #170
+%% Issue #170 - scanning error does not crash the parser
 -spec parse_invalid_code(config()) -> ok.
 parse_invalid_code(_Config) ->
   Text = "foo(X) -> 16#.",
-  {ok, _POIs} = els_parser:parse(Text),
+  %% Currently, if scanning fails (eg. invalid integer), no POIs are created
+  {ok, []} = els_parser:parse(Text),
+  %% In the future, it would be nice to have at least the POIs before the error
+  %% ?assertMatch([#{id := {foo, 1}}], parse_find_pois(Text, function)),
+  %% ?assertMatch([#{id := 'X'}], parse_find_pois(Text, variable)),
+
+  %% Or at least the POIs from the previous forms
+  Text2 =
+    "bar() -> ok.\n"
+    "foo() -> 'ato",
+  %% (unterminated atom)
+  {ok, []} = els_parser:parse(Text2),
+  %% ?assertMatch([#{id := {bar, 0}}], parse_find_pois(Text2, function)),
+  ok.
+
+%% Issue #1037
+-spec parse_incomplete_function(config()) -> ok.
+parse_incomplete_function(_Config) ->
+  Text = "f(VarA) -> VarB = g(), case h() of VarC -> Var",
+
+  %% VarA and VarB are found, but VarC is not
+  ?assertMatch([#{id := 'VarA'},
+                #{id := 'VarB'}], parse_find_pois(Text, variable)),
+  %% g() is found but h() is not
+  ?assertMatch([#{id := {g, 0}}], parse_find_pois(Text, application)),
+
+  ?assertMatch([#{id := {f, 1}}], parse_find_pois(Text, function)),
+  ok.
+
+-spec parse_incomplete_spec(config()) -> ok.
+parse_incomplete_spec(_Config) ->
+  Text = "-spec f() -> aa bb cc\n.",
+
+  %% spec range ends where the original dot ends, including ignored parts
+  ?assertMatch([#{id := {f, 0}, range := #{from := {1, 1}, to := {2, 2}}}],
+                parse_find_pois(Text, spec)),
+  %% only first atom is found
+  ?assertMatch([#{id := aa}], parse_find_pois(Text, atom)),
   ok.
 
 -spec underscore_macro(config()) -> ok.
