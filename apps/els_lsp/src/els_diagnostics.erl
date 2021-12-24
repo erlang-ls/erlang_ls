@@ -90,7 +90,7 @@ make_diagnostic(Range, Message, Severity, Source) ->
 
 -spec run_diagnostics(uri()) -> [pid()].
 run_diagnostics(Uri) ->
-  [run_diagnostic(Uri, Id) || Id <- enabled_diagnostics()].
+  [run_diagnostic(Uri, Id) || Id <- els_config:get(enabled_diagnostics)].
 
 %%==============================================================================
 %% Internal Functions
