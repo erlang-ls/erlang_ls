@@ -22,7 +22,8 @@
 
 -callback is_enabled() -> boolean().
 -callback init() -> any().
--callback handle_request(request(), any()) -> {any(), any()}.
+-callback handle_request(request(), any()) ->
+  {any(), any()} | {'async', pid(), any()}.
 -callback handle_info(any(), any()) -> any().
 -callback cancel_request(pid(), any()) -> any().
 -optional_callbacks([init/0, handle_info/2, cancel_request/2]).
@@ -46,13 +47,16 @@
                   | els_bsp_provider.
 -type request()  :: {atom() | binary(), map()}.
 -type state()    :: #{ provider := provider()
+                     , in_progress := [{job(), data()}]
                      , internal_state := any()
                      }.
-
+-type job() :: pid().
+-type data() :: any().
 -export_type([ config/0
              , provider/0
              , request/0
              , state/0
+             , job/0
              ]).
 
 %%==============================================================================
@@ -84,28 +88,40 @@ init(Provider) ->
                     false ->
                       #{}
                   end,
-  {ok, #{provider => Provider, internal_state => InternalState}}.
+  {ok, #{ provider => Provider
+        , internal_state => InternalState
+        , in_progress => []
+        }}.
 
 -spec handle_call(any(), {pid(), any()}, state()) ->
   {reply, any(), state()}.
 handle_call({handle_request, Request}, _From, State) ->
   #{internal_state := InternalState, provider := Provider} = State,
-  {Reply, NewInternalState} = Provider:handle_request(Request, InternalState),
-  {reply, Reply, State#{internal_state => NewInternalState}}.
+  Response = Provider:handle_request(Request, InternalState),
+  case Response of
+    {async, Job, NewInternalState} ->
+      #{in_progress := InProgress} = State,
+      {reply, Job, State#{ internal_state => NewInternalState
+                         , in_progress => [Job|InProgress]
+                         }};
+    {Reply, NewInternalState} ->
+      {reply, Reply, State#{ internal_state => NewInternalState }}
+  end.
 
 -spec handle_cast(any(), state()) -> {noreply, state()}.
 handle_cast({cancel_request, Job}, State) ->
-  #{internal_state := InternalState, provider := Provider} = State,
-  case erlang:function_exported(Provider, cancel_request, 2) of
-    true ->
-      NewInternalState = Provider:cancel_request(Job, InternalState),
-      {noreply, State#{internal_state => NewInternalState}};
-    false ->
-      {noreply, State}
-  end.
+  ?LOG_DEBUG("Cancelling request [job=~p]", [Job]),
+  els_background_job:stop(Job),
+  #{ in_progress := InProgress } = State,
+  {noreply, State#{ in_progress => lists:delete(Job, InProgress) }}.
 
 -spec handle_info(any(), state()) ->
   {noreply, state()}.
+handle_info({'$els_result', Result, Job}, State) ->
+  ?LOG_DEBUG("Received result [job=~p]", [Job]),
+  #{in_progress := InProgress} = State,
+  els_server:send_response(Job, Result),
+  {noreply, State#{ in_progress => lists:delete(Job, InProgress) }};
 handle_info(Request, State) ->
   #{provider := Provider, internal_state := InternalState} = State,
   case erlang:function_exported(Provider, handle_info, 2) of

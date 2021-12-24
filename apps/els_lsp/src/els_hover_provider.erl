@@ -4,12 +4,9 @@
 -module(els_hover_provider).
 
 -behaviour(els_provider).
-
--export([ handle_info/2
-        , handle_request/2
+-export([ handle_request/2
         , is_enabled/0
         , init/0
-        , cancel_request/2
         ]).
 
 -include("els_lsp.hrl").
@@ -20,9 +17,7 @@
 %%==============================================================================
 %% Types
 %%==============================================================================
--type state() :: #{in_progress => [progress_entry()]}.
--type progress_entry() :: {uri(), job()}.
--type job() :: pid().
+-type state() :: #{}.
 
 %%==============================================================================
 %% els_provider functions
@@ -33,11 +28,10 @@ is_enabled() ->
 
 -spec init() -> state().
 init() ->
-  #{ in_progress => []}.
+  #{}.
 
--spec handle_request(any(), state()) -> {any(), state()}.
+-spec handle_request(any(), state()) -> {'async', pid(), state()}.
 handle_request({hover, Params}, State) ->
-  #{in_progress := InProgress} = State,
   #{ <<"position">>     := #{ <<"line">>      := Line
                             , <<"character">> := Character
                             }
@@ -47,23 +41,7 @@ handle_request({hover, Params}, State) ->
              , [Uri, Line, Character]
              ),
    Job = run_hover_job(Uri, Line, Character),
-   {Job, State#{in_progress => [{Uri, Job}|InProgress]}}.
-
-
--spec handle_info(any(), state()) -> state().
-handle_info({result, HoverResp, Job}, State) ->
-  ?LOG_DEBUG("Received hover result [job=~p]", [Job]),
-  #{ in_progress := InProgress } = State,
-  els_server:send_response(Job, HoverResp),
-  State#{ in_progress => lists:keydelete(Job, 2, InProgress) }.
-
--spec cancel_request(job(), state()) -> state().
-cancel_request(Job, State) ->
-  ?LOG_DEBUG("Cancelling hover [job=~p]", [Job]),
-  els_background_job:stop(Job),
-  #{ in_progress := InProgress } = State,
-  State#{ in_progress => lists:keydelete(Job, 2, InProgress) }.
-
+   {async, Job, State}.
 
 %%==============================================================================
 %% Internal Functions
@@ -76,7 +54,7 @@ run_hover_job(Uri, Line, Character) ->
             , title => <<"Hover">>
             , on_complete =>
                 fun(HoverResp) ->
-                    ?SERVER ! {result, HoverResp, self()},
+                    ?SERVER ! {'$els_result', HoverResp, self()},
                     ok
                 end
             },

@@ -37,7 +37,8 @@ is_enabled() ->
 trigger_characters() ->
   [<<":">>, <<"#">>, <<"?">>, <<".">>, <<"-">>, <<"\"">>].
 
--spec handle_request(els_provider:request(), state()) -> {any(), state()}.
+-spec handle_request(els_provider:request(), state()) ->
+        {any(), state()}.
 handle_request({completion, Params}, State) ->
   #{ <<"position">>     := #{ <<"line">>      := Line
                             , <<"character">> := Character
