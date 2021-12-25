@@ -272,22 +272,13 @@ try_yaml(Path) ->
 
 -spec try_eterm(path(), boolean()) -> {ok, map()} | {error, atom(), term()}.
 try_eterm(Path, TryYaml) ->
-  case consult_file(Path) of
+  case file:consult(Path) of
     {ok, Config} ->
       {ok, maps:from_list(Config)};
     {error, _} when TryYaml ->
       try_yaml(Path);
     {error, Reason} ->
       {error, error, Reason}
-  end.
-
--spec consult_file(path()) -> [map()] | {ok, [term()]} | {error, term()}.
-consult_file(Path) ->
-  case string:find(Path, ".yaml", trailing) of
-    nomatch ->
-      file:consult(Path);
-    ".yaml" ->
-      yamerl:decode_file(Path, [{map_node_format, map}])
   end.
 
 -spec report_missing_config() -> ok.
