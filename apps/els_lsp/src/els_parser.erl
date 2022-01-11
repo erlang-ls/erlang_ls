@@ -99,11 +99,16 @@ parse_form(Form) ->
 scan_text(Text, StartLoc) ->
   PaddedText = pad_text(Text, StartLoc),
   {ok, Tokens, _Comments, _Cont} = erlfmt_scan:string_node(PaddedText),
-  ensure_dot(Tokens).
+  case Tokens of
+    [] -> [];
+    _ -> ensure_dot(Tokens)
+  end.
 
 -spec parse_incomplete_tokens([erlfmt_scan:token()])
                              -> {ok, erlfmt_parse:abstract_node()} | error.
 parse_incomplete_tokens([{dot, _}]) ->
+  error;
+parse_incomplete_tokens([]) ->
   error;
 parse_incomplete_tokens(Tokens) ->
   case erlfmt_parse:parse_node(Tokens) of
@@ -139,7 +144,7 @@ pad_text(Text, {StartLine, StartColumn}) ->
     ++ lists:duplicate(StartColumn - 1, $\s)
     ++ Text.
 
--spec ensure_dot([erlfmt_scan:token()]) -> [erlfmt_scan:token()].
+-spec ensure_dot([erlfmt_scan:token(), ...]) -> [erlfmt_scan:token(), ...].
 ensure_dot(Tokens) ->
   case lists:last(Tokens) of
     {dot, _} ->

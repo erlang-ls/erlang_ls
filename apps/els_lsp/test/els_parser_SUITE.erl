@@ -11,6 +11,7 @@
         , parse_invalid_code/1
         , parse_incomplete_function/1
         , parse_incomplete_spec/1
+        , parse_no_tokens/1
         , underscore_macro/1
         , specs_with_record/1
         , types_with_record/1
@@ -103,6 +104,28 @@ parse_incomplete_spec(_Config) ->
   %% only first atom is found
   ?assertMatch([#{id := aa}], parse_find_pois(Text, atom)),
   ok.
+
+%% Issue #1171
+parse_no_tokens(_Config) ->
+  %% scanning text containing only whitespaces returns an empty list of tokens,
+  %% which used to crash els_parser
+  Text1 = "  \n  ",
+  {ok, []} = els_parser:parse(Text1),
+  %% `els_parser:parse' actually catches the exception and only prints a warning
+  %% log. In order to make sure there is no crash, we need to call an internal
+  %% debug function that would really crash and make the test case fail
+  error = els_parser:parse_incomplete_text(Text1, {1, 1}),
+
+  %% same for text only containing comments
+  Text2 = "%% only a comment",
+  {ok, []} = els_parser:parse(Text2),
+  error = els_parser:parse_incomplete_text(Text2, {1, 1}),
+
+  %% trailing comment, also used to crash els_parser
+  Text3 =
+    "-module(m).\n"
+    "%% trailing comment",
+  {ok, [#{id := m, kind := module}]} = els_parser:parse(Text3).
 
 -spec underscore_macro(config()) -> ok.
 underscore_macro(_Config) ->
