@@ -197,6 +197,11 @@ handle_request(Response, State0) ->
   State0.
 
 -spec do_send_notification(binary(), map(), state()) -> ok.
+%% This notification is specifically filtered out to avoid recursive
+%% calling of log notifications (see issue #1050)
+do_send_notification(<<"window/logMessage">> = Method, Params, State) ->
+  Notification = els_protocol:notification(Method, Params),
+  send(Notification, State);
 do_send_notification(Method, Params, State) ->
   Notification = els_protocol:notification(Method, Params),
   ?LOG_DEBUG( "[SERVER] Sending notification [notification=~s]"
