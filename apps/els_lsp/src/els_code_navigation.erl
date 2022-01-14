@@ -36,7 +36,7 @@ goto_definition( Uri
     [] -> {error, not_in_function_clause};
     FunRanges ->
       FunRange = lists:last(FunRanges),
-      %% Find the first occurance of the variable in the function clause
+      %% Find the first occurrence of the variable in the function clause
       [POI|_] = [P || P = #{range := Range, id := Id} <- VarPOIs,
                       els_range:compare(Range, VarRange),
                       els_range:compare(FunRange, Range),
@@ -61,7 +61,7 @@ goto_definition( Uri
                       Kind =:= implicit_fun;
                       Kind =:= export_entry ->
   %% try to find local function first
-  %% fall back to bif search if unsuccesful
+  %% fall back to bif search if unsuccessful
   case find(Uri, function, {F, A}) of
     {error, Error} ->
       case is_imported_bif(Uri, F, A) of
