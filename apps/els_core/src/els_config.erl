@@ -154,6 +154,7 @@ do_initialize(RootUri, Capabilities, InitOptions, {ConfigPath, Config}) ->
   ok = set(otp_paths      , otp_paths(OtpPath, false) -- ExcludePaths),
   ok = set(lenses         , Lenses),
   ok = set(diagnostics    , Diagnostics),
+  ok = set(enabled_diagnostics, els_diagnostics:enabled_diagnostics()),
   %% All (including subdirs) paths used to search files with file:path_open/3
   ok = set( search_paths
           , lists:append([ project_paths(RootPath, AppsDirs, true)
