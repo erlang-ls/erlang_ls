@@ -23,11 +23,12 @@
 ;; Install the official Erlang mode
 (package-require 'erlang)
 
+;; Customize prefix for key-bindings
+;; This has to be done before lsp-mode itself is loaded
+(setq lsp-keymap-prefix "C-l")
+
 ;; Include the Language Server Protocol Clients
 (package-require 'lsp-mode)
-
-;; Customize prefix for key-bindings
-(setq lsp-keymap-prefix "C-l")
 
 ;; Enable LSP for Erlang files
 (add-hook 'erlang-mode-hook #'lsp)
