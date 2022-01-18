@@ -25,7 +25,6 @@
 %% @doc Extract the N-th line from a text.
 -spec line(text(), line_num()) -> text().
 line(Text, LineNum) ->
-  % LRB TODO Lines = binary:split(Text, <<"\n">>, [global]),
   Lines = binary:split(Text, [<<"\r\n">>, <<"\n">>], [global]),
   lists:nth(LineNum + 1, Lines).
 
@@ -108,7 +107,6 @@ lines_to_bin(Lines) ->
 
 -spec bin_to_lines(text()) -> lines().
 bin_to_lines(Text) ->
-  % LRB TODO [Bin || Bin <- binary:split(Text, <<"\n">>, [global])].
   [Bin || Bin <- binary:split(Text, [<<"\r\n">>, <<"\n">>], [global])].
 
 -spec ensure_string(binary() | string()) -> string().
