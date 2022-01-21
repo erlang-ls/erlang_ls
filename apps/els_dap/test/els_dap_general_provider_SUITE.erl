@@ -291,7 +291,7 @@ frame_variables(Config) ->
 
 -spec navigation_and_frames(config()) -> ok.
 navigation_and_frames(Config) ->
-  %% test next, stepIn, continue and check aginst expeted stack frames
+  %% test next, stepIn, continue and check against expected stack frames
   Provider = ?config(provider, Config),
   #{<<"threads">> := [#{<<"id">> := ThreadId}]} =
     els_provider:handle_request( Provider

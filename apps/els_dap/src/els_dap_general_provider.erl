@@ -1,7 +1,7 @@
 %%==============================================================================
 %% @doc Erlang DAP General Provider
 %%
-%% Implements the logic for hanlding all of the commands in the protocol.
+%% Implements the logic for handling all of the commands in the protocol.
 %%
 %% The functionality in this module will eventually be broken into several
 %% different providers.

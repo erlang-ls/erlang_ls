@@ -20,14 +20,14 @@ The [Debug Adapter Protocol](https://microsoft.github.io/debug-adapter-protocol/
 
 ## Rationale
 
-One of the strengths of the Erlang programming language is the ability to seemlessly _debug_ and _trace_ Erlang code. Many tools and libraries exist, but they are sometimes under-utilized by the Community, either because their API is not intuitive (think to the [dbg](https://erlang.org/doc/man/dbg.html) Erlang module), or because they offer a limited, obsolete, UI (think the [debugger](http://erlang.org/doc/apps/debugger/debugger_chapter.html) application).
+One of the strengths of the Erlang programming language is the ability to seamlessly _debug_ and _trace_ Erlang code. Many tools and libraries exist, but they are sometimes under-utilized by the Community, either because their API is not intuitive (think to the [dbg](https://erlang.org/doc/man/dbg.html) Erlang module), or because they offer a limited, obsolete, UI (think the [debugger](http://erlang.org/doc/apps/debugger/debugger_chapter.html) application).
 
 We want to solve this problem by leveraging some of the existing debugging and tracing facilities provided by Erlang/OTP and bringing the debugging experience directly in the text-editor, next to the code, improving the user experience when using such
 tools.
 
 [This video](https://www.youtube.com/watch?v=ydcrdwQKqI8&t=3s) shows what debugging Erlang code is like via the _debugger_ application. [This other video](https://www.youtube.com/watch?v=ydcrdwQKqI8) shows what the same experience looks like from Emacs.
 
-Due to the editor-agnostic nature of the _DAP_ protocol, a very similar experience is delivered to users of a different developement tool, be it _Vim_, _VS Code_ or _Sublime Text 3_.
+Due to the editor-agnostic nature of the _DAP_ protocol, a very similar experience is delivered to users of a different development tool, be it _Vim_, _VS Code_ or _Sublime Text 3_.
 
 ## Project Goal
 

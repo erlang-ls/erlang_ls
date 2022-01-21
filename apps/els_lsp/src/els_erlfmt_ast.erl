@@ -321,7 +321,7 @@ erlfmt_to_st(Node) ->
             %% clauses of case/if/receive/try
             erlfmt_clause_to_st(Clause);
         %% Lists are represented as a `list` node instead of a chain of `cons`
-        %% and `nil` nodes, similar to the `tuple` node. The last elemenent of
+        %% and `nil` nodes, similar to the `tuple` node. The last element of
         %% the list can be a `cons` node representing explicit consing syntax.
         {list, Pos, Elements} ->
             %% a "cons" node here means 'H | T' in isolation
