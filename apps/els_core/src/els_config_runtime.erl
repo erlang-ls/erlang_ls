@@ -62,9 +62,16 @@ get_cookie() ->
 
 -spec default_node_name() -> string().
 default_node_name() ->
-  RootUri = els_config:get(root_uri),
   {ok, Hostname} = inet:gethostname(),
-  NodeName = els_utils:to_list(filename:basename(els_uri:path(RootUri))),
+  default_node_name(els_uri:path(els_config:get(root_uri)), Hostname).
+
+-spec default_node_name(els_uri:path(), string()) -> string().
+default_node_name(RootPath, Hostname) ->
+  NodeName0 = filename:basename(RootPath),
+  %% Replace invalid characters with _ to ensure
+  %% that the directory name is a valid node name
+  NodeName = re:replace(NodeName0, "[^0-9A-Za-z_\\-]", "_",
+                        [global, {return, list}]),
   NodeName ++ "@" ++ Hostname.
 
 -spec default_otp_path() -> string().
@@ -78,3 +85,14 @@ default_start_cmd() ->
 -spec default_start_args() -> string().
 default_start_args() ->
   "erlang_ls".
+
+-ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
+
+default_node_name_test_() ->
+  [ ?_assertEqual("foobar@host",  default_node_name("/a/b/c/foobar/", "host"))
+  , ?_assertEqual("foo_bar@host", default_node_name("/a/b/c/foo.bar/", "host"))
+  , ?_assertEqual("_@host",       default_node_name("/a/b/c/&/", "host"))
+  ].
+
+-endif.
