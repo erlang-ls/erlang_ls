@@ -10,3 +10,8 @@ foo(_Var) ->
 
 bar(Var) ->
   Var.
+
+-spec baz(Var) -> Var
+          when Var :: atom().
+baz(Var) ->
+  Var.

@@ -135,10 +135,16 @@ rename_variable(Config) ->
   Expected4 = #{changes => #{UriAtom => [ change(NewName, {11, 2}, {11, 5})
                                         , change(NewName, {10, 4}, {10, 7})
                                         ]}},
+  #{result := Result5} = els_client:document_rename(Uri, 13, 10, NewName),
+  Expected5 = #{changes => #{UriAtom => [ change(NewName, {14, 15}, {14, 18})
+                                        , change(NewName, {13, 18}, {13, 21})
+                                        , change(NewName, {13, 10}, {13, 13})
+                                        ]}},
   assert_changes(Expected1, Result1),
   assert_changes(Expected2, Result2),
   assert_changes(Expected3, Result3),
-  assert_changes(Expected4, Result4).
+  assert_changes(Expected4, Result4),
+  assert_changes(Expected5, Result5).
 
 -spec rename_macro(config()) -> ok.
 rename_macro(Config) ->

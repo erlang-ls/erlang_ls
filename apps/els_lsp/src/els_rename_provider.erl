@@ -222,18 +222,29 @@ new_name(_, NewName) ->
 
 -spec function_clause_range(poi_range(), els_dt_document:item()) -> poi_range().
 function_clause_range(VarRange, Document) ->
-  FunPOIs = els_poi:sort(els_dt_document:pois(Document, [function_clause])),
-  %% Find beginning of first function clause before VarRange
-  From = case [R || #{range := R} <- FunPOIs, els_range:compare(R, VarRange)] of
-           []        -> {0, 0}; % Beginning of document
-           FunRanges -> maps:get(from, lists:last(FunRanges))
-         end,
-  %% Find beginning of first function clause after VarRange
-  To = case [R || #{range := R} <- FunPOIs, els_range:compare(VarRange, R)] of
-        []                 -> {999999999, 999999999}; % End of document
-        [#{from := End}|_] -> End
-       end,
-  #{from => From, to => To}.
+  POIs = els_poi:sort(els_dt_document:pois(Document, [ function_clause
+                                                     , spec
+                                                     ])),
+  SpecPOIs = els_poi:sort(els_dt_document:pois(Document, [spec])),
+  case [R || #{range := R} <- SpecPOIs, els_range:in(VarRange, R)] of
+    [SpecRange] ->
+      %% Renaming variable in spec
+      SpecRange;
+    [] ->
+      %% Find beginning of first function clause before VarRange
+      From =
+        case [R || #{range := R} <- POIs, els_range:compare(R, VarRange)] of
+          []        -> {0, 0}; % Beginning of document
+          FunRanges -> maps:get(from, lists:last(FunRanges))
+        end,
+      %% Find beginning of first function clause after VarRange
+      To =
+        case [R || #{range := R} <- POIs, els_range:compare(VarRange, R)] of
+          []                 -> {999999999, 999999999}; % End of document
+          [#{from := End}|_] -> End
+        end,
+      #{from => From, to => To}
+  end.
 
 -spec convert_references_to_pois([els_dt_references:item()], [poi_kind()]) ->
         [{uri(), poi()}].
