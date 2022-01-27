@@ -1,5 +1,5 @@
 -module(rename_variable).
-
+-callback name(Var) -> Var.
 foo(Var) ->
   Var < 0;
 foo(Var) ->
@@ -16,15 +16,16 @@ bar(Var) ->
 baz(Var) ->
   Var.
 
-%% TODO: Add tests
 -record(foo, {a :: Var,
-              b :: Var}).
+              b :: [Var]}).
+%% BUG: `Var' in MACRO(`Var') is not considered a variable POI
+-define(MACRO(Var), Var + Var).
 
-
--define(MACRO(Var), Var).
--callback name(Var) -> Var.
 -type type(Var) :: Var.
 -opaque opaque(Var) :: Var.
+
+foo(Var) ->
+  Var.
 
 -if(Var == Var).
 

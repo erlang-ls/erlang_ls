@@ -117,6 +117,7 @@ rename_variable(Config) ->
   Uri = ?config(rename_variable_uri, Config),
   UriAtom = binary_to_atom(Uri, utf8),
   NewName = <<"NewAwesomeName">>,
+  %%
   #{result := Result1} = els_client:document_rename(Uri, 3, 3, NewName),
   Expected1 = #{changes => #{UriAtom => [ change(NewName, {3, 2}, {3, 5})
                                         , change(NewName, {2, 4}, {2, 7})
@@ -135,16 +136,57 @@ rename_variable(Config) ->
   Expected4 = #{changes => #{UriAtom => [ change(NewName, {11, 2}, {11, 5})
                                         , change(NewName, {10, 4}, {10, 7})
                                         ]}},
+  %% Spec
   #{result := Result5} = els_client:document_rename(Uri, 13, 10, NewName),
   Expected5 = #{changes => #{UriAtom => [ change(NewName, {14, 15}, {14, 18})
                                         , change(NewName, {13, 18}, {13, 21})
                                         , change(NewName, {13, 10}, {13, 13})
                                         ]}},
+  %% Record
+  #{result := Result6} = els_client:document_rename(Uri, 18, 19, NewName),
+  Expected6 = #{changes => #{UriAtom => [ change(NewName, {19, 20}, {19, 23})
+                                        , change(NewName, {18, 19}, {18, 22})
+                                        ]}},
+  %% Macro
+  #{result := Result7} = els_client:document_rename(Uri, 21, 20, NewName),
+  Expected7 = #{changes => #{UriAtom => [ change(NewName, {21, 26}, {21, 29})
+                                        , change(NewName, {21, 20}, {21, 23})
+                                        %% This should also update, but doesn't
+                                        %% due to bug where Var in MACRO(Var)
+                                        %% isn't considered a variable POI
+                                        %% change(NewName, {22, 14}, {22, 17})
+                                        ]}},
+  %% Type
+  #{result := Result8} = els_client:document_rename(Uri, 23, 11, NewName),
+  Expected8 = #{changes => #{UriAtom => [ change(NewName, {23, 11}, {23, 14})
+                                        , change(NewName, {23, 19}, {23, 22})
+                                        ]}},
+  %% Opaque
+  #{result := Result9} = els_client:document_rename(Uri, 24, 15, NewName),
+  Expected9 = #{changes => #{UriAtom => [ change(NewName, {24, 15}, {24, 18})
+                                        , change(NewName, {24, 23}, {24, 26})
+                                        ]}},
+  %% Callback
+  #{result := Result10} = els_client:document_rename(Uri, 1, 15, NewName),
+  Expected10 = #{changes => #{UriAtom => [ change(NewName, {1, 23}, {1, 26})
+                                         , change(NewName, {1, 15}, {1, 18})
+                                         ]}},
+  %% If
+  #{result := Result11} = els_client:document_rename(Uri, 29, 4, NewName),
+  Expected11 = #{changes => #{UriAtom => [ change(NewName, {29, 11}, {29, 14})
+                                         , change(NewName, {29, 4}, {29, 7})
+                                         ]}},
   assert_changes(Expected1, Result1),
   assert_changes(Expected2, Result2),
   assert_changes(Expected3, Result3),
   assert_changes(Expected4, Result4),
-  assert_changes(Expected5, Result5).
+  assert_changes(Expected5, Result5),
+  assert_changes(Expected6, Result6),
+  assert_changes(Expected7, Result7),
+  assert_changes(Expected8, Result8),
+  assert_changes(Expected9, Result9),
+  assert_changes(Expected10, Result10),
+  assert_changes(Expected11, Result11).
 
 -spec rename_macro(config()) -> ok.
 rename_macro(Config) ->

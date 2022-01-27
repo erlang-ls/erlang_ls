@@ -224,7 +224,9 @@ new_name(_, NewName) ->
 variable_scope_range(VarRange, Document) ->
   Attributes = [spec, callback, define, record, type_definition],
   AttrPOIs = els_dt_document:pois(Document, Attributes),
+  FunPOIs = els_poi:sort(els_dt_document:pois(Document, [function])),
   POIs = els_poi:sort(els_dt_document:pois(Document, [ function_clause
+                                                     , function
                                                      | Attributes
                                                      ])),
   %% TODO: Use function wrapping_range to handle edge cases
@@ -233,20 +235,47 @@ variable_scope_range(VarRange, Document) ->
       %% Inside attribute, simple.
       AttrRange;
     [] ->
+      %% TODO: Clean this up! :)
+      CurrFun = case [R || #{data := #{wrapping_range := R}} <- FunPOIs,
+                              els_range:in(VarRange, R)] of
+                     [] -> undefined;
+                     [F] -> F
+                   end,
+      FunRanges =
+        [range(P) || P <- FunPOIs, els_range:compare(range(P), VarRange)],
       %% Find beginning of the first top-level form *BEFORE* VarRange
       From =
-        case [R || #{range := R} <- POIs, els_range:compare(R, VarRange)] of
-          []        -> {0, 0}; % Beginning of document
-          FunRanges -> maps:get(from, lists:last(FunRanges))
+        case [range(P) || P <- POIs, els_range:compare(range(P), VarRange)] of
+          []     -> {0, 0}; % Beginning of document
+          Ranges when CurrFun /= undefined ->
+            maps:get(from, lists:last(Ranges));
+          Ranges when FunRanges == [] ->
+            maps:get(to, lists:last(Ranges));
+          Ranges ->
+            max(maps:get(to, lists:last(FunRanges)),
+                maps:get(to, lists:last(Ranges)))
         end,
       %% Find beginning of the first top-level form *AFTER* VarRange
       To =
         case [R || #{range := R} <- POIs, els_range:compare(VarRange, R)] of
-          []                 -> {999999999, 999999999}; % End of document
-          [#{from := End}|_] -> End
+          [] when CurrFun == undefined ->
+            {999999999, 999999999};
+          [] ->
+            maps:get(to, CurrFun);
+          [#{from := End}|_] when CurrFun == undefined ->
+            End;
+          [#{from := End}|_] ->
+            min(maps:get(to, CurrFun), End)
         end,
       #{from => From, to => To}
   end.
+
+-spec range(poi()) -> poi_range().
+range(#{kind := function, data := #{wrapping_range := R}}) ->
+  R;
+range(#{range := R}) ->
+  R.
+
 
 -spec convert_references_to_pois([els_dt_references:item()], [poi_kind()]) ->
         [{uri(), poi()}].
