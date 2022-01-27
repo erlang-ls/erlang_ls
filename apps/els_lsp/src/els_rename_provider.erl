@@ -222,14 +222,15 @@ new_name(_, NewName) ->
 
 -spec function_clause_range(poi_range(), els_dt_document:item()) -> poi_range().
 function_clause_range(VarRange, Document) ->
+  Attributes = [spec, callback, define, record, type_definition],
+  AttrPOIs = els_dt_document:pois(Document, Attributes),
   POIs = els_poi:sort(els_dt_document:pois(Document, [ function_clause
-                                                     , spec
+                                                     | Attributes
                                                      ])),
-  SpecPOIs = els_poi:sort(els_dt_document:pois(Document, [spec])),
-  case [R || #{range := R} <- SpecPOIs, els_range:in(VarRange, R)] of
-    [SpecRange] ->
+  case [R || #{range := R} <- AttrPOIs, els_range:in(VarRange, R)] of
+    [AttrRange] ->
       %% Renaming variable in spec
-      SpecRange;
+      AttrRange;
     [] ->
       %% Find beginning of first function clause before VarRange
       From =
