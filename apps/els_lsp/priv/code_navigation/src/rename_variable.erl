@@ -15,3 +15,17 @@ bar(Var) ->
           when Var :: atom().
 baz(Var) ->
   Var.
+
+%% TODO: Add tests
+-record(foo, {a :: Var,
+              b :: Var}).
+
+
+-define(MACRO(Var), Var).
+-callback name(Var) -> Var.
+-type type(Var) :: Var.
+-opaque opaque(Var) :: Var.
+
+-if(Var == Var).
+
+-endif.

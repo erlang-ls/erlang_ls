@@ -132,7 +132,7 @@ changes(Uri, #{kind := variable, id := VarId, range := VarRange}, NewName) ->
   %% Rename variable in function clause scope
   case els_utils:lookup_document(Uri) of
     {ok, Document} ->
-      FunRange = function_clause_range(VarRange, Document),
+      FunRange = variable_scope_range(VarRange, Document),
       Changes = [#{range => editable_range(POI), newText => NewName} ||
                   POI <- els_dt_document:pois(Document, [variable]),
                   maps:get(id, POI) =:= VarId,
@@ -220,25 +220,26 @@ new_name(#{kind := record_expr}, NewName) ->
 new_name(_, NewName) ->
   NewName.
 
--spec function_clause_range(poi_range(), els_dt_document:item()) -> poi_range().
-function_clause_range(VarRange, Document) ->
+-spec variable_scope_range(poi_range(), els_dt_document:item()) -> poi_range().
+variable_scope_range(VarRange, Document) ->
   Attributes = [spec, callback, define, record, type_definition],
   AttrPOIs = els_dt_document:pois(Document, Attributes),
   POIs = els_poi:sort(els_dt_document:pois(Document, [ function_clause
                                                      | Attributes
                                                      ])),
+  %% TODO: Use function wrapping_range to handle edge cases
   case [R || #{range := R} <- AttrPOIs, els_range:in(VarRange, R)] of
     [AttrRange] ->
-      %% Renaming variable in spec
+      %% Inside attribute, simple.
       AttrRange;
     [] ->
-      %% Find beginning of first function clause before VarRange
+      %% Find beginning of the first top-level form *BEFORE* VarRange
       From =
         case [R || #{range := R} <- POIs, els_range:compare(R, VarRange)] of
           []        -> {0, 0}; % Beginning of document
           FunRanges -> maps:get(from, lists:last(FunRanges))
         end,
-      %% Find beginning of first function clause after VarRange
+      %% Find beginning of the first top-level form *AFTER* VarRange
       To =
         case [R || #{range := R} <- POIs, els_range:compare(VarRange, R)] of
           []                 -> {999999999, 999999999}; % End of document
