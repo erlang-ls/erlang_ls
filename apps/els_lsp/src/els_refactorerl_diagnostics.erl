@@ -33,7 +33,8 @@
 %%==============================================================================
 
 
-
+%%@doc
+%% Creates a RefactorErl query from a diagnostic identifier and a module name
 -spec make_query(refactorerl_diagnostic_id(), module()) -> refactorerl_query().
 make_query({_, _, Before, After}, Module) ->
   ModuleStr = atom_to_list(Module),
@@ -83,9 +84,8 @@ run(Uri, RecursionDepth) when RecursionDepth < ?MAX_RECURSION_DEPTH ->
   end;
 
 run(_, RecursionDepth) when RecursionDepth >= ?MAX_RECURSION_DEPTH ->
-  Param = #{ type => ?MESSAGE_TYPE_ERROR,
-             message => <<"Cannot add module to RefactorErl!">> },
-  els_server:send_notification(<<"window/showMessage">>, Param),
+  Msg = "Cannot add module to RefactorErl!",
+  els_refactorerl_utils:notification(Msg, ?MESSAGE_TYPE_ERROR),
   [].
 
 -spec source() -> binary().
@@ -96,6 +96,9 @@ source() ->
 %% Internal Functions
 %%==============================================================================
 
+%%@doc
+%% Creates a diagnostic form the Poi data and a Message
+%% The severity is only warning.
 -spec make_diagnostic(poi(), [char()]) -> els_diagnostics:diagnostic().
 make_diagnostic(#{ data := PoiData, range := PoiRange}, DiagMessage) ->
     Range = els_protocol:range(PoiRange),
@@ -104,16 +107,25 @@ make_diagnostic(#{ data := PoiData, range := PoiRange}, DiagMessage) ->
     Source = source(),
     els_diagnostics:make_diagnostic(Range, Message, Severity, Source).
 
+  %%@doc
+  %% Returns the available diagnostics of RefactorErl.
 -spec refactorerl_diagnostics() -> [refactorerl_diagnostic_id()].
-refactorerl_diagnostics() ->
-  [ {unused_macros, "Security Issue",  "mods[name=", "].funs.unsecure_calls"}
-  ,   {unsecure_calls
+refactorerl_diagnostics() -> % TODO: Make it configureable
+  [ {unused_calls, "Security Issue",  "mods[name=", "].funs.unsecure_calls"}
+  ,   {unsecure_macros
       , "Unused Macros:"
       , "mods[name="
       , "].macros[not .references]" }
   ].
 
--spec add(any()) -> atom().
+  %%@doc
+  %% Adds a module to the RefactorErl node.
+-spec add(any()) -> atom(). %TODO: Add .hrl files
 add(Uri) ->
   Param = [binary_to_list(els_uri:path(Uri))],
-  rpc:call(node(), ri, add, Param, els_refactorerl_utils:maxtimeout()).
+  case els_refactorerl_utils:referl_node() of
+    {ok, Node} ->
+      rpc:call(Node, ri, add, Param, els_refactorerl_utils:maxtimeout());
+    _ ->
+      error
+  end.
