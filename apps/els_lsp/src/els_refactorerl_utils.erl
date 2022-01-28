@@ -24,10 +24,10 @@
 %%==============================================================================
 
 %% @doc
-%% Returns the RefactorErl node, if it cannot, it will return error and the cause.
+%% Returns the RefactorErl node, if it can't, it returns error and its cause.
 %% It returns the node given in config, if it is alive.
-%% First it runs the validation functions, the result of validation will be 
-%% notified to the user. 
+%% First it runs the validation functions, the result of validation will be
+%% notified to the user.
 %% If the node once was validated there will be no display messages.
 %%
 %% The configuration can store the node and its status.
@@ -37,7 +37,7 @@
 %%      'disabled',       when it won't try to reconnect
 %%      'disconnected',   when it will try to reconnect
 %%  - notconfigured, the node is not configured in the config file
-%%  
+%%
 %%
 %% Node can be:
 %%  - NodeStr
@@ -61,7 +61,7 @@ referl_node() ->
 
     #{"node" := {_, disabled}} ->
       {error, disabled};
-    
+
     #{"node" := NodeStr} ->
       RT = els_config_runtime:get_name_type(),
       Node = els_utils:compose_node_name(NodeStr, RT),
@@ -156,7 +156,8 @@ check_node(Node) ->
 
 %%@doc
 %% Tries to connect to a node
-%% When statues is validate, it reports the success, and failure as well, when retry, it won't report.
+%% When statues is validate, it reports the success, and failure as well,
+%% when retry, it won't report.
 -spec try_connect_node({validate | retry, atom()}) -> {error, disconnected}
                                                      | atom().
 try_connect_node({Status, Node}) ->
