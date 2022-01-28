@@ -77,7 +77,7 @@
                   , indexing_enabled => boolean()
                   , bsp_enabled      => boolean() | auto
                   , compiler_telemetry_enabled => boolean()
-                  , refactorerl => {atom(), atom() | 'disabled'}
+                  , refactorerl => { map() | 'notconfigured'}
                   }.
 
 %%==============================================================================
@@ -128,7 +128,7 @@ do_initialize(RootUri, Capabilities, InitOptions, {ConfigPath, Config}) ->
 
   IndexingEnabled = maps:get(<<"indexingEnabled">>, InitOptions, true),
 
-  RefactorErl = {config, maps:get("refactorerl", Config, disabled)},
+  RefactorErl = maps:get("refactorerl", Config, notconfigured),
 
   %% Passed by the LSP client
   ok = set(root_uri       , RootUri),
@@ -289,7 +289,15 @@ project_paths(RootPath, Dirs, Recursive) ->
                                    )
             || Dir <- Dirs
           ],
-  lists:append(Paths).
+  case Recursive of
+    false ->
+      lists:append(Paths);
+    true ->
+      Filter = fun(Path) ->
+                 string:find(Path, "SUITE_data", trailing) =:= nomatch
+               end,
+      lists:filter(Filter, lists:append(Paths))
+  end.
 
 -spec otp_paths(path(), boolean()) -> [string()].
 otp_paths(OtpPath, Recursive) ->

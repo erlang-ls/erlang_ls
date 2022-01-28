@@ -630,9 +630,8 @@ make_code(erl_parse, "bad " ++ _Str) ->
 make_code(erl_parse, _Other) ->
  <<"P1799">>;
 
-make_code(Module, Reason) ->
-  unicode:characters_to_binary(
-            io_lib:format("~p:~s", [Module, Reason])).
+make_code(Module, _Reason) ->
+  unicode:characters_to_binary(io_lib:format("~p", [Module])).
 
 %-----------------------------------------------------------------------
 

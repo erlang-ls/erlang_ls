@@ -4,6 +4,7 @@
 
 -export([ parse_args/1
         , log_root/0
+        , cache_root/0
         ]).
 
 %%==============================================================================
@@ -43,7 +44,7 @@ parse_args(Args) ->
   case getopt:parse(opt_spec_list(), Args) of
     {ok, {[version | _], _BadArgs}} ->
       print_version(),
-      halt(1);
+      halt(0);
     {ok, {ParsedArgs, _BadArgs}} ->
       set_args(ParsedArgs);
     {error, {invalid_option, _}} ->
@@ -130,6 +131,11 @@ log_root() ->
   Dirname = filename:basename(CurrentDir),
   filename:join([LogDir, Dirname]).
 
+-spec cache_root() -> file:name().
+cache_root() ->
+  {ok, CurrentDir} = file:get_cwd(),
+  Dirname = filename:basename(CurrentDir),
+  filename:join(filename:basedir(user_cache, "erlang_ls"), Dirname).
 
 -spec configure_client_logging() -> ok.
 configure_client_logging() ->

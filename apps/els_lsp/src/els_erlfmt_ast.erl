@@ -149,12 +149,12 @@ erlfmt_to_st(Node) ->
             Pos),
         erase('$erlfmt_ast_context$'),
         Tree;
-      {spec_clause, Pos, {args, _HeadMeta, Args}, [ReturnType], empty} ->
+      {spec_clause, Pos, {args, _HeadMeta, Args}, ReturnType, empty} ->
         update_tree_with_meta(
           erl_syntax_function_type([erlfmt_to_st(A) || A <- Args],
                                    erlfmt_to_st(ReturnType)),
           Pos);
-      {spec_clause, Pos, {args, _HeadMeta, Args}, [ReturnType], GuardOr} ->
+      {spec_clause, Pos, {args, _HeadMeta, Args}, ReturnType, GuardOr} ->
         FunctionType =
           update_tree_with_meta(
             erl_syntax_function_type([erlfmt_to_st(A) || A <- Args],
@@ -507,6 +507,24 @@ erlfmt_to_st(Node) ->
                 ),
                 Pos
             );
+      {'receive', Pos, {clauses, _PosClauses, ClauseList}} ->
+        update_tree_with_meta(
+          erl_syntax:receive_expr([erlfmt_to_st(C) || C <- ClauseList]),
+          Pos);
+      {'receive', Pos, Clauses, {after_clause, _PosAfter, Timeout, Action}} ->
+        Clauses1 = case Clauses of
+                     empty ->
+                       [];
+                     {clauses, _PosClauses, ClauseList} ->
+                       [erlfmt_to_st(C) || C <- ClauseList]
+                   end,
+        update_tree_with_meta(
+          erl_syntax:receive_expr(
+            Clauses1,
+            erlfmt_to_st(Timeout),
+            [erlfmt_to_st(A) || A <- Action]),
+          Pos);
+
         %% ---------------------------------------------------------------------
         %% The remaining cases have been added by erlfmt and need special handling
         %% (many are represented as magically-tagged tuples for now)

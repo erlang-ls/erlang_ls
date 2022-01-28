@@ -5,6 +5,7 @@
 -export([ compare/2
         , in/2
         , range/4
+        , range/1
         , to_poi_range/1
         ]).
 
@@ -36,6 +37,10 @@ range({Line, Column}, function_clause, {F, _A, _Index}, _Data) ->
   To = plus(From, atom_to_string(F)),
   #{ from => From, to => To };
 range(Anno, _Type, _Id, _Data) ->
+  range(Anno).
+
+-spec range(erl_anno:anno()) -> poi_range().
+range(Anno) ->
   From = erl_anno:location(Anno),
   %% To = erl_anno:end_location(Anno),
   To = proplists:get_value(end_location, erl_anno:to_term(Anno)),

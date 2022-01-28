@@ -88,6 +88,17 @@ resolve(#{ <<"kind">> := ?COMPLETION_ITEM_KIND_FUNCTION
                                    , binary_to_atom(Function, utf8)
                                    , Arity),
   CompletionItem#{documentation => els_markup_content:new(Entries)};
+resolve(#{ <<"kind">> := ?COMPLETION_ITEM_KIND_TYPE_PARAM
+         , <<"data">> := #{ <<"module">> := Module
+                          , <<"type">> := Type
+                          , <<"arity">> := Arity
+                        }
+         } = CompletionItem) ->
+  Entries = els_docs:type_docs('remote'
+          , binary_to_atom(Module, utf8)
+          , binary_to_atom(Type, utf8)
+          , Arity),
+  CompletionItem#{ documentation => els_markup_content:new(Entries) };
 resolve(CompletionItem) ->
   CompletionItem.
 
@@ -511,6 +522,13 @@ resolve_definition(Uri, #{kind := 'function', id := {F, A}} = POI, ArityOnly) ->
           , <<"arity">> => A
           },
   completion_item(POI, Data, ArityOnly);
+resolve_definition(Uri, #{kind := 'type_definition', id := {T, A}} = POI,
+                   ArityOnly) ->
+  Data = #{ <<"module">> => els_uri:module(Uri)
+          , <<"type">> => T
+          , <<"arity">> => A
+          },
+  completion_item(POI, Data, ArityOnly);
 resolve_definition(_Uri, POI, ArityOnly) ->
   completion_item(POI, ArityOnly).
 
@@ -561,7 +579,7 @@ record_fields(Document, RecordName) ->
     POIs ->
       [#{data := #{field_list := Fields}} | _] = els_poi:sort(POIs),
       [ item_kind_field(atom_to_label(Name))
-        || {Name, _} <- Fields
+        || Name <- Fields
       ]
   end.
 

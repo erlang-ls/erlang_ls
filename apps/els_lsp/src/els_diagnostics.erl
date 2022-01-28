@@ -61,12 +61,12 @@ available_diagnostics() ->
   , <<"compiler">>
   , <<"crossref">>
   , <<"dialyzer">>
+  , <<"gradualizer">>
   , <<"elvis">>
   , <<"unused_includes">>
   , <<"unused_macros">>
-  , <<"referl_unused_macros">>
-  , <<"referl_unsecure_calls">>
   , <<"unused_record_fields">>
+  , <<"refactorerl">>
   ].
 
 -spec default_diagnostics() -> [diagnostic_id()].

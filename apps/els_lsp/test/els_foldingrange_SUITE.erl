@@ -147,19 +147,19 @@ folding_range(Config) ->
                 , startLine      => 102
                 }
              , #{ endCharacter   => ?END_OF_LINE
-                , endLine        => 114
+                , endLine        => 115
                 , startCharacter => ?END_OF_LINE
-                , startLine      => 112
+                , startLine      => 113
                 }
              , #{ endCharacter   => ?END_OF_LINE
-                , endLine        => 119
+                , endLine        => 120
                 , startCharacter => ?END_OF_LINE
-                , startLine      => 118
+                , startLine      => 119
                 }
              , #{ endCharacter   => ?END_OF_LINE
-                , endLine        => 122
+                , endLine        => 123
                 , startCharacter => ?END_OF_LINE
-                , startLine      => 121
+                , startLine      => 122
                 }
              ],
   ?assertEqual(Expected, Result),
