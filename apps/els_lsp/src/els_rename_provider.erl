@@ -281,13 +281,16 @@ variable_scope_range(VarRange, Document) ->
       #{from => From, to => To}
   end.
 
+-spec pois_before([poi()], poi_range()) -> [poi()].
 pois_before(POIs, VarRange) ->
   %% Reverse since we are typically interested in the last POI
   lists:reverse([POI || POI <- POIs, els_range:compare(range(POI), VarRange)]).
 
+-spec pois_after([poi()], poi_range()) -> [poi()].
 pois_after(POIs, VarRange) ->
   [POI || POI <- POIs, els_range:compare(VarRange, range(POI))].
 
+-spec pois_match([poi()], poi_range()) -> [poi()].
 pois_match(POIs, Range) ->
   [POI || POI <- POIs, els_range:in(Range, range(POI))].
 
