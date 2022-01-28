@@ -224,57 +224,78 @@ new_name(_, NewName) ->
 variable_scope_range(VarRange, Document) ->
   Attributes = [spec, callback, define, record, type_definition],
   AttrPOIs = els_dt_document:pois(Document, Attributes),
-  FunPOIs = els_poi:sort(els_dt_document:pois(Document, [function])),
-  POIs = els_poi:sort(els_dt_document:pois(Document, [ function_clause
-                                                     , function
-                                                     | Attributes
-                                                     ])),
-  %% TODO: Use function wrapping_range to handle edge cases
-  case [R || #{range := R} <- AttrPOIs, els_range:in(VarRange, R)] of
-    [AttrRange] ->
+  case pois_match(AttrPOIs, VarRange) of
+    [#{range := Range}] ->
       %% Inside attribute, simple.
-      AttrRange;
+      Range;
     [] ->
-      %% TODO: Clean this up! :)
-      CurrFun = case [R || #{data := #{wrapping_range := R}} <- FunPOIs,
-                              els_range:in(VarRange, R)] of
-                     [] -> undefined;
-                     [F] -> F
-                   end,
-      FunRanges =
-        [range(P) || P <- FunPOIs, els_range:compare(range(P), VarRange)],
-      %% Find beginning of the first top-level form *BEFORE* VarRange
+      %% If variable is not inside an attribute we need to figure out where the
+      %% scope of the variable begins and ends.
+      %% The scope of variables inside functions are limited by function clauses
+      %% The scope of variables outside of function are limited by top-level
+      %% POIs (attributes and functions) before and after.
+      FunPOIs = els_poi:sort(els_dt_document:pois(Document, [function])),
+      POIs = els_poi:sort(els_dt_document:pois(Document, [ function_clause
+                                                         | Attributes
+                                                         ])),
+      CurrentFunRange = case pois_match(FunPOIs, VarRange) of
+                          [] -> undefined;
+                          [POI] -> range(POI)
+                        end,
+      IsInsideFunction = CurrentFunRange /= undefined,
+      BeforeFunRanges = [range(POI) || POI <- pois_before(FunPOIs, VarRange)],
+      %% Find where scope should begin
       From =
-        case [range(P) || P <- POIs, els_range:compare(range(P), VarRange)] of
-          []     -> {0, 0}; % Beginning of document
-          Ranges when CurrFun /= undefined ->
-            maps:get(from, lists:last(Ranges));
-          Ranges when FunRanges == [] ->
-            maps:get(to, lists:last(Ranges));
-          Ranges ->
-            max(maps:get(to, lists:last(FunRanges)),
-                maps:get(to, lists:last(Ranges)))
-        end,
-      %% Find beginning of the first top-level form *AFTER* VarRange
-      To =
-        case [R || #{range := R} <- POIs, els_range:compare(VarRange, R)] of
-          [] when CurrFun == undefined ->
-            {999999999, 999999999};
+        case [R || #{range := R} <- pois_before(POIs, VarRange)] of
           [] ->
-            maps:get(to, CurrFun);
-          [#{from := End}|_] when CurrFun == undefined ->
-            End;
-          [#{from := End}|_] ->
-            min(maps:get(to, CurrFun), End)
+            %% No POIs before
+            {0, 0};
+          [BeforeRange|_] when IsInsideFunction ->
+            %% Inside function, use beginning of closest function clause
+            maps:get(from, BeforeRange);
+          [BeforeRange|_] when BeforeFunRanges == [] ->
+            %% No function before, use end of closest POI
+            maps:get(to, BeforeRange);
+          [BeforeRange|_] ->
+            %% Use end of closest POI, including functions.
+            max(maps:get(to, hd(BeforeFunRanges)),
+                maps:get(to, BeforeRange))
+        end,
+      %% Find when scope should end
+      To =
+        case [R || #{range := R} <- pois_after(POIs, VarRange)] of
+          [] when IsInsideFunction ->
+            %% No POIs after, use end of function
+            maps:get(to, CurrentFunRange);
+          [] ->
+            %% No POIs after, use end of document
+            {999999999, 999999999};
+          [AfterRange|_] when IsInsideFunction ->
+            %% Inside function, use closest of end of function *OR*
+            %% beginning of the next function clause
+            min(maps:get(to, CurrentFunRange), maps:get(from, AfterRange));
+          [AfterRange|_] ->
+            %% Use beginning of next POI
+            maps:get(from, AfterRange)
         end,
       #{from => From, to => To}
   end.
 
+pois_before(POIs, VarRange) ->
+  %% Reverse since we are typically interested in the last POI
+  lists:reverse([POI || POI <- POIs, els_range:compare(range(POI), VarRange)]).
+
+pois_after(POIs, VarRange) ->
+  [POI || POI <- POIs, els_range:compare(VarRange, range(POI))].
+
+pois_match(POIs, Range) ->
+  [POI || POI <- POIs, els_range:in(Range, range(POI))].
+
 -spec range(poi()) -> poi_range().
-range(#{kind := function, data := #{wrapping_range := R}}) ->
-  R;
-range(#{range := R}) ->
-  R.
+range(#{kind := function, data := #{wrapping_range := Range}}) ->
+  Range;
+range(#{range := Range}) ->
+  Range.
 
 
 -spec convert_references_to_pois([els_dt_references:item()], [poi_kind()]) ->
