@@ -132,7 +132,7 @@ changes(Uri, #{kind := variable, id := VarId, range := VarRange}, NewName) ->
   %% Rename variable in function clause scope
   case els_utils:lookup_document(Uri) of
     {ok, Document} ->
-      FunRange = function_clause_range(VarRange, Document),
+      FunRange = variable_scope_range(VarRange, Document),
       Changes = [#{range => editable_range(POI), newText => NewName} ||
                   POI <- els_dt_document:pois(Document, [variable]),
                   maps:get(id, POI) =:= VarId,
@@ -220,20 +220,86 @@ new_name(#{kind := record_expr}, NewName) ->
 new_name(_, NewName) ->
   NewName.
 
--spec function_clause_range(poi_range(), els_dt_document:item()) -> poi_range().
-function_clause_range(VarRange, Document) ->
-  FunPOIs = els_poi:sort(els_dt_document:pois(Document, [function_clause])),
-  %% Find beginning of first function clause before VarRange
-  From = case [R || #{range := R} <- FunPOIs, els_range:compare(R, VarRange)] of
-           []        -> {0, 0}; % Beginning of document
-           FunRanges -> maps:get(from, lists:last(FunRanges))
-         end,
-  %% Find beginning of first function clause after VarRange
-  To = case [R || #{range := R} <- FunPOIs, els_range:compare(VarRange, R)] of
-        []                 -> {999999999, 999999999}; % End of document
-        [#{from := End}|_] -> End
-       end,
-  #{from => From, to => To}.
+-spec variable_scope_range(poi_range(), els_dt_document:item()) -> poi_range().
+variable_scope_range(VarRange, Document) ->
+  Attributes = [spec, callback, define, record, type_definition],
+  AttrPOIs = els_dt_document:pois(Document, Attributes),
+  case pois_match(AttrPOIs, VarRange) of
+    [#{range := Range}] ->
+      %% Inside attribute, simple.
+      Range;
+    [] ->
+      %% If variable is not inside an attribute we need to figure out where the
+      %% scope of the variable begins and ends.
+      %% The scope of variables inside functions are limited by function clauses
+      %% The scope of variables outside of function are limited by top-level
+      %% POIs (attributes and functions) before and after.
+      FunPOIs = els_poi:sort(els_dt_document:pois(Document, [function])),
+      POIs = els_poi:sort(els_dt_document:pois(Document, [ function_clause
+                                                         | Attributes
+                                                         ])),
+      CurrentFunRange = case pois_match(FunPOIs, VarRange) of
+                          [] -> undefined;
+                          [POI] -> range(POI)
+                        end,
+      IsInsideFunction = CurrentFunRange /= undefined,
+      BeforeFunRanges = [range(POI) || POI <- pois_before(FunPOIs, VarRange)],
+      %% Find where scope should begin
+      From =
+        case [R || #{range := R} <- pois_before(POIs, VarRange)] of
+          [] ->
+            %% No POIs before
+            {0, 0};
+          [BeforeRange|_] when IsInsideFunction ->
+            %% Inside function, use beginning of closest function clause
+            maps:get(from, BeforeRange);
+          [BeforeRange|_] when BeforeFunRanges == [] ->
+            %% No function before, use end of closest POI
+            maps:get(to, BeforeRange);
+          [BeforeRange|_] ->
+            %% Use end of closest POI, including functions.
+            max(maps:get(to, hd(BeforeFunRanges)),
+                maps:get(to, BeforeRange))
+        end,
+      %% Find when scope should end
+      To =
+        case [R || #{range := R} <- pois_after(POIs, VarRange)] of
+          [] when IsInsideFunction ->
+            %% No POIs after, use end of function
+            maps:get(to, CurrentFunRange);
+          [] ->
+            %% No POIs after, use end of document
+            {999999999, 999999999};
+          [AfterRange|_] when IsInsideFunction ->
+            %% Inside function, use closest of end of function *OR*
+            %% beginning of the next function clause
+            min(maps:get(to, CurrentFunRange), maps:get(from, AfterRange));
+          [AfterRange|_] ->
+            %% Use beginning of next POI
+            maps:get(from, AfterRange)
+        end,
+      #{from => From, to => To}
+  end.
+
+-spec pois_before([poi()], poi_range()) -> [poi()].
+pois_before(POIs, VarRange) ->
+  %% Reverse since we are typically interested in the last POI
+  lists:reverse([POI || POI <- POIs, els_range:compare(range(POI), VarRange)]).
+
+-spec pois_after([poi()], poi_range()) -> [poi()].
+pois_after(POIs, VarRange) ->
+  [POI || POI <- POIs, els_range:compare(VarRange, range(POI))].
+
+-spec pois_match([poi()], poi_range()) -> [poi()].
+pois_match(POIs, Range) ->
+  [POI || POI <- POIs, els_range:in(Range, range(POI))].
+
+-spec range(poi()) -> poi_range().
+range(#{kind := function, data := #{wrapping_range := Range}}) ->
+  Range;
+range(#{range := Range}) ->
+  Range.
+
 
 -spec convert_references_to_pois([els_dt_references:item()], [poi_kind()]) ->
         [{uri(), poi()}].
