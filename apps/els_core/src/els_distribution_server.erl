@@ -18,6 +18,7 @@
         , rpc_call/4
         , node_name/2
         , node_name/3
+        , normalize_node_name/1
         ]).
 
 %%==============================================================================
@@ -205,8 +206,10 @@ ensure_epmd() ->
   0 = els_utils:cmd("epmd", ["-daemon"]),
   ok.
 
+
 -spec node_name(binary(), binary()) -> atom().
-node_name(Prefix, Name) ->
+node_name(Prefix, Name0) ->
+  Name = normalize_node_name(Name0),
   Int = erlang:phash2(erlang:timestamp()),
   Id = lists:flatten(io_lib:format("~s_~s_~p", [Prefix, Name, Int])),
   {ok, HostName} = inet:gethostname(),
@@ -219,8 +222,24 @@ node_name(Id, HostName, longnames) ->
   Domain = proplists:get_value(domain, inet:get_rc(), ""),
   list_to_atom(Id ++ "@" ++ HostName ++ "." ++ Domain).
 
+-spec normalize_node_name(string() | binary()) -> string().
+normalize_node_name(Name) ->
+  %% Replace invalid characters with _
+  re:replace(Name, "[^0-9A-Za-z_\\-]", "_", [global, {return, list}]).
+
 -spec connect_node(node(),  hidden | not_hidden) -> boolean() | ignored.
 connect_node(Node, not_hidden) ->
   net_kernel:connect_node(Node);
 connect_node(Node, hidden) ->
   net_kernel:hidden_connect_node(Node).
+
+-ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
+
+default_node_name_test_() ->
+  [ ?_assertEqual("foobar",  normalize_node_name("foobar"))
+  , ?_assertEqual("foo_bar", normalize_node_name("foo.bar"))
+  , ?_assertEqual("_",       normalize_node_name("&"))
+  ].
+
+-endif.
