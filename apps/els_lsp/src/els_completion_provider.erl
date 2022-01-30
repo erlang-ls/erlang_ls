@@ -734,11 +734,27 @@ snippet_macro(Name, none) ->
 
 -spec snippet_args(binary(), [{integer(), string()}]) -> binary().
 snippet_args(Name, Args0) ->
-  Args    = [ ["${", integer_to_list(N), ":", A, "}"]
-              || {N, A} <- Args0
-            ],
+  Args =
+    case snippet_support() of
+      false ->
+        [A || {_N, A} <- Args0];
+      true ->
+        [["${", integer_to_list(N), ":", A, "}"] || {N, A} <- Args0]
+    end,
   Snippet = [Name, "(", string:join(Args, ", "), ")"],
   els_utils:to_binary(Snippet).
+
+-spec snippet_support() -> boolean().
+snippet_support() ->
+  case els_config:get(capabilities) of
+    #{<<"textDocument">> :=
+        #{<<"completion">> :=
+            #{<<"completionItem">> :=
+                #{<<"snippetSupport">> := SnippetSupport}}}} ->
+      SnippetSupport;
+    _ ->
+      false
+  end.
 
 -spec is_in(els_dt_document:item(), line(), column(), [poi_kind()]) ->
   boolean().

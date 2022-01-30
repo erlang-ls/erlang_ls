@@ -449,7 +449,10 @@ request_params({completionitem_resolve, CompletionItem}) ->
 request_params({initialize, {RootUri, InitOptions}}) ->
   ContentFormat = [ ?MARKDOWN , ?PLAINTEXT ],
   TextDocument = #{ <<"completion">> =>
-                    #{ <<"contextSupport">> => 'true' }
+                    #{ <<"contextSupport">> => 'true'
+                     , <<"completionItem">> =>
+                       #{ <<"snippetSupport">> => 'true' }
+                     }
                   , <<"hover">> =>
                     #{ <<"contentFormat">> => ContentFormat }
                   },
