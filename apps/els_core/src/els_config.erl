@@ -89,9 +89,18 @@ initialize(RootUri, Capabilities, InitOptions) ->
 -spec initialize(uri(), map(), map(), boolean()) -> ok.
 initialize(RootUri, Capabilities, InitOptions, ReportMissingConfig) ->
   RootPath = els_utils:to_list(els_uri:path(RootUri)),
-  Config = consult_config(
-             config_paths(RootPath, InitOptions), ReportMissingConfig),
-  do_initialize(RootUri, Capabilities, InitOptions, Config).
+  ConfigPaths = config_paths(RootPath, InitOptions),
+  {GlobalConfigPath, GlobalConfig} = consult_config(global_config_paths(),
+                                                    false),
+  {LocalConfigPath, LocalConfig} = consult_config(ConfigPaths,
+                                                  ReportMissingConfig),
+  ConfigPath = case LocalConfigPath of
+                 undefined -> GlobalConfigPath;
+                 _         -> LocalConfigPath
+               end,
+  %% Augment Config onto GlobalConfig
+  Config = maps:merge(GlobalConfig, LocalConfig),
+  do_initialize(RootUri, Capabilities, InitOptions, {ConfigPath, Config}).
 
 -spec do_initialize(uri(), map(), map(), {undefined|path(), map()}) -> ok.
 do_initialize(RootUri, Capabilities, InitOptions, {ConfigPath, Config}) ->
@@ -216,10 +225,14 @@ config_paths(RootPath, _Config) ->
 
 -spec default_config_paths(path()) -> [path()].
 default_config_paths(RootPath) ->
-  GlobalConfigDir = filename:basedir(user_config, "erlang_ls"),
   [ filename:join([RootPath, ?DEFAULT_CONFIG_FILE])
   , filename:join([RootPath, ?ALTERNATIVE_CONFIG_FILE])
-  , filename:join([GlobalConfigDir, ?DEFAULT_CONFIG_FILE])
+  ].
+
+-spec global_config_paths() -> [path()].
+global_config_paths() ->
+  GlobalConfigDir = filename:basedir(user_config, "erlang_ls"),
+  [ filename:join([GlobalConfigDir, ?DEFAULT_CONFIG_FILE])
   , filename:join([GlobalConfigDir, ?ALTERNATIVE_CONFIG_FILE])
   ].
 
