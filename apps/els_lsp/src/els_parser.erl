@@ -969,10 +969,14 @@ attribute_subtrees(AttrName, [Exports])
   when AttrName =:= export;
        AttrName =:= export_type ->
   [ skip_function_entries(Exports) ];
-attribute_subtrees(define, [_Name | Definition]) ->
+attribute_subtrees(define, [Name | Definition]) ->
   %% The definition can contain commas, in which case it will look like as if
   %% the attribute would have more than two arguments. Eg.: `-define(M, a, b).'
-  [Definition];
+  Args = case erl_syntax:type(Name) of
+           application -> erl_syntax:application_arguments(Name);
+           _           -> []
+         end,
+  [Args, Definition];
 attribute_subtrees(AttrName, _)
   when AttrName =:= include;
        AttrName =:= include_lib ->
