@@ -477,7 +477,7 @@ assert_changes(#{ changes := ExpectedChanges }, #{ changes := Changes }) ->
                     lists:sort(maps:to_list(ExpectedChanges))),
   [ begin
       ?assertEqual(ExpectedKey, Key),
-      ?assertEqual(Expected, Change)
+      ?assertEqual(lists:sort(Expected), lists:sort(Change))
     end
     || {{Key, Change}, {ExpectedKey, Expected}} <- Pairs
   ],

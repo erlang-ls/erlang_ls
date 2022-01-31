@@ -67,6 +67,9 @@ find_references(Uri, #{ kind := Kind
           {M, F, A} -> {M, F, A}
         end,
   find_references_for_id(Kind, Key);
+find_references(Uri, #{kind := variable} = Var) ->
+  POIs = els_code_navigation:find_in_scope(Uri, Var),
+  [location(Uri, Range) || #{range := Range} = POI <- POIs, POI =/= Var];
 find_references(Uri, #{ kind := Kind
                       , id   := Id
                       }) when Kind =:= function_clause ->

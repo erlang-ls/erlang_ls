@@ -463,10 +463,12 @@ variable(Config) ->
   Def1 = els_client:definition(Uri, 105, 10),
   Def2 = els_client:definition(Uri, 107, 10),
   Def3 = els_client:definition(Uri, 108, 10),
+  Def4 = els_client:definition(Uri, 19, 36),
   #{result := #{range := Range0, uri := DefUri0}} = Def0,
   #{result := #{range := Range1, uri := DefUri0}} = Def1,
   #{result := #{range := Range2, uri := DefUri0}} = Def2,
   #{result := #{range := Range3, uri := DefUri0}} = Def3,
+  #{result := #{range := Range4, uri := DefUri0}} = Def4,
 
   ?assertEqual(?config(code_navigation_uri, Config), DefUri0),
   ?assertEqual( els_protocol:range(#{from => {103, 12}, to => {103, 15}})
@@ -477,6 +479,9 @@ variable(Config) ->
               , Range2),
   ?assertEqual( els_protocol:range(#{from => {106, 12}, to => {106, 15}})
               , Range3),
+  %% Inside macro
+  ?assertEqual( els_protocol:range(#{from => {19, 17}, to => {19, 18}})
+              , Range4),
   ok.
 
 
