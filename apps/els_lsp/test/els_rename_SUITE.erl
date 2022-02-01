@@ -151,10 +151,7 @@ rename_variable(Config) ->
   #{result := Result7} = els_client:document_rename(Uri, 21, 20, NewName),
   Expected7 = #{changes => #{UriAtom => [ change(NewName, {21, 26}, {21, 29})
                                         , change(NewName, {21, 20}, {21, 23})
-                                        %% This should also update, but doesn't
-                                        %% due to bug where Var in MACRO(Var)
-                                        %% isn't considered a variable POI
-                                        %% change(NewName, {22, 14}, {22, 17})
+                                        , change(NewName, {21, 14}, {21, 17})
                                         ]}},
   %% Type
   #{result := Result8} = els_client:document_rename(Uri, 23, 11, NewName),

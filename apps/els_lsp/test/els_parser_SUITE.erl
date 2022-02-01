@@ -12,6 +12,7 @@
         , parse_incomplete_function/1
         , parse_incomplete_spec/1
         , parse_no_tokens/1
+        , define/1
         , underscore_macro/1
         , specs_with_record/1
         , types_with_record/1
@@ -126,6 +127,16 @@ parse_no_tokens(_Config) ->
     "-module(m).\n"
     "%% trailing comment",
   {ok, [#{id := m, kind := module}]} = els_parser:parse(Text3).
+
+-spec define(config()) -> ok.
+define(_Config) ->
+  ?assertMatch({ok, [ #{id := {'MACRO', 2}, kind := define}
+                    , #{id := 'B', kind := variable}
+                    , #{id := 'A', kind := variable}
+                    , #{id := 'B', kind := variable}
+                    , #{id := 'A', kind := variable}
+                    ]},
+               els_parser:parse("-define(MACRO(A, B), A:B()).")).
 
 -spec underscore_macro(config()) -> ok.
 underscore_macro(_Config) ->

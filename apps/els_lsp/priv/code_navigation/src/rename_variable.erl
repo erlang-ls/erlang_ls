@@ -18,7 +18,7 @@ baz(Var) ->
 
 -record(foo, {a :: Var,
               b :: [Var]}).
-%% BUG: `Var' in MACRO(`Var') is not considered a variable POI
+
 -define(MACRO(Var), Var + Var).
 
 -type type(Var) :: Var.
