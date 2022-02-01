@@ -1,14 +1,18 @@
 .PHONY: all
 
+PREFIX = '/usr/local'
+
 all:
 	@ echo "Building escript..."
 	@ rebar3 escriptize
 	@ rebar3 as dap escriptize
 
+.PHONY: install
 install: all
 	@ echo "Installing escript..."
-	@ cp _build/default/bin/erlang_ls /usr/local/bin
-	@ cp _build/dap/bin/els_dap /usr/local/bin
+	@ mkdir -p '${PREFIX}/bin'
+	@ cp _build/default/bin/erlang_ls ${PREFIX}/bin
+	@ cp _build/dap/bin/els_dap ${PREFIX}/bin
 
 .PHONY: clean
 clean:
