@@ -49,6 +49,8 @@ workspace_edits(_Uri, [], _NewName) ->
 workspace_edits(Uri, [#{kind := function_clause} = POI| _], NewName) ->
   #{id := {F, A, _}} = POI,
   #{changes => changes(Uri, POI#{kind => function, id => {F, A}}, NewName)};
+workspace_edits(Uri, [#{kind := spec} = POI| _], NewName) ->
+  #{changes => changes(Uri, POI#{kind => function}, NewName)};
 workspace_edits(Uri, [#{kind := Kind} = POI| _], NewName)
   when Kind =:= define;
        Kind =:= record;
