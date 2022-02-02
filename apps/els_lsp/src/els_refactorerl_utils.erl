@@ -1,5 +1,5 @@
 %%==============================================================================
-%% Eralang LS & Refactor Erl conversion
+%% Erlang LS & Refactor Erl conversion
 %%==============================================================================
 -module(els_refactorerl_utils).
 
@@ -57,7 +57,7 @@ referl_node() ->
       {ok, Node};
 
     #{"node" := {Node, disconnected}} ->
-      try_connect_node({retry, Node});
+      connect_node({retry, Node});
 
     #{"node" := {_, disabled}} ->
       {error, disabled};
@@ -65,7 +65,7 @@ referl_node() ->
     #{"node" := NodeStr} ->
       RT = els_config_runtime:get_name_type(),
       Node = els_utils:compose_node_name(NodeStr, RT),
-      try_connect_node({validate, Node});
+      connect_node({validate, Node});
 
     disabled ->
       notification("RefactorErl is not configured!"),
@@ -120,7 +120,7 @@ query(Query) ->
 %% Convert a RefactorErl result to a POI, for the LS system
 %% The RefactorErl format is how the refusr_sq:run\3 returns
 convert_to_poi(ReferlResult) ->
-case ReferlResult of
+case ReferlResult of % TODO Robi !!!
     [{_, _, _, DataList}] ->
       convert_to_poi(DataList);
     [{{_, {FromLine, FromCol}, {ToLine, ToCol}}, Name} | Tail] ->
@@ -158,9 +158,9 @@ check_node(Node) ->
 %% Tries to connect to a node
 %% When statues is validate, it reports the success, and failure as well,
 %% when retry, it won't report.
--spec try_connect_node({validate | retry, atom()}) -> {error, disconnected}
+-spec connect_node({validate | retry, atom()}) -> {error, disconnected}
                                                      | atom().
-try_connect_node({Status, Node}) ->
+connect_node({Status, Node}) ->
   case {Status, check_node(Node)} of
     {validate, {error, _}} ->
       notification("RefactorErl is not connected!", ?MESSAGE_TYPE_INFO),
@@ -195,3 +195,4 @@ notification(Msg) ->
 -spec maxtimeout() -> number().
 maxtimeout() ->
     10000.
+

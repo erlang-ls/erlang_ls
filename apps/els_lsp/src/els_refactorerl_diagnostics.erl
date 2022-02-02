@@ -1,5 +1,5 @@
 %%==============================================================================
-%% Unsecure Calls by Referl
+%% RefactorErl Diagnostics
 %%==============================================================================
 -module(els_refactorerl_diagnostics).
 
@@ -31,23 +31,6 @@
 %%==============================================================================
 %% Callback Functions
 %%==============================================================================
-
-
-%%@doc
-%% Creates a RefactorErl query from a diagnostic identifier and a module name
--spec make_query(refactorerl_diagnostic_id(), module()) -> refactorerl_query().
-make_query({_, _, Before, After}, Module) ->
-  ModuleStr = atom_to_list(Module),
-  Before ++ ModuleStr ++ After.
-
-
--spec run_query(module(), refactorerl_diagnostic_id()) ->
-                                          ([els_diagnostics:diagnostic()]).
-run_query(Module, DiagnosticId) ->
-  {_, Message, _, _} = DiagnosticId,
-  ReferlResult = els_refactorerl_utils:query(make_query(DiagnosticId, Module)),
-  Pois = els_refactorerl_utils:convert_to_poi(ReferlResult),
-  [make_diagnostic(Poi, Message) || Poi <- Pois].
 
 -spec is_default() -> boolean().
 is_default() ->
@@ -90,7 +73,7 @@ run(_, RecursionDepth) when RecursionDepth >= ?MAX_RECURSION_DEPTH ->
 
 -spec source() -> binary().
 source() ->
-  <<"RefactorErl Diagnostics">>.
+  <<"RefactorErl">>.
 
 %%==============================================================================
 %% Internal Functions
@@ -122,10 +105,26 @@ refactorerl_diagnostics() -> % TODO: Make it configureable
   %% Adds a module to the RefactorErl node.
 -spec add(any()) -> atom(). %TODO: Add .hrl files
 add(Uri) ->
-  Param = [binary_to_list(els_uri:path(Uri))],
+  Params = [binary_to_list(els_uri:path(Uri))],
   case els_refactorerl_utils:referl_node() of
     {ok, Node} ->
-      rpc:call(Node, ri, add, Param, els_refactorerl_utils:maxtimeout());
+      rpc:call(Node, ri, add, Params, els_refactorerl_utils:maxtimeout());
     _ ->
       error
   end.
+
+%%@doc
+%% Creates a RefactorErl query from a diagnostic identifier and a module name
+-spec make_query(refactorerl_diagnostic_id(), module()) -> refactorerl_query().
+make_query({_, _, Before, After}, Module) ->
+  ModuleStr = atom_to_list(Module),
+  Before ++ ModuleStr ++ After.
+
+
+-spec run_query(module(), refactorerl_diagnostic_id()) ->
+                                          ([els_diagnostics:diagnostic()]).
+run_query(Module, DiagnosticId) ->
+  {_, Message, _, _} = DiagnosticId,
+  ReferlResult = els_refactorerl_utils:query(make_query(DiagnosticId, Module)),
+  Pois = els_refactorerl_utils:convert_to_poi(ReferlResult),
+  [make_diagnostic(Poi, Message) || Poi <- Pois].
