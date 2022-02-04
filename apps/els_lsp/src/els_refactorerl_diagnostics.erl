@@ -126,5 +126,5 @@ make_query({_, _, Before, After}, Module) ->
 run_query(Module, DiagnosticId) ->
   {_, Message, _, _} = DiagnosticId,
   ReferlResult = els_refactorerl_utils:query(make_query(DiagnosticId, Module)),
-  Pois = els_refactorerl_utils:convert_to_poi(ReferlResult),
+  Pois = els_refactorerl_utils:process_result(ReferlResult),
   [make_diagnostic(Poi, Message) || Poi <- Pois].

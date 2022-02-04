@@ -12,6 +12,7 @@
         , query/1
         , notification/1
         , notification/2
+        , process_result/1
         ]).
 
 %%==============================================================================
@@ -51,7 +52,7 @@
                      | {error, disconnected}
                      | {error, disabled}
                      | {error, other}.
-referl_node() ->
+referl_node() -> % TODO R: use envs
   case els_config:get(refactorerl) of
     #{"node" := {Node, validated}} ->
       {ok, Node};
@@ -98,29 +99,41 @@ disable_node(Node) ->
   %% result then is directly converted to POIs.
   %% If the node timeouts or badrpc will come back, it disables the node
 -spec query(string()) -> list() | {error, disabled}.
-query(Query) ->
-  case referl_node() of
+query(Query) -> % TODO R: remove the case
+  case referl_node() of 
     {error, _} ->
       [];
     {ok, Node} ->
-      P = [{positions, linecol}, {output, msg}],
-      Response = rpc:call(Node, refusr_sq, run, [P, [], Query], maxtimeout()),
-      case Response of
+      DisplayOpt = [{positions, linecol}, {output, msg}],
+      ReqID = request_id(),
+      Opts = [  self()
+              , ReqID
+              , {transform, semantic_query 
+                , [{ask_missing, false}
+                , {display_opt, DisplayOpt}
+                , {start_opt, []}
+                , {querystr, Query}]}
+             ],
+      Resp = rpc:call(Node, reflib_ui_router, request,  Opts),
+      case Resp of
         {badrpc, _} ->
           disable_node(Node); % Returns disabled
-        error ->
-          [];
-        _ ->
-          Response
+        ok ->
+          receive
+            {ReqID, reply, Result} -> Result
+          end;
+        deny ->
+          notification("Query is denied!"),
+          []
       end
   end.
 
 -spec convert_to_poi(any()) -> poi().
 %%@doc
 %% Convert a RefactorErl result to a POI, for the LS system
-%% The RefactorErl format is how the refusr_sq:run\3 returns
+%% The RefactorErl format is how the refusr_sq:run\3 returns TODO
 convert_to_poi(ReferlResult) ->
-case ReferlResult of % TODO Robi !!!
+case ReferlResult of % TODO Robi !!! function clauses
     [{_, _, _, DataList}] ->
       convert_to_poi(DataList);
     [{{_, {FromLine, FromCol}, {ToLine, ToCol}}, Name} | Tail] ->
@@ -131,6 +144,11 @@ case ReferlResult of % TODO Robi !!!
     _ ->
         [] %TODO Robi notify
 end.
+
+%TODO R spec
+-spec process_result(any()) -> any().
+process_result({ok, {result, [{result,[{group_by, {nopos, _}, list, L}]}]}}) ->
+  convert_to_poi(L).
 
 
 %%@doc
@@ -186,6 +204,18 @@ notification(Msg, Severity) ->
 -spec notification(string()) -> atom().
 notification(Msg) ->
   notification(Msg, ?MESSAGE_TYPE_INFO).
+
+
+-spec request_id() -> any().
+request_id() -> % TODO R spec
+  case referl_node() of
+    {error, _} ->
+      nodedown;
+    {ok, Node} ->
+      rpc:call(Node, reflib_ui_router, getid, [])
+  end.
+
+      
 
 
 %%==============================================================================
