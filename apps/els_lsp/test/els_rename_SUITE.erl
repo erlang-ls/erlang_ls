@@ -237,6 +237,8 @@ rename_function(Config) ->
   #{result := Result} = els_client:document_rename(Uri, 1, 9, NewName),
   %% Import entry
   #{result := Result} = els_client:document_rename(ImportUri, 2, 26, NewName),
+  %% Spec
+  #{result := Result} = els_client:document_rename(Uri, 3, 2, NewName),
   Expected = #{changes =>
                  #{binary_to_atom(Uri, utf8) =>
                      [ change(NewName, {12, 23}, {12, 26})
