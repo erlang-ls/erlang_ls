@@ -753,7 +753,9 @@ module_name_check(Path) ->
                              ?DIAGNOSTIC_ERROR,
                              <<"Compiler (via Erlang LS)">>),
               [Diagnostic]
-          end
+          end;
+        _ ->
+          []
       end;
     _ ->
       []
