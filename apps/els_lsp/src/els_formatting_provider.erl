@@ -158,9 +158,13 @@ format_document_local(Dir, RelativePath,
 rangeformat_document(_Uri, _Document, _Range, _Options) ->
     {ok, []}.
 
--spec ontypeformat_document(binary(), map()
-                           , number(), number(), string(), formatting_options())
-                           -> {ok, [text_edit()]}.
+-spec ontypeformat_document(binary(),
+                            map(),
+                            number(),
+                            number(),
+                            string(),
+                            formatting_options()) ->
+                               {ok, [text_edit()]}.
 ontypeformat_document(_Uri, Document, Line, Col, <<".">>, _Options) ->
   case find_matching_range(Document, Line) of
     [] ->
@@ -168,17 +172,26 @@ ontypeformat_document(_Uri, Document, Line, Col, <<".">>, _Options) ->
     [MatchingRange] ->
       {StartLine, _} = Id = els_poi:id(MatchingRange),
       Text = els_dt_document:text(Document),
-      RangeText = els_text:range(Text, Id, {Line, Col}),
+      RangeText = els_text:range(Text, Id, {Line, Col - 1}),
       % Skip formatting if the . is on a commented line.
-      case string:trim(els_text:line(Text, Line - 1), both) of
+      case string:trim(
+             els_text:line(Text, Line - 1), both)
+      of
         <<"%", _/binary>> ->
           {ok, []};
         _ ->
           ParseF =
             fun(Dir) ->
                TmpFile = tmp_file(Dir),
-               ok = file:write_file(TmpFile, RangeText),
-               Opts = #{break_indent => 2, output_dir => current},
+               ok = file:write_file(TmpFile, <<RangeText/binary, ".">>),
+               Opts =
+                 #{formatter => default_formatter,
+                   paper => 100,
+                   parse_macro_definitions => false,
+                   truncate_strings => true,
+                   parenthesize_infix_operations => true,
+                   break_indent => 2,
+                   output_dir => current},
                RebarState = #{},
                T = rebar3_formatter:new(default_formatter, Opts, RebarState),
                rebar3_formatter:format_file(TmpFile, T),
