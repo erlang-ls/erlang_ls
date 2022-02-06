@@ -77,7 +77,7 @@
                   , indexing_enabled => boolean()
                   , bsp_enabled      => boolean() | auto
                   , compiler_telemetry_enabled => boolean()
-                  , refactorerl => { map() | 'notconfigured'}
+                  , refactorerl      => map() | 'notconfigured'
                   }.
 
 %%==============================================================================
