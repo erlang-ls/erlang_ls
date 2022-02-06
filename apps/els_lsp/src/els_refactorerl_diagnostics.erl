@@ -79,19 +79,9 @@ source() ->
 %% Internal Functions
 %%==============================================================================
 
-%%@doc
-%% Creates a diagnostic form the Poi data and a Message
-%% The severity is only warning.
--spec make_diagnostic(poi(), [char()]) -> els_diagnostics:diagnostic().
-make_diagnostic(#{ data := PoiData, range := PoiRange}, DiagMessage) ->
-    Range = els_protocol:range(PoiRange),
-    Message = list_to_binary(DiagMessage ++ " " ++ PoiData),
-    Severity = ?DIAGNOSTIC_WARNING,
-    Source = source(),
-    els_diagnostics:make_diagnostic(Range, Message, Severity, Source).
 
-  %%@doc
-  %% Returns the available diagnostics of RefactorErl.
+%%@doc
+%% Returns the available diagnostics of RefactorErl.
 -spec refactorerl_diagnostics() -> [refactorerl_diagnostic_id()].
 refactorerl_diagnostics() -> % TODO: Make it configureable
   [ {unused_calls, "Security Issue",  "mods[name=", "].funs.unsecure_calls"}
@@ -126,6 +116,4 @@ make_query({_, _, Before, After}, Module) ->
 run_query(Module, DiagnosticId) ->
   {_, Message, _, _} = DiagnosticId,
   ReferlResult = els_refactorerl_utils:query(make_query(DiagnosticId, Module)),
-  Pois = els_refactorerl_utils:process_result(ReferlResult),
-  Diags = els_refactorerl_utils:make_diagnostics(ReferlResult, Message),
-  [make_diagnostic(Poi, Message) || Poi <- Pois] ++ Diags.
+  els_refactorerl_utils:make_diagnostics(ReferlResult, Message).
