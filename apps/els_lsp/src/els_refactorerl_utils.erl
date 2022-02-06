@@ -13,7 +13,9 @@
         , notification/1
         , notification/2
         , process_result/1
-        ]).
+        , make_diagnostics/2
+        , source_name/0
+        ]). % TODO exports???
 
 %%==============================================================================
 %% Includes & Defines
@@ -52,7 +54,7 @@
                      | {error, disconnected}
                      | {error, disabled}
                      | {error, other}.
-referl_node() -> % TODO R: use envs
+referl_node() -> % TODO Might be better to use envs in the future
   case els_config:get(refactorerl) of
     #{"node" := {Node, validated}} ->
       {ok, Node};
@@ -99,7 +101,7 @@ disable_node(Node) ->
   %% result then is directly converted to POIs.
   %% If the node timeouts or badrpc will come back, it disables the node
 -spec query(string()) -> list() | {error, disabled}.
-query(Query) -> % TODO R: remove the case
+query(Query) -> % TODO: give a second tought to the case
   case referl_node() of 
     {error, _} ->
       [];
@@ -127,6 +129,28 @@ query(Query) -> % TODO R: remove the case
           []
       end
   end.
+
+
+%TODO spec
+
+
+-spec make_diagnostics(any(), string()) -> any().
+make_diagnostics([{{_, From, To}, Name} | Tail], DiagMsg) ->
+  Range = #{ from => From, to => To },
+  Id = refactorerl_poi,
+  #{ data := PoiData, range := PoiRange} = els_poi:new(Range, application, Id, Name), % TODO: How to make this line shorter???
+  RangeLS = els_protocol:range(PoiRange),
+  Message = list_to_binary(DiagMsg ++ " " ++ PoiData),
+  Severity = ?DIAGNOSTIC_WARNING,
+  Source = source_name(),
+  Diagnostic = els_diagnostics:make_diagnostic(RangeLS, Message, Severity, Source), % TODO: How to make this line shorter???
+  [ Diagnostic | make_diagnostics(Tail, DiagMsg) ];
+
+make_diagnostics([], _) ->
+  [];
+
+make_diagnostics({ok, {result, [{result,[{group_by, {nopos, _}, list, L}]}]}}, DiagMsg) -> % TODO: How to make this line shorter???
+  make_diagnostics(L, DiagMsg).
 
 -spec convert_to_poi(any()) -> poi().
 %%@doc
@@ -206,8 +230,8 @@ notification(Msg) ->
   notification(Msg, ?MESSAGE_TYPE_INFO).
 
 
--spec request_id() -> any().
-request_id() -> % TODO R spec
+-spec request_id() -> nodedown | {reqid | string()}.
+request_id() ->
   case referl_node() of
     {error, _} ->
       nodedown;
@@ -226,3 +250,8 @@ request_id() -> % TODO R spec
 maxtimeout() ->
     10000.
 
+%TODOcode organisation
+ 
+-spec source_name() -> binary().
+source_name() ->
+  <<"RefactorErl">>.
