@@ -6,13 +6,11 @@
 %%==============================================================================
 %% API
 %%==============================================================================
--export([ convert_to_poi/1
-        , referl_node/0
+-export([ referl_node/0
         , maxtimeout/0
         , query/1
         , notification/1
         , notification/2
-        , process_result/1
         , make_diagnostics/2
         , source_name/0
         ]). % TODO exports???
@@ -132,8 +130,13 @@ query(Query) -> % TODO: give a second tought to the case
 
 
 %TODO spec
+% TODO doku
+% 
 
-
+%%@doc
+%% Creates a diagnostic form the Poi data and a Message
+%% The severity is only warning.
+%-spec make_diagnostic(poi(), [char()]) -> els_diagnostics:diagnostic().
 -spec make_diagnostics(any(), string()) -> any().
 make_diagnostics([{{_, From, To}, Name} | Tail], DiagMsg) ->
   Range = #{ from => From, to => To },
@@ -151,28 +154,6 @@ make_diagnostics([], _) ->
 
 make_diagnostics({ok, {result, [{result,[{group_by, {nopos, _}, list, L}]}]}}, DiagMsg) -> % TODO: How to make this line shorter???
   make_diagnostics(L, DiagMsg).
-
--spec convert_to_poi(any()) -> poi().
-%%@doc
-%% Convert a RefactorErl result to a POI, for the LS system
-%% The RefactorErl format is how the refusr_sq:run\3 returns TODO
-convert_to_poi(ReferlResult) ->
-case ReferlResult of % TODO Robi !!! function clauses
-    [{_, _, _, DataList}] ->
-      convert_to_poi(DataList);
-    [{{_, {FromLine, FromCol}, {ToLine, ToCol}}, Name} | Tail] ->
-      Range = #{ from => {FromLine, FromCol}, to => {ToLine, ToCol} },
-      Id = refactorerl_poi, %"{module(), 'atom()', 'arity()''}",
-      Poi = els_poi:new(Range, application, Id, Name),
-      [ Poi | convert_to_poi(Tail) ];
-    _ ->
-        [] %TODO Robi notify
-end.
-
-%TODO R spec
--spec process_result(any()) -> any().
-process_result({ok, {result, [{result,[{group_by, {nopos, _}, list, L}]}]}}) ->
-  convert_to_poi(L).
 
 
 %%@doc
