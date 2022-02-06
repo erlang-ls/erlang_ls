@@ -73,7 +73,7 @@ run(_, RecursionDepth) when RecursionDepth >= ?MAX_RECURSION_DEPTH ->
 
 -spec source() -> binary().
 source() ->
-  <<"RefactorErl">>.
+  els_refactorerl_utils:source_name().
 
 %%==============================================================================
 %% Internal Functions
@@ -127,4 +127,5 @@ run_query(Module, DiagnosticId) ->
   {_, Message, _, _} = DiagnosticId,
   ReferlResult = els_refactorerl_utils:query(make_query(DiagnosticId, Module)),
   Pois = els_refactorerl_utils:process_result(ReferlResult),
-  [make_diagnostic(Poi, Message) || Poi <- Pois].
+  Diags = els_refactorerl_utils:make_diagnostics(ReferlResult, Message),
+  [make_diagnostic(Poi, Message) || Poi <- Pois] ++ Diags.
