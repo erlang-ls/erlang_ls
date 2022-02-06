@@ -1,5 +1,5 @@
 %%==============================================================================
-%% Unsecure Calls by Referl
+%% RefactorErl Diagnostics
 %%==============================================================================
 -module(els_refactorerl_diagnostics).
 
@@ -20,7 +20,6 @@
 %% Includes & Defines
 %%==============================================================================
 -include("els_lsp.hrl").
--define(MAX_RECURSION_DEPTH, 10).
 
 %%==============================================================================
 %% Types
@@ -31,6 +30,52 @@
 %%==============================================================================
 %% Callback Functions
 %%==============================================================================
+
+-spec is_default() -> boolean().
+is_default() ->
+  false.
+
+-spec run(uri()) -> [els_diagnostics:diagnostic()].
+run(Uri) ->
+  case filename:extension(Uri) of
+    <<".erl">> ->
+      case els_refactorerl_utils:referl_node() of
+        {error, _} ->
+          [];
+        {ok, _} ->
+          case els_refactorerl_utils:add(Uri) of
+            error ->
+              [];
+            ok ->
+              FileName = filename:basename(binary_to_list(els_uri:path(Uri))),
+              Module = list_to_atom(filename:rootname(FileName)),
+              Diagnostics = refactorerl_diagnostics(),
+              lists:concat([run_query(Module, DiagId) || DiagId <- Diagnostics])
+          end
+      end;
+    _ ->
+      []
+  end.
+
+-spec source() -> binary().
+source() ->
+  els_refactorerl_utils:source_name().
+
+%%==============================================================================
+%% Internal Functions
+%%==============================================================================
+
+
+%%@doc
+%% Returns the available diagnostics of RefactorErl.
+-spec refactorerl_diagnostics() -> [refactorerl_diagnostic_id()].
+refactorerl_diagnostics() -> 
+  [ {unused_calls, "Security Issue",  "mods[name=", "].funs.unsecure_calls"}
+  ,   {unsecure_macros
+      , "Unused Macros:"
+      , "mods[name="
+      , "].macros[not .references]" }
+  ].
 
 
 %%@doc
@@ -46,86 +91,4 @@ make_query({_, _, Before, After}, Module) ->
 run_query(Module, DiagnosticId) ->
   {_, Message, _, _} = DiagnosticId,
   ReferlResult = els_refactorerl_utils:query(make_query(DiagnosticId, Module)),
-  Pois = els_refactorerl_utils:convert_to_poi(ReferlResult),
-  [make_diagnostic(Poi, Message) || Poi <- Pois].
-
--spec is_default() -> boolean().
-is_default() ->
-  true.
-
--spec run(uri()) -> [els_diagnostics:diagnostic()].
-run(Uri) ->
-  run(Uri, 0).
-
-
--spec run(uri(), number()) -> [els_diagnostics:diagnostic()].
-run(Uri, RecursionDepth) when RecursionDepth < ?MAX_RECURSION_DEPTH ->
-  case filename:extension(Uri) of
-    <<".erl">> ->
-      case els_refactorerl_utils:referl_node() of
-        disabled ->
-          [];
-        _ ->
-          case add(Uri) of
-            busy ->
-              timer:sleep(1000),
-              run(Uri, RecursionDepth + 1);
-            disabled ->
-              [];
-            _ ->
-              FileName = filename:basename(binary_to_list(els_uri:path(Uri))),
-              Module = list_to_atom(filename:rootname(FileName)),
-              Diagnostics = refactorerl_diagnostics(),
-              lists:concat([run_query(Module, DiagId) || DiagId <- Diagnostics])
-          end
-      end;
-    _ ->
-      []
-  end;
-
-run(_, RecursionDepth) when RecursionDepth >= ?MAX_RECURSION_DEPTH ->
-  Msg = "Cannot add module to RefactorErl!",
-  els_refactorerl_utils:notification(Msg, ?MESSAGE_TYPE_ERROR),
-  [].
-
--spec source() -> binary().
-source() ->
-  <<"RefactorErl Diagnostics">>.
-
-%%==============================================================================
-%% Internal Functions
-%%==============================================================================
-
-%%@doc
-%% Creates a diagnostic form the Poi data and a Message
-%% The severity is only warning.
--spec make_diagnostic(poi(), [char()]) -> els_diagnostics:diagnostic().
-make_diagnostic(#{ data := PoiData, range := PoiRange}, DiagMessage) ->
-    Range = els_protocol:range(PoiRange),
-    Message = list_to_binary(DiagMessage ++ " " ++ PoiData),
-    Severity = ?DIAGNOSTIC_WARNING,
-    Source = source(),
-    els_diagnostics:make_diagnostic(Range, Message, Severity, Source).
-
-  %%@doc
-  %% Returns the available diagnostics of RefactorErl.
--spec refactorerl_diagnostics() -> [refactorerl_diagnostic_id()].
-refactorerl_diagnostics() -> % TODO: Make it configureable
-  [ {unused_calls, "Security Issue",  "mods[name=", "].funs.unsecure_calls"}
-  ,   {unsecure_macros
-      , "Unused Macros:"
-      , "mods[name="
-      , "].macros[not .references]" }
-  ].
-
-  %%@doc
-  %% Adds a module to the RefactorErl node.
--spec add(any()) -> atom(). %TODO: Add .hrl files
-add(Uri) ->
-  Param = [binary_to_list(els_uri:path(Uri))],
-  case els_refactorerl_utils:referl_node() of
-    {ok, Node} ->
-      rpc:call(Node, ri, add, Param, els_refactorerl_utils:maxtimeout());
-    _ ->
-      error
-  end.
+  els_refactorerl_utils:make_diagnostics(ReferlResult, Message).
