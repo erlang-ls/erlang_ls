@@ -46,9 +46,9 @@ run(Uri, RecursionDepth) when RecursionDepth < ?MAX_RECURSION_DEPTH ->
   case filename:extension(Uri) of
     <<".erl">> ->
       case els_refactorerl_utils:referl_node() of
-        disabled ->
+        {error, _} ->
           [];
-        _ ->
+        {ok, _} ->
           case add(Uri) of
             busy ->
               timer:sleep(1000),
