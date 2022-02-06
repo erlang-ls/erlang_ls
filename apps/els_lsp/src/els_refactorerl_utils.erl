@@ -7,19 +7,19 @@
 %% API
 %%==============================================================================
 -export([ referl_node/0
-        , maxtimeout/0
         , query/1
         , notification/1
         , notification/2
         , make_diagnostics/2
         , source_name/0
         , add/1
-        ]). % TODO exports???
-
+        ]).
+      
 %%==============================================================================
 %% Includes & Defines
 %%==============================================================================
 -include("els_lsp.hrl").
+-define(MAX_RECURSION_DEPTH, 10).
 
 %%==============================================================================
 %% API
@@ -53,7 +53,7 @@
                      | {error, disconnected}
                      | {error, disabled}
                      | {error, other}.
-referl_node() -> % TODO Might be better to use envs in the future
+referl_node() -> 
   case els_config:get(refactorerl) of
     #{"node" := {Node, validated}} ->
       {ok, Node};
@@ -61,7 +61,7 @@ referl_node() -> % TODO Might be better to use envs in the future
     #{"node" := {Node, disconnected}} ->
       connect_node({retry, Node});
 
-    #{"node" := {_, disabled}} ->
+    #{"node" := {_Node, disabled}} ->
       {error, disabled};
 
     #{"node" := NodeStr} ->
@@ -69,18 +69,25 @@ referl_node() -> % TODO Might be better to use envs in the future
       Node = els_utils:compose_node_name(NodeStr, RT),
       connect_node({validate, Node});
 
-    disabled ->
+    notconfigured ->
       notification("RefactorErl is not configured!"),
       {error, disabled};
 
     _ ->
-      {error, other} % TODO: maybe check for 'notconfigured'
+      {error, other}
   end.
 
+
 %%@doc
-%% Adds a module to the RefactorErl node.
--spec add(any()) -> atom().
-add(Uri) ->
+%% Adds a module to the RefactorErl node. Using the UI router
+%% Returns 'ok' if successfull
+%% Returns 'error' if it fails after ?MAX_RECURSION_DEPTH number of tries
+-spec add(uri()) -> atom().
+add(Uri) -> 
+  add(Uri, 0).
+
+-spec add(uri(), number()) -> atom().
+add(Uri, RecursionDepth) when RecursionDepth < ?MAX_RECURSION_DEPTH ->
   case els_refactorerl_utils:referl_node() of
     {ok, Node} ->
       Path = [binary_to_list(els_uri:path(Uri))],
@@ -91,52 +98,38 @@ add(Uri) ->
                       , [self(), ReqID, {add_dir, Path}] ),
       case Resp of
         {badrpc, _} ->
-          disable_node(Node); % Returns disabled
+          disable_node(Node),
+          error;
         ok ->
           receive
             {ReqID, reply, {ok, _}} -> ok
           end;
         deny ->
-          notification("Query is denied!"),
-          []
+          notification("Adding is deined, retry!"), % TODO: Take this out overtime stability proves itself
+          timer:sleep(1000),
+          add(Uri, RecursionDepth + 1)
       end;
     _ ->
       error
-  end.
+  end;
+
+add(_Uri, RecursionDepth) when RecursionDepth >= ?MAX_RECURSION_DEPTH ->
+  notification("Cannot add module to RefactorErl!", ?MESSAGE_TYPE_ERROR),
+  error.
 
   
-
-
-
-
-
-
-
-
-
-%%==============================================================================
-%% Internal Functions
-%%==============================================================================
-
--spec disable_node(atom()) -> atom().
 %%@doc
-%% Disables the node given in paramter, also notifes the user.
-disable_node(Node) ->
-  Msg = "RefactorErl is disconnected!
-  Reload ELS after you fixed theRefactorErl node!",
-  notification(Msg, ?MESSAGE_TYPE_ERROR),
+%% Runs a Query on the RefactorErl node, returns its result if successfull
+%% If error happens, it just returns an empty list, as most of times the
+%% result then is directly converted to POIs.
+%% If the node timeouts or badrpc will come back, it disables the node and
+%% stills returns an empty list
+-spec query(string()) -> list().
+query(Query) ->
+  query(Query, 0).
 
-  els_config:set(refactorerl, #{"node" => {Node, disabled}}),
-  {error, disabled}.
-
-
-  %%@doc
-  %% Runs a Query on the RefactorErl node, returns its result if successfull
-  %% If error happens, it just returns an empty list, as most of times the
-  %% result then is directly converted to POIs.
-  %% If the node timeouts or badrpc will come back, it disables the node
--spec query(string()) -> list() | {error, disabled}.
-query(Query) -> % TODO: give a second tought to the case
+-spec query(string(), number()) -> list().
+query(Query, RecursionDepth) when RecursionDepth < ?MAX_RECURSION_DEPTH-> 
   case referl_node() of 
     {error, _} ->
       [];
@@ -154,44 +147,74 @@ query(Query) -> % TODO: give a second tought to the case
       Resp = rpc:call(Node, reflib_ui_router, request,  Opts),
       case Resp of
         {badrpc, _} ->
-          disable_node(Node); % Returns disabled
+          disable_node(Node),
+          []; % As most of times it is going to be processed right after.
         ok ->
           receive
             {ReqID, reply, Result} -> Result
           end;
         deny ->
-          notification("Query is denied!"),
-          []
+          timer:sleep(1000),
+          query(Query, RecursionDepth + 1)
       end
-  end.
+  end;
 
+query(_Query, RecursionDepth) when RecursionDepth >= ?MAX_RECURSION_DEPTH ->
+  notification("Cannot execute query on RefactorErl!", ?MESSAGE_TYPE_ERROR),
+  [].
 
-%TODO spec
-% TODO doku
-% 
 
 %%@doc
-%% Creates a diagnostic form the Poi data and a Message
+%% Util for popping up notifications
+-spec notification(string(), number()) -> atom().
+notification(Msg, Severity) ->
+  Param = #{ type => Severity,
+             message => list_to_binary(Msg) },
+  els_server:send_notification(<<"window/showMessage">>, Param).
+
+-spec notification(string()) -> atom().
+notification(Msg) ->
+  notification(Msg, ?MESSAGE_TYPE_INFO).
+
+
+%%@doc
+%% Creates a list of diagnostics form the RefactorErl results and a message
+%% Message can be the same, as this is called per diagnsotic type.
 %% The severity is only warning.
-%-spec make_diagnostic(poi(), [char()]) -> els_diagnostics:diagnostic().
--spec make_diagnostics(any(), string()) -> any().
-make_diagnostics([{{_, From, To}, Name} | Tail], DiagMsg) ->
+-spec make_diagnostics(any(), string()) -> [els_diagnostics:diagnostic()].
+make_diagnostics([{{_Path, From, To}, Name} | Tail], DiagMsg) ->
   Range = #{ from => From, to => To },
   Id = refactorerl_poi,
-  #{ data := PoiData, range := PoiRange} = els_poi:new(Range, application, Id, Name), % TODO: How to make this line shorter???
+  #{ data := PoiData, range := PoiRange} =
+                        els_poi:new(Range, application, Id, Name), 
   RangeLS = els_protocol:range(PoiRange),
   Message = list_to_binary(DiagMsg ++ " " ++ PoiData),
   Severity = ?DIAGNOSTIC_WARNING,
   Source = source_name(),
-  Diagnostic = els_diagnostics:make_diagnostic(RangeLS, Message, Severity, Source), % TODO: How to make this line shorter???
-  [ Diagnostic | make_diagnostics(Tail, DiagMsg) ];
+  Diag = els_diagnostics:make_diagnostic(RangeLS, Message, Severity, Source), 
+  [ Diag | make_diagnostics(Tail, DiagMsg) ];
 
 make_diagnostics([], _) ->
   [];
 
-make_diagnostics({ok, {result, [{result,[{group_by, {nopos, _}, list, L}]}]}}, DiagMsg) -> % TODO: How to make this line shorter???
+make_diagnostics({ok, {result, [{result,[{group_by, {nopos, _}, list, L}]}]}}, 
+                                                                    DiagMsg) ->
   make_diagnostics(L, DiagMsg).
 
+%%==============================================================================
+%% Internal Functions
+%%==============================================================================
+
+-spec disable_node(atom()) -> atom().
+%%@doc
+%% Disables the node given in paramter, also notifes the user.
+disable_node(Node) ->
+  Msg = "RefactorErl is disconnected!
+  Reload ELS after you fixed theRefactorErl node!",
+  notification(Msg, ?MESSAGE_TYPE_ERROR),
+
+  els_config:set(refactorerl, #{"node" => {Node, disabled}}),
+  {error, disabled}.
 
 %%@doc
 %% Calls the RefactorErl node, to check if it's alive using ri:ls()
@@ -215,8 +238,10 @@ check_node(Node) ->
   end.
 
 %%@doc
-%% Tries to connect to a node
-%% When statues is validate, it reports the success, and failure as well,
+%% Tries to connect to a node. 
+%% When it status is validate, the node hasn't been checked yet, 
+%% so it will reports the success, and failure as well,
+%% 
 %% when retry, it won't report.
 -spec connect_node({validate | retry, atom()}) -> {error, disconnected}
                                                      | atom().
@@ -236,18 +261,7 @@ connect_node({Status, Node}) ->
   end.
 
 %%@doc
-%% Util for popping up notifications
--spec notification(string(), number()) -> atom().
-notification(Msg, Severity) ->
-  Param = #{ type => Severity,
-             message => list_to_binary(Msg) },
-  els_server:send_notification(<<"window/showMessage">>, Param).
-
--spec notification(string()) -> atom().
-notification(Msg) ->
-  notification(Msg, ?MESSAGE_TYPE_INFO).
-
-
+%% Gets a request id from the RefactorErl node, and returns it 
 -spec request_id() -> nodedown | {reqid | string()}.
 request_id() ->
   case referl_node() of
@@ -257,19 +271,14 @@ request_id() ->
       rpc:call(Node, reflib_ui_router, getid, [])
   end.
 
-      
-
+    
 
 %%==============================================================================
 %% Values
 %%==============================================================================
 
--spec maxtimeout() -> number().
-maxtimeout() ->
-    10000.
-
-%TODOcode organisation
- 
+%%@doc
+%% Common soruce name for all RefactorErl based backend(s) 
 -spec source_name() -> binary().
 source_name() ->
   <<"RefactorErl">>.

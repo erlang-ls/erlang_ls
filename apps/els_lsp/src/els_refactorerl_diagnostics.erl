@@ -20,7 +20,6 @@
 %% Includes & Defines
 %%==============================================================================
 -include("els_lsp.hrl").
--define(MAX_RECURSION_DEPTH, 10).
 
 %%==============================================================================
 %% Types
@@ -38,24 +37,16 @@ is_default() ->
 
 -spec run(uri()) -> [els_diagnostics:diagnostic()].
 run(Uri) ->
-  run(Uri, 0).
-
-
--spec run(uri(), number()) -> [els_diagnostics:diagnostic()].
-run(Uri, RecursionDepth) when RecursionDepth < ?MAX_RECURSION_DEPTH ->
   case filename:extension(Uri) of
     <<".erl">> ->
       case els_refactorerl_utils:referl_node() of
         {error, _} ->
           [];
         {ok, _} ->
-          case add(Uri) of
-            busy ->
-              timer:sleep(1000),
-              run(Uri, RecursionDepth + 1);
-            disabled ->
+          case els_refactorerl_utils:add(Uri) of
+            error ->
               [];
-            _ ->
+            ok ->
               FileName = filename:basename(binary_to_list(els_uri:path(Uri))),
               Module = list_to_atom(filename:rootname(FileName)),
               Diagnostics = refactorerl_diagnostics(),
@@ -64,12 +55,7 @@ run(Uri, RecursionDepth) when RecursionDepth < ?MAX_RECURSION_DEPTH ->
       end;
     _ ->
       []
-  end;
-
-run(_, RecursionDepth) when RecursionDepth >= ?MAX_RECURSION_DEPTH ->
-  Msg = "Cannot add module to RefactorErl!",
-  els_refactorerl_utils:notification(Msg, ?MESSAGE_TYPE_ERROR),
-  [].
+  end.
 
 -spec source() -> binary().
 source() ->
@@ -91,11 +77,6 @@ refactorerl_diagnostics() ->
       , "].macros[not .references]" }
   ].
 
-  %%@doc
-  %% Adds a module to the RefactorErl node.
--spec add(any()) -> atom().
-add(Uri) ->
-  els_refactorerl_utils:add(Uri).
 
 %%@doc
 %% Creates a RefactorErl query from a diagnostic identifier and a module name
