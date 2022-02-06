@@ -73,7 +73,7 @@ referl_node() -> % TODO Might be better to use envs in the future
       {error, disabled};
 
     _ ->
-      {error, other}
+      {error, other} % TODO: maybe check for 'notconfigured'
   end.
 
 
