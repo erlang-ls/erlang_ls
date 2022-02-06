@@ -13,6 +13,7 @@
         , notification/2
         , make_diagnostics/2
         , source_name/0
+        , add/1
         ]). % TODO exports???
 
 %%==============================================================================
@@ -75,6 +76,42 @@ referl_node() -> % TODO Might be better to use envs in the future
     _ ->
       {error, other} % TODO: maybe check for 'notconfigured'
   end.
+
+%%@doc
+%% Adds a module to the RefactorErl node.
+-spec add(any()) -> atom().
+add(Uri) ->
+  case els_refactorerl_utils:referl_node() of
+    {ok, Node} ->
+      Path = [binary_to_list(els_uri:path(Uri))],
+      ReqID = request_id(),
+      Resp = rpc:call(  Node
+                      , reflib_ui_router
+                      , request
+                      , [self(), ReqID, {add_dir, Path}] ),
+      case Resp of
+        {badrpc, _} ->
+          disable_node(Node); % Returns disabled
+        ok ->
+          receive
+            {ReqID, reply, {ok, _}} -> ok
+          end;
+        deny ->
+          notification("Query is denied!"),
+          []
+      end;
+    _ ->
+      error
+  end.
+
+  
+
+
+
+
+
+
+
 
 
 %%==============================================================================

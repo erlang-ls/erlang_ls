@@ -83,7 +83,7 @@ source() ->
 %%@doc
 %% Returns the available diagnostics of RefactorErl.
 -spec refactorerl_diagnostics() -> [refactorerl_diagnostic_id()].
-refactorerl_diagnostics() -> % TODO: Make it configureable
+refactorerl_diagnostics() -> 
   [ {unused_calls, "Security Issue",  "mods[name=", "].funs.unsecure_calls"}
   ,   {unsecure_macros
       , "Unused Macros:"
@@ -93,15 +93,9 @@ refactorerl_diagnostics() -> % TODO: Make it configureable
 
   %%@doc
   %% Adds a module to the RefactorErl node.
--spec add(any()) -> atom(). %TODO: Add .hrl files
+-spec add(any()) -> atom().
 add(Uri) ->
-  Params = [binary_to_list(els_uri:path(Uri))],
-  case els_refactorerl_utils:referl_node() of
-    {ok, Node} ->
-      rpc:call(Node, ri, add, Params, els_refactorerl_utils:maxtimeout());
-    _ ->
-      error
-  end.
+  els_refactorerl_utils:add(Uri).
 
 %%@doc
 %% Creates a RefactorErl query from a diagnostic identifier and a module name
