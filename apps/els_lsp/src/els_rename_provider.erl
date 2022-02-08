@@ -46,6 +46,34 @@ handle_request({rename, Params}, State) ->
 -spec workspace_edits(uri(), [poi()], binary()) -> null | [any()].
 workspace_edits(_Uri, [], _NewName) ->
   null;
+workspace_edits(OldUri, [#{kind := module} = POI| _], NewName) ->
+  %% Generate new Uri
+  Path = els_uri:path(OldUri),
+  Dir = filename:dirname(Path),
+  NewPath = filename:join(Dir, <<NewName/binary, ".erl">>),
+  NewUri = els_uri:uri(NewPath),
+  %% Find references that needs to be changed
+  Refs = els_references_provider:find_references_to_module(OldUri),
+  RefPOIs = convert_references_to_pois(Refs, [ application
+                                             , implicit_fun
+                                             , import_entry
+                                             , type_application
+                                             , behaviour
+                                             ]),
+  Changes = [#{ textDocument => #{uri => RefUri}
+              , edits => [#{ range => editable_range(RefPOI, module)
+                           , newText => NewName
+                           }]
+              } || {RefUri, RefPOI} <- RefPOIs],
+  #{documentChanges =>
+      [ %% Update -module attribute
+        #{textDocument => #{uri => OldUri},
+          edits => [change(POI, NewName)]
+         }
+        %% Rename file
+      ,  #{kind => rename, oldUri => OldUri, newUri => NewUri}
+      | Changes]
+   };
 workspace_edits(Uri, [#{kind := function_clause} = POI| _], NewName) ->
   #{id := {F, A, _}} = POI,
   #{changes => changes(Uri, POI#{kind => function, id => {F, A}}, NewName)};
@@ -112,7 +140,18 @@ workspace_edits(_Uri, _POIs, _NewName) ->
   null.
 
 -spec editable_range(poi()) -> range().
-editable_range(#{kind := Kind, data := #{name_range := Range}})
+editable_range(POI) ->
+  editable_range(POI, function).
+
+-spec editable_range(poi(), function | module) -> range().
+editable_range(#{kind := Kind, data := #{mod_range := Range}}, module)
+  when Kind =:= application;
+       Kind =:= implicit_fun;
+       Kind =:= import_entry;
+       Kind =:= type_application;
+       Kind =:= behaviour ->
+  els_protocol:range(Range);
+editable_range(#{kind := Kind, data := #{name_range := Range}}, function)
   when Kind =:= application;
        Kind =:= implicit_fun;
        Kind =:= callback;
@@ -126,10 +165,13 @@ editable_range(#{kind := Kind, data := #{name_range := Range}})
   %% type_application POI of a built-in type don't have name_range data
   %% they are handled by the next clause
   els_protocol:range(Range);
-editable_range(#{kind := _Kind, range := Range}) ->
+editable_range(#{kind := _Kind, range := Range}, _) ->
   els_protocol:range(Range).
 
+
 -spec changes(uri(), poi(), binary()) -> #{uri() => [text_edit()]} | null.
+changes(Uri, #{kind := module} = Mod, NewName) ->
+  #{Uri => [#{range => editable_range(Mod), newText => NewName}]};
 changes(Uri, #{kind := variable} = Var, NewName) ->
   POIs = els_code_navigation:find_in_scope(Uri, Var),
   #{Uri => [#{range => editable_range(P), newText => NewName} || P <- POIs]};

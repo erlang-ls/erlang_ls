@@ -221,8 +221,11 @@ application(Tree) ->
       ModFunTree = erl_syntax:application_operator(Tree),
       Pos = erl_syntax:get_pos(ModFunTree),
       FunTree = erl_syntax:module_qualifier_body(ModFunTree),
-      [poi(Pos, application, MFA,
-           #{name_range => els_range:range(erl_syntax:get_pos(FunTree))})]
+      ModTree = erl_syntax:module_qualifier_argument(ModFunTree),
+      Data = #{ name_range => els_range:range(erl_syntax:get_pos(FunTree))
+              , mod_range => els_range:range(erl_syntax:get_pos(ModTree))
+              },
+      [poi(Pos, application, MFA, Data)]
   end.
 
 -spec application_mfa(tree()) ->
@@ -276,7 +279,8 @@ attribute(Tree) ->
                            AttrName =:= behavior ->
       case is_atom_node(Arg) of
         {true, Behaviour} ->
-          [poi(Pos, behaviour, Behaviour)];
+          Data = #{mod_range => els_range:range(erl_syntax:get_pos(Arg))},
+          [poi(Pos, behaviour, Behaviour, Data)];
         false ->
           []
       end;
@@ -306,9 +310,9 @@ attribute(Tree) ->
       find_export_pois(Tree, AttrName, Arg);
     {import, [ModTree, ImportList]} ->
       case is_atom_node(ModTree) of
-        {true, M} ->
+        {true, _} ->
           Imports = erl_syntax:list_elements(ImportList),
-          find_import_entry_pois(M, Imports);
+          find_import_entry_pois(ModTree, Imports);
         _ ->
           []
       end;
@@ -436,14 +440,17 @@ find_export_entry_pois(EntryPoiKind, Exports) ->
       || FATree <- Exports
     ]).
 
--spec find_import_entry_pois(atom(), [tree()]) -> [poi()].
-find_import_entry_pois(M, Imports) ->
+-spec find_import_entry_pois(tree(), [tree()]) -> [poi()].
+find_import_entry_pois(ModTree, Imports) ->
+  M = erl_syntax:atom_value(ModTree),
   lists:flatten(
     [ case get_name_arity(FATree) of
         {F, A} ->
           FTree = erl_syntax:arity_qualifier_body(FATree),
-          poi(erl_syntax:get_pos(FATree), import_entry, {M, F, A},
-              #{name_range => els_range:range(erl_syntax:get_pos(FTree))});
+          Data = #{ name_range => els_range:range(erl_syntax:get_pos(FTree))
+                  , mod_range => els_range:range(erl_syntax:get_pos(ModTree))
+                  },
+          poi(erl_syntax:get_pos(FATree), import_entry, {M, F, A}, Data);
         false ->
           []
       end
@@ -556,16 +563,20 @@ implicit_fun(Tree) ->
     undefined -> [];
     _ ->
       NameTree = erl_syntax:implicit_fun_name(Tree),
-      FunTree =
+      Data =
         case FunSpec of
           {_, _, _} ->
-            erl_syntax:arity_qualifier_body(
-              erl_syntax:module_qualifier_body(NameTree));
+            ModTree = erl_syntax:module_qualifier_argument(NameTree),
+            FunTree = erl_syntax:arity_qualifier_body(
+              erl_syntax:module_qualifier_body(NameTree)),
+            #{ name_range => els_range:range(erl_syntax:get_pos(FunTree))
+             , mod_range => els_range:range(erl_syntax:get_pos(ModTree))
+             };
           {_, _} ->
-            erl_syntax:arity_qualifier_body(NameTree)
+            FunTree = erl_syntax:arity_qualifier_body(NameTree),
+            #{name_range => els_range:range(erl_syntax:get_pos(FunTree))}
         end,
-      [poi(erl_syntax:get_pos(Tree), implicit_fun, FunSpec,
-           #{name_range => els_range:range(erl_syntax:get_pos(FunTree))})]
+      [poi(erl_syntax:get_pos(Tree), implicit_fun, FunSpec, Data)]
   end.
 
 -spec macro(tree()) -> [poi()].
@@ -727,8 +738,11 @@ type_application(Tree) ->
       ModTypeTree = erl_syntax:type_application_name(Tree),
       Pos = erl_syntax:get_pos(ModTypeTree),
       TypeTree = erl_syntax:module_qualifier_body(ModTypeTree),
-      [poi(Pos, type_application, Id,
-           #{name_range => els_range:range(erl_syntax:get_pos(TypeTree))})];
+      ModTree = erl_syntax:module_qualifier_argument(ModTypeTree),
+      Data = #{ name_range => els_range:range(erl_syntax:get_pos(TypeTree))
+              , mod_range => els_range:range(erl_syntax:get_pos(ModTree))
+              },
+      [poi(Pos, type_application, Id, Data)];
     {Name, Arity} when Type =:= user_type_application ->
       %% user-defined local type
       Id = {Name, Arity},
