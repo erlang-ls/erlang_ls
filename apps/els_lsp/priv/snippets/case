@@ -1,0 +1,4 @@
+case ${1:Exprs} of
+  ${2:Pattern} ->
+    ${3:Body}
+end
