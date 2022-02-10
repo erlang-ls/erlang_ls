@@ -32,10 +32,10 @@ module(Uri) ->
 -spec path(uri()) -> path().
 path(Uri) ->
   #{ host := Host
-   , path := Path
+   , path := Path0
    , scheme := <<"file">>
    } = uri_string:normalize(Uri, [return_map]),
-
+  Path = uri_string:percent_decode(Path0),
   case {is_windows(), Host} of
     {true, <<>>} ->
       % Windows drive letter, have to strip the initial slash
@@ -81,3 +81,21 @@ uri_join(List) ->
 is_windows() ->
   {OS, _} = os:type(),
   OS =:= win32.
+
+-ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
+
+path_uri_test_() ->
+  [ ?_assertEqual( <<"/foo/bar.erl">>
+                 , path(<<"file:///foo/bar.erl">>))
+  , ?_assertEqual( <<"/foo/bar baz.erl">>
+                 , path(<<"file:///foo/bar%20baz.erl">>))
+  , ?_assertEqual( <<"/foo/bar.erl">>
+                 , path(uri(path(<<"file:///foo/bar.erl">>))))
+  , ?_assertEqual( <<"/foo/bar baz.erl">>
+                 , path(uri(<<"/foo/bar baz.erl">>)))
+  , ?_assertEqual( <<"file:///foo/bar%20baz.erl">>
+                 , uri(<<"/foo/bar baz.erl">>))
+  ].
+
+-endif.
