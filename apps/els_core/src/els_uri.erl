@@ -31,16 +31,20 @@ module(Uri) ->
 
 -spec path(uri()) -> path().
 path(Uri) ->
+  path(Uri, is_windows()).
+
+-spec path(uri(), boolean()) -> path().
+path(Uri, IsWindows) ->
   #{ host := Host
    , path := Path0
    , scheme := <<"file">>
    } = uri_string:normalize(Uri, [return_map]),
   Path = uri_string:percent_decode(Path0),
-  case {is_windows(), Host} of
+  case {IsWindows, Host} of
     {true, <<>>} ->
       % Windows drive letter, have to strip the initial slash
       re:replace(
-        Path, "^/([a-zA-Z])(:|%3A)(.*)", "\\1:\\3", [{return, binary}]
+        Path, "^/([a-zA-Z]:)(.*)", "\\1\\2", [{return, binary}]
       );
     {true, _} ->
       <<"//", Host/binary, Path/binary>>;
@@ -98,4 +102,7 @@ path_uri_test_() ->
                  , uri(<<"/foo/bar baz.erl">>))
   ].
 
+path_windows_test() ->
+  ?assertEqual(<<"C:/foo/bar.erl">>,
+               path(<<"file:///C%3A/foo/bar.erl">>, true)).
 -endif.
