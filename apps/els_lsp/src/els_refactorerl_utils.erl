@@ -197,6 +197,10 @@ make_diagnostics([{{_Path, From, To}, Name} | Tail], DiagMsg) ->
 make_diagnostics([], _) ->
   [];
 
+% This is needed when there is no result from RefactorErl
+make_diagnostics({ok,{result,[{result,[{list,[]}]}]}}, _) ->
+  [];
+
 make_diagnostics({ok, {result, [{result,[{group_by, {nopos, _}, list, L}]}]}}, 
                                                                     DiagMsg) ->
   make_diagnostics(L, DiagMsg).

@@ -70,8 +70,8 @@ source() ->
 %% Returns the available diagnostics of RefactorErl.
 -spec refactorerl_diagnostics() -> [refactorerl_diagnostic_id()].
 refactorerl_diagnostics() -> 
-  [ {unused_calls, "Security Issue",  "mods[name=", "].funs.unsecure_calls"}
-  ,   {unsecure_macros
+  [ {unsecure_calls, "Security Issue",  "mods[name=", "].funs.unsecure_calls"}
+  ,   {unused_macros
       , "Unused Macros:"
       , "mods[name="
       , "].macros[not .references]" }
