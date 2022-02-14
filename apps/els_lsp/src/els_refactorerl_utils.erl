@@ -14,7 +14,7 @@
         , source_name/0
         , add/1
         ]).
-      
+
 %%==============================================================================
 %% Includes & Defines
 %%==============================================================================
@@ -53,7 +53,7 @@
                      | {error, disconnected}
                      | {error, disabled}
                      | {error, other}.
-referl_node() -> 
+referl_node() ->
   case els_config:get(refactorerl) of
     #{"node" := {Node, validated}} ->
       {ok, Node};
@@ -83,7 +83,7 @@ referl_node() ->
 %% Returns 'ok' if successfull
 %% Returns 'error' if it fails after ?MAX_RECURSION_DEPTH number of tries
 -spec add(uri()) -> atom().
-add(Uri) -> 
+add(Uri) ->
   add(Uri, 0).
 
 -spec add(uri(), number()) -> atom().
@@ -120,7 +120,7 @@ add(_Uri, RecursionDepth) when RecursionDepth >= ?MAX_RECURSION_DEPTH ->
   notification("Cannot add module to RefactorErl!", ?MESSAGE_TYPE_ERROR),
   error.
 
-  
+
 %%@doc
 %% Runs a Query on the RefactorErl node, returns its result if successfull
 %% If error happens, it just returns an empty list, as most of times the
@@ -132,8 +132,8 @@ query(Query) ->
   query(Query, 0).
 
 -spec query(string(), number()) -> list().
-query(Query, RecursionDepth) when RecursionDepth < ?MAX_RECURSION_DEPTH-> 
-  case referl_node() of 
+query(Query, RecursionDepth) when RecursionDepth < ?MAX_RECURSION_DEPTH ->
+  case referl_node() of
     {error, _} ->
       [];
     {ok, Node} ->
@@ -141,7 +141,7 @@ query(Query, RecursionDepth) when RecursionDepth < ?MAX_RECURSION_DEPTH->
       ReqID = request_id(),
       Opts = [  self()
               , ReqID
-              , {transform, semantic_query 
+              , {transform, semantic_query
                 , [{ask_missing, false}
                 , {display_opt, DisplayOpt}
                 , {start_opt, []}
@@ -189,22 +189,22 @@ make_diagnostics([{{_Path, From, To}, Name} | Tail], DiagMsg) ->
   Range = #{ from => From, to => To },
   Id = refactorerl_poi,
   #{ data := PoiData, range := PoiRange} =
-                        els_poi:new(Range, application, Id, Name), 
+                        els_poi:new(Range, application, Id, Name),
   RangeLS = els_protocol:range(PoiRange),
   Message = list_to_binary(DiagMsg ++ " " ++ PoiData),
   Severity = ?DIAGNOSTIC_WARNING,
   Source = source_name(),
-  Diag = els_diagnostics:make_diagnostic(RangeLS, Message, Severity, Source), 
+  Diag = els_diagnostics:make_diagnostic(RangeLS, Message, Severity, Source),
   [ Diag | make_diagnostics(Tail, DiagMsg) ];
 
 make_diagnostics([], _) ->
   [];
 
 % This is needed when there is no result from RefactorErl
-make_diagnostics({ok,{result,[{result,[{list,[]}]}]}}, _) ->
+make_diagnostics({ok, {result, [{result, [{list, []}]}]}}, _) ->
   [];
 
-make_diagnostics({ok, {result, [{result,[{group_by, {nopos, _}, list, L}]}]}}, 
+make_diagnostics({ok, {result, [{result, [{group_by, {nopos, _}, list, L}]}]}},
                                                                     DiagMsg) ->
   make_diagnostics(L, DiagMsg).
 
@@ -246,10 +246,10 @@ check_node(Node) ->
   end.
 
 %%@doc
-%% Tries to connect to a node. 
-%% When it status is validate, the node hasn't been checked yet, 
+%% Tries to connect to a node.
+%% When it status is validate, the node hasn't been checked yet,
 %% so it will reports the success, and failure as well,
-%% 
+%%
 %% when retry, it won't report.
 -spec connect_node({validate | retry, atom()}) -> {error, disconnected}
                                                      | atom().
@@ -270,7 +270,7 @@ connect_node({Status, Node}) ->
   end.
 
 %%@doc
-%% Gets a request id from the RefactorErl node, and returns it 
+%% Gets a request id from the RefactorErl node, and returns it
 -spec request_id() -> nodedown | {reqid | string()}.
 request_id() ->
   case referl_node() of
@@ -280,14 +280,12 @@ request_id() ->
       rpc:call(Node, reflib_ui_router, getid, [])
   end.
 
-    
-
 %%==============================================================================
 %% Values
 %%==============================================================================
 
 %%@doc
-%% Common soruce name for all RefactorErl based backend(s) 
+%% Common soruce name for all RefactorErl based backend(s)
 -spec source_name() -> binary().
 source_name() ->
   <<"RefactorErl">>.
