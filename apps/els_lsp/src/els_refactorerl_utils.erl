@@ -105,7 +105,10 @@ add(Uri, RecursionDepth) when RecursionDepth < ?MAX_RECURSION_DEPTH ->
             {ReqID, reply, {ok, _}} -> ok
           end;
         deny ->
-          notification("Adding is deined, retry!"), % TODO: Take this out overtime stability proves itself
+          case RecursionDepth of
+            0 ->
+              notification("Adding is deined, retry!")
+          end,
           timer:sleep(1000),
           add(Uri, RecursionDepth + 1)
       end;
@@ -217,7 +220,8 @@ disable_node(Node) ->
   Reload ELS after you fixed theRefactorErl node!",
   notification(Msg, ?MESSAGE_TYPE_ERROR),
 
-  els_config:set(refactorerl, #{"node" => {Node, disabled}}),
+  Config = els_config:get(refactorerl),
+  els_config:set(refactorerl, Config#{"node" => {Node, disabled}}),
   {error, disabled}.
 
 %%@doc
@@ -250,17 +254,18 @@ check_node(Node) ->
 -spec connect_node({validate | retry, atom()}) -> {error, disconnected}
                                                      | atom().
 connect_node({Status, Node}) ->
+  Config = els_config:get(refactorerl),
   case {Status, check_node(Node)} of
     {validate, {error, _}} ->
       notification("RefactorErl is not connected!", ?MESSAGE_TYPE_INFO),
-      els_config:set(refactorerl, #{"node" => {Node, disconnected}}),
+      els_config:set(refactorerl, Config#{"node" => {Node, disconnected}}),
       {error, disconnected};
     {retry, {error, _}} ->
-      els_config:set(refactorerl, #{"node" => {Node, disconnected}}),
+      els_config:set(refactorerl, Config#{"node" => {Node, disconnected}}),
       {error, disconnected};
     {_, Node} ->
       notification("RefactorErl is connected!", ?MESSAGE_TYPE_INFO),
-      els_config:set(refactorerl, #{"node" => {Node, validated}}),
+      els_config:set(refactorerl, Config#{"node" => {Node, validated}}),
       {ok, Node}
   end.
 

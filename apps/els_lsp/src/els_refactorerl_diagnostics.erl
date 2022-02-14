@@ -24,7 +24,7 @@
 %%==============================================================================
 %% Types
 %%==============================================================================
--type refactorerl_diagnostic_id() :: {atom(), [char()], [char()], [char()]}.
+-type refactorerl_diagnostic_description() :: {[char()], [char()]}.
 -type refactorerl_query() :: [char()].
 
 %%==============================================================================
@@ -49,8 +49,8 @@ run(Uri) ->
             ok ->
               FileName = filename:basename(binary_to_list(els_uri:path(Uri))),
               Module = list_to_atom(filename:rootname(FileName)),
-              Diagnostics = refactorerl_diagnostics(),
-              lists:concat([run_query(Module, DiagId) || DiagId <- Diagnostics])
+              Diagnostics = enabled_diagnostics(),
+              lists:concat([run_query(Module, DiagDesc) || DiagDesc <- Diagnostics])
           end
       end;
     _ ->
@@ -68,27 +68,58 @@ source() ->
 
 %%@doc
 %% Returns the available diagnostics of RefactorErl.
--spec refactorerl_diagnostics() -> [refactorerl_diagnostic_id()].
-refactorerl_diagnostics() -> 
-  [ {unsecure_calls, "Security Issue",  "mods[name=", "].funs.unsecure_calls"}
-  ,   {unused_macros
-      , "Unused Macros:"
-      , "mods[name="
-      , "].macros[not .references]" }
-  ].
+-spec refactorerl_diagnostics() ->
+                       #{ atom() => refactorerl_diagnostic_description() }.
+refactorerl_diagnostics() ->  %//? Kérdés: atom szebb kulcsként vagy stringként, mert config stringként adja vissza, konvertáljuk?
+  #{
+    % Unused Macros
+    "unused_macros" =>
+      {"Unused Macros:", "].macros[not .references]"},
 
+    % Detecting vulnerabilities
+    "unsecure_calls" =>  
+      {"Security Issue", "].funs.unsecure_calls"}
+  }
+.
+
+-spec diagnostics_config() -> list().
+diagnostics_config() -> 
+  case els_config:get(refactorerl) of
+    #{"diagnostics" := List} ->
+      List;
+    _ ->
+      []
+  end.
+
+-spec enabled_diagnostics() -> [refactorerl_diagnostic_description()].
+enabled_diagnostics() ->
+  Diagnostics = refactorerl_diagnostics(),
+  EnabledDiagnostics = diagnostics_config(),
+  enabled_diagnostics(EnabledDiagnostics, Diagnostics).
+
+ 
+-spec enabled_diagnostics(list(), map()) -> [refactorerl_diagnostic_description()].
+enabled_diagnostics([ ConfigDiag | RemainingDiags ], Diagnostics) ->
+  case maps:find(ConfigDiag, Diagnostics) of
+    {ok, Value} ->
+      [Value] ++ enabled_diagnostics(RemainingDiags, Diagnostics);
+    error ->
+      enabled_diagnostics(RemainingDiags, Diagnostics)
+  end;
+
+enabled_diagnostics([], _) ->
+  [].
 
 %%@doc
 %% Creates a RefactorErl query from a diagnostic identifier and a module name
--spec make_query(refactorerl_diagnostic_id(), module()) -> refactorerl_query().
-make_query({_, _, Before, After}, Module) ->
+-spec make_query(refactorerl_diagnostic_description(), module()) -> refactorerl_query().
+make_query({_, After}, Module) ->
   ModuleStr = atom_to_list(Module),
-  Before ++ ModuleStr ++ After.
+  "mods[name=" ++ ModuleStr ++ After.
 
 
--spec run_query(module(), refactorerl_diagnostic_id()) ->
+-spec run_query(module(), refactorerl_diagnostic_description()) ->
                                           ([els_diagnostics:diagnostic()]).
-run_query(Module, DiagnosticId) ->
-  {_, Message, _, _} = DiagnosticId,
-  ReferlResult = els_refactorerl_utils:query(make_query(DiagnosticId, Module)),
+run_query(Module, {Message, _} = DiagnosticDesc) ->
+  ReferlResult = els_refactorerl_utils:query(make_query(DiagnosticDesc, Module)),
   els_refactorerl_utils:make_diagnostics(ReferlResult, Message).
