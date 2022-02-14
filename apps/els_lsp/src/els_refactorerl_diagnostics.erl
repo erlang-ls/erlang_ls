@@ -69,7 +69,7 @@ source() ->
 %%@doc
 %% Returns the available diagnostics of RefactorErl.
 -spec refactorerl_diagnostics() ->
-                       #{ atom() => refactorerl_diagnostic_description() }.
+                       #{ string() => refactorerl_diagnostic_description() }.
 refactorerl_diagnostics() ->
   #{
     % Unused Macros
