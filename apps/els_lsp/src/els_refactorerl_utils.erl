@@ -107,7 +107,9 @@ add(Uri, RecursionDepth) when RecursionDepth < ?MAX_RECURSION_DEPTH ->
         deny ->
           case RecursionDepth of
             0 ->
-              notification("Adding is deined, retry!")
+              notification("Adding is deined, retry!");
+            _ ->
+              notified_already
           end,
           timer:sleep(1000),
           add(Uri, RecursionDepth + 1)
