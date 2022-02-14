@@ -49,8 +49,8 @@ run(Uri) ->
             ok ->
               FileName = filename:basename(binary_to_list(els_uri:path(Uri))),
               Module = list_to_atom(filename:rootname(FileName)),
-              Diagnostics = enabled_diagnostics(),
-              lists:concat([run_query(Module, DiagDesc) || DiagDesc <- Diagnostics])
+              Diags = enabled_diagnostics(),
+              lists:concat([run_query(Module, DiagDesc) || DiagDesc <- Diags])
           end
       end;
     _ ->
@@ -70,20 +70,20 @@ source() ->
 %% Returns the available diagnostics of RefactorErl.
 -spec refactorerl_diagnostics() ->
                        #{ atom() => refactorerl_diagnostic_description() }.
-refactorerl_diagnostics() ->  %//? Kérdés: atom szebb kulcsként vagy stringként, mert config stringként adja vissza, konvertáljuk?
+refactorerl_diagnostics() ->
   #{
     % Unused Macros
     "unused_macros" =>
       {"Unused Macros:", "].macros[not .references]"},
 
     % Detecting vulnerabilities
-    "unsecure_calls" =>  
+    "unsecure_calls" =>
       {"Security Issue", "].funs.unsecure_calls"}
   }
 .
 
 -spec diagnostics_config() -> list().
-diagnostics_config() -> 
+diagnostics_config() ->
   case els_config:get(refactorerl) of
     #{"diagnostics" := List} ->
       List;
@@ -97,8 +97,9 @@ enabled_diagnostics() ->
   EnabledDiagnostics = diagnostics_config(),
   enabled_diagnostics(EnabledDiagnostics, Diagnostics).
 
- 
--spec enabled_diagnostics(list(), map()) -> [refactorerl_diagnostic_description()].
+
+-spec enabled_diagnostics(list(), map()) ->
+                                  [refactorerl_diagnostic_description()].
 enabled_diagnostics([ ConfigDiag | RemainingDiags ], Diagnostics) ->
   case maps:find(ConfigDiag, Diagnostics) of
     {ok, Value} ->
@@ -112,7 +113,8 @@ enabled_diagnostics([], _) ->
 
 %%@doc
 %% Creates a RefactorErl query from a diagnostic identifier and a module name
--spec make_query(refactorerl_diagnostic_description(), module()) -> refactorerl_query().
+-spec make_query(refactorerl_diagnostic_description(), module()) ->
+                                                          refactorerl_query().
 make_query({_, After}, Module) ->
   ModuleStr = atom_to_list(Module),
   "mods[name=" ++ ModuleStr ++ After.
@@ -121,5 +123,5 @@ make_query({_, After}, Module) ->
 -spec run_query(module(), refactorerl_diagnostic_description()) ->
                                           ([els_diagnostics:diagnostic()]).
 run_query(Module, {Message, _} = DiagnosticDesc) ->
-  ReferlResult = els_refactorerl_utils:query(make_query(DiagnosticDesc, Module)),
-  els_refactorerl_utils:make_diagnostics(ReferlResult, Message).
+  Result = els_refactorerl_utils:query(make_query(DiagnosticDesc, Module)),
+  els_refactorerl_utils:make_diagnostics(Result, Message).
