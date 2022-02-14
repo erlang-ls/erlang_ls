@@ -42,6 +42,7 @@
         , unused_record_fields/1
         , gradualizer/1
         , module_name_check/1
+        , module_name_check_whitespace/1
         ]).
 
 %%==============================================================================
@@ -665,6 +666,15 @@ module_name_check(_Config) ->
               , range => {{0, 8}, {0, 25}}
               }
            ],
+  Warnings = [],
+  Hints = [],
+  els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
+
+-spec module_name_check_whitespace(config()) -> ok.
+module_name_check_whitespace(_Config) ->
+  Path = src_path("diagnostics module name check.erl"),
+  Source = <<"Compiler (via Erlang LS)">>,
+  Errors = [],
   Warnings = [],
   Hints = [],
   els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
