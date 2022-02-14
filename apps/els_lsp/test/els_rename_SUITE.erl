@@ -14,6 +14,7 @@
 %% Test cases
 -export([ rename_behaviour_callback/1
         , rename_macro/1
+        , rename_module/1
         , rename_variable/1
         , rename_function/1
         , rename_function_quoted_atom/1
@@ -219,6 +220,43 @@ rename_macro(Config) ->
                    }
                },
   assert_changes(Expected, Result).
+
+-spec rename_module(config()) -> ok.
+rename_module(Config) ->
+  UriA = ?config(rename_module_a_uri, Config),
+  UriB = ?config(rename_module_b_uri, Config),
+  NewName = <<"new_module">>,
+  Path = filename:dirname(els_uri:path(UriA)),
+  NewUri = els_uri:uri(filename:join(Path, <<NewName/binary, ".erl">>)),
+  #{result := #{documentChanges := Result}} =
+    els_client:document_rename(UriA, 0, 14, NewName),
+  Expected = [
+              %% Module attribute
+               #{ edits => [change(NewName, {0, 8}, {0, 23})]
+                , textDocument => #{uri => UriA}}
+              %% Rename file
+             , #{ kind => <<"rename">>
+                , newUri => NewUri
+                , oldUri => UriA}
+              %% Implicit function
+             , #{ edits => [change(NewName, {12, 10}, {12, 25})]
+                , textDocument => #{uri => UriB}}
+              %% Function application
+             , #{ edits => [change(NewName, {11, 2}, {11, 17})]
+                , textDocument => #{uri => UriB}}
+              %% Import
+             , #{ edits => [change(NewName, {3, 8}, {3, 23})]
+                , textDocument => #{uri => UriB}}
+              %% Type application
+             , #{ edits => [change(NewName, {7, 18}, {7, 33})]
+                , textDocument => #{uri => UriB}}
+              %% Behaviour
+             , #{ edits => [change(NewName, {2, 11}, {2, 26})]
+                , textDocument => #{uri => UriB}}
+             ],
+  ?assertEqual([], Result -- Expected),
+  ?assertEqual([], Expected -- Result),
+  ?assertEqual(lists:sort(Expected), lists:sort(Result)).
 
 -spec rename_function(config()) -> ok.
 rename_function(Config) ->
