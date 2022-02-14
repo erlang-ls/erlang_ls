@@ -24,7 +24,7 @@
 %%==============================================================================
 %% Types
 %%==============================================================================
--type refactorerl_diagnostic_description() :: {[char()], [char()]}.
+-type refactorerl_diagnostic_description() :: {string(), string()}.
 -type refactorerl_query() :: [char()].
 
 %%==============================================================================
@@ -35,7 +35,7 @@
 is_default() ->
   false.
 
--spec run(uri()) -> [els_diagnostics:diagnostic()].
+  -spec run(uri()) -> [els_diagnostics:diagnostic()].
 run(Uri) ->
   case filename:extension(Uri) of
     <<".erl">> ->
@@ -50,7 +50,7 @@ run(Uri) ->
               FileName = filename:basename(binary_to_list(els_uri:path(Uri))),
               Module = list_to_atom(filename:rootname(FileName)),
               Diags = enabled_diagnostics(),
-              lists:concat([run_query(Module, DiagDesc) || DiagDesc <- Diags])
+              lists:append([run_query(Module, DiagDesc) || DiagDesc <- Diags])
           end
       end;
     _ ->

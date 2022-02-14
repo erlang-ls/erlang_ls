@@ -212,7 +212,7 @@ make_diagnostics({ok, {result, [{result, [{group_by, {nopos, _}, list, L}]}]}},
 %% Internal Functions
 %%==============================================================================
 
--spec disable_node(atom()) -> atom().
+-spec disable_node(atom()) -> {error, disabled}.
 %%@doc
 %% Disables the node given in paramter, also notifes the user.
 disable_node(Node) ->
