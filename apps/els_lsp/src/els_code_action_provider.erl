@@ -77,11 +77,17 @@ unused_variable_action(Uri, Range, Message) ->
   end.
 
 -spec make_unused_variable_action(uri(), range(), binary()) -> [map()].
-make_unused_variable_action(Uri, Range, UnusedVariable) ->
+make_unused_variable_action(Uri, Range0, UnusedVariable) ->
   #{ <<"start">> := #{ <<"character">> := _StartCol
                      , <<"line">>      := StartLine }
-   , <<"end">>   := _End
-   } = Range,
+   , <<"end">>   := #{ <<"character">> := EndCol
+                     , <<"line">>      := EndLine }
+   } = Range0,
+  %% Add +1 to end line because is the same as start line and
+  %% replace_lines_action/5 will add a line instead in that case
+  End = #{ <<"character">> => EndCol, <<"line">> => EndLine+1 },
+  Range = maps:put(<<"end">>, End, Range0),
+
   %% processing messages like "variable 'Foo' is unused"
   {ok, #{text := Bin}} = els_utils:lookup_document(Uri),
   Line = els_utils:to_list(els_text:line(Bin, StartLine)),

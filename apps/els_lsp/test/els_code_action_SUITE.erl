@@ -58,13 +58,13 @@ end_per_testcase(TestCase, Config) ->
 add_underscore_to_unused_var(Config) ->
   Uri = ?config(code_navigation_uri, Config),
   Diag = #{ message  => <<"variable 'A' is unused">>
-          , range    => #{ 'end' => #{character => 0, line => 80}
+          , range    => #{ 'end' => #{character => 0, line => 79}
                          , start => #{character => 0, line => 79}
                          }
           , severity => 2
           , source   => <<"Compiler">>
           },
-  Range = els_protocol:range(#{from => {80, 1}, to => {81, 1}}),
+  Range = els_protocol:range(#{from => {80, 1}, to => {80, 1}}),
   PrefixedCommand = els_command:with_prefix(<<"replace-lines">>),
   #{result := Result} = els_client:document_codeaction(Uri, Range, [Diag]),
   Expected =
