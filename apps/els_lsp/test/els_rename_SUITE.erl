@@ -233,26 +233,26 @@ rename_module(Config) ->
   Expected = [
               %% Module attribute
                #{ edits => [change(NewName, {0, 8}, {0, 23})]
-                , textDocument => #{uri => UriA}}
+                , textDocument => #{uri => UriA, version => null}}
               %% Rename file
              , #{ kind => <<"rename">>
                 , newUri => NewUri
                 , oldUri => UriA}
               %% Implicit function
              , #{ edits => [change(NewName, {12, 10}, {12, 25})]
-                , textDocument => #{uri => UriB}}
+                , textDocument => #{uri => UriB, version => null}}
               %% Function application
              , #{ edits => [change(NewName, {11, 2}, {11, 17})]
-                , textDocument => #{uri => UriB}}
+                , textDocument => #{uri => UriB, version => null}}
               %% Import
              , #{ edits => [change(NewName, {3, 8}, {3, 23})]
-                , textDocument => #{uri => UriB}}
+                , textDocument => #{uri => UriB, version => null}}
               %% Type application
              , #{ edits => [change(NewName, {7, 18}, {7, 33})]
-                , textDocument => #{uri => UriB}}
+                , textDocument => #{uri => UriB, version => null}}
               %% Behaviour
              , #{ edits => [change(NewName, {2, 11}, {2, 26})]
-                , textDocument => #{uri => UriB}}
+                , textDocument => #{uri => UriB, version => null}}
              ],
   ?assertEqual([], Result -- Expected),
   ?assertEqual([], Expected -- Result),
