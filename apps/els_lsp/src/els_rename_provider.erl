@@ -60,14 +60,14 @@ workspace_edits(OldUri, [#{kind := module} = POI| _], NewName) ->
                                              , type_application
                                              , behaviour
                                              ]),
-  Changes = [#{ textDocument => #{uri => RefUri}
+  Changes = [#{ textDocument => #{uri => RefUri, version => null}
               , edits => [#{ range => editable_range(RefPOI, module)
                            , newText => NewName
                            }]
               } || {RefUri, RefPOI} <- RefPOIs],
   #{documentChanges =>
       [ %% Update -module attribute
-        #{textDocument => #{uri => OldUri},
+        #{textDocument => #{uri => OldUri, version => null},
           edits => [change(POI, NewName)]
          }
         %% Rename file
