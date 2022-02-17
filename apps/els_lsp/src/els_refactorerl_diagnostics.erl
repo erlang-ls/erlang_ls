@@ -76,9 +76,9 @@ refactorerl_diagnostics() ->
     "unused_macros" =>
       {"Unused Macros:", "].macros[not .references]"},
 
-    % Detecting vulnerabilities
-    "unsecure_calls" =>
-      {"Security Issue", "].funs.unsecure_calls"}
+    % Checks for OS injection
+    "unsecure_os_call" =>
+      {"Unsecure OS call:", "].funs.unsecure_os_call"}
   }
 .
 
