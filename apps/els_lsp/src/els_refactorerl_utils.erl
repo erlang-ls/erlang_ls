@@ -189,11 +189,8 @@ notification(Msg) ->
 -spec make_diagnostics(any(), string()) -> [els_diagnostics:diagnostic()].
 make_diagnostics([{{_Path, From, To}, Name} | Tail], DiagMsg) ->
   Range = #{ from => From, to => To },
-  Id = refactorerl_poi,
-  #{ data := PoiData, range := PoiRange} =
-                        els_poi:new(Range, application, Id, Name),
-  RangeLS = els_protocol:range(PoiRange),
-  Message = list_to_binary(DiagMsg ++ " " ++ PoiData),
+  RangeLS = els_protocol:range(Range),
+  Message = list_to_binary(DiagMsg ++ " " ++ Name),
   Severity = ?DIAGNOSTIC_WARNING,
   Source = source_name(),
   Diag = els_diagnostics:make_diagnostic(RangeLS, Message, Severity, Source),
