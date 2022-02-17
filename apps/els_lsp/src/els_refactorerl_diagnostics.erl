@@ -47,8 +47,7 @@ run(Uri) ->
             error ->
               [];
             ok ->
-              FileName = filename:basename(binary_to_list(els_uri:path(Uri))),
-              Module = list_to_atom(filename:rootname(FileName)),
+              Module = els_uri:module(Uri),
               Diags = enabled_diagnostics(),
               lists:append([run_query(Module, DiagDesc) || DiagDesc <- Diags])
           end

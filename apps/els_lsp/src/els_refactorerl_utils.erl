@@ -19,7 +19,6 @@
 %% Includes & Defines
 %%==============================================================================
 -include("els_lsp.hrl").
--define(MAX_RECURSION_DEPTH, 10).
 
 %%==============================================================================
 %% API
@@ -82,16 +81,12 @@ referl_node() ->
 %% Adds a module to the RefactorErl node. Using the UI router
 %% Returns 'ok' if successfull
 %% Returns 'error' if it fails after ?MAX_RECURSION_DEPTH number of tries
--spec add(uri()) -> atom().
+-spec add(uri()) -> error | ok.
 add(Uri) ->
-  add(Uri, 0).
-
--spec add(uri(), number()) -> atom().
-add(Uri, RecursionDepth) when RecursionDepth < ?MAX_RECURSION_DEPTH ->
   case els_refactorerl_utils:referl_node() of
     {ok, Node} ->
       Path = [binary_to_list(els_uri:path(Uri))],
-      ReqID = request_id(),
+      {ok, ReqID} = request_id(),
       Resp = rpc:call(  Node
                       , reflib_ui_router
                       , request
@@ -105,22 +100,12 @@ add(Uri, RecursionDepth) when RecursionDepth < ?MAX_RECURSION_DEPTH ->
             {ReqID, reply, {ok, _}} -> ok
           end;
         deny ->
-          case RecursionDepth of
-            0 ->
-              notification("Adding is deined, retry!");
-            _ ->
-              notified_already
-          end,
-          timer:sleep(1000),
-          add(Uri, RecursionDepth + 1)
+          error
       end;
     _ ->
       error
-  end;
+  end.
 
-add(_Uri, RecursionDepth) when RecursionDepth >= ?MAX_RECURSION_DEPTH ->
-  notification("Cannot add module to RefactorErl!", ?MESSAGE_TYPE_ERROR),
-  error.
 
 
 %%@doc
@@ -130,17 +115,13 @@ add(_Uri, RecursionDepth) when RecursionDepth >= ?MAX_RECURSION_DEPTH ->
 %% If the node timeouts or badrpc will come back, it disables the node and
 %% stills returns an empty list
 -spec query(string()) -> list().
-query(Query) ->
-  query(Query, 0).
-
--spec query(string(), number()) -> list().
-query(Query, RecursionDepth) when RecursionDepth < ?MAX_RECURSION_DEPTH ->
+query(Query)  ->
   case referl_node() of
     {error, _} ->
       [];
     {ok, Node} ->
       DisplayOpt = [{positions, linecol}, {output, msg}],
-      ReqID = request_id(),
+      {ok, ReqID} = request_id(),
       Opts = [  self()
               , ReqID
               , {transform, semantic_query
@@ -159,15 +140,9 @@ query(Query, RecursionDepth) when RecursionDepth < ?MAX_RECURSION_DEPTH ->
             {ReqID, reply, Result} -> Result
           end;
         deny ->
-          timer:sleep(1000),
-          query(Query, RecursionDepth + 1)
+          []
       end
-  end;
-
-query(_Query, RecursionDepth) when RecursionDepth >= ?MAX_RECURSION_DEPTH ->
-  notification("Cannot execute query on RefactorErl!", ?MESSAGE_TYPE_ERROR),
-  [].
-
+  end.
 
 %%@doc
 %% Util for popping up notifications
@@ -270,13 +245,13 @@ connect_node({Status, Node}) ->
 
 %%@doc
 %% Gets a request id from the RefactorErl node, and returns it
--spec request_id() -> nodedown | {reqid | string()}.
+-spec request_id() -> {error, nodedown} | {ok, {reqid | string()}}.
 request_id() ->
   case referl_node() of
     {error, _} ->
-      nodedown;
+      {error, nodedown};
     {ok, Node} ->
-      rpc:call(Node, reflib_ui_router, getid, [])
+      {ok, rpc:call(Node, reflib_ui_router, getid, [])}
   end.
 
 %%==============================================================================
