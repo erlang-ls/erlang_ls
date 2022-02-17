@@ -29,79 +29,133 @@ handle_request({document_codeaction, Params}, State) ->
 %% Internal Functions
 %%==============================================================================
 
-
 %% @doc Result: `(Command | CodeAction)[] | null'
 -spec code_actions(uri(), range(), code_action_context()) -> [map()].
-code_actions(Uri, _Range, Context) ->
-  #{ <<"diagnostics">> := Diagnostics } = Context,
-  Actions0 = [ make_code_action(Uri, D) || D <- Diagnostics],
-  Actions = lists:flatten(Actions0),
-  Actions.
+code_actions(Uri, _Range, #{<<"diagnostics">> := Diagnostics}) ->
+  lists:flatten([make_code_action(Uri, D) || D <- Diagnostics]).
 
-%% @doc Note: if the start and end line of the range are the same, the line
-%% is simply added.
--spec replace_lines_action(uri(), binary(), binary(), binary(), range())
-                          -> map().
-replace_lines_action(Uri, Title, Kind, Lines, Range) ->
-  #{ <<"start">> := #{ <<"character">> := _StartCol
-                     , <<"line">>      := StartLine }
-   , <<"end">>   := #{ <<"character">> := _EndCol
-                     , <<"line">>      := EndLine }
-   } = Range,
-  #{ title => Title
-   , kind => Kind
-   , command =>
-       els_command:make_command( Title
-                               , <<"replace-lines">>
-                               , [#{ uri   => Uri
-                                   , lines => Lines
-                                   , from  => StartLine
-                                   , to    => EndLine }])
-   }.
+-spec make_code_action(uri(), map()) -> [map()].
+make_code_action(Uri, #{<<"message">> := Message, <<"range">> := Range}) ->
+  make_code_action(
+    [ {"function (.*) is unused", fun action_export_function/3}
+    , {"variable '(.*)' is unused", fun action_ignore_variable/3}
+    , {"variable '(.*)' is unbound", fun action_suggest_variable/3}
+    , {"Module name '(.*)' does not match file name '(.*)'",
+       fun action_fix_module_name/3}
+    ], Uri, Range, Message).
 
--spec make_code_action(uri(), els_diagnostics:diagnostic()) -> [map()].
-make_code_action(Uri, #{ <<"message">> := Message
-                       , <<"range">>   := Range } = _Diagnostic) ->
-  unused_variable_action(Uri, Range, Message).
+-spec make_code_action([{string(), Fun}], uri(), range(), binary()) -> [map()]
+          when Fun :: fun((uri(), range(), [binary()]) -> [map()]).
+make_code_action([], _Uri, _Range, _Message) ->
+  [];
+make_code_action([{RE, Fun}|Rest], Uri, Range, Message) ->
+  Actions = case re:run(Message, RE, [{capture, all_but_first, binary}]) of
+              {match, Matches} ->
+                Fun(Uri, Range, Matches);
+              nomatch ->
+                []
+            end,
+  Actions ++ make_code_action(Rest, Uri, Range, Message).
 
-%%------------------------------------------------------------------------------
-
--spec unused_variable_action(uri(), range(), binary()) -> [map()].
-unused_variable_action(Uri, Range, Message) ->
-  %% Processing messages like "variable 'Foo' is unused"
-  case re:run(Message, "variable '(.*)' is unused"
-             , [{capture, all_but_first, binary}]) of
-      {match, [UnusedVariable]} ->
-          make_unused_variable_action(Uri, Range, UnusedVariable);
-      _ -> []
+-spec action_export_function(uri(), range(), [binary()]) -> [map()].
+action_export_function(Uri, _Range, [UnusedFun]) ->
+  {ok, Document} = els_utils:lookup_document(Uri),
+  case els_poi:sort(els_dt_document:pois(Document, [module, export])) of
+    [] ->
+      [];
+    POIs ->
+      #{range := #{to := {Line, _Col}}} = lists:last(POIs),
+      Pos = {Line + 1, 1},
+      [ make_edit_action( Uri
+                        , <<"Export ", UnusedFun/binary>>
+                        , ?CODE_ACTION_KIND_QUICKFIX
+                        , <<"-export([", UnusedFun/binary, "]).\n">>
+                        , els_protocol:range(#{from => Pos, to => Pos})) ]
   end.
 
--spec make_unused_variable_action(uri(), range(), binary()) -> [map()].
-make_unused_variable_action(Uri, Range, UnusedVariable) ->
-  #{ <<"start">> := #{ <<"character">> := _StartCol
-                     , <<"line">>      := StartLine }
-   , <<"end">>   := _End
-   } = Range,
-  %% processing messages like "variable 'Foo' is unused"
-  {ok, #{text := Bin}} = els_utils:lookup_document(Uri),
-  Line = els_utils:to_list(els_text:line(Bin, StartLine)),
+-spec action_ignore_variable(uri(), range(), [binary()]) -> [map()].
+action_ignore_variable(Uri, Range, [UnusedVariable]) ->
+  {ok, Document} = els_utils:lookup_document(Uri),
+  POIs = els_poi:sort(els_dt_document:pois(Document, [variable])),
+  case ensure_range(els_range:to_poi_range(Range), UnusedVariable, POIs) of
+    {ok, VarRange} ->
+      [ make_edit_action( Uri
+                        , <<"Add '_' to '", UnusedVariable/binary, "'">>
+                        , ?CODE_ACTION_KIND_QUICKFIX
+                        , <<"_", UnusedVariable/binary>>
+                        , els_protocol:range(VarRange)) ];
+    error ->
+      []
+  end.
 
-  {ok, Tokens, _} = erl_scan:string(Line, 1, [return, text]),
-  UnusedString = els_utils:to_list(UnusedVariable),
-  Replace =
-        fun(Tok) ->
-            case Tok of
-                {var, [{text, UnusedString}, _], _} -> "_" ++ UnusedString;
-                {var, [{text, VarName}, _], _} -> VarName;
-                {_,   [{text, Text   }, _], _} -> Text;
-                {_,   [{text, Text   }, _]}    -> Text
-            end
-  end,
-  UpdatedLine = lists:flatten(lists:map(Replace, Tokens)) ++ "\n",
-    [ replace_lines_action( Uri
-                      , <<"Add '_' to '", UnusedVariable/binary, "'">>
-                      , ?CODE_ACTION_KIND_QUICKFIX
-                      , els_utils:to_binary(UpdatedLine)
-                      , Range)].
+-spec action_suggest_variable(uri(), range(), [binary()]) -> [map()].
+action_suggest_variable(Uri, Range, [Var]) ->
+  %% Supply a quickfix to replace an unbound variable with the most similar
+  %% variable name in scope.
+  {ok, Document} = els_utils:lookup_document(Uri),
+  POIs = els_poi:sort(els_dt_document:pois(Document, [variable])),
+  case ensure_range(els_range:to_poi_range(Range), Var, POIs) of
+    {ok, VarRange} ->
+      ScopeRange = els_scope:variable_scope_range(VarRange, Document),
+      VarsInScope = [atom_to_binary(Id, utf8) ||
+                      #{range := R, id := Id} <- POIs,
+                      els_range:in(R, ScopeRange),
+                      els_range:compare(R, VarRange)],
+      case [{els_utils:levenshtein_distance(V, Var), V} ||
+             V <- VarsInScope,
+             V =/= Var,
+             binary:at(Var, 0) =:= binary:at(V, 0)]
+      of
+        [] ->
+          [];
+        VariableDistances ->
+          {_, SimilarVariable} = lists:min(VariableDistances),
+          [ make_edit_action( Uri
+                            , <<"Did you mean '", SimilarVariable/binary, "'?">>
+                            , ?CODE_ACTION_KIND_QUICKFIX
+                            , SimilarVariable
+                            , els_protocol:range(VarRange)) ]
+      end;
+    error ->
+      []
+  end.
 
-%%------------------------------------------------------------------------------
+-spec action_fix_module_name(uri(), range(), [binary()]) -> [map()].
+action_fix_module_name(Uri, Range0, [ModName, FileName]) ->
+  {ok, Document} = els_utils:lookup_document(Uri),
+  POIs = els_poi:sort(els_dt_document:pois(Document, [module])),
+  case ensure_range(els_range:to_poi_range(Range0), ModName, POIs) of
+    {ok, Range} ->
+      [ make_edit_action( Uri
+                        , <<"Change to -module(", FileName/binary, ").">>
+                        , ?CODE_ACTION_KIND_QUICKFIX
+                        , FileName
+                        , els_protocol:range(Range)) ];
+    error ->
+      []
+  end.
+
+-spec ensure_range(poi_range(), binary(), [poi()]) -> {ok, poi_range()} | error.
+ensure_range(#{from := {Line, _}}, SubjectId, POIs) ->
+  SubjectAtom = binary_to_atom(SubjectId, utf8),
+  Ranges = [R || #{range := R, id := Id} <- POIs,
+                 els_range:in(R, #{from => {Line, 1}, to => {Line + 1, 1}}),
+                 Id =:= SubjectAtom],
+  case Ranges of
+    [] ->
+      error;
+    [Range|_] ->
+      {ok, Range}
+  end.
+
+-spec make_edit_action(uri(), binary(), binary(), binary(), range())
+                      -> map().
+make_edit_action(Uri, Title, Kind, Text, Range) ->
+  #{ title => Title
+   , kind => Kind
+   , edit => edit(Uri, Text, Range)
+   }.
+
+-spec edit(uri(), binary(), range()) -> workspace_edit().
+edit(Uri, Text, Range) ->
+  #{changes => #{Uri => [#{newText => Text, range => Range}]}}.
