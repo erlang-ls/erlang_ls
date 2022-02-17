@@ -24,7 +24,7 @@
 %%==============================================================================
 %% Types
 %%==============================================================================
--type refactorerl_diagnostic_id() :: {atom(), [char()], [char()], [char()]}.
+-type refactorerl_diagnostic_description() :: {string(), string()}.
 -type refactorerl_query() :: [char()].
 
 %%==============================================================================
@@ -35,7 +35,7 @@
 is_default() ->
   false.
 
--spec run(uri()) -> [els_diagnostics:diagnostic()].
+  -spec run(uri()) -> [els_diagnostics:diagnostic()].
 run(Uri) ->
   case filename:extension(Uri) of
     <<".erl">> ->
@@ -47,10 +47,9 @@ run(Uri) ->
             error ->
               [];
             ok ->
-              FileName = filename:basename(binary_to_list(els_uri:path(Uri))),
-              Module = list_to_atom(filename:rootname(FileName)),
-              Diagnostics = refactorerl_diagnostics(),
-              lists:concat([run_query(Module, DiagId) || DiagId <- Diagnostics])
+              Module = els_uri:module(Uri),
+              Diags = enabled_diagnostics(),
+              lists:append([run_query(Module, DiagDesc) || DiagDesc <- Diags])
           end
       end;
     _ ->
@@ -68,27 +67,60 @@ source() ->
 
 %%@doc
 %% Returns the available diagnostics of RefactorErl.
--spec refactorerl_diagnostics() -> [refactorerl_diagnostic_id()].
-refactorerl_diagnostics() -> 
-  [ {unused_calls, "Security Issue",  "mods[name=", "].funs.unsecure_calls"}
-  ,   {unsecure_macros
-      , "Unused Macros:"
-      , "mods[name="
-      , "].macros[not .references]" }
-  ].
+-spec refactorerl_diagnostics() ->
+                       #{ string() => refactorerl_diagnostic_description() }.
+refactorerl_diagnostics() ->
+  #{
+    % Unused Macros
+    "unused_macros" =>
+      {"Unused Macros:", "].macros[not .references]"},
 
+    % Checks for OS injection
+    "unsecure_os_call" =>
+      {"Unsecure OS call:", "].funs.unsecure_os_call"}
+  }
+.
+
+-spec diagnostics_config() -> list().
+diagnostics_config() ->
+  case els_config:get(refactorerl) of
+    #{"diagnostics" := List} ->
+      List;
+    _ ->
+      []
+  end.
+
+-spec enabled_diagnostics() -> [refactorerl_diagnostic_description()].
+enabled_diagnostics() ->
+  Diagnostics = refactorerl_diagnostics(),
+  EnabledDiagnostics = diagnostics_config(),
+  enabled_diagnostics(EnabledDiagnostics, Diagnostics).
+
+
+-spec enabled_diagnostics(list(), map()) ->
+                                  [refactorerl_diagnostic_description()].
+enabled_diagnostics([ ConfigDiag | RemainingDiags ], Diagnostics) ->
+  case maps:find(ConfigDiag, Diagnostics) of
+    {ok, Value} ->
+      [Value] ++ enabled_diagnostics(RemainingDiags, Diagnostics);
+    error ->
+      enabled_diagnostics(RemainingDiags, Diagnostics)
+  end;
+
+enabled_diagnostics([], _) ->
+  [].
 
 %%@doc
 %% Creates a RefactorErl query from a diagnostic identifier and a module name
--spec make_query(refactorerl_diagnostic_id(), module()) -> refactorerl_query().
-make_query({_, _, Before, After}, Module) ->
+-spec make_query(refactorerl_diagnostic_description(), module()) ->
+                                                          refactorerl_query().
+make_query({_, After}, Module) ->
   ModuleStr = atom_to_list(Module),
-  Before ++ ModuleStr ++ After.
+  "mods[name=" ++ ModuleStr ++ After.
 
 
--spec run_query(module(), refactorerl_diagnostic_id()) ->
+-spec run_query(module(), refactorerl_diagnostic_description()) ->
                                           ([els_diagnostics:diagnostic()]).
-run_query(Module, DiagnosticId) ->
-  {_, Message, _, _} = DiagnosticId,
-  ReferlResult = els_refactorerl_utils:query(make_query(DiagnosticId, Module)),
-  els_refactorerl_utils:make_diagnostics(ReferlResult, Message).
+run_query(Module, {Message, _} = DiagnosticDesc) ->
+  Result = els_refactorerl_utils:query(make_query(DiagnosticDesc, Module)),
+  els_refactorerl_utils:make_diagnostics(Result, Message).
