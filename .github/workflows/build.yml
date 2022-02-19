@@ -72,6 +72,7 @@ jobs:
       run: rebar3 do cover, coveralls send
     - name: Produce Documentation
       run: rebar3 edoc
+      if: ${{ matrix.otp-version == '24' }}
     - name: Publish Documentation
       uses: actions/upload-artifact@v2
       with:

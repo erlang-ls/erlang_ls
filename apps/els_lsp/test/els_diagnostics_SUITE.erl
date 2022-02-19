@@ -43,6 +43,7 @@
         , gradualizer/1
         , module_name_check/1
         , module_name_check_whitespace/1
+        , edoc_main/1
         ]).
 
 %%==============================================================================
@@ -125,6 +126,11 @@ init_per_testcase(TestCase, Config) when TestCase =:= gradualizer ->
   meck:expect(els_gradualizer_diagnostics, is_default, 0, true),
   els_mock_diagnostics:setup(),
   els_test_utils:init_per_testcase(TestCase, Config);
+init_per_testcase(TestCase, Config) when TestCase =:= edoc_main ->
+  meck:new(els_edoc_diagnostics, [passthrough, no_link]),
+  meck:expect(els_edoc_diagnostics, is_default, 0, true),
+  els_mock_diagnostics:setup(),
+  els_test_utils:init_per_testcase(TestCase, Config);
 init_per_testcase(TestCase, Config) ->
   els_mock_diagnostics:setup(),
   els_test_utils:init_per_testcase(TestCase, Config).
@@ -163,6 +169,11 @@ end_per_testcase(TestCase, Config) when TestCase =:= compiler_telemetry ->
   ok;
 end_per_testcase(TestCase, Config) when TestCase =:= gradualizer ->
   meck:unload(els_gradualizer_diagnostics),
+  els_test_utils:end_per_testcase(TestCase, Config),
+  els_mock_diagnostics:teardown(),
+  ok;
+end_per_testcase(TestCase, Config) when TestCase =:= edoc_main ->
+  meck:unload(els_edoc_diagnostics),
   els_test_utils:end_per_testcase(TestCase, Config),
   els_mock_diagnostics:teardown(),
   ok;
@@ -676,6 +687,26 @@ module_name_check_whitespace(_Config) ->
   Source = <<"Compiler (via Erlang LS)">>,
   Errors = [],
   Warnings = [],
+  Hints = [],
+  els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
+
+-spec edoc_main(config()) -> ok.
+edoc_main(_Config) ->
+  Path = src_path("edoc_diagnostics.erl"),
+  Source = <<"Edoc">>,
+  Errors = [ #{ message => <<"`-quote ended unexpectedly at line 13">>
+              , range => {{12, 0}, {13, 0}}
+              }
+           ],
+  Warnings = [ #{ message =>
+                    <<"tag @edoc not recognized.">>
+                , range => {{4, 0}, {5, 0}}
+                }
+             , #{ message =>
+                    <<"tag @docc not recognized.">>
+                , range => {{8, 0}, {9, 0}}
+                }
+             ],
   Hints = [],
   els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
 

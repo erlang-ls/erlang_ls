@@ -6,6 +6,7 @@
     {applications, [
         kernel,
         stdlib,
+        edoc,
         docsh,
         elvis_core,
         rebar3_format,

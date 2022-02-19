@@ -79,7 +79,9 @@ assert_diagnostics(Source, Expected, Diagnostics, Severity) ->
   Filtered = [D || #{severity := S} = D <- Diagnostics, S =:= Severity],
   Simplified = [simplify_diagnostic(D) || D  <- Filtered],
   FixedExpected = [maybe_fix_range(Source, D) || D <- Expected],
-  ?assertEqual(FixedExpected, Simplified, Filtered).
+  ?assertEqual(lists:sort(FixedExpected),
+               lists:sort(Simplified),
+               Filtered).
 
 -spec simplify_diagnostic(els_diagnostics:diagnostic()) ->
         simplified_diagnostic().
