@@ -1,3 +1,9 @@
+%% =============================================================================
+%% An erlang_ls fork of Erlang/OTP's edoc_report
+%% =============================================================================
+%% The main reasons for the fork:
+%%   * The edoc application does not offer an API to return a
+%%     list of warnings and errors
 %% =====================================================================
 %% Licensed under the Apache License, Version 2.0 (the "License"); you may
 %% not use this file except in compliance with the License. You may obtain
@@ -30,7 +36,6 @@
 
 -module(edoc_report).
 
-%% Avoid warning for local functions error/{1,2,3} clashing with autoimported BIF.
 -compile({no_auto_import, [error/1, error/2, error/3]}).
 -export([error/1,
          error/2,
@@ -43,50 +48,66 @@
          warning/3,
          warning/4]).
 
+-type where() :: any().
+-type what() :: any().
+-type line() :: non_neg_integer().
+-type severity() :: warning | error.
+
 -include_lib("edoc/src/edoc.hrl").
 
+-define(DICT_KEY, edoc_diagnostics).
 
+-spec error(what()) -> ok.
 error(What) ->
   error([], What).
 
+-spec error(where(), what()) -> ok.
 error(Where, What) ->
   error(0, Where, What).
 
+-spec error(line(), where(), any()) -> ok.
 error(Line, Where, S) when is_list(S) ->
-  report(Line, Where, S, []);
+  report(Line, Where, S, [], error);
 error(Line, Where, {S, D}) when is_list(S) ->
-  report(Line, Where, S, D);
+  report(Line, Where, S, D, error);
 error(Line, Where, {format_error, M, D}) ->
-  report(Line, Where, M:format_error(D), []).
+  report(Line, Where, M:format_error(D), [], error).
 
+-spec warning(string()) -> ok.
 warning(S) ->
   warning(S, []).
 
+-spec warning(string(), [any()]) -> ok.
 warning(S, Vs) ->
   warning([], S, Vs).
 
+-spec warning(where(), string(), [any()]) -> ok.
 warning(Where, S, Vs) ->
   warning(0, Where, S, Vs).
 
+-spec warning(line(), where(), string(), [any()]) -> ok.
 warning(L, Where, S, Vs) ->
-  report(L, Where, "warning: " ++ S, Vs).
+  report(L, Where, S, Vs, warning).
 
+-spec report(string(), [any()]) -> ok.
 report(S, Vs) ->
   report([], S, Vs).
 
+-spec report(where(), string(), [any()]) -> ok.
 report(Where, S, Vs) ->
   report(0, Where, S, Vs).
 
+-spec report(line(), where(), string(), [any()]) -> ok.
 report(L, Where, S, Vs) ->
-  io:put_chars(where(Where)),
-  if is_integer(L), L > 0 ->
-	    io:fwrite("at line ~w: ", [L]);
-     true ->
-	    ok
-  end,
-  io:fwrite(S, Vs),
-  io:nl().
+  report(L, Where, S, Vs, error).
 
+-spec report(line(), where(), string(), [any()], severity()) -> ok.
+report(L, Where, S, Vs, Severity) ->
+  put(?DICT_KEY, [{L, where(Where), S, Vs, Severity}|get(?DICT_KEY)]).
+
+-spec where([any()] |
+            {string(), module | footer | header | {atom(), non_neg_integer()}})
+           -> string().
 where({File, module}) ->
   io_lib:fwrite("~ts, in module header: ", [File]);
 where({File, footer}) ->
