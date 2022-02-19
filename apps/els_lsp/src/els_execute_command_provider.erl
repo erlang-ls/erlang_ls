@@ -24,8 +24,7 @@ is_enabled() -> true.
 
 -spec options() -> map().
 options() ->
-  #{ commands => [ els_command:with_prefix(<<"replace-lines">>)
-                 , els_command:with_prefix(<<"server-info">>)
+  #{ commands => [ els_command:with_prefix(<<"server-info">>)
                  , els_command:with_prefix(<<"ct-run-test">>)
                  , els_command:with_prefix(<<"show-behaviour-usages">>)
                  , els_command:with_prefix(<<"suggest-spec">>)
@@ -45,17 +44,6 @@ handle_request({workspace_executecommand, Params}, State) ->
 %%==============================================================================
 
 -spec execute_command(els_command:command_id(), [any()]) -> [map()].
-execute_command(<<"replace-lines">>
-               , [#{ <<"uri">>   := Uri
-                   , <<"lines">> := Lines
-                   , <<"from">>  := LineFrom
-                   , <<"to">>    := LineTo }]) ->
-  Method = <<"workspace/applyEdit">>,
-  Params = #{ edit =>
-                  els_text_edit:edit_replace_text(Uri, Lines, LineFrom, LineTo)
-            },
-  els_server:send_request(Method, Params),
-  [];
 execute_command(<<"server-info">>, _Arguments) ->
   {ok, Version} = application:get_key(?APP, vsn),
   BinVersion = list_to_binary(Version),

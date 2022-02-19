@@ -20,6 +20,7 @@
         , function_signature/1
         , base64_encode_term/1
         , base64_decode_term/1
+        , levenshtein_distance/2
         ]).
 
 
@@ -449,3 +450,27 @@ base64_encode_term(Term) ->
 -spec base64_decode_term(binary()) -> any().
 base64_decode_term(Base64) ->
   binary_to_term(base64:decode(Base64)).
+
+-spec levenshtein_distance(binary(), binary()) -> integer().
+levenshtein_distance(S, T) ->
+  {Distance, _} = levenshtein_distance(to_list(S), to_list(T), #{}),
+  Distance.
+
+-spec levenshtein_distance(string(), string(), map()) -> {integer(), map()}.
+levenshtein_distance([] = S, T, Cache) ->
+  {length(T), maps:put({S, T}, length(T), Cache)};
+levenshtein_distance(S, [] = T, Cache) ->
+  {length(S), maps:put({S, T}, length(S), Cache)};
+levenshtein_distance([X|S], [X|T], Cache) ->
+  levenshtein_distance(S, T, Cache);
+levenshtein_distance([_SH|ST] = S, [_TH|TT] = T, Cache) ->
+  case maps:find({S, T}, Cache) of
+    {ok, Distance} ->
+      {Distance, Cache};
+    error ->
+      {L1, C1} = levenshtein_distance(S, TT, Cache),
+      {L2, C2} = levenshtein_distance(ST, T, C1),
+      {L3, C3} = levenshtein_distance(ST, TT, C2),
+      L = 1 + lists:min([L1, L2, L3]),
+      {L, maps:put({S, T}, L, C3)}
+  end.

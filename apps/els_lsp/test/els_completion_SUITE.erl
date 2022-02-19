@@ -423,6 +423,10 @@ default_completions(Config) ->
                  , kind             => ?COMPLETION_ITEM_KIND_MODULE
                  , label            => <<"code_navigation_undefined">>
                  }
+              , #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+                 , kind             => ?COMPLETION_ITEM_KIND_MODULE
+                 , label            => <<"code_action">>
+                 }
               | Functions ],
 
   DefaultCompletion = els_completion_provider:keywords()

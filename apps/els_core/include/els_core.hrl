@@ -568,7 +568,7 @@
                                , context      := code_action_context()
                                }.
 
--type code_action() :: #{ title       := string()
+-type code_action() :: #{ title       := binary()
                         , kind        => code_action_kind()
                         , diagnostics => [els_diagnostics:diagnostic()]
                         , edit        => workspace_edit()
