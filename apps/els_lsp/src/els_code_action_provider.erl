@@ -101,21 +101,15 @@ action_suggest_variable(Uri, Range, [Var]) ->
                       #{range := R, id := Id} <- POIs,
                       els_range:in(R, ScopeRange),
                       els_range:compare(R, VarRange)],
-      case [{els_utils:levenshtein_distance(V, Var), V} ||
-             V <- VarsInScope,
-             V =/= Var,
-             binary:at(Var, 0) =:= binary:at(V, 0)]
-      of
-        [] ->
-          [];
-        VariableDistances ->
-          {_, SimilarVariable} = lists:min(VariableDistances),
-          [ make_edit_action( Uri
-                            , <<"Did you mean '", SimilarVariable/binary, "'?">>
-                            , ?CODE_ACTION_KIND_QUICKFIX
-                            , SimilarVariable
-                            , els_protocol:range(VarRange)) ]
-      end;
+      VariableDistances =
+        [{els_utils:jaro_distance(V, Var), V} || V <- VarsInScope, V =/= Var],
+      [ make_edit_action( Uri
+                        , <<"Did you mean '", V/binary, "'?">>
+                        , ?CODE_ACTION_KIND_QUICKFIX
+                        , V
+                        , els_protocol:range(VarRange))
+        || {Distance, V} <- lists:reverse(lists:usort(VariableDistances)),
+           Distance > 0.8];
     error ->
       []
   end.
