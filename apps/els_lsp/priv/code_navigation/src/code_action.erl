@@ -2,6 +2,11 @@
 
 -export([function_a/0]).
 
+-define(TIMEOUT, 200).
+
+-define(TIMEOUTR, 200).
+-define(TIMEOUTRE, 200).
+
 function_a() ->
   A = 123,
   function_b().

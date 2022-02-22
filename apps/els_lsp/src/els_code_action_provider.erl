@@ -42,6 +42,7 @@ make_code_action(Uri, #{<<"message">> := Message, <<"range">> := Range}) ->
     , {"variable '(.*)' is unbound", fun action_suggest_variable/3}
     , {"Module name '(.*)' does not match file name '(.*)'",
        fun action_fix_module_name/3}
+    , {"Unused macro: (.*)", fun action_remove_macro/3}
     ], Uri, Range, Message).
 
 -spec make_code_action([{string(), Fun}], uri(), range(), binary()) -> [map()]
@@ -131,6 +132,22 @@ action_fix_module_name(Uri, Range0, [ModName, FileName]) ->
                         , ?CODE_ACTION_KIND_QUICKFIX
                         , FileName
                         , els_protocol:range(Range)) ];
+    error ->
+      []
+  end.
+
+- spec action_remove_macro(uri(), range(), [binary()]) -> [map()].
+action_remove_macro(Uri, Range, [Macro]) ->
+  %% Supply a quickfix to remove the unsued Macro
+  {ok, Document} = els_utils:lookup_document(Uri),
+  POIs = els_poi:sort(els_dt_document:pois(Document, [define])),
+  case ensure_range(els_range:to_poi_range(Range), Macro, POIs) of
+    {ok, MacroRange} ->
+      [ make_edit_action( Uri
+                        , <<"Remove unsued macro ", Macro/binary, "">>
+                        , ?CODE_ACTION_KIND_QUICKFIX
+                        , <<"", Macro/binary>>
+                        , els_protocol:range(MacroRange)) ];
     error ->
       []
   end.
