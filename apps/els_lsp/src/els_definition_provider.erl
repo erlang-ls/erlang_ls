@@ -61,33 +61,16 @@ match_incomplete(Text, Pos) ->
 -spec match_after(binary(), pos()) -> [poi()].
 match_after(Text, {Line, Character}) ->
   %% Try to parse current line and the lines after it
-  Str = els_utils:to_list(Text),
-  case els_parser:parse_incomplete_text(Str, {Line, 1}) of
-    {ok, Tree} ->
-      POIs = lists:flatten(els_parser:points_of_interest(Tree)),
-      match_pois(POIs, {1, Character + 1});
-    error ->
-      []
-  end.
+  POIs = els_incomplete_parser:parse_after(Text, Line),
+  MatchingPOIs = match_pois(POIs, {1, Character + 1}),
+  fix_line_offsets(MatchingPOIs, Line).
 
 -spec match_line(binary(), pos()) -> [poi()].
 match_line(Text, {Line, Character}) ->
   %% Try to parse only current line
-  LineText0 = string:trim(els_text:line(Text, Line), trailing, ",;"),
-  case els_parser:parse(LineText0) of
-    {ok, []} ->
-      LineStr = els_utils:to_list(LineText0),
-      case lists:reverse(LineStr) of
-        "fo " ++ _ -> %% Kludge to parse "case foo() of"
-          LineText1 = <<LineText0/binary, " _ -> _ end">>,
-          {ok, POIs} = els_parser:parse(LineText1),
-          fix_line_offsets(match_pois(POIs, {1, Character + 1}), Line);
-        _ ->
-          []
-      end;
-    {ok, POIs} ->
-      fix_line_offsets(match_pois(POIs, {1, Character + 1}), Line)
-  end.
+  POIs = els_incomplete_parser:parse_line(Text, Line),
+  MatchingPOIs = match_pois(POIs, {1, Character + 1}),
+  fix_line_offsets(MatchingPOIs, Line).
 
 -spec match_pois([poi()], pos()) -> [poi()].
 match_pois(POIs, Pos) ->

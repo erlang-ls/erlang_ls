@@ -512,6 +512,8 @@ parse_incomplete(Config) ->
   Uri = ?config(code_navigation_broken_uri, Config),
   Range = els_protocol:range(#{from => {3, 1}, to => {3, 11}}),
   ?assertMatch( #{result := #{range := Range, uri := Uri}}
+              , els_client:definition(Uri, 7, 3)),
+  ?assertMatch( #{result := #{range := Range, uri := Uri}}
               , els_client:definition(Uri, 8, 3)),
   ?assertMatch( #{result := #{range := Range, uri := Uri}}
               , els_client:definition(Uri, 9, 8)),
@@ -519,4 +521,8 @@ parse_incomplete(Config) ->
               , els_client:definition(Uri, 11, 7)),
   ?assertMatch( #{result := #{range := Range, uri := Uri}}
               , els_client:definition(Uri, 12, 12)),
+  ?assertMatch( #{result := #{range := Range, uri := Uri}}
+              , els_client:definition(Uri, 17, 3)),
+  ?assertMatch( #{result := #{range := Range, uri := Uri}}
+              , els_client:definition(Uri, 19, 3)),
   ok.
