@@ -65,7 +65,7 @@ source() ->
 %%==============================================================================
 %% Internal Functions
 %%==============================================================================
-%% 
+
 % @doc
 % Returns the enabled diagnostic aliases from config
 -spec configured_diagnostics() -> sets:set().
@@ -78,14 +78,14 @@ configured_diagnostics() ->
   end.
 
 % @doc
-% Returns the default diagnostic aliases 
+% Returns the default diagnostic aliases
 -spec default_diagnostics() -> sets:set().
 default_diagnostics() ->
-  ets:from_list(["unused_macros", "unsecure_os_calls"]).
+  sets:from_list(["unused_macros", "unsecure_os_calls"]).
 
 
 % @doc
-% Returns the enabled diagnostics by merging default and configed 
+% Returns the enabled diagnostics by merging default and configed
 -spec enabled_diagnostics() -> [refactorerl_diagnostic_alias()].
 enabled_diagnostics() ->
   Set = sets:union(default_diagnostics(), configured_diagnostics()),

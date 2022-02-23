@@ -92,11 +92,12 @@ add(Uri) ->
 
 %%@doc
 %% Runs list of diagnostic aliases on refactorerl
--spec run_diagnostics(list(), atom()) -> list(). 
+-spec run_diagnostics(list(), atom()) -> list().
 run_diagnostics(DiagnosticAliases, Module) ->
   case els_refactorerl_utils:referl_node() of
     {ok, Node} ->
-      rpc:call(Node, referl_els, run_diagnostics, [DiagnosticAliases, Module]); %% returns error | ok
+      %% returns error | ok
+      rpc:call(Node, referl_els, run_diagnostics, [DiagnosticAliases, Module]);
     _ -> % In this case there was probably error.
       []
   end.
@@ -121,7 +122,7 @@ notification(Msg) ->
 %% Checks if the given node is running RefactorErl with ELS interface
 -spec is_refactorerl(atom()) -> boolean().
 is_refactorerl(Node) ->
-  case pc:call(Node, referl_els, ping, [], 500) of
+  case rpc:call(Node, referl_els, ping, [], 500) of
     {refactorerl_els, pong} -> true;
     _ -> false
   end.
