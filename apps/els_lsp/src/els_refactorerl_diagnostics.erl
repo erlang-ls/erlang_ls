@@ -24,7 +24,8 @@
 %%==============================================================================
 %% Types
 %%==============================================================================
--type refactorerl_diagnostic_description() :: {string(), string()}.
+-type refactorerl_diagnostic_alias() :: string().
+-type refactorerl_diagnostic_result() :: {range(), string()}.
 %-type refactorerl_query() :: [char()].
 
 %%==============================================================================
@@ -35,7 +36,7 @@
 is_default() ->
   false.
 
-  -spec run(uri()) -> [els_diagnostics:diagnostic()].
+-spec run(uri()) -> [els_diagnostics:diagnostic()].
 run(Uri) ->
   case filename:extension(Uri) of
     <<".erl">> ->
@@ -64,33 +65,36 @@ source() ->
 %%==============================================================================
 %% Internal Functions
 %%==============================================================================
-
-
-
-
-%TODO: add default diagnostics
-
--spec diagnostics_config() -> list().
-diagnostics_config() ->
+%% 
+% @doc
+% Returns the enabled diagnostic aliases from config
+-spec configured_diagnostics() -> sets:set().
+configured_diagnostics() ->
   case els_config:get(refactorerl) of
     #{"diagnostics" := List} ->
-      List;
+      sets:from_list(List);
     _ ->
       []
   end.
 
--spec enabled_diagnostics() -> [refactorerl_diagnostic_description()].
+% @doc
+% Returns the default diagnostic aliases 
+-spec default_diagnostics() -> sets:set().
+default_diagnostics() ->
+  ets:from_list(["unused_macros", "unsecure_os_calls"]).
+
+
+% @doc
+% Returns the enabled diagnostics by merging default and configed 
+-spec enabled_diagnostics() -> [refactorerl_diagnostic_alias()].
 enabled_diagnostics() ->
-  %%Diagnostics = refactorerl_diagnostics(),
-  EnabledDiagnostics = diagnostics_config(),
-  %%enabled_diagnostics(EnabledDiagnostics, Diagnostics).
-  EnabledDiagnostics.
+  Set = sets:union(default_diagnostics(), configured_diagnostics()),
+  sets:to_list(Set).
 
 
-
-
-
--spec make_diagnostics(any()) -> any().
+% @doc
+% Constructs the ELS diagnostic from RefactorErl result
+-spec make_diagnostics([refactorerl_diagnostic_result()]) -> any().
 make_diagnostics([{Range, Message} | Tail]) ->
   Severity = ?DIAGNOSTIC_WARNING,
   Source = source(),

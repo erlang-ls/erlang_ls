@@ -1,5 +1,5 @@
 %%==============================================================================
-%% Erlang LS & Refactor Erl conversion
+%% Erlang LS & Refactor Erl communication
 %%==============================================================================
 -module(els_refactorerl_utils).
 
@@ -7,10 +7,8 @@
 %% API
 %%==============================================================================
 -export([ referl_node/0
-        %, query/1
         , notification/1
         , notification/2
-        %, make_diagnostics/2
         , run_diagnostics/2
         , source_name/0
         , add/1
@@ -81,7 +79,7 @@ referl_node() ->
 %%@doc
 %% Adds a module to the RefactorErl node. Using the UI router
 %% Returns 'ok' if successfull
-%% Returns 'error' if it fails after ?MAX_RECURSION_DEPTH number of tries
+%% Returns 'error' if it fails
 -spec add(uri()) -> error | ok.
 add(Uri) ->
   case els_refactorerl_utils:referl_node() of
@@ -92,9 +90,9 @@ add(Uri) ->
       error
   end.
 
-
-
--spec run_diagnostics(any(), any()) -> any(). %TODO: typing
+%%@doc
+%% Runs list of diagnostic aliases on refactorerl
+-spec run_diagnostics(list(), atom()) -> list(). 
 run_diagnostics(DiagnosticAliases, Module) ->
   case els_refactorerl_utils:referl_node() of
     {ok, Node} ->
@@ -102,7 +100,6 @@ run_diagnostics(DiagnosticAliases, Module) ->
     _ -> % In this case there was probably error.
       []
   end.
-
 
 %%@doc
 %% Util for popping up notifications
@@ -116,50 +113,18 @@ notification(Msg, Severity) ->
 notification(Msg) ->
   notification(Msg, ?MESSAGE_TYPE_INFO).
 
-
-%%@doc
-%% Creates a list of diagnostics form the RefactorErl results and a message
-%% Message can be the same, as this is called per diagnsotic type.
-%% The severity is only warning.
-
-
 %%==============================================================================
 %% Internal Functions
 %%==============================================================================
 
-%-spec disable_node(atom()) -> {error, disabled}.
 %%@doc
-%% Disables the node given in paramter, also notifes the user.
-%%disable_node(Node) ->
-%%  Msg = "RefactorErl is disconnected!
-%%  Reload ELS after you fixed theRefactorErl node!",
-%%  notification(Msg, ?MESSAGE_TYPE_ERROR),
-%%
-%%  Config = els_config:get(refactorerl),
-%%  els_config:set(refactorerl, Config#{"node" => {Node, disabled}}),
-%%  {error, disabled}.
-
+%% Checks if the given node is running RefactorErl with ELS interface
 -spec is_refactorerl(atom()) -> boolean().
 is_refactorerl(Node) ->
   case pc:call(Node, referl_els, ping, [], 500) of
     {refactorerl_els, pong} -> true;
     _ -> false
   end.
-
-
-%%@doc
-%% Calls the RefactorErl node, to check if it's alive using ri:ls()
--spec check_node(atom()) -> error
-                          | atom().
-check_node(Node) ->
-  case is_refactorerl(Node) of
-    true ->
-      Node;
-    false ->
-      error
-  end.
-
-
 
 %%@doc
 %% Tries to connect to a node.
@@ -171,15 +136,15 @@ check_node(Node) ->
                                                      | atom().
 connect_node({Status, Node}) ->
   Config = els_config:get(refactorerl),
-  case {Status, check_node(Node)} of
-    {validate, {error, _}} ->
+  case {Status, is_refactorerl(Node)} of
+    {validate, false} ->
       notification("RefactorErl is not connected!", ?MESSAGE_TYPE_INFO),
       els_config:set(refactorerl, Config#{"node" => {Node, disconnected}}),
       {error, disconnected};
-    {retry, {error, _}} ->
+    {retry, false} ->
       els_config:set(refactorerl, Config#{"node" => {Node, disconnected}}),
       {error, disconnected};
-    {_, Node} ->
+    {_, true} ->
       notification("RefactorErl is connected!", ?MESSAGE_TYPE_INFO),
       els_config:set(refactorerl, Config#{"node" => {Node, validated}}),
       {ok, Node}
