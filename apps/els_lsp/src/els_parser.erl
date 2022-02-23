@@ -6,12 +6,14 @@
 %%==============================================================================
 %% Exports
 %%==============================================================================
--export([ parse/1]).
+-export([ parse/1
+        , parse_incomplete_text/2
+        , points_of_interest/1
+        ]).
 
 %% For manual use only, to test the parser
 -export([ parse_file/1
         , parse_text/1
-        , parse_incomplete_text/2
         ]).
 
 %%==============================================================================

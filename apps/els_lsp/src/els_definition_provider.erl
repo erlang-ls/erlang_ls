@@ -61,9 +61,14 @@ match_incomplete(Text, Pos) ->
 -spec match_after(binary(), pos()) -> [poi()].
 match_after(Text, {Line, Character}) ->
   %% Try to parse current line and the lines after it
-  {_, AfterText} = els_text:split_at_line(Text, Line),
-  {ok, POIs} = els_parser:parse(AfterText),
-  fix_line_offsets(match_pois(POIs, {1, Character + 1}), Line).
+  Str = els_utils:to_list(Text),
+  case els_parser:parse_incomplete_text(Str, {Line, 1}) of
+    {ok, Tree} ->
+      POIs = lists:flatten(els_parser:points_of_interest(Tree)),
+      match_pois(POIs, {1, Character + 1});
+    error ->
+      []
+  end.
 
 -spec match_line(binary(), pos()) -> [poi()].
 match_line(Text, {Line, Character}) ->
