@@ -46,18 +46,19 @@ did_change(Params) ->
 
 -spec did_open(map()) -> ok.
 did_open(Params) ->
-  TextDocument = maps:get(<<"textDocument">>, Params),
-  Uri          = maps:get(<<"uri">>         , TextDocument),
-  Text         = maps:get(<<"text">>        , TextDocument),
-  ok           = els_indexing:index(Uri, Text, 'deep'),
+  #{<<"textDocument">> := #{ <<"uri">> := Uri
+                           , <<"text">> := Text}} = Params,
+  ok = els_index_buffer:load(Uri, Text),
+  ok = els_index_buffer:flush(Uri),
   Provider = els_diagnostics_provider,
   els_provider:handle_request(Provider, {run_diagnostics, Params}),
   ok.
 
 -spec did_save(map()) -> ok.
 did_save(Params) ->
-  TextDocument = maps:get(<<"textDocument">>, Params),
-  Uri          = maps:get(<<"uri">>         , TextDocument),
+  #{<<"textDocument">> := #{<<"uri">> := Uri}} = Params,
+  {ok, Text} = file:read_file(els_uri:path(Uri)),
+  ok = els_index_buffer:load(Uri, Text),
   ok = els_index_buffer:flush(Uri),
   Provider = els_diagnostics_provider,
   els_provider:handle_request(Provider, {run_diagnostics, Params}),
