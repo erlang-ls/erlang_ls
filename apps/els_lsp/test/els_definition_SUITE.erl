@@ -49,6 +49,7 @@
         , variable/1
         , opaque_application_remote/1
         , opaque_application_user/1
+        , parse_incomplete/1
         ]).
 
 %%==============================================================================
@@ -504,4 +505,18 @@ opaque_application_user(Config) ->
   ?assertEqual(ExtraUri, DefUri),
   ?assertEqual( els_protocol:range(#{from => {20, 1}, to => {20, 34}})
               , Range),
+  ok.
+
+-spec parse_incomplete(config()) -> ok.
+parse_incomplete(Config) ->
+  Uri = ?config(code_navigation_broken_uri, Config),
+  Range = els_protocol:range(#{from => {3, 1}, to => {3, 11}}),
+  ?assertMatch( #{result := #{range := Range, uri := Uri}}
+              , els_client:definition(Uri, 8, 3)),
+  ?assertMatch( #{result := #{range := Range, uri := Uri}}
+              , els_client:definition(Uri, 9, 8)),
+  ?assertMatch( #{result := #{range := Range, uri := Uri}}
+              , els_client:definition(Uri, 11, 7)),
+  ?assertMatch( #{result := #{range := Range, uri := Uri}}
+              , els_client:definition(Uri, 12, 12)),
   ok.

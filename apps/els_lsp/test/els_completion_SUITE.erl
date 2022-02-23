@@ -425,6 +425,10 @@ default_completions(Config) ->
                  }
               , #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
                  , kind             => ?COMPLETION_ITEM_KIND_MODULE
+                 , label            => <<"code_navigation_broken">>
+                 }
+              , #{ insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+                 , kind             => ?COMPLETION_ITEM_KIND_MODULE
                  , label            => <<"code_action">>
                  }
               | Functions ],

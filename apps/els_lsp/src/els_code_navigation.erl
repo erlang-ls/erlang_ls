@@ -31,7 +31,8 @@ goto_definition( Uri
   %% first occurrence of the variable in variable scope.
   case find_in_scope(Uri, Var) of
     [Var|_] -> {error, already_at_definition};
-    [POI|_] -> {ok, Uri, POI}
+    [POI|_] -> {ok, Uri, POI};
+    []      -> {error, nothing_in_scope} % Probably due to parse error
   end;
 goto_definition( _Uri
                , #{ kind := Kind, id := {M, F, A} }
