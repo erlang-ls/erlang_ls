@@ -93,7 +93,7 @@ match_line(Text, {Line, Character}) ->
 match_pois(POIs, Pos) ->
   els_poi:sort(els_poi:match_pos(POIs, Pos)).
 
--spec fix_line_offsets(poi(), integer()) -> poi().
+-spec fix_line_offsets([poi()], integer()) -> [poi()].
 fix_line_offsets(POIs, Offset) ->
   [fix_line_offset(POI, Offset) || POI <- POIs].
 
