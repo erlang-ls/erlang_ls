@@ -65,7 +65,7 @@ end_per_testcase(TestCase, Config) ->
 -spec add_underscore_to_unused_var(config()) -> ok.
 add_underscore_to_unused_var(Config) ->
   Uri = ?config(code_action_uri, Config),
-  Range = els_protocol:range(#{from => {?COMMENTS_LINES+6, 3}, to => {?COMMENTS_LINES+6, 4}}),
+  Range = els_protocol:range(#{from => {?COMMENTS_LINES + 6, 3}, to => {?COMMENTS_LINES + 6, 4}}),
   Diag = #{ message  => <<"variable 'A' is unused">>
           , range    => Range
           , severity => 2
@@ -89,7 +89,7 @@ add_underscore_to_unused_var(Config) ->
 -spec export_unused_function(config()) -> ok.
 export_unused_function(Config) ->
   Uri = ?config(code_action_uri, Config),
-  Range = els_protocol:range(#{from => {?COMMENTS_LINES+12, 1}, to => {?COMMENTS_LINES+12, 10}}),
+  Range = els_protocol:range(#{from => {?COMMENTS_LINES + 12, 1}, to => {?COMMENTS_LINES + 12, 10}}),
   Diag = #{ message  => <<"function function_c/0 is unused">>
           , range    => Range
           , severity => 2
@@ -100,8 +100,8 @@ export_unused_function(Config) ->
     [ #{ edit => #{changes =>
                      #{ binary_to_atom(Uri, utf8) =>
                           [ #{ range =>
-                                 #{'end' => #{ character => 0, line => ?COMMENTS_LINES+3},
-                                   start => #{character => 0, line => ?COMMENTS_LINES+3}}
+                                 #{'end' => #{ character => 0, line => ?COMMENTS_LINES + 3},
+                                   start => #{character => 0, line => ?COMMENTS_LINES + 3}}
                              , newText => <<"-export([function_c/0]).\n">>
                              }
                           ]}
@@ -116,7 +116,7 @@ export_unused_function(Config) ->
 -spec suggest_variable(config()) -> ok.
 suggest_variable(Config) ->
   Uri = ?config(code_action_uri, Config),
-  Range = els_protocol:range(#{from => {?COMMENTS_LINES+15, 9}, to => {?COMMENTS_LINES+15, 13}}),
+  Range = els_protocol:range(#{from => {?COMMENTS_LINES + 15, 9}, to => {?COMMENTS_LINES + 15, 13}}),
   Diag = #{ message  => <<"variable 'Barf' is unbound">>
           , range    => Range
           , severity => 3
@@ -140,7 +140,7 @@ suggest_variable(Config) ->
 -spec fix_module_name(config()) -> ok.
 fix_module_name(Config) ->
   Uri = ?config(code_action_uri, Config),
-  Range = els_protocol:range(#{from => {?COMMENTS_LINES+1, 9}, to => {?COMMENTS_LINES+1, 25}}),
+  Range = els_protocol:range(#{from => {?COMMENTS_LINES + 1, 9}, to => {?COMMENTS_LINES + 1, 25}}),
   Diag = #{ message  => <<"Module name 'code_action_oops' does not "
                           "match file name 'code_action'">>
           , range    => Range
@@ -165,8 +165,8 @@ fix_module_name(Config) ->
 -spec remove_unused_macro(config()) -> ok.
 remove_unused_macro(Config) ->
   Uri = ?config(code_action_uri, Config),
-  Range = els_protocol:range(#{from => {?COMMENTS_LINES+17, 9}, to => {?COMMENTS_LINES+17, 15}}),
-  LineRange = els_range:line(#{from => {?COMMENTS_LINES+17, 9}, to => {?COMMENTS_LINES+17, 15}}),
+  Range = els_protocol:range(#{from => {?COMMENTS_LINES + 17, 9}, to => {?COMMENTS_LINES + 17, 15}}),
+  LineRange = els_range:line(#{from => {?COMMENTS_LINES + 17, 9}, to => {?COMMENTS_LINES + 17, 15}}),
   Diag = #{ message  => <<"Unused macro: TIMEOUT">>
           , range    => Range
           , severity => 2
