@@ -6,6 +6,7 @@
         , in/2
         , range/4
         , range/1
+        , line/1
         , to_poi_range/1
         ]).
 
@@ -45,6 +46,10 @@ range(Anno) ->
   %% To = erl_anno:end_location(Anno),
   To = proplists:get_value(end_location, erl_anno:to_term(Anno)),
   #{ from => From, to => To }.
+
+-spec line(poi_range()) -> poi_range().
+line(#{ from := {FromL, _}, to := {ToL, _} }) ->
+  #{ from => {FromL, 1}, to => {ToL+1, 1} }.
 
 %% @doc Converts a LSP range into a POI range
 -spec to_poi_range(range()) -> poi_range().
