@@ -66,6 +66,7 @@ query_multiple(Config) ->
   ExtraUri = ?config(code_navigation_extra_uri, Config),
   TypesUri = ?config(code_navigation_types_uri, Config),
   UndefUri = ?config(code_navigation_undefined_uri, Config),
+  BrokenUri = ?config(code_navigation_broken_uri, Config),
   #{result := Result} = els_client:workspace_symbol(Query),
   Expected = [ #{ kind => ?SYMBOLKIND_MODULE
                 , location =>
@@ -106,6 +107,16 @@ query_multiple(Config) ->
                      , uri  => UndefUri
                      }
                 , name => <<"code_navigation_undefined">>
+                }
+             , #{ kind => ?SYMBOLKIND_MODULE
+                , location =>
+                    #{ range =>
+                         #{ 'end' => #{character => 0, line => 0}
+                          , start => #{character => 0, line => 0}
+                          }
+                     , uri  => BrokenUri
+                     }
+                , name => <<"code_navigation_broken">>
                 }
              ],
   ?assertEqual(lists:sort(Expected), lists:sort(Result)),
