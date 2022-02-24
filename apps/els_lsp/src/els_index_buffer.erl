@@ -11,6 +11,7 @@
         , stop/0
         , apply_edits_async/2
         , flush/1
+        , load/2
         ]).
 
 -include_lib("kernel/include/logger.hrl").
@@ -42,6 +43,15 @@ apply_edits_async(Uri, Edits) ->
   ?SERVER ! {apply_edits, Uri, Edits},
   ok.
 
+-spec load(uri(), binary()) -> ok.
+load(Uri, Text) ->
+  Ref = make_ref(),
+  ?SERVER ! {load, self(), Ref, Uri, Text},
+  receive
+    {Ref, done} ->
+      ok
+  end.
+
 -spec flush(uri()) -> ok.
 flush(Uri) ->
   Ref = make_ref(),
@@ -71,6 +81,15 @@ loop() ->
                      [?SERVER, Uri, {E, R, St}])
       end,
       Pid ! {Ref, done},
+      loop();
+    {load, Pid, Ref, Uri, Text} ->
+      try
+        do_load(Uri, Text)
+      catch E:R:St ->
+          ?LOG_ERROR("[~p] Crashed while loading ~p: ~p",
+                     [?SERVER, Uri, {E, R, St}])
+      end,
+      Pid ! {Ref, done},
       loop()
   end.
 
@@ -94,6 +113,17 @@ do_flush(Uri) ->
   Text = receive_all(Uri, Text0),
   {Duration, ok} = timer:tc(fun() -> els_indexing:index(Uri, Text, 'deep') end),
   ?LOG_DEBUG("[~p] Done flushing ~p [duration: ~pms]",
+             [?SERVER, Uri, Duration div 1000]),
+  ok.
+
+-spec do_load(uri(), binary()) -> ok.
+do_load(Uri, Text) ->
+  ?LOG_DEBUG("[~p] Loading ~p", [?SERVER, Uri]),
+  {Duration, ok} =
+    timer:tc(fun() ->
+                 els_indexing:index(Uri, Text, 'deep')
+             end),
+  ?LOG_DEBUG("[~p] Done load ~p [duration: ~pms]",
              [?SERVER, Uri, Duration div 1000]),
   ok.
 
