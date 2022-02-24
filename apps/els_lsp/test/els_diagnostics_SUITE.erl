@@ -39,6 +39,7 @@
         , unused_includes_compiler_attribute/1
         , exclude_unused_includes/1
         , unused_macros/1
+        , unused_macros_refactorerl/1
         , unused_record_fields/1
         , gradualizer/1
         ]).
@@ -123,6 +124,12 @@ init_per_testcase(TestCase, Config) when TestCase =:= gradualizer ->
   meck:expect(els_gradualizer_diagnostics, is_default, 0, true),
   els_mock_diagnostics:setup(),
   els_test_utils:init_per_testcase(TestCase, Config);
+
+% RefactorErl
+init_per_testcase(TestCase, Config) when TestCase =:= unused_macros_refactorerl ->
+  io:format("INIT"),
+  els_test_utils:init_per_testcase(TestCase, Config);
+
 init_per_testcase(TestCase, Config) ->
   els_mock_diagnostics:setup(),
   els_test_utils:init_per_testcase(TestCase, Config).
@@ -650,6 +657,24 @@ gradualizer(_Config) ->
                     <<"The variable N is expected to have type integer() "
                       "but it has type false | true\n">>
                 , range => {{10, 0}, {11, 0}}}
+             ],
+  Hints = [],
+  els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
+
+
+
+% RefactorErl test cases
+-spec unused_macros_refactorerl(config()) -> ok.
+unused_macros_refactorerl(_Config) ->
+  Path = src_path("diagnostics_unused_macros.erl"),
+  Source = <<"RefactorErl">>,
+  Errors = [],
+  Warnings = [ #{ message => <<"Unused macro: UNUSED_MACRO">>
+                , range => {{5, 8}, {5, 20}}
+                },
+               #{ message => <<"Unused macro: UNUSED_MACRO_WITH_ARG/1">>
+                , range => {{6, 8}, {6, 29}}
+                }
              ],
   Hints = [],
   els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
