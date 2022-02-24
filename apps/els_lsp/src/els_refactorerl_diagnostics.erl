@@ -34,7 +34,7 @@
 
 -spec is_default() -> boolean().
 is_default() ->
-  false.
+  true.
 
 -spec run(uri()) -> [els_diagnostics:diagnostic()].
 run(Uri) ->
@@ -42,20 +42,21 @@ run(Uri) ->
     <<".erl">> ->
       case els_refactorerl_utils:referl_node() of
         {error, _} ->
-          [];
+          ["error2"];
         {ok, _} ->
           case els_refactorerl_utils:add(Uri) of
             error ->
-              [];
+              ["error1"];
             ok ->
               Module = els_uri:module(Uri),
               Diags = enabled_diagnostics(),
               Results = els_refactorerl_utils:run_diagnostics(Diags, Module),
-              make_diagnostics(Results)
+              make_diagnostics(Results),
+              ["alma"]
           end
       end;
     _ ->
-      []
+      ["korte"]
   end.
 
 -spec source() -> binary().

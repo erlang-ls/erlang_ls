@@ -127,7 +127,7 @@ init_per_testcase(TestCase, Config) when TestCase =:= gradualizer ->
 
 % RefactorErl
 init_per_testcase(TestCase, Config) when TestCase =:= unused_macros_refactorerl ->
-  io:format("INIT"),
+  mock_refactorerl(),
   els_test_utils:init_per_testcase(TestCase, Config);
 
 init_per_testcase(TestCase, Config) ->
@@ -171,10 +171,18 @@ end_per_testcase(TestCase, Config) when TestCase =:= gradualizer ->
   els_test_utils:end_per_testcase(TestCase, Config),
   els_mock_diagnostics:teardown(),
   ok;
+end_per_testcase(TestCase, Config) 
+  when TestCase =:= unused_macros_refactorerl ->
+  unmock_refactoerl(),
+  els_test_utils:end_per_testcase(TestCase, Config),
+  els_mock_diagnostics:teardown(); 
 end_per_testcase(TestCase, Config) ->
   els_test_utils:end_per_testcase(TestCase, Config),
   els_mock_diagnostics:teardown(),
   ok.
+
+% RefactorErl
+
 
 %%==============================================================================
 %% Testcases
@@ -752,3 +760,83 @@ src_path(Module) ->
 
 include_path(Header) ->
   filename:join(["code_navigation", "include", Header]).
+
+
+% Mock RefactorErl utils
+mock_refactorerl() ->
+  %meck:new(rpc, [passthrough, no_link, unstick]),
+  %{ok, HostName} = inet:gethostname(),
+  %NodeName = list_to_atom("fakenode@" ++ HostName),
+  %meck:expect( rpc
+  %           , call
+  %           , fun(PNode, c, c, [Module]) when PNode =:= NodeName ->
+  %                 {ok, Module};
+  %                (Node, Mod, Fun, Args) ->
+  %                 meck:passthrough([Node, Mod, Fun, Args])
+  %             end
+  %           ).
+  meck:new(els_refactorerl_utils),
+  {ok, HostName} = inet:gethostname(),
+  NodeName = list_to_atom("referl_fake@" ++ HostName),
+  meck:expect(els_refactorerl_utils, run_diagnostics, 2, ["Hello"]),
+  meck:expect(els_refactorerl_utils, referl_node, 0, {ok, NodeName}),
+  meck:expect(els_refactorerl_utils, add, 1, ok),
+  % 
+  
+
+   
+  % rpc:call(Node, referl_els, run_diagnostics, [DiagnosticAliases, Module]);
+  meck:new(rpc, [passthrough, no_link, unstick]),
+  {ok, HostName} = inet:gethostname(),
+  NodeName = list_to_atom("referl_fake@" ++ HostName),
+  meck:expect( rpc
+             , call
+             , fun(_RPCNode, referl_els, run_diagnostics, [_DiagnosticAliases, _Module]) -> %{ok, HostName} = inet:gethostname(),
+  NodeName = list_to_atom("referl_fake@" ++ HostName),
+              [{#{'end' => #{character => 12,line => 16},
+              start => #{character => 4,line => 16}},
+              <<"Unsecure OS call: os:cmd(A)">>},
+             {#{'end' => #{character => 35,line => 5},
+                start => #{character => 0,line => 5}},
+              <<"Unused macros: UNUSED_MACRO">>},
+             {#{'end' => #{character => 36,line => 6},
+                start => #{character => 0,line => 6}},
+              <<"Unused macros: UNUSED_MACRO_WITH_ARG">>}]   
+              %;
+              %(Node, Mod, Fun, Args) ->
+              %     meck:passthrough([Node, Mod, Fun, Args])
+               end
+             ),
+  
+  
+  % rpc:call(Node, referl_els, add, [Path]); %% returns error | ok
+  %meck:new(rpc, [passthrough, no_link, unstick]),
+  {ok, HostName} = inet:gethostname(),
+  NodeName = list_to_atom("referl_fake@" ++ HostName),
+  meck:expect( rpc
+             , call
+             , fun(_RPCNode, referl_els, add, [_Path]) -> %{ok, HostName} = inet:gethostname(),
+  NodeName = list_to_atom("referl_fake@" ++ HostName),
+                ok%;
+              %(Node, Mod, Fun, Args) ->
+              %     meck:passthrough([Node, Mod, Fun, Args])
+               end
+             ),
+  
+  % rpc:call(Node, referl_els, ping, [], 500)
+  %meck:new(rpc, [passthrough, no_link, unstick]),
+  {ok, HostName} = inet:gethostname(),
+  NodeName = list_to_atom("referl_fake@" ++ HostName),
+  meck:expect( rpc
+             , call
+             , fun(_RPCNode, referl_els, ping, [], 500) -> %{ok, HostName} = inet:gethostname(),
+  NodeName = list_to_atom("referl_fake@" ++ HostName),
+                {refactorerl_els, pong}%;
+              %(Node, Mod, Fun, Args) ->
+              %     meck:passthrough([Node, Mod, Fun, Args])
+               end
+             ). 
+
+unmock_refactoerl() ->
+  meck:unload(rpc),
+  meck:unload(refactorerl_els).
