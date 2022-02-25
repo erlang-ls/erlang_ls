@@ -48,6 +48,7 @@
         , default_diagnostics/0
         , enabled_diagnostics/0
         , make_diagnostic/4
+        , make_diagnostic/5
         , run_diagnostics/1
         ]).
 
@@ -81,12 +82,23 @@ enabled_diagnostics() ->
   Disabled = maps:get("disabled", Config, []),
   lists:usort((Default ++ valid(Enabled)) -- valid(Disabled)).
 
--spec make_diagnostic(range(), binary(), severity(), binary()) -> diagnostic().
+-spec make_diagnostic(range(), binary(), severity(), binary()) ->
+        diagnostic().
 make_diagnostic(Range, Message, Severity, Source) ->
   #{ range    => Range
    , message  => Message
    , severity => Severity
    , source   => Source
+   }.
+
+-spec make_diagnostic(range(), binary(), severity(), binary(), binary())
+        -> diagnostic().
+make_diagnostic(Range, Message, Severity, Source, Data) ->
+  #{ range    => Range
+   , message  => Message
+   , severity => Severity
+   , source   => Source
+   , data     => Data
    }.
 
 -spec run_diagnostics(uri()) -> [pid()].
