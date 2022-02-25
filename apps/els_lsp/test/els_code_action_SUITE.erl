@@ -15,6 +15,7 @@
         , suggest_variable/1
         , fix_module_name/1
         , remove_unused_macro/1
+        , remove_unused_import/1
         ]).
 
 %%==============================================================================
@@ -190,6 +191,35 @@ remove_unused_macro(Config) ->
                       }}
        , kind => <<"quickfix">>
        , title => <<"Remove unused macro TIMEOUT.">>
+       }
+    ],
+  ?assertEqual(Expected, Result),
+  ok.
+
+-spec remove_unused_import(config()) -> ok.
+remove_unused_import(Config) ->
+  Uri = ?config(code_action_uri, Config),
+  Range = els_protocol:range(#{from => {?COMMENTS_LINES + 19, 15}
+                              , to => {?COMMENTS_LINES + 19, 40}}),
+  LineRange = els_range:line(#{from => {?COMMENTS_LINES + 19, 15}
+                              , to => {?COMMENTS_LINES + 19, 40}}),
+  {ok, FileName} = els_utils:find_header(els_utils:filename_to_atom("stdlib/include/assert.hrl")),
+  Diag = #{ message  => <<"Unused file: assert.hrl">>
+          , range    => Range
+          , severity => 2
+          , source   => <<"UnusedIncludes">>
+          , data     => FileName
+          },
+  #{result := Result} = els_client:document_codeaction(Uri, Range, [Diag]),
+  Expected =
+    [ #{ edit => #{changes =>
+                     #{ binary_to_atom(Uri, utf8) =>
+                          [#{ range => els_protocol:range(LineRange)
+                            , newText => <<>>
+                            }]
+                      }}
+       , kind => <<"quickfix">>
+       , title => <<"Remove unused -include_lib(assert.hrl).">>
        }
     ],
   ?assertEqual(Expected, Result),

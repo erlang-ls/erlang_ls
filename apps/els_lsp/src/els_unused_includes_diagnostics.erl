@@ -41,6 +41,7 @@ run(Uri) ->
          , <<"Unused file: ", (filename:basename(UI))/binary>>
             , ?DIAGNOSTIC_WARNING
          , source()
+         , <<UI/binary>> %% Additional data with complete path
          ) || UI <- UnusedIncludes ]
   end.
 
@@ -112,11 +113,8 @@ expand_includes(Document) ->
 
 -spec inclusion_range(uri(), els_dt_document:item()) -> poi_range().
 inclusion_range(Uri, Document) ->
-  Path = binary_to_list(els_uri:path(Uri)),
-  case
-    els_compiler_diagnostics:inclusion_range(Path, Document, include) ++
-    els_compiler_diagnostics:inclusion_range(Path, Document, include_lib) of
-    [Range|_] ->
+  case els_range:inclusion_range(Uri, Document) of
+    {ok, Range} ->
       Range;
     _ ->
       #{from => {1, 1}, to => {2, 1}}

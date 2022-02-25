@@ -35,31 +35,35 @@ code_actions(Uri, _Range, #{<<"diagnostics">> := Diagnostics}) ->
   lists:flatten([make_code_action(Uri, D) || D <- Diagnostics]).
 
 -spec make_code_action(uri(), map()) -> [map()].
-make_code_action(Uri, #{<<"message">> := Message, <<"range">> := Range}) ->
+make_code_action(Uri,
+  #{<<"message">> := Message, <<"range">> := Range} = D) ->
+    Data = maps:get(<<"data">>, D, <<>>),
   make_code_action(
-    [ {"function (.*) is unused", fun action_export_function/3}
-    , {"variable '(.*)' is unused", fun action_ignore_variable/3}
-    , {"variable '(.*)' is unbound", fun action_suggest_variable/3}
+    [ {"function (.*) is unused", fun action_export_function/4}
+    , {"variable '(.*)' is unused", fun action_ignore_variable/4}
+    , {"variable '(.*)' is unbound", fun action_suggest_variable/4}
     , {"Module name '(.*)' does not match file name '(.*)'",
-       fun action_fix_module_name/3}
-    , {"Unused macro: (.*)", fun action_remove_macro/3}
-    ], Uri, Range, Message).
+       fun action_fix_module_name/4}
+    , {"Unused macro: (.*)", fun action_remove_macro/4}
+    , {"Unused file: (.*)", fun action_remove_unused/4}
+    ], Uri, Range, Data, Message).
 
--spec make_code_action([{string(), Fun}], uri(), range(), binary()) -> [map()]
+-spec make_code_action([{string(), Fun}], uri(), range(), binary(), binary())
+       -> [map()]
           when Fun :: fun((uri(), range(), [binary()]) -> [map()]).
-make_code_action([], _Uri, _Range, _Message) ->
+make_code_action([], _Uri, _Range, _Data, _Message) ->
   [];
-make_code_action([{RE, Fun}|Rest], Uri, Range, Message) ->
+make_code_action([{RE, Fun}|Rest], Uri, Range, Data, Message) ->
   Actions = case re:run(Message, RE, [{capture, all_but_first, binary}]) of
               {match, Matches} ->
-                Fun(Uri, Range, Matches);
+                Fun(Uri, Range, Data, Matches);
               nomatch ->
                 []
             end,
-  Actions ++ make_code_action(Rest, Uri, Range, Message).
+  Actions ++ make_code_action(Rest, Uri, Range, Data, Message).
 
--spec action_export_function(uri(), range(), [binary()]) -> [map()].
-action_export_function(Uri, _Range, [UnusedFun]) ->
+-spec action_export_function(uri(), range(), binary(), [binary()]) -> [map()].
+action_export_function(Uri, _Range, _Data, [UnusedFun]) ->
   {ok, Document} = els_utils:lookup_document(Uri),
   case els_poi:sort(els_dt_document:pois(Document, [module, export])) of
     [] ->
@@ -74,8 +78,8 @@ action_export_function(Uri, _Range, [UnusedFun]) ->
                         , els_protocol:range(#{from => Pos, to => Pos})) ]
   end.
 
--spec action_ignore_variable(uri(), range(), [binary()]) -> [map()].
-action_ignore_variable(Uri, Range, [UnusedVariable]) ->
+-spec action_ignore_variable(uri(), range(), binary(), [binary()]) -> [map()].
+action_ignore_variable(Uri, Range, _Data, [UnusedVariable]) ->
   {ok, Document} = els_utils:lookup_document(Uri),
   POIs = els_poi:sort(els_dt_document:pois(Document, [variable])),
   case ensure_range(els_range:to_poi_range(Range), UnusedVariable, POIs) of
@@ -89,8 +93,8 @@ action_ignore_variable(Uri, Range, [UnusedVariable]) ->
       []
   end.
 
--spec action_suggest_variable(uri(), range(), [binary()]) -> [map()].
-action_suggest_variable(Uri, Range, [Var]) ->
+-spec action_suggest_variable(uri(), range(), binary(), [binary()]) -> [map()].
+action_suggest_variable(Uri, Range, _Data, [Var]) ->
   %% Supply a quickfix to replace an unbound variable with the most similar
   %% variable name in scope.
   {ok, Document} = els_utils:lookup_document(Uri),
@@ -115,8 +119,8 @@ action_suggest_variable(Uri, Range, [Var]) ->
       []
   end.
 
--spec action_fix_module_name(uri(), range(), [binary()]) -> [map()].
-action_fix_module_name(Uri, Range0, [ModName, FileName]) ->
+-spec action_fix_module_name(uri(), range(), binary(), [binary()]) -> [map()].
+action_fix_module_name(Uri, Range0, _Data, [ModName, FileName]) ->
   {ok, Document} = els_utils:lookup_document(Uri),
   POIs = els_poi:sort(els_dt_document:pois(Document, [module])),
   case ensure_range(els_range:to_poi_range(Range0), ModName, POIs) of
@@ -130,8 +134,8 @@ action_fix_module_name(Uri, Range0, [ModName, FileName]) ->
       []
   end.
 
-- spec action_remove_macro(uri(), range(), [binary()]) -> [map()].
-action_remove_macro(Uri, Range, [Macro]) ->
+- spec action_remove_macro(uri(), range(), binary(), [binary()]) -> [map()].
+action_remove_macro(Uri, Range, _Data, [Macro]) ->
   %% Supply a quickfix to remove the unused Macro
   {ok, Document} = els_utils:lookup_document(Uri),
   POIs = els_poi:sort(els_dt_document:pois(Document, [define])),
@@ -142,6 +146,21 @@ action_remove_macro(Uri, Range, [Macro]) ->
                         , <<"Remove unused macro ", Macro/binary, ".">>
                         , ?CODE_ACTION_KIND_QUICKFIX
                         , <<"">>
+                        , els_protocol:range(LineRange)) ];
+    error ->
+      []
+  end.
+
+-spec action_remove_unused(uri(), range(), binary(), [binary()]) -> [map()].
+action_remove_unused(Uri, _Range0, Data, [Var]) ->
+  {ok, Document} = els_utils:lookup_document(Uri),
+  case els_range:inclusion_range(Data, Document) of
+    {ok, UnusedRange} ->
+      LineRange = els_range:line(UnusedRange),
+      [ make_edit_action( Uri
+                        , <<"Remove unused -include_lib(", Var/binary, ").">>
+                        , ?CODE_ACTION_KIND_QUICKFIX
+                        , <<>>
                         , els_protocol:range(LineRange)) ];
     error ->
       []
