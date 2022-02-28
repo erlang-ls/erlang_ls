@@ -598,8 +598,11 @@ unused_includes(_Config) ->
   Path = src_path("diagnostics_unused_includes.erl"),
   Source = <<"UnusedIncludes">>,
   Errors = [],
+  {ok, FileName} = els_utils:find_header(
+    els_utils:filename_to_atom("et/include/et.hrl")),
   Warnings = [#{ message => <<"Unused file: et.hrl">>
                , range => {{3, 0}, {3, 34}}
+               , data     => FileName
                }
              ],
   Hints = [],
@@ -610,8 +613,11 @@ unused_includes_compiler_attribute(_Config) ->
   Path = src_path("diagnostics_unused_includes_compiler_attribute.erl"),
   Source = <<"UnusedIncludes">>,
   Errors = [],
+  {ok, FileName} = els_utils:find_header(
+    els_utils:filename_to_atom("kernel/include/file.hrl")),
   Warnings = [ #{ message => <<"Unused file: file.hrl">>
                 , range => {{3, 0}, {3, 40}}
+                , data     => FileName
                 }
              ],
   Hints = [],
