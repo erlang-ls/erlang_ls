@@ -8,6 +8,7 @@
         , range/1
         , line/1
         , to_poi_range/1
+        , inclusion_range/2
         ]).
 
 -spec compare(poi_range(), poi_range()) -> boolean().
@@ -65,6 +66,19 @@ to_poi_range(#{<<"start">> := Start, <<"end">> := End}) ->
   #{ from => {LineStart + 1, CharStart + 1}
    , to => {LineEnd + 1, CharEnd + 1}
    }.
+
+-spec inclusion_range(uri(), els_dt_document:item()) ->
+  {ok, poi_range()} | error.
+inclusion_range(Uri, Document) ->
+  Path = binary_to_list(els_uri:path(Uri)),
+  case
+    els_compiler_diagnostics:inclusion_range(Path, Document, include) ++
+    els_compiler_diagnostics:inclusion_range(Path, Document, include_lib) of
+    [Range|_] ->
+      {ok, Range};
+    [] ->
+      error
+  end.
 
 -spec plus(pos(), string()) -> pos().
 plus({Line, Column}, String) ->

@@ -17,3 +17,5 @@ function_c() ->
   Foo + Barf.
 
 -define(TIMEOUT, 200).
+
+-include_lib("stdlib/include/assert.hrl").
