@@ -18,7 +18,7 @@
                        , source             => binary()
                        , message            := binary()
                        , relatedInformation => [related_info()]
-                       , data               := binary()
+                       , data               => binary()
                        }.
 -type diagnostic_id() :: binary().
 -type related_info() :: #{ location := location()
