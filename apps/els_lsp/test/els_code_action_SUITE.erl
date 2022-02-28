@@ -203,7 +203,8 @@ remove_unused_import(Config) ->
                               , to => {?COMMENTS_LINES + 19, 40}}),
   LineRange = els_range:line(#{from => {?COMMENTS_LINES + 19, 15}
                               , to => {?COMMENTS_LINES + 19, 40}}),
-  {ok, FileName} = els_utils:find_header(els_utils:filename_to_atom("stdlib/include/assert.hrl")),
+  {ok, FileName} = els_utils:find_header(
+    els_utils:filename_to_atom("stdlib/include/assert.hrl")),
   Diag = #{ message  => <<"Unused file: assert.hrl">>
           , range    => Range
           , severity => 2
