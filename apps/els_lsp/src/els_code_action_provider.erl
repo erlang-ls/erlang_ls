@@ -50,7 +50,7 @@ make_code_action(Uri,
 
 -spec make_code_action([{string(), Fun}], uri(), range(), binary(), binary())
        -> [map()]
-          when Fun :: fun((uri(), range(), [binary()]) -> [map()]).
+          when Fun :: fun((uri(), range(), binary(), [binary()]) -> [map()]).
 make_code_action([], _Uri, _Range, _Data, _Message) ->
   [];
 make_code_action([{RE, Fun}|Rest], Uri, Range, Data, Message) ->
