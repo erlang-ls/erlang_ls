@@ -152,13 +152,13 @@ action_remove_macro(Uri, Range, _Data, [Macro]) ->
   end.
 
 -spec action_remove_unused(uri(), range(), binary(), [binary()]) -> [map()].
-action_remove_unused(Uri, _Range0, Data, [Var]) ->
+action_remove_unused(Uri, _Range0, Data, [Import]) ->
   {ok, Document} = els_utils:lookup_document(Uri),
   case els_range:inclusion_range(Data, Document) of
     {ok, UnusedRange} ->
       LineRange = els_range:line(UnusedRange),
       [ make_edit_action( Uri
-                        , <<"Remove unused -include_lib(", Var/binary, ").">>
+                        , <<"Remove unused -include_lib(", Import/binary, ").">>
                         , ?CODE_ACTION_KIND_QUICKFIX
                         , <<>>
                         , els_protocol:range(LineRange)) ];
