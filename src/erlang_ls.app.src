@@ -1,0 +1,11 @@
+{application, erlang_ls, [
+    {description, "Erlang LS"},
+    {vsn, git},
+    {registered, []},
+    {applications, [kernel, stdlib, els_core, els_lsp, els_dap]},
+    {env, []},
+    {modules, []},
+
+    {licenses, ["Apache 2.0"]},
+    {links, []}
+]}.
