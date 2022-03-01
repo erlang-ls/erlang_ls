@@ -679,10 +679,10 @@ unused_macros_refactorerl(_Config) ->
   Source = <<"RefactorErl">>,
   Errors = [],
   Warnings = [ #{ message => <<"Unused macro: UNUSED_MACRO">>
-                , range => {{5, 8}, {5, 20}}
+                , range => {{5, 0}, {5, 35}}
                 },
-               #{ message => <<"Unused macro: UNUSED_MACRO_WITH_ARG/1">>
-                , range => {{6, 8}, {6, 29}}
+               #{ message => <<"Unused macro: UNUSED_MACRO_WITH_ARG">>
+                , range => {{6, 0}, {6, 36}}
                 }
              ],
   Hints = [],
@@ -769,64 +769,18 @@ mock_refactorerl() ->
   NodeName = list_to_atom("referl_fake@" ++ HostName),
 
   meck:new(els_refactorerl_utils, [passthrough, no_link, unstick]),
-  meck:expect(els_refactorerl_utils, run_diagnostics, 2, [{#{'end' => #{character => 12,line => 16},
-             start => #{character => 4,line => 16}},
-              <<"Unsecure OS call: os:cmd(A)">>}]),
+  meck:expect(els_refactorerl_utils, run_diagnostics, 2, 
+    [ {# {'end' => #{character => 35,line => 5},
+          start => #{character => 0,line => 5}},
+        <<"Unused macro: UNUSED_MACRO">>},
+      {# {'end' => #{character => 36,line => 6},
+           start => #{character => 0,line => 6}},
+        <<"Unused macro: UNUSED_MACRO_WITH_ARG">>}] 
+      ),
   meck:expect(els_refactorerl_utils, referl_node, 0, {ok, NodeName}),
   meck:expect(els_refactorerl_utils, add, 1, ok),
-  meck:expect(els_refactorerl_utils, source_name, 0, <<"RefactorErl">>),
+  meck:expect(els_refactorerl_utils, source_name, 0, <<"RefactorErl">>).
 
-  
-  %rpc:call(Node, referl_els, run_diagnostics, [DiagnosticAliases, Module]);
-  meck:new(rpc, [passthrough, no_link, unstick]),
-  meck:expect( rpc
-             , call
-             , fun(Node, referl_els, run_diagnostics, [_DiagnosticAliases, _Module]) when Node =:= NodeName ->
-             io:format("RunDiag"),
-              [{#{'end' => #{character => 35,line => 5},
-                start => #{character => 0,line => 5}},
-              <<"Unused macros: UNUSED_MACRO">>},
-             {#{'end' => #{character => 36,line => 6},
-                start => #{character => 0,line => 6}},
-              <<"Unused macros: UNUSED_MACRO_WITH_ARG">>}]  ; 
-              %;
-              (Node, Mod, Fun, Args) ->
-                   meck:passthrough([Node, Mod, Fun, Args])
-               end
-             ),
-
-
-  %rpc:call(Node, referl_els, add, [Path]); %% returns error | ok
-  %meck:new(rpc, [passthrough, no_link, unstick]),
-  meck:expect( rpc
-            , call
-            , fun(_RPCNode, referl_els, add, [_Path]) -> %{ok, HostName} = inet:gethostname(),
-            io:format("Add"),
-
-               ok;
-             
-             (Node, Mod, Fun, Args) ->
-                  meck:passthrough([Node, Mod, Fun, Args])
-              end
-            ),
-  
-  % rpc:call(Node, referl_els, ping, [], 500)
-  %meck:new(rpc, [passthrough, no_link, unstick]),
-  % 
-  
-  meck:expect( rpc
-  , call
-  , fun(_RPCNode, referl_els, ping, ["_Path"]) -> %{ok, HostName} = inet:gethostname(),
-  io:format("Ping"),
-
-  {refactorerl_els, pong};
-   
-   (Node, Mod, Fun, Args) ->
-        meck:passthrough([Node, Mod, Fun, Args])
-    end
-  ).
-   
 
 unmock_refactoerl() ->
-  meck:unload(rpc).
-  %meck:unload(els_refactorerl_utils).
+  meck:unload(els_refactorerl_utils).

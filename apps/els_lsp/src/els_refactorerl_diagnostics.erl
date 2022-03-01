@@ -38,8 +38,6 @@ is_default() ->
 
 -spec run(uri()) -> [els_diagnostics:diagnostic()].
 run(Uri) ->
-  %TODO TEST
-  io:format(">>>>>> Diagnostics begin"),
   case filename:extension(Uri) of
     <<".erl">> ->
       case els_refactorerl_utils:referl_node() of
@@ -53,8 +51,6 @@ run(Uri) ->
               Module = els_uri:module(Uri),
               Diags = enabled_diagnostics(),
               Results = els_refactorerl_utils:run_diagnostics(Diags, Module),
-              io:format("Result"),
-              io:format("~p", [Results]),
               make_diagnostics(Results)
               
           end
@@ -86,7 +82,7 @@ source() ->
 % Returns the default diagnostic aliases
 %-spec default_diagnostics() -> sets:set().
 %default_diagnostics() ->
-%  sets:from_list(["unused_macros", "unsecure_os_calls"]).
+%  sets:from_list(["unused_macros", "unsecure_os_call"]).
 
 
 % @doc
@@ -95,7 +91,8 @@ source() ->
 enabled_diagnostics() ->
   %Set = sets:union(default_diagnostics(), configured_diagnostics()),
   %sets:to_list(Set), %TODO Set operation
-  ["unused_macros", "unsecure_os_calls"].
+  %["unused_macros", "unsecure_os_call"].
+  [unused_macros, unsecure_os_call].
 
 
 % @doc
