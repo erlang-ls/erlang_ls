@@ -53,8 +53,7 @@
 -type line() :: non_neg_integer().
 -type severity() :: warning | error.
 
--include_lib("edoc/src/edoc.hrl").
-
+-define(APPLICATION, edoc).
 -define(DICT_KEY, edoc_diagnostics).
 
 -spec error(what()) -> ok.
