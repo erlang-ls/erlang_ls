@@ -38,25 +38,29 @@ is_default() ->
 
 -spec run(uri()) -> [els_diagnostics:diagnostic()].
 run(Uri) ->
+  %TODO TEST
+  io:format(">>>>>> Diagnostics begin"),
   case filename:extension(Uri) of
     <<".erl">> ->
       case els_refactorerl_utils:referl_node() of
         {error, _} ->
-          ["error2"];
+          [];
         {ok, _} ->
           case els_refactorerl_utils:add(Uri) of
             error ->
-              ["error1"];
+              [];
             ok ->
               Module = els_uri:module(Uri),
               Diags = enabled_diagnostics(),
               Results = els_refactorerl_utils:run_diagnostics(Diags, Module),
-              make_diagnostics(Results),
-              ["alma"]
+              io:format("Result"),
+              io:format("~p", [Results]),
+              make_diagnostics(Results)
+              
           end
       end;
     _ ->
-      ["korte"]
+      []
   end.
 
 -spec source() -> binary().
@@ -69,28 +73,29 @@ source() ->
 
 % @doc
 % Returns the enabled diagnostic aliases from config
--spec configured_diagnostics() -> sets:set().
-configured_diagnostics() ->
-  case els_config:get(refactorerl) of
-    #{"diagnostics" := List} ->
-      sets:from_list(List);
-    _ ->
-      []
-  end.
+%-spec configured_diagnostics() -> sets:set().
+%configured_diagnostics() ->
+%  case els_config:get(refactorerl) of
+%    #{"diagnostics" := List} ->
+%      sets:from_list(List);
+%    _ ->
+%      []
+%  end.
 
 % @doc
 % Returns the default diagnostic aliases
--spec default_diagnostics() -> sets:set().
-default_diagnostics() ->
-  sets:from_list(["unused_macros", "unsecure_os_calls"]).
+%-spec default_diagnostics() -> sets:set().
+%default_diagnostics() ->
+%  sets:from_list(["unused_macros", "unsecure_os_calls"]).
 
 
 % @doc
 % Returns the enabled diagnostics by merging default and configed
 -spec enabled_diagnostics() -> [refactorerl_diagnostic_alias()].
 enabled_diagnostics() ->
-  Set = sets:union(default_diagnostics(), configured_diagnostics()),
-  sets:to_list(Set).
+  %Set = sets:union(default_diagnostics(), configured_diagnostics()),
+  %sets:to_list(Set), %TODO Set operation
+  ["unused_macros", "unsecure_os_calls"].
 
 
 % @doc
