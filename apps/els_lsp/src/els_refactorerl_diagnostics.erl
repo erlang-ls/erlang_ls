@@ -24,7 +24,7 @@
 %%==============================================================================
 %% Types
 %%==============================================================================
--type refactorerl_diagnostic_alias() :: string().
+-type refactorerl_diagnostic_alias() :: atom().
 -type refactorerl_diagnostic_result() :: {range(), string()}.
 %-type refactorerl_query() :: [char()].
 
@@ -52,7 +52,6 @@ run(Uri) ->
               Diags = enabled_diagnostics(),
               Results = els_refactorerl_utils:run_diagnostics(Diags, Module),
               make_diagnostics(Results)
-              
           end
       end;
     _ ->
