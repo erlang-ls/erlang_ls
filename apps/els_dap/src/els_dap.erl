@@ -45,7 +45,7 @@ parse_args(Args) ->
   case getopt:parse(opt_spec_list(), Args) of
     {ok, {[version | _], _BadArgs}} ->
       print_version(),
-      halt(1);
+      halt(0);
     {ok, {ParsedArgs, _BadArgs}} ->
       set_args(ParsedArgs);
     {error, {invalid_option, _}} ->
