@@ -91,8 +91,11 @@ format_item(_Name, []) ->
 -spec diagnostic(any(), any(), integer(), [any()],
                  els_diagnostics:severity()) -> [map()].
 diagnostic(Name, Msg, Ln, Info, Severity) ->
+  %% Avoid negative line numbers
+  DiagLine = make_protocol_line(Ln),
   FMsg    = io_lib:format(Msg, Info),
-  Range   = els_protocol:range(#{from => {Ln, 1}, to => {Ln + 1, 1}}),
+  Range   = els_protocol:range(#{ from => {DiagLine, 1}
+                                , to   => {DiagLine + 1, 1}}),
   Message = els_utils:to_binary(FMsg),
   [#{ range    => Range
     , severity => Severity
@@ -101,6 +104,12 @@ diagnostic(Name, Msg, Ln, Info, Severity) ->
     , message  => Message
     , relatedInformation => []
     }].
+
+-spec make_protocol_line(Line :: number()) -> number().
+make_protocol_line(Line) when Line =< 0 ->
+  1;
+make_protocol_line(Line) ->
+  Line.
 
 -spec get_elvis_config_path() -> file:filename_all().
 get_elvis_config_path() ->
