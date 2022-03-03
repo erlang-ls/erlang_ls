@@ -779,8 +779,12 @@ mock_refactorerl() ->
       ),
   meck:expect(els_refactorerl_utils, referl_node, 0, {ok, NodeName}),
   meck:expect(els_refactorerl_utils, add, 1, ok),
-  meck:expect(els_refactorerl_utils, source_name, 0, <<"RefactorErl">>).
+  meck:expect(els_refactorerl_utils, source_name, 0, <<"RefactorErl">>),
+
+  meck:new(els_refactorerl_diagnostics, [passthrough, no_link, unstick]),
+  meck:expect(els_refactorerl_diagnostics, is_default, 0, true).
 
 
 unmock_refactoerl() ->
+  meck:unload(els_refactorerl_diagnostics),
   meck:unload(els_refactorerl_utils).
