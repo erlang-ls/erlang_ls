@@ -66,7 +66,7 @@ source() ->
 %% Internal Functions
 %%==============================================================================
 
-% @doc
+% ddoocc
 % Returns the enabled diagnostic aliases from config
 %-spec configured_diagnostics() -> sets:set().
 %configured_diagnostics() ->
