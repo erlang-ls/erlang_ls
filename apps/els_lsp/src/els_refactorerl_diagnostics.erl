@@ -77,7 +77,7 @@ source() ->
 %      []
 %  end.
 
-% @doc
+% ddoocc
 % Returns the default diagnostic aliases
 %-spec default_diagnostics() -> sets:set().
 %default_diagnostics() ->
