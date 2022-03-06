@@ -87,7 +87,7 @@ type_name_macro(_Config) ->
   Text1 = "-type ?M() :: integer() | t().",
   ?assertMatch({ok, [#{kind := type_application, id := {t, 0}},
                      #{kind := type_application, id := {erlang, integer, 0}},
-                     #{kind := macro, id := 'M'}]},
+                     #{kind := macro, id := {'M', 0}}]},
                els_parser:parse(Text1)),
 
   %% The macro is parsed as (?M()), rather than (?M)()
