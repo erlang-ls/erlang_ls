@@ -10,6 +10,7 @@
 
 -export([ match_pos/2
         , sort/1
+        , id/1
         ]).
 
 %%==============================================================================
@@ -41,6 +42,10 @@ match_pos(POIs, Pos) ->
   [POI || #{range := #{ from := From
                       , to   := To
                       }} = POI <- POIs, (From =< Pos) andalso (Pos =< To)].
+
+-spec id(poi()) -> poi_id().
+id(#{id := Id}) ->
+  Id.
 
 %% @doc Sorts pois based on their range
 %%

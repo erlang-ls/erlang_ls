@@ -134,6 +134,7 @@ do_initialize(RootUri, Capabilities, InitOptions, {ConfigPath, Config}) ->
     = maps:get("compiler_telemetry_enabled", Config, false),
 
   IndexingEnabled = maps:get(<<"indexingEnabled">>, InitOptions, true),
+  FormatOnTypeEnabled = maps:get("format_on_type", Config, false),
 
   %% Passed by the LSP client
   ok = set(root_uri       , RootUri),
@@ -147,6 +148,7 @@ do_initialize(RootUri, Capabilities, InitOptions, {ConfigPath, Config}) ->
   ok = set(macros         , Macros),
   ok = set(plt_path       , DialyzerPltPath),
   ok = set(code_reload    , CodeReload),
+  ok = set(format_on_type , FormatOnTypeEnabled),
   ?LOG_INFO("Config=~p", [Config]),
   ok = set(runtime, maps:merge( els_config_runtime:default_config()
                               , Runtime)),

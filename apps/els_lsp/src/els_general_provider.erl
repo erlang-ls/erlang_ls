@@ -157,6 +157,8 @@ server_capabilities() ->
             els_formatting_provider:is_enabled_document()
         , documentRangeFormattingProvider =>
             els_formatting_provider:is_enabled_range()
+        , documentOnTypeFormattingProvider =>
+            els_formatting_provider:is_enabled_on_type()
         , foldingRangeProvider =>
             els_folding_range_provider:is_enabled()
         , implementationProvider =>
