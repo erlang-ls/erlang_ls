@@ -11,6 +11,7 @@
         , parse_invalid_code/1
         , parse_incomplete_function/1
         , parse_incomplete_spec/1
+        , parse_incomplete_type/1
         , parse_no_tokens/1
         , define/1
         , underscore_macro/1
@@ -104,6 +105,44 @@ parse_incomplete_spec(_Config) ->
                 parse_find_pois(Text, spec)),
   %% only first atom is found
   ?assertMatch([#{id := aa}], parse_find_pois(Text, atom)),
+  ok.
+
+-spec parse_incomplete_type(config()) -> ok.
+parse_incomplete_type(_Config) ->
+  Text = "-type t(A) :: {A aa bb cc}\n.",
+
+  %% type range ends where the original dot ends, including ignored parts
+  ?assertMatch([#{id := {t, 1}, range := #{from := {1, 1}, to := {2, 2}}}],
+                parse_find_pois(Text, type_definition)),
+  %% only first var is found
+  ?assertMatch([#{id := 'A'}], parse_find_pois(Text, variable)),
+
+  Text2 = "-type t",
+  ?assertMatch({ok, [#{ kind := type_definition, id := {t, 0}}]},
+                els_parser:parse(Text2)),
+  Text3 = "-type ?t",
+  ?assertMatch({ok, [#{ kind := macro, id := t}]},
+                els_parser:parse(Text3)),
+  %% this is not incomplete - there is no way this will become valid erlang
+  %% but erlfmt can parse it
+  Text4 = "-type T",
+  ?assertMatch({ok, [#{ kind := variable, id := 'T'}]},
+                els_parser:parse(Text4)),
+  Text5 = "-type [1, 2]",
+  {ok, []} = els_parser:parse(Text5),
+
+  %% no type args - assume zero args
+  Text11 = "-type t :: 1.",
+  ?assertMatch({ok, [#{ kind := type_definition, id := {t, 0}}]},
+                els_parser:parse(Text11)),
+  %% no macro args - this is 100% valid code
+  Text12= "-type ?t :: 1.",
+  ?assertMatch({ok, [#{ kind := macro, id := t}]},
+                els_parser:parse(Text12)),
+  Text13 = "-type T :: 1.",
+  ?assertMatch({ok, [#{ kind := variable, id := 'T'}]},
+                els_parser:parse(Text13)),
+
   ok.
 
 %% Issue #1171

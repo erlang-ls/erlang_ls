@@ -110,17 +110,25 @@ erlfmt_to_st(Node) ->
         %% Representation for types is in general the same as for
         %% corresponding values. The `type` node is not used at all. This
         %% means new binary operators `|`, `::`, and `..` inside types.
-      {attribute, Pos, {atom, _, Tag} = Name, [Def]} when Tag =:= type; Tag =:= opaque ->
+      {attribute, Pos, {atom, _, Tag} = Name, [{op, OPos, '::', Type, Definition}]}
+        when Tag =:= type; Tag =:= opaque ->
         put('$erlfmt_ast_context$', type),
-        {op, OPos, '::', Type, Definition} = Def,
         {TypeName, Args} =
           case Type of
             {call, _CPos, TypeName0, Args0} ->
               {TypeName0, Args0};
-            {macro_call, CPos, {_, MPos, _} = MacroName, Args0} ->
-              EndLoc = maps:get(end_location, MPos),
-              TypeName0 = {macro_call, CPos#{end_location => EndLoc}, MacroName, none},
-              {TypeName0, Args0}
+            {macro_call, _, _, _} ->
+              %% Note: in the following example the arguments belong to the macro
+              %% so we set empty type args.
+              %% `-type ?M(A) :: A.'
+              %% The erlang preprocessor also prefers the M/1 macro if both M/0
+              %% and M/1 are defined, but it also allows only M/0. Unfortunately
+              %% erlang_ls doesn't know what macros are defined.
+              {Type, []};
+            _ ->
+              %% whatever stands at the left side of '::', let's keep it.
+              %% erlfmt_parser allows atoms and vars too
+              {Type, []}
           end,
         Tree =
           update_tree_with_meta(
@@ -128,6 +136,31 @@ erlfmt_to_st(Node) ->
                                  [update_tree_with_meta(
                                     erl_syntax:tuple([erlfmt_to_st(TypeName),
                                                       erlfmt_to_st(Definition),
+                                                      erl_syntax:list([erlfmt_to_st(A) || A <- Args])]),
+                                    OPos)]),
+            Pos),
+        erase('$erlfmt_ast_context$'),
+        Tree;
+      {attribute, Pos, {atom, _, Tag} = Name, [Def]} when Tag =:= type; Tag =:= opaque ->
+        %% an incomplete attribute, where `::` operator and the definition missing
+        %% eg "-type t()."
+        put('$erlfmt_ast_context$', type),
+        OPos = element(2, Def),
+        {TypeName, Args} =
+          case Def of
+            {call, _CPos, TypeName0, Args0} ->
+              {TypeName0, Args0};
+            _ ->
+              {Def, []}
+          end,
+        %% Set definition as an empty tuple for which els_parser generates no POIs
+        EmptyDef = erl_syntax:tuple([]),
+        Tree =
+          update_tree_with_meta(
+            erl_syntax:attribute(erlfmt_to_st(Name),
+                                 [update_tree_with_meta(
+                                    erl_syntax:tuple([erlfmt_to_st(TypeName),
+                                                      EmptyDef,
                                                       erl_syntax:list([erlfmt_to_st(A) || A <- Args])]),
                                     OPos)]),
             Pos),
