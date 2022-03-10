@@ -2,7 +2,7 @@
 
 -export([main/0]).
 
-%% @edoc Main function
+%% @mydoc Main function
 main() ->
   internal().
 

@@ -4,6 +4,7 @@
 %% The main reasons for the fork:
 %%   * The edoc application does not offer an API to return a
 %%     list of warnings and errors
+%%   * Support for custom EDoc tags
 %% =====================================================================
 %% Licensed under the Apache License, Version 2.0 (the "License"); you may
 %% not use this file except in compliance with the License. You may obtain
@@ -85,6 +86,14 @@ warning(Where, S, Vs) ->
   warning(0, Where, S, Vs).
 
 -spec warning(line(), where(), string(), [any()]) -> ok.
+warning(L, Where, "tag @~s not recognized." = S, [Tag] = Vs) ->
+  CustomTags = els_config:get(edoc_custom_tags),
+  case lists:member(atom_to_list(Tag), CustomTags) of
+    true ->
+      ok;
+    false ->
+      report(L, Where, S, Vs, warning)
+  end;
 warning(L, Where, S, Vs) ->
   report(L, Where, S, Vs, warning).
 
