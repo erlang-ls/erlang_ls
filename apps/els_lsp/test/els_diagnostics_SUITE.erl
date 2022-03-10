@@ -44,6 +44,7 @@
         , module_name_check/1
         , module_name_check_whitespace/1
         , edoc_main/1
+        , edoc_skip_app_src/1
         ]).
 
 %%==============================================================================
@@ -126,7 +127,8 @@ init_per_testcase(TestCase, Config) when TestCase =:= gradualizer ->
   meck:expect(els_gradualizer_diagnostics, is_default, 0, true),
   els_mock_diagnostics:setup(),
   els_test_utils:init_per_testcase(TestCase, Config);
-init_per_testcase(TestCase, Config) when TestCase =:= edoc_main ->
+init_per_testcase(TestCase, Config) when TestCase =:= edoc_main;
+                                         TestCase =:= edoc_skip_app_src ->
   meck:new(els_edoc_diagnostics, [passthrough, no_link]),
   meck:expect(els_edoc_diagnostics, is_default, 0, true),
   els_mock_diagnostics:setup(),
@@ -172,7 +174,8 @@ end_per_testcase(TestCase, Config) when TestCase =:= gradualizer ->
   els_test_utils:end_per_testcase(TestCase, Config),
   els_mock_diagnostics:teardown(),
   ok;
-end_per_testcase(TestCase, Config) when TestCase =:= edoc_main ->
+end_per_testcase(TestCase, Config) when TestCase =:= edoc_main;
+                                        TestCase =:= edoc_skip_app_src ->
   meck:unload(els_edoc_diagnostics),
   els_test_utils:end_per_testcase(TestCase, Config),
   els_mock_diagnostics:teardown(),
@@ -713,6 +716,15 @@ edoc_main(_Config) ->
                 , range => {{8, 0}, {9, 0}}
                 }
              ],
+  Hints = [],
+  els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
+
+  -spec edoc_skip_app_src(config()) -> ok.
+edoc_skip_app_src(_Config) ->
+  Path = src_path("code_navigation.app.src"),
+  Source = <<"Edoc">>,
+  Errors = [],
+  Warnings = [],
   Hints = [],
   els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
 
