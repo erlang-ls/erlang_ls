@@ -45,6 +45,7 @@
         , module_name_check_whitespace/1
         , edoc_main/1
         , edoc_skip_app_src/1
+        , edoc_custom_tags/1
         ]).
 
 %%==============================================================================
@@ -128,7 +129,8 @@ init_per_testcase(TestCase, Config) when TestCase =:= gradualizer ->
   els_mock_diagnostics:setup(),
   els_test_utils:init_per_testcase(TestCase, Config);
 init_per_testcase(TestCase, Config) when TestCase =:= edoc_main;
-                                         TestCase =:= edoc_skip_app_src ->
+                                         TestCase =:= edoc_skip_app_src;
+                                         TestCase =:= edoc_custom_tags ->
   meck:new(els_edoc_diagnostics, [passthrough, no_link]),
   meck:expect(els_edoc_diagnostics, is_default, 0, true),
   els_mock_diagnostics:setup(),
@@ -175,7 +177,8 @@ end_per_testcase(TestCase, Config) when TestCase =:= gradualizer ->
   els_mock_diagnostics:teardown(),
   ok;
 end_per_testcase(TestCase, Config) when TestCase =:= edoc_main;
-                                        TestCase =:= edoc_skip_app_src ->
+                                        TestCase =:= edoc_skip_app_src;
+                                        TestCase =:= edoc_custom_tags ->
   meck:unload(els_edoc_diagnostics),
   els_test_utils:end_per_testcase(TestCase, Config),
   els_mock_diagnostics:teardown(),
@@ -708,7 +711,7 @@ edoc_main(_Config) ->
               }
            ],
   Warnings = [ #{ message =>
-                    <<"tag @edoc not recognized.">>
+                    <<"tag @mydoc not recognized.">>
                 , range => {{4, 0}, {5, 0}}
                 }
              , #{ message =>
@@ -719,12 +722,26 @@ edoc_main(_Config) ->
   Hints = [],
   els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
 
-  -spec edoc_skip_app_src(config()) -> ok.
+-spec edoc_skip_app_src(config()) -> ok.
 edoc_skip_app_src(_Config) ->
   Path = src_path("code_navigation.app.src"),
   Source = <<"Edoc">>,
   Errors = [],
   Warnings = [],
+  Hints = [],
+  els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
+
+-spec edoc_custom_tags(config()) -> ok.
+edoc_custom_tags(_Config) ->
+  %% Custom tags are defined in priv/code_navigation/erlang_ls.config
+  Path = src_path("edoc_diagnostics_custom_tags.erl"),
+  Source = <<"Edoc">>,
+  Errors = [],
+  Warnings = [ #{ message =>
+                    <<"tag @docc not recognized.">>
+                , range => {{9, 0}, {10, 0}}
+                }
+             ],
   Hints = [],
   els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
 

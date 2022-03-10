@@ -55,7 +55,8 @@
                | elvis_config_path
                | indexing_enabled
                | bsp_enabled
-               | compiler_telemetry_enabled.
+               | compiler_telemetry_enabled
+               | edoc_custom_tags.
 
 -type path()  :: file:filename().
 -type state() :: #{ apps_dirs        => [path()]
@@ -132,6 +133,7 @@ do_initialize(RootUri, Capabilities, InitOptions, {ConfigPath, Config}) ->
   IncrementalSync = maps:get("incremental_sync", Config, true),
   CompilerTelemetryEnabled
     = maps:get("compiler_telemetry_enabled", Config, false),
+  EDocCustomTags = maps:get("edoc_custom_tags", Config, []),
 
   IndexingEnabled = maps:get(<<"indexingEnabled">>, InitOptions, true),
 
@@ -155,6 +157,7 @@ do_initialize(RootUri, Capabilities, InitOptions, {ConfigPath, Config}) ->
   ok = set(elvis_config_path, ElvisConfigPath),
   ok = set(bsp_enabled, BSPEnabled),
   ok = set(compiler_telemetry_enabled, CompilerTelemetryEnabled),
+  ok = set(edoc_custom_tags, EDocCustomTags),
   ok = set(incremental_sync, IncrementalSync),
   %% Calculated from the above
   ok = set(apps_paths     , project_paths(RootPath, AppsDirs, false)),
