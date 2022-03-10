@@ -41,6 +41,15 @@ is_default() ->
 %% warnings and errors.
 -spec run(uri()) -> [els_diagnostics:diagnostic()].
 run(Uri) ->
+  case filename:extension(Uri) of
+    <<".erl">> ->
+      do_run(Uri);
+    _ ->
+      []
+  end.
+
+-spec do_run(uri()) -> [els_diagnostics:diagnostic()].
+do_run(Uri) ->
   Paths = [els_utils:to_list(els_uri:path(Uri))],
   Fun = fun(Dir) ->
             Options = edoc_options(Dir),
