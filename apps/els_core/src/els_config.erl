@@ -258,15 +258,43 @@ consult_config([], ReportMissingConfig) ->
   {undefined, #{}};
 consult_config([Path | Paths], ReportMissingConfig) ->
   ?LOG_INFO("Reading config file. path=~p", [Path]),
-  Options = [{map_node_format, map}],
-  try yamerl:decode_file(Path, Options) of
-      [] -> {Path, #{}};
-      [Config] -> {Path, Config}
+  Result =
+    case filename:extension(Path) of
+      ".yaml" ->
+        try_yaml(Path);
+      ".config" ->
+        try_eterm(Path, _TryYaml = true)
+    end,
+  case Result of
+    {ok, Config} ->
+      {Path, Config};
+    {error, Class, Error} ->
+      ?LOG_WARNING("Could not read config file: path=~p class=~p error=~p",
+                   [Path, Class, Error]),
+      consult_config(Paths, ReportMissingConfig)
+  end.
+
+-spec try_yaml(path()) -> {ok, map()} | {error, atom(), term()}.
+try_yaml(Path) ->
+  try yamerl:decode_file(Path, [{map_node_format, map}]) of
+    [] ->
+      {ok, #{}};
+    [Config] ->
+      {ok, Config}
   catch
     Class:Error ->
-      ?LOG_WARNING( "Could not read config file: path=~p class=~p error=~p"
-                  , [Path, Class, Error]),
-      consult_config(Paths, ReportMissingConfig)
+      {error, Class, Error}
+  end.
+
+-spec try_eterm(path(), boolean()) -> {ok, map()} | {error, atom(), term()}.
+try_eterm(Path, TryYaml) ->
+  case file:consult(Path) of
+    {ok, Config} ->
+      {ok, maps:from_list(Config)};
+    {error, _} when TryYaml ->
+      try_yaml(Path);
+    {error, Reason} ->
+      {error, error, Reason}
   end.
 
 -spec report_missing_config() -> ok.
