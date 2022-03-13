@@ -39,6 +39,7 @@
         , unused_includes_compiler_attribute/1
         , exclude_unused_includes/1
         , unused_macros/1
+        , unused_macros_refactorerl/1
         , unused_record_fields/1
         , gradualizer/1
         ]).
@@ -123,6 +124,13 @@ init_per_testcase(TestCase, Config) when TestCase =:= gradualizer ->
   meck:expect(els_gradualizer_diagnostics, is_default, 0, true),
   els_mock_diagnostics:setup(),
   els_test_utils:init_per_testcase(TestCase, Config);
+
+% RefactorErl
+init_per_testcase(TestCase, Config)
+                       when TestCase =:= unused_macros_refactorerl ->
+  mock_refactorerl(),
+  els_test_utils:init_per_testcase(TestCase, Config);
+
 init_per_testcase(TestCase, Config) ->
   els_mock_diagnostics:setup(),
   els_test_utils:init_per_testcase(TestCase, Config).
@@ -164,10 +172,19 @@ end_per_testcase(TestCase, Config) when TestCase =:= gradualizer ->
   els_test_utils:end_per_testcase(TestCase, Config),
   els_mock_diagnostics:teardown(),
   ok;
+end_per_testcase(TestCase, Config)
+  when TestCase =:= unused_macros_refactorerl ->
+  unmock_refactoerl(),
+  els_test_utils:end_per_testcase(TestCase, Config),
+  els_mock_diagnostics:teardown(),
+  ok;
 end_per_testcase(TestCase, Config) ->
   els_test_utils:end_per_testcase(TestCase, Config),
   els_mock_diagnostics:teardown(),
   ok.
+
+% RefactorErl
+
 
 %%==============================================================================
 %% Testcases
@@ -654,6 +671,24 @@ gradualizer(_Config) ->
   Hints = [],
   els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
 
+
+
+% RefactorErl test cases
+-spec unused_macros_refactorerl(config()) -> ok.
+unused_macros_refactorerl(_Config) ->
+  Path = src_path("diagnostics_unused_macros.erl"),
+  Source = <<"RefactorErl">>,
+  Errors = [],
+  Warnings = [ #{ message => <<"Unused macro: UNUSED_MACRO">>
+                , range => {{5, 0}, {5, 35}}
+                },
+               #{ message => <<"Unused macro: UNUSED_MACRO_WITH_ARG">>
+                , range => {{6, 0}, {6, 36}}
+                }
+             ],
+  Hints = [],
+  els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
+
 %%==============================================================================
 %% Internal Functions
 %%==============================================================================
@@ -727,3 +762,29 @@ src_path(Module) ->
 
 include_path(Header) ->
   filename:join(["code_navigation", "include", Header]).
+
+% Mock RefactorErl utils
+mock_refactorerl() ->
+  {ok, HostName} = inet:gethostname(),
+  NodeName = list_to_atom("referl_fake@" ++ HostName),
+
+  meck:new(els_refactorerl_utils, [passthrough, no_link, unstick]),
+  meck:expect(els_refactorerl_utils, run_diagnostics, 2,
+    [ {# {'end' => #{character => 35, line => 5},
+          start => #{character => 0, line => 5}},
+        <<"Unused macro: UNUSED_MACRO">>},
+      {# {'end' => #{character => 36, line => 6},
+           start => #{character => 0, line => 6}},
+        <<"Unused macro: UNUSED_MACRO_WITH_ARG">>}]
+      ),
+  meck:expect(els_refactorerl_utils, referl_node, 0, {ok, NodeName}),
+  meck:expect(els_refactorerl_utils, add, 1, ok),
+  meck:expect(els_refactorerl_utils, source_name, 0, <<"RefactorErl">>),
+
+  meck:new(els_refactorerl_diagnostics, [passthrough, no_link, unstick]),
+  meck:expect(els_refactorerl_diagnostics, is_default, 0, true).
+
+
+unmock_refactoerl() ->
+  meck:unload(els_refactorerl_diagnostics),
+  meck:unload(els_refactorerl_utils).
