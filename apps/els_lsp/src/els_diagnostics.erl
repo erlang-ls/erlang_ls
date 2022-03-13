@@ -63,7 +63,6 @@ available_diagnostics() ->
   , <<"compiler">>
   , <<"crossref">>
   , <<"dialyzer">>
-  , <<"edoc">>
   , <<"gradualizer">>
   , <<"elvis">>
   , <<"unused_includes">>
@@ -104,7 +103,8 @@ make_diagnostic(Range, Message, Severity, Source, Data) ->
 
 -spec run_diagnostics(uri()) -> [pid()].
 run_diagnostics(Uri) ->
-  [run_diagnostic(Uri, Id) || Id <- enabled_diagnostics()].
+  [run_diagnostic(Uri, Id) || Id <- enabled_diagnostics()] ++
+    els_plugin:run_diagnostics(Uri).
 
 %%==============================================================================
 %% Internal Functions

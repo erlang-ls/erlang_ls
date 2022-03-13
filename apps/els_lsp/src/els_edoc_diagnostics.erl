@@ -27,7 +27,8 @@
 
 -spec is_default() -> boolean().
 is_default() ->
-  false.
+  %% Add support for disabling plugins via config
+  true.
 
 %% The edoc application currently does not offer an API to
 %% programmatically return a list of warnings and errors. Instead,

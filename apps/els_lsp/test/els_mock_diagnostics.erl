@@ -28,7 +28,11 @@ subscribe() ->
 
 -spec wait_until_complete() -> [els_diagnostics:diagnostic()].
 wait_until_complete() ->
-  wait_until_complete(els_diagnostics:enabled_diagnostics(), []).
+  wait_until_complete(enabled_diagnostics(), []).
+
+enabled_diagnostics() ->
+  els_diagnostics:enabled_diagnostics() ++
+    els_plugin:enabled_plugins(diagnostics).
 
 -spec wait_until_complete( [els_diagnostics:diagnostic_id()]
                          , [els_diagnostics:diagnostic()]
