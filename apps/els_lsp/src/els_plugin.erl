@@ -64,7 +64,7 @@ run_diagnostics(Plugin, Uri) ->
       Module = atom_to_binary(els_uri:module(Uri), utf8),
       Source = Plugin:name(),
       Title = <<Source/binary, " (", Module/binary, ")">>,
-      Config = #{ task => fun(U, _) -> Plugin:on_diagnostics_run(U) end
+      Config = #{ task => fun(U, _) -> Plugin:diagnostics(U) end
                 , entries => [Uri]
                 , title => Title
                 , on_complete =>

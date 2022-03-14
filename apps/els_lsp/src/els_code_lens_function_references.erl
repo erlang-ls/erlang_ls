@@ -1,3 +1,4 @@
+%% TODO: Not entirely sure how to map this to a plugin
 -module(els_code_lens_function_references).
 
 -behaviour(els_code_lens).
