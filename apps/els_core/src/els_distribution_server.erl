@@ -79,8 +79,8 @@ start_distribution(Name, RemoteNode, Cookie, NameType) ->
     {error, {already_started, _Pid}} ->
       ?LOG_INFO("Distribution already enabled [name=~p]", [Name]);
     {error, {{shutdown, {failed_to_start_child, net_kernel, E1}}, E2}} ->
-      ?LOG_INFO("Distribution shutdown [errs=~p]", [{E1, E2}]),
-      ?LOG_INFO("Distribution shut down [name=~p]", [Name])
+      ?LOG_WARNING("Distribution shutdown [errs=~p] [name=~p]",
+                   [{E1, E2}, Name])
   end.
 
 %% @doc Connect to an existing runtime node, if available, or start one.
