@@ -152,6 +152,8 @@ connect_and_monitor(Node, Type) ->
       erlang:monitor_node(Node, true),
       ok;
     false ->
+      error;
+    ignored ->
       error
   end.
 
