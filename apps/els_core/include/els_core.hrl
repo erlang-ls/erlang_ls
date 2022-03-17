@@ -576,6 +576,18 @@
                         }.
 
 %%------------------------------------------------------------------------------
+%% Workspace
+%%------------------------------------------------------------------------------
+
+-define(FILE_CHANGE_TYPE_CREATED, 1).
+-define(FILE_CHANGE_TYPE_CHANGED, 2).
+-define(FILE_CHANGE_TYPE_DELETED, 3).
+
+-type file_change_type() :: ?FILE_CHANGE_TYPE_CREATED
+                          | ?FILE_CHANGE_TYPE_CHANGED
+                          | ?FILE_CHANGE_TYPE_DELETED.
+
+%%------------------------------------------------------------------------------
 %% Internals
 %%------------------------------------------------------------------------------
 -type pos()       :: {integer(), integer()}.
