@@ -36,9 +36,7 @@ dispatch(Command, Args, Type, State) ->
     Type:Reason:Stack ->
       ?LOG_ERROR( "Unexpected error [type=~p] [error=~p] [stack=~p]"
                 , [Type, Reason, Stack]),
-      Error = #{ code    => ?ERR_UNKNOWN_ERROR_CODE
-               , message => <<"Unexpected error while ", Command/binary>>
-               },
+      Error = <<"Unexpected error while ", Command/binary>>,
       {error_response, Error, State}
   end.
 
@@ -46,16 +44,16 @@ dispatch(Command, Args, Type, State) ->
 do_dispatch(Command, Args, #{status := initialized} = State) ->
   Request = {Command, Args},
   case els_provider:handle_request(els_dap_general_provider, Request) of
-    {error, Result} ->
-      {error_response, Result, State};
+    {error, Error} ->
+      {error_response, Error, State};
     Result ->
       {response, Result, State}
   end;
 do_dispatch(<<"initialize">>, Args, State) ->
   Request = {<<"initialize">>, Args},
   case els_provider:handle_request(els_dap_general_provider, Request) of
-    {error, Result} ->
-      {error_response, Result, State};
+    {error, Error} ->
+      {error_response, Error, State};
     Result ->
       {response, Result, State#{status => initialized}}
   end;

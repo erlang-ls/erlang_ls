@@ -60,13 +60,16 @@ response(Seq, Command, Result) ->
   ?LOG_DEBUG("[Response] [message=~p]", [Message]),
   content(jsx:encode(Message)).
 
--spec error_response(number(), any(), any()) -> binary().
+-spec error_response(number(), any(), binary()) -> binary().
 error_response(Seq, Command, Error) ->
   Message = #{ type  => <<"response">>
              , request_seq => Seq
              , success => false
              , command => Command
-             , body  => #{ error => Error
+             , body  => #{ error => #{ id => Seq
+                                     , format => Error
+                                     , showUser => true
+                                     }
                          }
              },
   ?LOG_DEBUG("[Response] [message=~p]", [Message]),
