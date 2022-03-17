@@ -371,6 +371,8 @@ textdocument_codeaction(Params, State) ->
 textdocument_codelens(Params, State) ->
   Provider = els_code_lens_provider,
   Job = els_provider:handle_request(Provider, {document_codelens, Params}),
+  %% TODO: Add extra coordination job which collects results
+  %%       Or alternatively add support for multiple jobs
   {noresponse, {Provider, Job}, State}.
 
 %%==============================================================================
