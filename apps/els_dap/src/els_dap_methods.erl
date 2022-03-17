@@ -45,12 +45,20 @@ dispatch(Command, Args, Type, State) ->
 -spec do_dispatch(atom(), params(), state()) -> result().
 do_dispatch(Command, Args, #{status := initialized} = State) ->
   Request = {Command, Args},
-  Result = els_provider:handle_request(els_dap_general_provider, Request),
-  {response, Result, State};
+  case els_provider:handle_request(els_dap_general_provider, Request) of
+    {error, Result} ->
+      {error_response, Result, State};
+    Result ->
+      {response, Result, State}
+  end;
 do_dispatch(<<"initialize">>, Args, State) ->
   Request = {<<"initialize">>, Args},
-  Result = els_provider:handle_request(els_dap_general_provider, Request),
-  {response, Result, State#{status => initialized}};
+  case els_provider:handle_request(els_dap_general_provider, Request) of
+    {error, Result} ->
+      {error_response, Result, State};
+    Result ->
+      {response, Result, State#{status => initialized}}
+  end;
 do_dispatch(_Command, _Args, State) ->
   Message = <<"The server is not fully initialized yet, please wait.">>,
   Result  = #{ code    => ?ERR_SERVER_NOT_INITIALIZED

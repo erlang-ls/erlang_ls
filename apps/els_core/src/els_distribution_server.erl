@@ -57,14 +57,15 @@ start_link() ->
   gen_server:start_link({local, ?SERVER}, ?MODULE, unused, []).
 
 %% @doc Turns a non-distributed node into a distributed one
--spec start_distribution(atom()) -> ok.
+-spec start_distribution(atom()) -> ok | {error, any()}.
 start_distribution(Name) ->
   Cookie = els_config_runtime:get_cookie(),
   RemoteNode = els_config_runtime:get_node_name(),
   NameType = els_config_runtime:get_name_type(),
   start_distribution(Name, RemoteNode, Cookie, NameType).
 
--spec start_distribution(atom(), atom(), atom(), shortnames | longnames) -> ok.
+-spec start_distribution(atom(), atom(), atom(), shortnames | longnames) ->
+        ok | {error, any()}.
 start_distribution(Name, RemoteNode, Cookie, NameType) ->
   ?LOG_INFO("Enable distribution [name=~p]", [Name]),
   case net_kernel:start([Name, NameType]) of
@@ -75,12 +76,14 @@ start_distribution(Name, RemoteNode, Cookie, NameType) ->
         CustomCookie ->
           erlang:set_cookie(RemoteNode, CustomCookie)
       end,
-      ?LOG_INFO("Distribution enabled [name=~p]", [Name]);
+      ?LOG_INFO("Distribution enabled [name=~p]", [Name]),
+      ok;
     {error, {already_started, _Pid}} ->
-      ?LOG_INFO("Distribution already enabled [name=~p]", [Name]);
-    {error, {{shutdown, {failed_to_start_child, net_kernel, E1}}, E2}} ->
-      ?LOG_WARNING("Distribution shutdown [errs=~p] [name=~p]",
-                   [{E1, E2}, Name])
+      ?LOG_INFO("Distribution already enabled [name=~p]", [Name]),
+      ok;
+    {error, Error} ->
+      ?LOG_WARNING("Distribution shutdown [error=~p] [name=~p]", [Error, Name]),
+      {error, Error}
   end.
 
 %% @doc Connect to an existing runtime node, if available, or start one.
