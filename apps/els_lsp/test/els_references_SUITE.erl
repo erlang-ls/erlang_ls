@@ -31,6 +31,9 @@
         , type_local/1
         , type_remote/1
         , type_included/1
+        , refresh_after_watched_file_deleted/1
+        , refresh_after_watched_file_changed/1
+        , refresh_after_watched_file_added/1
         ]).
 
 %%==============================================================================
@@ -38,6 +41,7 @@
 %%==============================================================================
 -include_lib("common_test/include/ct.hrl").
 -include_lib("stdlib/include/assert.hrl").
+-include_lib("els_core/include/els_core.hrl").
 
 %%==============================================================================
 %% Types
@@ -64,10 +68,21 @@ end_per_suite(Config) ->
   els_test_utils:end_per_suite(Config).
 
 -spec init_per_testcase(atom(), config()) -> config().
+init_per_testcase(TestCase, Config0)
+  when TestCase =:= refresh_after_watched_file_changed ->
+  Config = els_test_utils:init_per_testcase(TestCase, Config0),
+  PathB = ?config(watched_file_b_path, Config),
+  {ok, OldContent} = file:read_file(PathB),
+  [{old_content, OldContent}|Config];
 init_per_testcase(TestCase, Config) ->
   els_test_utils:init_per_testcase(TestCase, Config).
 
 -spec end_per_testcase(atom(), config()) -> ok.
+end_per_testcase(TestCase, Config)
+  when TestCase =:= refresh_after_watched_file_changed ->
+  PathB = ?config(watched_file_b_path, Config),
+  ok = file:write_file(PathB, ?config(old_content, Config)),
+  els_test_utils:end_per_testcase(TestCase, Config);
 end_per_testcase(TestCase, Config) ->
   els_test_utils:end_per_testcase(TestCase, Config).
 
@@ -485,6 +500,81 @@ type_included(Config) ->
   ct:comment("Find references for type_b from definition"),
   #{result := Locations} = els_client:references(UriHeader, 2, 7),
   assert_locations(Locations, ExpectedLocations),
+  ok.
+
+-spec refresh_after_watched_file_deleted(config()) -> ok.
+refresh_after_watched_file_deleted(Config) ->
+  %% Before
+  UriA = ?config(watched_file_a_uri, Config),
+  UriB = ?config(watched_file_b_uri, Config),
+  ExpectedLocationsBefore = [ #{ uri   => UriB
+                               , range => #{from => {6, 3}, to => {6, 22}}
+                               }
+                            ],
+  #{result := LocationsBefore} = els_client:references(UriA, 5, 2),
+  assert_locations(LocationsBefore, ExpectedLocationsBefore),
+  %% Delete (Simulate a checkout, rebase or similar)
+  els_client:did_change_watched_files([{UriB, ?FILE_CHANGE_TYPE_DELETED}]),
+  %% After
+  #{result := null} = els_client:references(UriA, 5, 2),
+  ok.
+
+-spec refresh_after_watched_file_changed(config()) -> ok.
+refresh_after_watched_file_changed(Config) ->
+  %% Before
+  UriA = ?config(watched_file_a_uri, Config),
+  UriB = ?config(watched_file_b_uri, Config),
+  PathB = ?config(watched_file_b_path, Config),
+  ExpectedLocationsBefore = [ #{ uri   => UriB
+                               , range => #{from => {6, 3}, to => {6, 22}}
+                               }
+                            ],
+  #{result := LocationsBefore} = els_client:references(UriA, 5, 2),
+  assert_locations(LocationsBefore, ExpectedLocationsBefore),
+  %% Edit (Simulate a checkout, rebase or similar)
+  NewContent = re:replace(?config(old_content, Config),
+                          "watched_file_a:main()",
+                          "watched_file_a:main(), watched_file_a:main()"),
+  ok = file:write_file(PathB, NewContent),
+  els_client:did_change_watched_files([{UriB, ?FILE_CHANGE_TYPE_CHANGED}]),
+  %% After
+  ExpectedLocationsAfter = [ #{ uri   => UriB
+                              , range => #{from => {6, 3}, to => {6, 22}}
+                              }
+                           , #{ uri   => UriB
+                              , range => #{from => {6, 26}, to => {6, 45}}
+                              }
+                           ],
+  #{result := LocationsAfter} = els_client:references(UriA, 5, 2),
+  assert_locations(LocationsAfter, ExpectedLocationsAfter),
+  ok.
+
+-spec refresh_after_watched_file_added(config()) -> ok.
+refresh_after_watched_file_added(Config) ->
+  %% Before
+  UriA = ?config(watched_file_a_uri, Config),
+  UriB = ?config(watched_file_b_uri, Config),
+  ExpectedLocationsBefore = [ #{ uri   => UriB
+                               , range => #{from => {6, 3}, to => {6, 22}}
+                               }
+                            ],
+  #{result := LocationsBefore} = els_client:references(UriA, 5, 2),
+  assert_locations(LocationsBefore, ExpectedLocationsBefore),
+  %% Add (Simulate a checkout, rebase or similar)
+  DataDir = ?config(data_dir, Config),
+  PathC = filename:join([DataDir, "watched_file_c.erl"]),
+  UriC = els_uri:uri(els_utils:to_binary(PathC)),
+  els_client:did_change_watched_files([{UriC, ?FILE_CHANGE_TYPE_CREATED}]),
+  %% After
+  ExpectedLocationsAfter = [ #{ uri   => UriC
+                              , range => #{from => {6, 3}, to => {6, 22}}
+                              }
+                           , #{ uri   => UriB
+                              , range => #{from => {6, 3}, to => {6, 22}}
+                              }
+                           ],
+  #{result := LocationsAfter} = els_client:references(UriA, 5, 2),
+  assert_locations(LocationsAfter, ExpectedLocationsAfter),
   ok.
 
 %%==============================================================================

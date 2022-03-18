@@ -19,6 +19,7 @@
 
 -export([ insert/1
         , lookup/1
+        , delete_by_module/1
         ]).
 
 %%==============================================================================
@@ -30,8 +31,8 @@
 %% Item Definition
 %%==============================================================================
 
--record(els_dt_signatures, { mfa  :: mfa()  | '_'
-                           , spec :: binary()
+-record(els_dt_signatures, { mfa  :: mfa()  | '_' | {atom(), '_', '_'}
+                           , spec :: binary() | '_'
                            }).
 -type els_dt_signatures() :: #els_dt_signatures{}.
 
@@ -74,3 +75,8 @@ insert(Map) when is_map(Map) ->
 lookup(MFA) ->
   {ok, Items} = els_db:lookup(name(), MFA),
   {ok, [to_item(Item) || Item <- Items]}.
+
+-spec delete_by_module(atom()) -> ok.
+delete_by_module(Module) ->
+  Pattern = #els_dt_signatures{mfa = {Module, '_', '_'}, _ = '_'},
+  ok = els_db:match_delete(name(), Pattern).
