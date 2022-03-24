@@ -23,7 +23,7 @@ main(Args) ->
   ok = parse_args(Args),
   application:set_env(els_core, server, els_server),
   configure_logging(),
-  {ok, _} = application:ensure_all_started(?APP),
+  {ok, _} = application:ensure_all_started(?APP, permanent),
   patch_logging(),
   configure_client_logging(),
   ?LOG_INFO("Started erlang_ls server", []),
