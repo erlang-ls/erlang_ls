@@ -13,6 +13,9 @@
         , index_erl_file/1
         , index_hrl_file/1
         , index_unkown_extension/1
+        , do_not_skip_generated_file_by_tag_by_default/1
+        , skip_generated_file_by_tag/1
+        , skip_generated_file_by_custom_tag/1
         ]).
 
 %%==============================================================================
@@ -42,10 +45,29 @@ end_per_suite(Config) ->
   els_test_utils:end_per_suite(Config).
 
 -spec init_per_testcase(atom(), config()) -> config().
+init_per_testcase(TestCase, Config) when
+    TestCase =:= skip_generated_file_by_tag ->
+  meck:new(els_config_indexing, [passthrough, no_link]),
+  meck:expect(els_config_indexing, get_skip_generated_files, fun() -> true end),
+  els_test_utils:init_per_testcase(TestCase, Config);
+init_per_testcase(TestCase, Config) when
+    TestCase =:= skip_generated_file_by_custom_tag ->
+  meck:new(els_config_indexing, [passthrough, no_link]),
+  meck:expect(els_config_indexing,
+              get_skip_generated_files,
+              fun() -> true end),
+  meck:expect(els_config_indexing,
+              get_generated_files_tag,
+              fun() -> "@customgeneratedtag" end),
+  els_test_utils:init_per_testcase(TestCase, Config);
 init_per_testcase(TestCase, Config) ->
   els_test_utils:init_per_testcase(TestCase, Config).
 
 -spec end_per_testcase(atom(), config()) -> ok.
+end_per_testcase(TestCase, Config) when
+    TestCase =:= skip_generated_file_by_tag ->
+  meck:unload(els_config_indexing),
+  els_test_utils:end_per_testcase(TestCase, Config);
 end_per_testcase(TestCase, Config) ->
   els_test_utils:end_per_testcase(TestCase, Config).
 
@@ -87,4 +109,33 @@ index_unkown_extension(Config) ->
   Path = filename:join(els_utils:to_binary(DataDir), "test.foo"),
   {ok, Uri} = els_indexing:index_file(Path),
   {ok, [#{kind := other}]} = els_dt_document:lookup(Uri),
+  ok.
+
+-spec do_not_skip_generated_file_by_tag_by_default(config()) -> ok.
+do_not_skip_generated_file_by_tag_by_default(Config) ->
+  DataDir = ?config(data_dir, Config),
+  Path = filename:join(els_utils:to_binary(DataDir),
+                       "generated_file_by_tag.erl"),
+  {ok, Uri} = els_indexing:index_file(Path),
+  {ok, [#{ id := generated_file_by_tag
+         , kind := module
+         }]} = els_dt_document:lookup(Uri),
+  ok.
+
+-spec skip_generated_file_by_tag(config()) -> ok.
+skip_generated_file_by_tag(Config) ->
+  DataDir = ?config(data_dir, Config),
+  Path = filename:join(els_utils:to_binary(DataDir),
+                       "generated_file_by_tag.erl"),
+  {ok, Uri} = els_indexing:index_file(Path),
+  {ok, []} = els_dt_document:lookup(Uri),
+  ok.
+
+-spec skip_generated_file_by_custom_tag(config()) -> ok.
+skip_generated_file_by_custom_tag(Config) ->
+  DataDir = ?config(data_dir, Config),
+  Path = filename:join(els_utils:to_binary(DataDir),
+                       "generated_file_by_custom_tag.erl"),
+  {ok, Uri} = els_indexing:index_file(Path),
+  {ok, []} = els_dt_document:lookup(Uri),
   ok.

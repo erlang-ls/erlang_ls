@@ -53,6 +53,31 @@ index_file(Path) ->
   try_index_file(Path, 'deep'),
   {ok, els_uri:uri(Path)}.
 
+-spec index_if_not_generated(uri(), binary(), mode()) -> ok.
+index_if_not_generated(Uri, Text, Mode) ->
+  case els_config_indexing:get_skip_generated_files() of
+    false ->
+      index(Uri, Text, Mode);
+    true ->
+      case is_generated_file(Text) of
+        true ->
+          ?LOG_DEBUG("Skip indexing for generated file ~p", [Uri]);
+        false ->
+          ok = index(Uri, Text, Mode)
+      end
+  end.
+
+-spec is_generated_file(binary()) -> boolean().
+is_generated_file(Text) ->
+  Tag = els_config_indexing:get_generated_files_tag(),
+  [Line|_] = string:split(Text, "\n", leading),
+  case re:run(Line, Tag) of
+    {match, _} ->
+      true;
+    nomatch ->
+      false
+  end.
+
 -spec index(uri(), binary(), mode()) -> ok.
 index(Uri, Text, Mode) ->
   MD5 = erlang:md5(Text),
@@ -151,7 +176,7 @@ try_index_file(FullName, Mode) ->
   try
     ?LOG_DEBUG("Indexing file. [filename=~s, uri=~s]", [FullName, Uri]),
     {ok, Text} = file:read_file(FullName),
-    ok         = index(Uri, Text, Mode)
+    ok = index_if_not_generated(Uri, Text, Mode)
   catch Type:Reason:St ->
       ?LOG_ERROR("Error indexing file "
                  "[filename=~s, uri=~s] "
