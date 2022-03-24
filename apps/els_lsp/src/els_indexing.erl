@@ -50,26 +50,25 @@ find_and_index_file(FileName) ->
 
 -spec index_file(binary()) -> {ok, uri()}.
 index_file(Path) ->
-  try_index_file(Path, 'deep'),
+  SkipGeneratedFiles = els_config_indexing:get_skip_generated_files(),
+  GeneratedFilesTag = els_config_indexing:get_generated_files_tag(),
+  try_index_file(Path, 'deep', SkipGeneratedFiles, GeneratedFilesTag),
   {ok, els_uri:uri(Path)}.
 
--spec index_if_not_generated(uri(), binary(), mode()) -> ok.
-index_if_not_generated(Uri, Text, Mode) ->
-  case els_config_indexing:get_skip_generated_files() of
-    false ->
-      index(Uri, Text, Mode);
+-spec index_if_not_generated(uri(), binary(), mode(), boolean(), string()) ->
+        ok.
+index_if_not_generated(Uri, Text, Mode, false, _GeneratedFilesTag) ->
+  index(Uri, Text, Mode);
+index_if_not_generated(Uri, Text, Mode, true, GeneratedFilesTag) ->
+  case is_generated_file(Text, GeneratedFilesTag) of
     true ->
-      case is_generated_file(Text) of
-        true ->
-          ?LOG_DEBUG("Skip indexing for generated file ~p", [Uri]);
-        false ->
-          ok = index(Uri, Text, Mode)
-      end
+      ?LOG_DEBUG("Skip indexing for generated file ~p", [Uri]);
+    false ->
+      ok = index(Uri, Text, Mode)
   end.
 
--spec is_generated_file(binary()) -> boolean().
-is_generated_file(Text) ->
-  Tag = els_config_indexing:get_generated_files_tag(),
+-spec is_generated_file(binary(), string()) -> boolean().
+is_generated_file(Text, Tag) ->
   [Line|_] = string:split(Text, "\n", leading),
   case re:run(Line, Tag) of
     {match, _} ->
@@ -157,7 +156,11 @@ start() ->
 
 -spec start(binary(), [{string(), 'deep' | 'shallow'}]) -> ok.
 start(Group, Entries) ->
-  Task = fun({Dir, Mode}, _) -> index_dir(Dir, Mode) end,
+  SkipGeneratedFiles = els_config_indexing:get_skip_generated_files(),
+  GeneratedFilesTag = els_config_indexing:get_generated_files_tag(),
+  Task = fun({Dir, Mode}, _) ->
+             index_dir(Dir, Mode, SkipGeneratedFiles, GeneratedFilesTag)
+         end,
   Config = #{ task => Task
             , entries => Entries
             , title => <<"Indexing ", Group/binary>>
@@ -170,13 +173,15 @@ start(Group, Entries) ->
 %%==============================================================================
 
 %% @doc Try indexing a file.
--spec try_index_file(binary(), mode()) -> ok | {error, any()}.
-try_index_file(FullName, Mode) ->
+-spec try_index_file(binary(), mode(), boolean(), string()) ->
+        ok | {error, any()}.
+try_index_file(FullName, Mode, SkipGeneratedFiles, GeneratedFilesTag) ->
   Uri = els_uri:uri(FullName),
   try
     ?LOG_DEBUG("Indexing file. [filename=~s, uri=~s]", [FullName, Uri]),
     {ok, Text} = file:read_file(FullName),
-    ok = index_if_not_generated(Uri, Text, Mode)
+    ok = index_if_not_generated(Uri, Text, Mode,
+                                SkipGeneratedFiles, GeneratedFilesTag)
   catch Type:Reason:St ->
       ?LOG_ERROR("Error indexing file "
                  "[filename=~s, uri=~s] "
@@ -204,11 +209,20 @@ register_reference(Uri, #{kind := Kind, id := Id, range := Range})
                           , #{id => Id, uri => Uri, range => Range}
                           ).
 
--spec index_dir(string(), mode()) -> {non_neg_integer(), non_neg_integer()}.
+-spec index_dir(string(), mode()) ->
+        {non_neg_integer(), non_neg_integer()}.
 index_dir(Dir, Mode) ->
+  SkipGeneratedFiles = els_config_indexing:get_skip_generated_files(),
+  GeneratedFilesTag = els_config_indexing:get_generated_files_tag(),
+  index_dir(Dir, Mode, SkipGeneratedFiles, GeneratedFilesTag).
+
+-spec index_dir(string(), mode(), boolean(), string()) ->
+        {non_neg_integer(), non_neg_integer()}.
+index_dir(Dir, Mode, SkipGeneratedFiles, GeneratedFilesTag) ->
   ?LOG_DEBUG("Indexing directory. [dir=~s] [mode=~s]", [Dir, Mode]),
   F = fun(FileName, {Succeeded, Failed}) ->
-          case try_index_file(els_utils:to_binary(FileName), Mode) of
+          case try_index_file(els_utils:to_binary(FileName), Mode,
+                              SkipGeneratedFiles, GeneratedFilesTag) of
             ok              -> {Succeeded + 1, Failed};
             {error, _Error} -> {Succeeded, Failed + 1}
           end
