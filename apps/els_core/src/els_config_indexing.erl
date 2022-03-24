@@ -22,7 +22,7 @@ get_skip_generated_files() ->
   Value = maps:get("skip_generated_files",
                    els_config:get(indexing),
                    default_skip_generated_files()),
-  list_to_atom(Value).
+  normalize_boolean(Value).
 
 -spec get_generated_files_tag() -> string().
 get_generated_files_tag() ->
@@ -37,3 +37,9 @@ default_skip_generated_files() ->
 -spec default_generated_files_tag() -> string().
 default_generated_files_tag() ->
   "@generated".
+
+-spec normalize_boolean(boolean() | string()) -> boolean().
+normalize_boolean(Value) when is_list(Value) ->
+  normalize_boolean(list_to_atom(Value));
+normalize_boolean(Value) when is_atom(Value) ->
+  Value.
