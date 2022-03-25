@@ -163,6 +163,12 @@ start(Group, Entries) ->
   Config = #{ task => Task
             , entries => Entries
             , title => <<"Indexing ", Group/binary>>
+            , on_complete =>
+                fun({Succeeded, Failed}) ->
+                    ?LOG_INFO("Completed indexing for directory ~p"
+                              "(succeeded: ~p, failed: ~p)",
+                              [Succeeded, Failed])
+                end
             },
   {ok, _Pid} = els_background_job:new(Config),
   ok.
