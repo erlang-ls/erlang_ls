@@ -50,13 +50,14 @@ index_file(Path) ->
   {ok, els_uri:uri(Path)}.
 
 -spec index_if_not_generated(uri(), binary(), mode(), boolean(), string()) ->
-        ok.
+        ok | skipped.
 index_if_not_generated(Uri, Text, Mode, false, _GeneratedFilesTag) ->
   index(Uri, Text, Mode);
 index_if_not_generated(Uri, Text, Mode, true, GeneratedFilesTag) ->
   case is_generated_file(Text, GeneratedFilesTag) of
     true ->
-      ?LOG_DEBUG("Skip indexing for generated file ~p", [Uri]);
+      ?LOG_DEBUG("Skip indexing for generated file ~p", [Uri]),
+      skipped;
     false ->
       ok = index(Uri, Text, Mode)
   end.
@@ -159,10 +160,10 @@ start(Group, Entries) ->
             , entries => Entries
             , title => <<"Indexing ", Group/binary>>
             , on_complete =>
-                fun({Succeeded, Failed}) ->
+                fun({Succeeded, Skipped, Failed}) ->
                     ?LOG_INFO("Completed indexing for directory ~p"
-                              "(succeeded: ~p, failed: ~p)",
-                              [Succeeded, Failed])
+                              "(succeeded: ~p, skipped: ~p, failed: ~p)",
+                              [Succeeded, Skipped, Failed])
                 end
             },
   {ok, _Pid} = els_background_job:new(Config),
@@ -172,16 +173,17 @@ start(Group, Entries) ->
 %% Internal functions
 %%==============================================================================
 
+
 %% @doc Try indexing a file.
 -spec try_index_file(binary(), mode(), boolean(), string()) ->
-        ok | {error, any()}.
+        ok | skipped | {error, any()}.
 try_index_file(FullName, Mode, SkipGeneratedFiles, GeneratedFilesTag) ->
   Uri = els_uri:uri(FullName),
   try
     ?LOG_DEBUG("Indexing file. [filename=~s, uri=~s]", [FullName, Uri]),
     {ok, Text} = file:read_file(FullName),
-    ok = index_if_not_generated(Uri, Text, Mode,
-                                SkipGeneratedFiles, GeneratedFilesTag)
+    index_if_not_generated(Uri, Text, Mode,
+                           SkipGeneratedFiles, GeneratedFilesTag)
   catch Type:Reason:St ->
       ?LOG_ERROR("Error indexing file "
                  "[filename=~s, uri=~s] "
@@ -210,21 +212,22 @@ register_reference(Uri, #{kind := Kind, id := Id, range := Range})
                           ).
 
 -spec index_dir(string(), mode()) ->
-        {non_neg_integer(), non_neg_integer()}.
+        {non_neg_integer(), non_neg_integer(), non_neg_integer()}.
 index_dir(Dir, Mode) ->
   SkipGeneratedFiles = els_config_indexing:get_skip_generated_files(),
   GeneratedFilesTag = els_config_indexing:get_generated_files_tag(),
   index_dir(Dir, Mode, SkipGeneratedFiles, GeneratedFilesTag).
 
 -spec index_dir(string(), mode(), boolean(), string()) ->
-        {non_neg_integer(), non_neg_integer()}.
+        {non_neg_integer(), non_neg_integer(), non_neg_integer()}.
 index_dir(Dir, Mode, SkipGeneratedFiles, GeneratedFilesTag) ->
   ?LOG_DEBUG("Indexing directory. [dir=~s] [mode=~s]", [Dir, Mode]),
-  F = fun(FileName, {Succeeded, Failed}) ->
+  F = fun(FileName, {Succeeded, Skipped, Failed}) ->
           case try_index_file(els_utils:to_binary(FileName), Mode,
                               SkipGeneratedFiles, GeneratedFilesTag) of
-            ok              -> {Succeeded + 1, Failed};
-            {error, _Error} -> {Succeeded, Failed + 1}
+            ok -> {Succeeded + 1, Skipped, Failed};
+            skipped -> {Succeeded, Skipped + 1, Failed};
+            {error, _Error} -> {Succeeded, Skipped, Failed + 1}
           end
       end,
   Filter = fun(Path) ->
@@ -232,18 +235,18 @@ index_dir(Dir, Mode, SkipGeneratedFiles, GeneratedFilesTag) ->
                lists:member(Ext, [".erl", ".hrl", ".escript"])
            end,
 
-  {Time, {Succeeded, Failed}} = timer:tc( els_utils
-                                        , fold_files
-                                        , [ F
-                                          , Filter
-                                          , Dir
-                                          , {0, 0}
-                                          ]
-                                        ),
+  {Time, {Succeeded, Skipped, Failed}} = timer:tc( els_utils
+                                                 , fold_files
+                                                 , [ F
+                                                   , Filter
+                                                   , Dir
+                                                   , {0, 0, 0}
+                                                   ]
+                                                 ),
   ?LOG_DEBUG("Finished indexing directory. [dir=~s] [mode=~s] [time=~p] "
-             "[succeeded=~p] "
-             "[failed=~p]", [Dir, Mode, Time/1000/1000, Succeeded, Failed]),
-  {Succeeded, Failed}.
+             "[succeeded=~p] [skipped=~p] [failed=~p]",
+             [Dir, Mode, Time/1000/1000, Succeeded, Skipped, Failed]),
+  {Succeeded, Skipped, Failed}.
 
 -spec entries_apps() -> [{string(), 'deep' | 'shallow'}].
 entries_apps() ->

@@ -117,7 +117,7 @@ do_not_skip_generated_file_by_tag_by_default(Config) ->
   DataDir = data_dir(Config),
   GeneratedByTagUri = uri(DataDir, "generated_file_by_tag.erl"),
   GeneratedByCustomTagUri = uri(DataDir, "generated_file_by_custom_tag.erl"),
-  ?assertEqual({4, 0}, els_indexing:index_dir(DataDir, 'deep')),
+  ?assertEqual({4, 0, 0}, els_indexing:index_dir(DataDir, 'deep')),
   {ok, [#{ id := generated_file_by_tag
          , kind := module
          }
@@ -133,7 +133,7 @@ skip_generated_file_by_tag(Config) ->
   DataDir = data_dir(Config),
   GeneratedByTagUri = uri(DataDir, "generated_file_by_tag.erl"),
   GeneratedByCustomTagUri = uri(DataDir, "generated_file_by_custom_tag.erl"),
-  ?assertEqual({4, 0}, els_indexing:index_dir(DataDir, 'deep')),
+  ?assertEqual({3, 1, 0}, els_indexing:index_dir(DataDir, 'deep')),
   {ok, []} = els_dt_document:lookup(GeneratedByTagUri),
   {ok, [#{ id := generated_file_by_custom_tag
          , kind := module
@@ -150,7 +150,7 @@ skip_generated_file_by_custom_tag(Config) ->
   DataDir = data_dir(Config),
   GeneratedByTagUri = uri(DataDir, "generated_file_by_tag.erl"),
   GeneratedByCustomTagUri = uri(DataDir, "generated_file_by_custom_tag.erl"),
-  ?assertEqual({4, 0}, els_indexing:index_dir(DataDir, 'deep')),
+  ?assertEqual({3, 1, 0}, els_indexing:index_dir(DataDir, 'deep')),
   {ok, [#{ id := generated_file_by_tag
          , kind := module
          }
