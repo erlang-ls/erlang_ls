@@ -159,6 +159,7 @@ start(Group, Entries) ->
   Config = #{ task => Task
             , entries => Entries
             , title => <<"Indexing ", Group/binary>>
+            , initial_state => {0, 0, 0}
             , on_complete =>
                 fun({Succeeded, Skipped, Failed}) ->
                     ?LOG_INFO("Completed indexing for ~s "
