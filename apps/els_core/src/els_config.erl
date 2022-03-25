@@ -131,6 +131,7 @@ do_initialize(RootUri, Capabilities, InitOptions, {ConfigPath, Config}) ->
   ElvisConfigPath = maps:get("elvis_config_path", Config, undefined),
   BSPEnabled = maps:get("bsp_enabled", Config, auto),
   IncrementalSync = maps:get("incremental_sync", Config, true),
+  Indexing = maps:get("indexing", Config, #{}),
   CompilerTelemetryEnabled
     = maps:get("compiler_telemetry_enabled", Config, false),
   EDocCustomTags = maps:get("edoc_custom_tags", Config, []),
@@ -159,6 +160,8 @@ do_initialize(RootUri, Capabilities, InitOptions, {ConfigPath, Config}) ->
   ok = set(compiler_telemetry_enabled, CompilerTelemetryEnabled),
   ok = set(edoc_custom_tags, EDocCustomTags),
   ok = set(incremental_sync, IncrementalSync),
+  ok = set(indexing, maps:merge( els_config_indexing:default_config()
+                               , Indexing)),
   %% Calculated from the above
   ok = set(apps_paths     , project_paths(RootPath, AppsDirs, false)),
   ok = set(deps_paths     , project_paths(RootPath, DepsDirs, false)),
