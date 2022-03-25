@@ -143,10 +143,6 @@ skip_generated_file_by_tag(Config) ->
 
 -spec skip_generated_file_by_custom_tag(config()) -> ok.
 skip_generated_file_by_custom_tag(Config) ->
-  %% dbg:tracer(),
-  %% dbg:p(all, c),
-  %% %% dbg:tpl(els_indexing, x),
-  %% dbg:tpl(els_dt_document, lookup, x),
   DataDir = data_dir(Config),
   GeneratedByTagUri = uri(DataDir, "generated_file_by_tag.erl"),
   GeneratedByCustomTagUri = uri(DataDir, "generated_file_by_custom_tag.erl"),
