@@ -153,8 +153,10 @@ start() ->
 start(Group, Entries) ->
   SkipGeneratedFiles = els_config_indexing:get_skip_generated_files(),
   GeneratedFilesTag = els_config_indexing:get_generated_files_tag(),
-  Task = fun({Dir, Mode}, _) ->
-             index_dir(Dir, Mode, SkipGeneratedFiles, GeneratedFilesTag)
+  Task = fun({Dir, Mode}, {Succeeded0, Skipped0, Failed0}) ->
+             {Su, Sk, Fa} = index_dir(Dir, Mode,
+                                      SkipGeneratedFiles, GeneratedFilesTag),
+             {Succeeded0 + Su, Skipped0 + Sk, Failed0 + Fa}
          end,
   Config = #{ task => Task
             , entries => Entries
