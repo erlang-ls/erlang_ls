@@ -39,7 +39,6 @@ default_generated_files_tag() ->
   "@generated".
 
 -spec normalize_boolean(boolean() | string()) -> boolean().
-normalize_boolean(Value) when is_list(Value) ->
-  normalize_boolean(list_to_atom(Value));
-normalize_boolean(Value) when is_atom(Value) ->
-  Value.
+normalize_boolean("true") -> true;
+normalize_boolean("false") -> false;
+normalize_boolean(Bool) when is_boolean(Bool) -> Bool.
