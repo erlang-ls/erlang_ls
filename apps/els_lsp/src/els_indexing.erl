@@ -161,9 +161,9 @@ start(Group, Entries) ->
             , title => <<"Indexing ", Group/binary>>
             , on_complete =>
                 fun({Succeeded, Skipped, Failed}) ->
-                    ?LOG_INFO("Completed indexing for directory ~p"
+                    ?LOG_INFO("Completed indexing for ~s "
                               "(succeeded: ~p, skipped: ~p, failed: ~p)",
-                              [Succeeded, Skipped, Failed])
+                              [Group, Succeeded, Skipped, Failed])
                 end
             },
   {ok, _Pid} = els_background_job:new(Config),
