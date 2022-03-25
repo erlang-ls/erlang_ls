@@ -50,9 +50,8 @@ find_and_index_file(FileName) ->
 
 -spec index_file(binary()) -> {ok, uri()}.
 index_file(Path) ->
-  SkipGeneratedFiles = els_config_indexing:get_skip_generated_files(),
   GeneratedFilesTag = els_config_indexing:get_generated_files_tag(),
-  try_index_file(Path, 'deep', SkipGeneratedFiles, GeneratedFilesTag),
+  try_index_file(Path, 'deep', false, GeneratedFilesTag),
   {ok, els_uri:uri(Path)}.
 
 -spec index_if_not_generated(uri(), binary(), mode(), boolean(), string()) ->
