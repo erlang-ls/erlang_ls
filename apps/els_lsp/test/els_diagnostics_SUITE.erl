@@ -191,7 +191,6 @@ end_per_testcase(TestCase, Config) when TestCase =:= edoc_main;
   els_test_utils:end_per_testcase(TestCase, Config),
   els_mock_diagnostics:teardown(),
   ok;
-end_per_testcase(TestCase, Config) 
 end_per_testcase(TestCase, Config)
   when TestCase =:= unused_macros_refactorerl ->
   unmock_refactoerl(),
