@@ -129,6 +129,7 @@ init_per_testcase(TestCase, Config) when TestCase =:= gradualizer ->
   meck:expect(els_gradualizer_diagnostics, is_default, 0, true),
   els_mock_diagnostics:setup(),
   els_test_utils:init_per_testcase(TestCase, Config);
+
 init_per_testcase(TestCase, Config) when TestCase =:= edoc_main;
                                          TestCase =:= edoc_skip_app_src;
                                          TestCase =:= edoc_custom_tags ->
@@ -136,6 +137,7 @@ init_per_testcase(TestCase, Config) when TestCase =:= edoc_main;
   meck:expect(els_edoc_diagnostics, is_default, 0, true),
   els_mock_diagnostics:setup(),
   els_test_utils:init_per_testcase(TestCase, Config);
+
 
 % RefactorErl
 init_per_testcase(TestCase, Config)
@@ -184,6 +186,7 @@ end_per_testcase(TestCase, Config) when TestCase =:= gradualizer ->
   els_test_utils:end_per_testcase(TestCase, Config),
   els_mock_diagnostics:teardown(),
   ok;
+
 end_per_testcase(TestCase, Config) when TestCase =:= edoc_main;
                                         TestCase =:= edoc_skip_app_src;
                                         TestCase =:= edoc_custom_tags ->
@@ -191,6 +194,7 @@ end_per_testcase(TestCase, Config) when TestCase =:= edoc_main;
   els_test_utils:end_per_testcase(TestCase, Config),
   els_mock_diagnostics:teardown(),
   ok;
+
 end_per_testcase(TestCase, Config)
   when TestCase =:= unused_macros_refactorerl ->
   unmock_refactoerl(),
@@ -695,6 +699,7 @@ gradualizer(_Config) ->
              ],
   Hints = [],
   els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
+
 
 -spec module_name_check(config()) -> ok.
 module_name_check(_Config) ->
