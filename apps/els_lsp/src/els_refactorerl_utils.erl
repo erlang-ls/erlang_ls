@@ -68,7 +68,6 @@ referl_node() ->
       connect_node({validate, Node});
 
     notconfigured ->
-      notification("RefactorErl is not configured!"),
       {error, disabled};
 
     _ ->
@@ -139,7 +138,6 @@ connect_node({Status, Node}) ->
   Config = els_config:get(refactorerl),
   case {Status, is_refactorerl(Node)} of
     {validate, false} ->
-      notification("RefactorErl is not connected!", ?MESSAGE_TYPE_INFO),
       els_config:set(refactorerl, Config#{"node" => {Node, disconnected}}),
       {error, disconnected};
     {retry, false} ->

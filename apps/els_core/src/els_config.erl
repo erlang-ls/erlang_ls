@@ -56,7 +56,8 @@
                | indexing_enabled
                | bsp_enabled
                | compiler_telemetry_enabled
-               | refactorerl.
+               | refactorerl
+               | edoc_custom_tags.
 
 -type path()  :: file:filename().
 -type state() :: #{ apps_dirs        => [path()]
