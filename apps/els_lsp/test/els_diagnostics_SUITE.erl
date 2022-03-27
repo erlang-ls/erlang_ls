@@ -138,7 +138,8 @@ init_per_testcase(TestCase, Config) when TestCase =:= edoc_main;
   els_test_utils:init_per_testcase(TestCase, Config);
 
 % RefactorErl
-init_per_testcase(TestCase, Config) when TestCase =:= unused_macros_refactorerl ->
+init_per_testcase(TestCase, Config)
+                       when TestCase =:= unused_macros_refactorerl ->
   mock_refactorerl(),
   els_test_utils:init_per_testcase(TestCase, Config);
 
@@ -191,6 +192,7 @@ end_per_testcase(TestCase, Config) when TestCase =:= edoc_main;
   els_mock_diagnostics:teardown(),
   ok;
 end_per_testcase(TestCase, Config) 
+end_per_testcase(TestCase, Config)
   when TestCase =:= unused_macros_refactorerl ->
   unmock_refactoerl(),
   els_test_utils:end_per_testcase(TestCase, Config),
@@ -852,20 +854,19 @@ src_path(Module) ->
 include_path(Header) ->
   filename:join(["code_navigation", "include", Header]).
 
-
 % Mock RefactorErl utils
-mock_refactorerl() -> 
+mock_refactorerl() ->
   {ok, HostName} = inet:gethostname(),
   NodeName = list_to_atom("referl_fake@" ++ HostName),
 
   meck:new(els_refactorerl_utils, [passthrough, no_link, unstick]),
-  meck:expect(els_refactorerl_utils, run_diagnostics, 2, 
-    [ {# {'end' => #{character => 35,line => 5},
-          start => #{character => 0,line => 5}},
+  meck:expect(els_refactorerl_utils, run_diagnostics, 2,
+    [ {# {'end' => #{character => 35, line => 5},
+          start => #{character => 0, line => 5}},
         <<"Unused macro: UNUSED_MACRO">>},
-      {# {'end' => #{character => 36,line => 6},
-           start => #{character => 0,line => 6}},
-        <<"Unused macro: UNUSED_MACRO_WITH_ARG">>}] 
+      {# {'end' => #{character => 36, line => 6},
+           start => #{character => 0, line => 6}},
+        <<"Unused macro: UNUSED_MACRO_WITH_ARG">>}]
       ),
   meck:expect(els_refactorerl_utils, referl_node, 0, {ok, NodeName}),
   meck:expect(els_refactorerl_utils, add, 1, ok),
