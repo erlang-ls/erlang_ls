@@ -49,6 +49,7 @@
         , variable/1
         , opaque_application_remote/1
         , opaque_application_user/1
+        , parse_incomplete/1
         ]).
 
 %%==============================================================================
@@ -463,10 +464,12 @@ variable(Config) ->
   Def1 = els_client:definition(Uri, 105, 10),
   Def2 = els_client:definition(Uri, 107, 10),
   Def3 = els_client:definition(Uri, 108, 10),
+  Def4 = els_client:definition(Uri, 19, 36),
   #{result := #{range := Range0, uri := DefUri0}} = Def0,
   #{result := #{range := Range1, uri := DefUri0}} = Def1,
   #{result := #{range := Range2, uri := DefUri0}} = Def2,
   #{result := #{range := Range3, uri := DefUri0}} = Def3,
+  #{result := #{range := Range4, uri := DefUri0}} = Def4,
 
   ?assertEqual(?config(code_navigation_uri, Config), DefUri0),
   ?assertEqual( els_protocol:range(#{from => {103, 12}, to => {103, 15}})
@@ -477,6 +480,9 @@ variable(Config) ->
               , Range2),
   ?assertEqual( els_protocol:range(#{from => {106, 12}, to => {106, 15}})
               , Range3),
+  %% Inside macro
+  ?assertEqual( els_protocol:range(#{from => {19, 17}, to => {19, 18}})
+              , Range4),
   ok.
 
 
@@ -499,4 +505,24 @@ opaque_application_user(Config) ->
   ?assertEqual(ExtraUri, DefUri),
   ?assertEqual( els_protocol:range(#{from => {20, 1}, to => {20, 34}})
               , Range),
+  ok.
+
+-spec parse_incomplete(config()) -> ok.
+parse_incomplete(Config) ->
+  Uri = ?config(code_navigation_broken_uri, Config),
+  Range = els_protocol:range(#{from => {3, 1}, to => {3, 11}}),
+  ?assertMatch( #{result := #{range := Range, uri := Uri}}
+              , els_client:definition(Uri, 7, 3)),
+  ?assertMatch( #{result := #{range := Range, uri := Uri}}
+              , els_client:definition(Uri, 8, 3)),
+  ?assertMatch( #{result := #{range := Range, uri := Uri}}
+              , els_client:definition(Uri, 9, 8)),
+  ?assertMatch( #{result := #{range := Range, uri := Uri}}
+              , els_client:definition(Uri, 11, 7)),
+  ?assertMatch( #{result := #{range := Range, uri := Uri}}
+              , els_client:definition(Uri, 12, 12)),
+  ?assertMatch( #{result := #{range := Range, uri := Uri}}
+              , els_client:definition(Uri, 17, 3)),
+  ?assertMatch( #{result := #{range := Range, uri := Uri}}
+              , els_client:definition(Uri, 19, 3)),
   ok.

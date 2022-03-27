@@ -8,6 +8,7 @@
         , did_open/1
         , did_save/1
         , did_close/1
+        , did_change_watched_files/1
         ]).
 
 -spec sync_mode() -> text_document_sync_kind().
@@ -46,21 +47,29 @@ did_change(Params) ->
 
 -spec did_open(map()) -> ok.
 did_open(Params) ->
-  TextDocument = maps:get(<<"textDocument">>, Params),
-  Uri          = maps:get(<<"uri">>         , TextDocument),
-  Text         = maps:get(<<"text">>        , TextDocument),
-  ok           = els_indexing:index(Uri, Text, 'deep'),
+  #{<<"textDocument">> := #{ <<"uri">> := Uri
+                           , <<"text">> := Text}} = Params,
+  ok = els_index_buffer:load(Uri, Text),
+  ok = els_index_buffer:flush(Uri),
   Provider = els_diagnostics_provider,
   els_provider:handle_request(Provider, {run_diagnostics, Params}),
   ok.
 
 -spec did_save(map()) -> ok.
 did_save(Params) ->
-  TextDocument = maps:get(<<"textDocument">>, Params),
-  Uri          = maps:get(<<"uri">>         , TextDocument),
+  #{<<"textDocument">> := #{<<"uri">> := Uri}} = Params,
+  {ok, Text} = file:read_file(els_uri:path(Uri)),
+  ok = els_index_buffer:load(Uri, Text),
   ok = els_index_buffer:flush(Uri),
   Provider = els_diagnostics_provider,
   els_provider:handle_request(Provider, {run_diagnostics, Params}),
+  ok.
+
+-spec did_change_watched_files(map()) -> ok.
+did_change_watched_files(Params) ->
+  #{<<"changes">> := Changes} = Params,
+  [handle_file_change(Uri, Type)
+   || #{<<"uri">> := Uri, <<"type">> := Type} <- Changes],
   ok.
 
 -spec did_close(map()) -> ok.
@@ -74,3 +83,15 @@ to_edit(#{<<"text">> := Text, <<"range">> := Range}) ->
   {#{ from => {FromL, FromC}
     , to => {ToL, ToC}
     }, els_utils:to_list(Text)}.
+
+-spec handle_file_change(uri(), file_change_type()) -> ok.
+handle_file_change(Uri, Type) when Type =:= ?FILE_CHANGE_TYPE_CREATED;
+                                   Type =:= ?FILE_CHANGE_TYPE_CHANGED ->
+  {ok, Text} = file:read_file(els_uri:path(Uri)),
+  ok = els_index_buffer:load(Uri, Text),
+  ok = els_index_buffer:flush(Uri);
+handle_file_change(Uri, Type) when Type =:= ?FILE_CHANGE_TYPE_DELETED ->
+  ok = els_dt_document:delete(Uri),
+  ok = els_dt_document_index:delete_by_uri(Uri),
+  ok = els_dt_references:delete_by_uri(Uri),
+  ok = els_dt_signatures:delete_by_module(els_uri:module(Uri)).

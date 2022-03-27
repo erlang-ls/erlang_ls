@@ -42,6 +42,11 @@
         , unused_macros_refactorerl/1
         , unused_record_fields/1
         , gradualizer/1
+        , module_name_check/1
+        , module_name_check_whitespace/1
+        , edoc_main/1
+        , edoc_skip_app_src/1
+        , edoc_custom_tags/1
         ]).
 
 %%==============================================================================
@@ -125,6 +130,15 @@ init_per_testcase(TestCase, Config) when TestCase =:= gradualizer ->
   els_mock_diagnostics:setup(),
   els_test_utils:init_per_testcase(TestCase, Config);
 
+init_per_testcase(TestCase, Config) when TestCase =:= edoc_main;
+                                         TestCase =:= edoc_skip_app_src;
+                                         TestCase =:= edoc_custom_tags ->
+  meck:new(els_edoc_diagnostics, [passthrough, no_link]),
+  meck:expect(els_edoc_diagnostics, is_default, 0, true),
+  els_mock_diagnostics:setup(),
+  els_test_utils:init_per_testcase(TestCase, Config);
+
+
 % RefactorErl
 init_per_testcase(TestCase, Config)
                        when TestCase =:= unused_macros_refactorerl ->
@@ -172,6 +186,15 @@ end_per_testcase(TestCase, Config) when TestCase =:= gradualizer ->
   els_test_utils:end_per_testcase(TestCase, Config),
   els_mock_diagnostics:teardown(),
   ok;
+
+end_per_testcase(TestCase, Config) when TestCase =:= edoc_main;
+                                        TestCase =:= edoc_skip_app_src;
+                                        TestCase =:= edoc_custom_tags ->
+  meck:unload(els_edoc_diagnostics),
+  els_test_utils:end_per_testcase(TestCase, Config),
+  els_mock_diagnostics:teardown(),
+  ok;
+
 end_per_testcase(TestCase, Config)
   when TestCase =:= unused_macros_refactorerl ->
   unmock_refactoerl(),
@@ -602,8 +625,11 @@ unused_includes(_Config) ->
   Path = src_path("diagnostics_unused_includes.erl"),
   Source = <<"UnusedIncludes">>,
   Errors = [],
+  {ok, FileName} = els_utils:find_header(
+    els_utils:filename_to_atom("et/include/et.hrl")),
   Warnings = [#{ message => <<"Unused file: et.hrl">>
                , range => {{3, 0}, {3, 34}}
+               , data     => FileName
                }
              ],
   Hints = [],
@@ -614,8 +640,11 @@ unused_includes_compiler_attribute(_Config) ->
   Path = src_path("diagnostics_unused_includes_compiler_attribute.erl"),
   Source = <<"UnusedIncludes">>,
   Errors = [],
+  {ok, FileName} = els_utils:find_header(
+    els_utils:filename_to_atom("kernel/include/file.hrl")),
   Warnings = [ #{ message => <<"Unused file: file.hrl">>
                 , range => {{3, 0}, {3, 40}}
+                , data     => FileName
                 }
              ],
   Hints = [],
@@ -671,6 +700,72 @@ gradualizer(_Config) ->
   Hints = [],
   els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
 
+
+-spec module_name_check(config()) -> ok.
+module_name_check(_Config) ->
+  Path = src_path("diagnostics_module_name_check.erl"),
+  Source = <<"Compiler (via Erlang LS)">>,
+  Errors = [ #{ message =>
+                  <<"Module name 'module_name_check' does not match "
+                    "file name 'diagnostics_module_name_check'">>
+              , range => {{0, 8}, {0, 25}}
+              }
+           ],
+  Warnings = [],
+  Hints = [],
+  els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
+
+-spec module_name_check_whitespace(config()) -> ok.
+module_name_check_whitespace(_Config) ->
+  Path = src_path("diagnostics module name check.erl"),
+  Source = <<"Compiler (via Erlang LS)">>,
+  Errors = [],
+  Warnings = [],
+  Hints = [],
+  els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
+
+-spec edoc_main(config()) -> ok.
+edoc_main(_Config) ->
+  Path = src_path("edoc_diagnostics.erl"),
+  Source = <<"Edoc">>,
+  Errors = [ #{ message => <<"`-quote ended unexpectedly at line 13">>
+              , range => {{12, 0}, {13, 0}}
+              }
+           ],
+  Warnings = [ #{ message =>
+                    <<"tag @mydoc not recognized.">>
+                , range => {{4, 0}, {5, 0}}
+                }
+             , #{ message =>
+                    <<"tag @docc not recognized.">>
+                , range => {{8, 0}, {9, 0}}
+                }
+             ],
+  Hints = [],
+  els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
+
+-spec edoc_skip_app_src(config()) -> ok.
+edoc_skip_app_src(_Config) ->
+  Path = src_path("code_navigation.app.src"),
+  Source = <<"Edoc">>,
+  Errors = [],
+  Warnings = [],
+  Hints = [],
+  els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
+
+-spec edoc_custom_tags(config()) -> ok.
+edoc_custom_tags(_Config) ->
+  %% Custom tags are defined in priv/code_navigation/erlang_ls.config
+  Path = src_path("edoc_diagnostics_custom_tags.erl"),
+  Source = <<"Edoc">>,
+  Errors = [],
+  Warnings = [ #{ message =>
+                    <<"tag @docc not recognized.">>
+                , range => {{9, 0}, {10, 0}}
+              }
+            ],
+  Hints = [],
+ els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
 
 
 % RefactorErl test cases

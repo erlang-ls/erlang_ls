@@ -14,6 +14,7 @@
 %% Test cases
 -export([ rename_behaviour_callback/1
         , rename_macro/1
+        , rename_module/1
         , rename_variable/1
         , rename_function/1
         , rename_function_quoted_atom/1
@@ -117,6 +118,7 @@ rename_variable(Config) ->
   Uri = ?config(rename_variable_uri, Config),
   UriAtom = binary_to_atom(Uri, utf8),
   NewName = <<"NewAwesomeName">>,
+  %%
   #{result := Result1} = els_client:document_rename(Uri, 3, 3, NewName),
   Expected1 = #{changes => #{UriAtom => [ change(NewName, {3, 2}, {3, 5})
                                         , change(NewName, {2, 4}, {2, 7})
@@ -135,10 +137,54 @@ rename_variable(Config) ->
   Expected4 = #{changes => #{UriAtom => [ change(NewName, {11, 2}, {11, 5})
                                         , change(NewName, {10, 4}, {10, 7})
                                         ]}},
+  %% Spec
+  #{result := Result5} = els_client:document_rename(Uri, 13, 10, NewName),
+  Expected5 = #{changes => #{UriAtom => [ change(NewName, {14, 15}, {14, 18})
+                                        , change(NewName, {13, 18}, {13, 21})
+                                        , change(NewName, {13, 10}, {13, 13})
+                                        ]}},
+  %% Record
+  #{result := Result6} = els_client:document_rename(Uri, 18, 19, NewName),
+  Expected6 = #{changes => #{UriAtom => [ change(NewName, {19, 20}, {19, 23})
+                                        , change(NewName, {18, 19}, {18, 22})
+                                        ]}},
+  %% Macro
+  #{result := Result7} = els_client:document_rename(Uri, 21, 20, NewName),
+  Expected7 = #{changes => #{UriAtom => [ change(NewName, {21, 26}, {21, 29})
+                                        , change(NewName, {21, 20}, {21, 23})
+                                        , change(NewName, {21, 14}, {21, 17})
+                                        ]}},
+  %% Type
+  #{result := Result8} = els_client:document_rename(Uri, 23, 11, NewName),
+  Expected8 = #{changes => #{UriAtom => [ change(NewName, {23, 11}, {23, 14})
+                                        , change(NewName, {23, 19}, {23, 22})
+                                        ]}},
+  %% Opaque
+  #{result := Result9} = els_client:document_rename(Uri, 24, 15, NewName),
+  Expected9 = #{changes => #{UriAtom => [ change(NewName, {24, 15}, {24, 18})
+                                        , change(NewName, {24, 23}, {24, 26})
+                                        ]}},
+  %% Callback
+  #{result := Result10} = els_client:document_rename(Uri, 1, 15, NewName),
+  Expected10 = #{changes => #{UriAtom => [ change(NewName, {1, 23}, {1, 26})
+                                         , change(NewName, {1, 15}, {1, 18})
+                                         ]}},
+  %% If
+  #{result := Result11} = els_client:document_rename(Uri, 29, 4, NewName),
+  Expected11 = #{changes => #{UriAtom => [ change(NewName, {29, 11}, {29, 14})
+                                         , change(NewName, {29, 4}, {29, 7})
+                                         ]}},
   assert_changes(Expected1, Result1),
   assert_changes(Expected2, Result2),
   assert_changes(Expected3, Result3),
-  assert_changes(Expected4, Result4).
+  assert_changes(Expected4, Result4),
+  assert_changes(Expected5, Result5),
+  assert_changes(Expected6, Result6),
+  assert_changes(Expected7, Result7),
+  assert_changes(Expected8, Result8),
+  assert_changes(Expected9, Result9),
+  assert_changes(Expected10, Result10),
+  assert_changes(Expected11, Result11).
 
 -spec rename_macro(config()) -> ok.
 rename_macro(Config) ->
@@ -175,6 +221,43 @@ rename_macro(Config) ->
                },
   assert_changes(Expected, Result).
 
+-spec rename_module(config()) -> ok.
+rename_module(Config) ->
+  UriA = ?config(rename_module_a_uri, Config),
+  UriB = ?config(rename_module_b_uri, Config),
+  NewName = <<"new_module">>,
+  Path = filename:dirname(els_uri:path(UriA)),
+  NewUri = els_uri:uri(filename:join(Path, <<NewName/binary, ".erl">>)),
+  #{result := #{documentChanges := Result}} =
+    els_client:document_rename(UriA, 0, 14, NewName),
+  Expected = [
+              %% Module attribute
+               #{ edits => [change(NewName, {0, 8}, {0, 23})]
+                , textDocument => #{uri => UriA, version => null}}
+              %% Rename file
+             , #{ kind => <<"rename">>
+                , newUri => NewUri
+                , oldUri => UriA}
+              %% Implicit function
+             , #{ edits => [change(NewName, {12, 10}, {12, 25})]
+                , textDocument => #{uri => UriB, version => null}}
+              %% Function application
+             , #{ edits => [change(NewName, {11, 2}, {11, 17})]
+                , textDocument => #{uri => UriB, version => null}}
+              %% Import
+             , #{ edits => [change(NewName, {3, 8}, {3, 23})]
+                , textDocument => #{uri => UriB, version => null}}
+              %% Type application
+             , #{ edits => [change(NewName, {7, 18}, {7, 33})]
+                , textDocument => #{uri => UriB, version => null}}
+              %% Behaviour
+             , #{ edits => [change(NewName, {2, 11}, {2, 26})]
+                , textDocument => #{uri => UriB, version => null}}
+             ],
+  ?assertEqual([], Result -- Expected),
+  ?assertEqual([], Expected -- Result),
+  ?assertEqual(lists:sort(Expected), lists:sort(Result)).
+
 -spec rename_function(config()) -> ok.
 rename_function(Config) ->
   Uri = ?config(rename_function_uri, Config),
@@ -192,6 +275,8 @@ rename_function(Config) ->
   #{result := Result} = els_client:document_rename(Uri, 1, 9, NewName),
   %% Import entry
   #{result := Result} = els_client:document_rename(ImportUri, 2, 26, NewName),
+  %% Spec
+  #{result := Result} = els_client:document_rename(Uri, 3, 2, NewName),
   Expected = #{changes =>
                  #{binary_to_atom(Uri, utf8) =>
                      [ change(NewName, {12, 23}, {12, 26})
@@ -432,7 +517,7 @@ assert_changes(#{ changes := ExpectedChanges }, #{ changes := Changes }) ->
                     lists:sort(maps:to_list(ExpectedChanges))),
   [ begin
       ?assertEqual(ExpectedKey, Key),
-      ?assertEqual(Expected, Change)
+      ?assertEqual(lists:sort(Expected), lists:sort(Change))
     end
     || {{Key, Change}, {ExpectedKey, Expected}} <- Pairs
   ],

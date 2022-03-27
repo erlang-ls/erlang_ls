@@ -27,6 +27,7 @@
         , definition/3
         , did_open/4
         , did_save/1
+        , did_change_watched_files/1
         , did_close/1
         , document_symbol/1
         , exit/0
@@ -180,6 +181,10 @@ did_open(Uri, LanguageId, Version, Text) ->
 did_save(Uri) ->
   gen_server:call(?SERVER, {did_save, {Uri}}).
 
+-spec did_change_watched_files([{uri(), file_change_type()}]) -> ok.
+did_change_watched_files(Changes) ->
+  gen_server:call(?SERVER, {did_change_watched_files, {Changes}}).
+
 -spec did_close(uri()) -> ok.
 did_close(Uri) ->
   gen_server:call(?SERVER, {did_close, {Uri}}).
@@ -269,13 +274,15 @@ init(#{io_device := IoDevice}) ->
   {ok, State}.
 
 -spec handle_call(any(), any(), state()) -> {reply, any(), state()}.
-handle_call({Action, Opts}, _From, State) when Action =:= did_save
-                                               orelse Action =:= did_close
-                                               orelse Action =:= did_open
-                                               orelse Action =:= initialized ->
+handle_call({Action, Opts}, _From, State) when
+    Action =:= did_save;
+    Action =:= did_close;
+    Action =:= did_open;
+    Action =:= did_change_watched_files;
+    Action =:= initialized ->
   #state{io_device = IoDevice} = State,
   Method = method_lookup(Action),
-  Params = notification_params(Opts),
+  Params = notification_params(Action, Opts),
   Content = els_protocol:notification(Method, Params),
   send(IoDevice, Content),
   {reply, ok, State};
@@ -422,6 +429,8 @@ method_lookup(callhierarchy_incomingcalls) -> <<"callHierarchy/incomingCalls">>;
 method_lookup(callhierarchy_outgoingcalls) -> <<"callHierarchy/outgoingCalls">>;
 method_lookup(workspace_symbol)         -> <<"workspace/symbol">>;
 method_lookup(workspace_executecommand) -> <<"workspace/executeCommand">>;
+method_lookup(did_change_watched_files) ->
+  <<"workspace/didChangeWatchedFiles">>;
 method_lookup(initialize)               -> <<"initialize">>;
 method_lookup(initialized)              -> <<"initialized">>.
 
@@ -449,7 +458,10 @@ request_params({completionitem_resolve, CompletionItem}) ->
 request_params({initialize, {RootUri, InitOptions}}) ->
   ContentFormat = [ ?MARKDOWN , ?PLAINTEXT ],
   TextDocument = #{ <<"completion">> =>
-                    #{ <<"contextSupport">> => 'true' }
+                    #{ <<"contextSupport">> => 'true'
+                     , <<"completionItem">> =>
+                       #{ <<"snippetSupport">> => 'true' }
+                     }
                   , <<"hover">> =>
                     #{ <<"contentFormat">> => ContentFormat }
                   },
@@ -492,18 +504,22 @@ request_params({_Action, {Uri, Line, Char}}) ->
                       }
    }.
 
--spec notification_params(tuple()) -> map().
-notification_params({Uri}) ->
+-spec notification_params(atom(), tuple()) -> map().
+notification_params(did_change_watched_files, {Changes}) ->
+  #{changes => [#{ uri => Uri
+                 , type => Type
+                 } || {Uri, Type} <- Changes]};
+notification_params(_Action, {Uri}) ->
   TextDocument = #{ uri => Uri },
   #{textDocument => TextDocument};
-notification_params({Uri, LanguageId, Version, Text}) ->
+notification_params(_Action, {Uri, LanguageId, Version, Text}) ->
   TextDocument = #{ uri        => Uri
                   , languageId => LanguageId
                   , version    => Version
                   , text       => Text
                   },
   #{textDocument => TextDocument};
-notification_params({}) ->
+notification_params(_Action, {}) ->
   #{}.
 
 -spec is_notification(map()) -> boolean().

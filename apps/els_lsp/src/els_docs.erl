@@ -342,15 +342,21 @@ edoc(M, F, A) ->
                                                    , [doc, spec]]),
         flush_group_leader_proxy(GL),
 
-        {ok, [{{function, F, A}, _Anno,
-               _Signature, Desc, _Metadata}|_]} = Res,
-        format_edoc(Desc)
+        case Res of
+          {ok, [{{function, F, A}, _Anno,
+                _Signature, Desc, _Metadata}|_]} ->
+            format_edoc(Desc);
+          {not_found, _} ->
+            []
+        end
       catch C:E:ST ->
           IO = flush_group_leader_proxy(GL),
           ?LOG_DEBUG("[hover] Error fetching edoc [error=~p]",
                      [{M, F, A, C, E, ST, IO}]),
           case IO of
             timeout ->
+              [];
+            noproc ->
               [];
             IO ->
               [{text, IO}]
@@ -389,15 +395,24 @@ setup_group_leader_proxy() ->
 -spec flush_group_leader_proxy(pid()) -> [term()] | term().
 flush_group_leader_proxy(OrigGL) ->
     GL = group_leader(),
-    Ref = monitor(process, GL),
-    group_leader(OrigGL, self()),
-    GL ! {get, Ref, self()},
-    receive
-        {Ref, Msg} ->
+    case GL of
+      OrigGL ->
+        % This is the effect of setting a monitor on nonexisting process.
+        noproc;
+      _ ->
+        Ref = monitor(process, GL),
+        group_leader(OrigGL, self()),
+        GL ! {get, Ref, self()},
+        receive
+          {Ref, Msg} ->
             demonitor(Ref, [flush]),
             Msg;
-        {'DOWN', process, Ref, Reason} ->
+          {'DOWN', process, Ref, Reason} ->
             Reason
+        after 5000 ->
+          demonitor(Ref, [flush]),
+          timeout
+        end
     end.
 
 -spec spawn_group_proxy([any()]) -> ok.

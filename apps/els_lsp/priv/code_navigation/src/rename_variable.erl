@@ -1,5 +1,5 @@
 -module(rename_variable).
-
+-callback name(Var) -> Var.
 foo(Var) ->
   Var < 0;
 foo(Var) ->
@@ -10,3 +10,23 @@ foo(_Var) ->
 
 bar(Var) ->
   Var.
+
+-spec baz(Var) -> Var
+          when Var :: atom().
+baz(Var) ->
+  Var.
+
+-record(foo, {a :: Var,
+              b :: [Var]}).
+
+-define(MACRO(Var), Var + Var).
+
+-type type(Var) :: Var.
+-opaque opaque(Var) :: Var.
+
+foo(Var) ->
+  Var.
+
+-if(Var == Var).
+
+-endif.

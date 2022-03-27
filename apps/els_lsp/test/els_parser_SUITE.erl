@@ -9,6 +9,11 @@
 %% Test cases
 -export([ specs_location/1
         , parse_invalid_code/1
+        , parse_incomplete_function/1
+        , parse_incomplete_spec/1
+        , parse_incomplete_type/1
+        , parse_no_tokens/1
+        , define/1
         , underscore_macro/1
         , specs_with_record/1
         , types_with_record/1
@@ -58,12 +63,119 @@ specs_location(_Config) ->
   ?assertMatch([_], parse_find_pois(Text, spec, {foo, 1})),
   ok.
 
-%% Issue #170
+%% Issue #170 - scanning error does not crash the parser
 -spec parse_invalid_code(config()) -> ok.
 parse_invalid_code(_Config) ->
   Text = "foo(X) -> 16#.",
-  {ok, _POIs} = els_parser:parse(Text),
+  %% Currently, if scanning fails (eg. invalid integer), no POIs are created
+  {ok, []} = els_parser:parse(Text),
+  %% In the future, it would be nice to have at least the POIs before the error
+  %% ?assertMatch([#{id := {foo, 1}}], parse_find_pois(Text, function)),
+  %% ?assertMatch([#{id := 'X'}], parse_find_pois(Text, variable)),
+
+  %% Or at least the POIs from the previous forms
+  Text2 =
+    "bar() -> ok.\n"
+    "foo() -> 'ato",
+  %% (unterminated atom)
+  {ok, []} = els_parser:parse(Text2),
+  %% ?assertMatch([#{id := {bar, 0}}], parse_find_pois(Text2, function)),
   ok.
+
+%% Issue #1037
+-spec parse_incomplete_function(config()) -> ok.
+parse_incomplete_function(_Config) ->
+  Text = "f(VarA) -> VarB = g(), case h() of VarC -> Var",
+
+  %% VarA and VarB are found, but VarC is not
+  ?assertMatch([#{id := 'VarA'},
+                #{id := 'VarB'}], parse_find_pois(Text, variable)),
+  %% g() is found but h() is not
+  ?assertMatch([#{id := {g, 0}}], parse_find_pois(Text, application)),
+
+  ?assertMatch([#{id := {f, 1}}], parse_find_pois(Text, function)),
+  ok.
+
+-spec parse_incomplete_spec(config()) -> ok.
+parse_incomplete_spec(_Config) ->
+  Text = "-spec f() -> aa bb cc\n.",
+
+  %% spec range ends where the original dot ends, including ignored parts
+  ?assertMatch([#{id := {f, 0}, range := #{from := {1, 1}, to := {2, 2}}}],
+                parse_find_pois(Text, spec)),
+  %% only first atom is found
+  ?assertMatch([#{id := aa}], parse_find_pois(Text, atom)),
+  ok.
+
+-spec parse_incomplete_type(config()) -> ok.
+parse_incomplete_type(_Config) ->
+  Text = "-type t(A) :: {A aa bb cc}\n.",
+
+  %% type range ends where the original dot ends, including ignored parts
+  ?assertMatch([#{id := {t, 1}, range := #{from := {1, 1}, to := {2, 2}}}],
+                parse_find_pois(Text, type_definition)),
+  %% only first var is found
+  ?assertMatch([#{id := 'A'}], parse_find_pois(Text, variable)),
+
+  Text2 = "-type t",
+  ?assertMatch({ok, [#{ kind := type_definition, id := {t, 0}}]},
+                els_parser:parse(Text2)),
+  Text3 = "-type ?t",
+  ?assertMatch({ok, [#{ kind := macro, id := t}]},
+                els_parser:parse(Text3)),
+  %% this is not incomplete - there is no way this will become valid erlang
+  %% but erlfmt can parse it
+  Text4 = "-type T",
+  ?assertMatch({ok, [#{ kind := variable, id := 'T'}]},
+                els_parser:parse(Text4)),
+  Text5 = "-type [1, 2]",
+  {ok, []} = els_parser:parse(Text5),
+
+  %% no type args - assume zero args
+  Text11 = "-type t :: 1.",
+  ?assertMatch({ok, [#{ kind := type_definition, id := {t, 0}}]},
+                els_parser:parse(Text11)),
+  %% no macro args - this is 100% valid code
+  Text12= "-type ?t :: 1.",
+  ?assertMatch({ok, [#{ kind := macro, id := t}]},
+                els_parser:parse(Text12)),
+  Text13 = "-type T :: 1.",
+  ?assertMatch({ok, [#{ kind := variable, id := 'T'}]},
+                els_parser:parse(Text13)),
+
+  ok.
+
+%% Issue #1171
+parse_no_tokens(_Config) ->
+  %% scanning text containing only whitespaces returns an empty list of tokens,
+  %% which used to crash els_parser
+  Text1 = "  \n  ",
+  {ok, []} = els_parser:parse(Text1),
+  %% `els_parser:parse' actually catches the exception and only prints a warning
+  %% log. In order to make sure there is no crash, we need to call an internal
+  %% debug function that would really crash and make the test case fail
+  error = els_parser:parse_incomplete_text(Text1, {1, 1}),
+
+  %% same for text only containing comments
+  Text2 = "%% only a comment",
+  {ok, []} = els_parser:parse(Text2),
+  error = els_parser:parse_incomplete_text(Text2, {1, 1}),
+
+  %% trailing comment, also used to crash els_parser
+  Text3 =
+    "-module(m).\n"
+    "%% trailing comment",
+  {ok, [#{id := m, kind := module}]} = els_parser:parse(Text3).
+
+-spec define(config()) -> ok.
+define(_Config) ->
+  ?assertMatch({ok, [ #{id := {'MACRO', 2}, kind := define}
+                    , #{id := 'B', kind := variable}
+                    , #{id := 'A', kind := variable}
+                    , #{id := 'B', kind := variable}
+                    , #{id := 'A', kind := variable}
+                    ]},
+               els_parser:parse("-define(MACRO(A, B), A:B()).")).
 
 -spec underscore_macro(config()) -> ok.
 underscore_macro(_Config) ->

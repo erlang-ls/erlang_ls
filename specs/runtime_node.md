@@ -46,7 +46,7 @@ Initially we envisage ones for
   - "plain" project, i.e. just some random .erl files on the filesystem
     somewhere
 
-Becase the protocol between the `Server` and the `Runtime Node` will be
+Because the protocol between the `Server` and the `Runtime Node` will be
 standardised, and we will have out of the box implementations for popular
 project build systems, it becomes easy for particular Erlang production sites to
 adapt these nodes for use in their particular environments.  This includes the
@@ -77,7 +77,7 @@ The `Runtime Node` should be able to respond to the following requests.
 - provide xref information for a file
 - run dialyzer
 
-### Current Unkowns / Questions
+### Current Unknowns / Questions
 
 - Should the `Server` and `Runtime Node` share a file system? i.e. should a URI
   be usable directly in any context for the current state of a file.

@@ -13,6 +13,9 @@
         , index_erl_file/1
         , index_hrl_file/1
         , index_unkown_extension/1
+        , do_not_skip_generated_file_by_tag_by_default/1
+        , skip_generated_file_by_tag/1
+        , skip_generated_file_by_custom_tag/1
         ]).
 
 %%==============================================================================
@@ -20,6 +23,7 @@
 %%==============================================================================
 -include_lib("common_test/include/ct.hrl").
 -include_lib("stdlib/include/assert.hrl").
+-include_lib("els_core/include/els_core.hrl").
 
 %%==============================================================================
 %% Types
@@ -42,10 +46,29 @@ end_per_suite(Config) ->
   els_test_utils:end_per_suite(Config).
 
 -spec init_per_testcase(atom(), config()) -> config().
+init_per_testcase(TestCase, Config) when
+    TestCase =:= skip_generated_file_by_tag ->
+  meck:new(els_config_indexing, [passthrough, no_link]),
+  meck:expect(els_config_indexing, get_skip_generated_files, fun() -> true end),
+  els_test_utils:init_per_testcase(TestCase, Config);
+init_per_testcase(TestCase, Config) when
+    TestCase =:= skip_generated_file_by_custom_tag ->
+  meck:new(els_config_indexing, [passthrough, no_link]),
+  meck:expect(els_config_indexing,
+              get_skip_generated_files,
+              fun() -> true end),
+  meck:expect(els_config_indexing,
+              get_generated_files_tag,
+              fun() -> "@customgeneratedtag" end),
+  els_test_utils:init_per_testcase(TestCase, Config);
 init_per_testcase(TestCase, Config) ->
   els_test_utils:init_per_testcase(TestCase, Config).
 
 -spec end_per_testcase(atom(), config()) -> ok.
+end_per_testcase(TestCase, Config) when
+    TestCase =:= skip_generated_file_by_tag ->
+  meck:unload(els_config_indexing),
+  els_test_utils:end_per_testcase(TestCase, Config);
 end_per_testcase(TestCase, Config) ->
   els_test_utils:end_per_testcase(TestCase, Config).
 
@@ -88,3 +111,54 @@ index_unkown_extension(Config) ->
   {ok, Uri} = els_indexing:index_file(Path),
   {ok, [#{kind := other}]} = els_dt_document:lookup(Uri),
   ok.
+
+-spec do_not_skip_generated_file_by_tag_by_default(config()) -> ok.
+do_not_skip_generated_file_by_tag_by_default(Config) ->
+  DataDir = data_dir(Config),
+  GeneratedByTagUri = uri(DataDir, "generated_file_by_tag.erl"),
+  GeneratedByCustomTagUri = uri(DataDir, "generated_file_by_custom_tag.erl"),
+  ?assertEqual({4, 0, 0}, els_indexing:index_dir(DataDir, 'deep')),
+  {ok, [#{ id := generated_file_by_tag
+         , kind := module
+         }
+       ]} = els_dt_document:lookup(GeneratedByTagUri),
+  {ok, [#{ id := generated_file_by_custom_tag
+         , kind := module
+         }
+       ]} = els_dt_document:lookup(GeneratedByCustomTagUri),
+  ok.
+
+-spec skip_generated_file_by_tag(config()) -> ok.
+skip_generated_file_by_tag(Config) ->
+  DataDir = data_dir(Config),
+  GeneratedByTagUri = uri(DataDir, "generated_file_by_tag.erl"),
+  GeneratedByCustomTagUri = uri(DataDir, "generated_file_by_custom_tag.erl"),
+  ?assertEqual({3, 1, 0}, els_indexing:index_dir(DataDir, 'deep')),
+  {ok, []} = els_dt_document:lookup(GeneratedByTagUri),
+  {ok, [#{ id := generated_file_by_custom_tag
+         , kind := module
+         }
+       ]} = els_dt_document:lookup(GeneratedByCustomTagUri),
+  ok.
+
+-spec skip_generated_file_by_custom_tag(config()) -> ok.
+skip_generated_file_by_custom_tag(Config) ->
+  DataDir = data_dir(Config),
+  GeneratedByTagUri = uri(DataDir, "generated_file_by_tag.erl"),
+  GeneratedByCustomTagUri = uri(DataDir, "generated_file_by_custom_tag.erl"),
+  ?assertEqual({3, 1, 0}, els_indexing:index_dir(DataDir, 'deep')),
+  {ok, [#{ id := generated_file_by_tag
+         , kind := module
+         }
+       ]} = els_dt_document:lookup(GeneratedByTagUri),
+  {ok, []} = els_dt_document:lookup(GeneratedByCustomTagUri),
+  ok.
+
+-spec data_dir(proplists:proplist()) -> binary().
+data_dir(Config) ->
+  ?config(data_dir, Config).
+
+-spec uri(binary(), string()) -> uri().
+uri(DataDir, FileName) ->
+  Path = els_utils:to_binary(filename:join(DataDir, FileName)),
+  els_uri:uri(Path).

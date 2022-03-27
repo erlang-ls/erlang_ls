@@ -8,7 +8,9 @@
 %%==============================================================================
 
 %% API
--export([ goto_definition/2 ]).
+-export([ goto_definition/2
+        , find_in_scope/2
+        ]).
 
 %%==============================================================================
 %% Includes
@@ -23,28 +25,14 @@
 -spec goto_definition(uri(), poi()) ->
    {ok, uri(), poi()} | {error, any()}.
 goto_definition( Uri
-               , Var = #{kind := variable, id := VarId, range := VarRange}
+               , Var = #{kind := variable}
                ) ->
   %% This will naively try to find the definition of a variable by finding the
-  %% first occurrence of the variable in the function clause.
-  {ok, Document} = els_utils:lookup_document(Uri),
-  FunPOIs = els_poi:sort(els_dt_document:pois(Document, [function_clause])),
-  VarPOIs = els_poi:sort(els_dt_document:pois(Document, [variable])),
-  %% Find the function clause we are in
-  case [Range || #{range := Range} <- FunPOIs,
-                 els_range:compare(Range, VarRange)] of
-    [] -> {error, not_in_function_clause};
-    FunRanges ->
-      FunRange = lists:last(FunRanges),
-      %% Find the first occurance of the variable in the function clause
-      [POI|_] = [P || P = #{range := Range, id := Id} <- VarPOIs,
-                      els_range:compare(Range, VarRange),
-                      els_range:compare(FunRange, Range),
-                      Id =:= VarId],
-      case POI of
-        Var -> {error, already_at_definition};
-        POI -> {ok, Uri, POI}
-      end
+  %% first occurrence of the variable in variable scope.
+  case find_in_scope(Uri, Var) of
+    [Var|_] -> {error, already_at_definition};
+    [POI|_] -> {ok, Uri, POI};
+    []      -> {error, nothing_in_scope} % Probably due to parse error
   end;
 goto_definition( _Uri
                , #{ kind := Kind, id := {M, F, A} }
@@ -61,7 +49,7 @@ goto_definition( Uri
                       Kind =:= implicit_fun;
                       Kind =:= export_entry ->
   %% try to find local function first
-  %% fall back to bif search if unsuccesful
+  %% fall back to bif search if unsuccessful
   case find(Uri, function, {F, A}) of
     {error, Error} ->
       case is_imported_bif(Uri, F, A) of
@@ -213,3 +201,12 @@ maybe_imported(Document, function, {F, A}) ->
   end;
 maybe_imported(_Document, _Kind, _Data) ->
   {error, not_found}.
+
+-spec find_in_scope(uri(), poi()) -> [poi()].
+find_in_scope(Uri, #{kind := variable, id := VarId, range := VarRange}) ->
+  {ok, Document} = els_utils:lookup_document(Uri),
+  VarPOIs = els_poi:sort(els_dt_document:pois(Document, [variable])),
+  ScopeRange = els_scope:variable_scope_range(VarRange, Document),
+  [POI || #{range := Range, id := Id} = POI <- VarPOIs,
+          els_range:in(Range, ScopeRange),
+          Id =:= VarId].

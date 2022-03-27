@@ -25,7 +25,7 @@ main(Args) ->
   ok = parse_args(Args),
   application:set_env(els_core, server, els_dap_server),
   configure_logging(),
-  {ok, _} = application:ensure_all_started(?APP),
+  {ok, _} = application:ensure_all_started(?APP, permanent),
   patch_logging(),
   ?LOG_INFO("Started Erlang LS - DAP server", []),
   receive _ -> ok end.
@@ -45,7 +45,7 @@ parse_args(Args) ->
   case getopt:parse(opt_spec_list(), Args) of
     {ok, {[version | _], _BadArgs}} ->
       print_version(),
-      halt(1);
+      halt(0);
     {ok, {ParsedArgs, _BadArgs}} ->
       set_args(ParsedArgs);
     {error, {invalid_option, _}} ->

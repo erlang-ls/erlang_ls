@@ -9,7 +9,7 @@ An Erlang server implementing Microsoft's Language Server Protocol 3.15.
 
 ## Minimum Requirements
 
-* [Erlang OTP 21+](https://github.com/erlang/otp)
+* [Erlang OTP 22+](https://github.com/erlang/otp)
 * [rebar3 3.9.1+](https://github.com/erlang/rebar3)
 
 ## Quickstart
@@ -21,6 +21,10 @@ Compile the project:
 To install the produced `erlang_ls` escript in `/usr/local/bin`:
 
     make install
+
+To install to a different directory set the `PREFIX` environment variable:
+
+    PREFIX=/path/to/directory make -e install
 
 ## Command-line Arguments
 

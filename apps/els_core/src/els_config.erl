@@ -92,9 +92,18 @@ initialize(RootUri, Capabilities, InitOptions) ->
 -spec initialize(uri(), map(), map(), boolean()) -> ok.
 initialize(RootUri, Capabilities, InitOptions, ReportMissingConfig) ->
   RootPath = els_utils:to_list(els_uri:path(RootUri)),
-  Config = consult_config(
-             config_paths(RootPath, InitOptions), ReportMissingConfig),
-  do_initialize(RootUri, Capabilities, InitOptions, Config).
+  ConfigPaths = config_paths(RootPath, InitOptions),
+  {GlobalConfigPath, GlobalConfig} = consult_config(global_config_paths(),
+                                                    false),
+  {LocalConfigPath, LocalConfig} = consult_config(ConfigPaths,
+                                                  ReportMissingConfig),
+  ConfigPath = case LocalConfigPath of
+                 undefined -> GlobalConfigPath;
+                 _         -> LocalConfigPath
+               end,
+  %% Augment Config onto GlobalConfig
+  Config = maps:merge(GlobalConfig, LocalConfig),
+  do_initialize(RootUri, Capabilities, InitOptions, {ConfigPath, Config}).
 
 -spec do_initialize(uri(), map(), map(), {undefined|path(), map()}) -> ok.
 do_initialize(RootUri, Capabilities, InitOptions, {ConfigPath, Config}) ->
@@ -124,8 +133,10 @@ do_initialize(RootUri, Capabilities, InitOptions, {ConfigPath, Config}) ->
   ElvisConfigPath = maps:get("elvis_config_path", Config, undefined),
   BSPEnabled = maps:get("bsp_enabled", Config, auto),
   IncrementalSync = maps:get("incremental_sync", Config, true),
+  Indexing = maps:get("indexing", Config, #{}),
   CompilerTelemetryEnabled
     = maps:get("compiler_telemetry_enabled", Config, false),
+  EDocCustomTags = maps:get("edoc_custom_tags", Config, []),
 
   IndexingEnabled = maps:get(<<"indexingEnabled">>, InitOptions, true),
 
@@ -151,7 +162,10 @@ do_initialize(RootUri, Capabilities, InitOptions, {ConfigPath, Config}) ->
   ok = set(elvis_config_path, ElvisConfigPath),
   ok = set(bsp_enabled, BSPEnabled),
   ok = set(compiler_telemetry_enabled, CompilerTelemetryEnabled),
+  ok = set(edoc_custom_tags, EDocCustomTags),
   ok = set(incremental_sync, IncrementalSync),
+  ok = set(indexing, maps:merge( els_config_indexing:default_config()
+                               , Indexing)),
   %% Calculated from the above
   ok = set(apps_paths     , project_paths(RootPath, AppsDirs, false)),
   ok = set(deps_paths     , project_paths(RootPath, DepsDirs, false)),
@@ -222,10 +236,14 @@ config_paths(RootPath, _Config) ->
 
 -spec default_config_paths(path()) -> [path()].
 default_config_paths(RootPath) ->
-  GlobalConfigDir = filename:basedir(user_config, "erlang_ls"),
   [ filename:join([RootPath, ?DEFAULT_CONFIG_FILE])
   , filename:join([RootPath, ?ALTERNATIVE_CONFIG_FILE])
-  , filename:join([GlobalConfigDir, ?DEFAULT_CONFIG_FILE])
+  ].
+
+-spec global_config_paths() -> [path()].
+global_config_paths() ->
+  GlobalConfigDir = filename:basedir(user_config, "erlang_ls"),
+  [ filename:join([GlobalConfigDir, ?DEFAULT_CONFIG_FILE])
   , filename:join([GlobalConfigDir, ?ALTERNATIVE_CONFIG_FILE])
   ].
 

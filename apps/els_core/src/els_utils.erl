@@ -20,6 +20,8 @@
         , function_signature/1
         , base64_encode_term/1
         , base64_decode_term/1
+        , levenshtein_distance/2
+        , jaro_distance/2
         ]).
 
 
@@ -449,3 +451,175 @@ base64_encode_term(Term) ->
 -spec base64_decode_term(binary()) -> any().
 base64_decode_term(Base64) ->
   binary_to_term(base64:decode(Base64)).
+
+-spec levenshtein_distance(binary(), binary()) -> integer().
+levenshtein_distance(S, T) ->
+  {Distance, _} = levenshtein_distance(to_list(S), to_list(T), #{}),
+  Distance.
+
+-spec levenshtein_distance(string(), string(), map()) -> {integer(), map()}.
+levenshtein_distance([] = S, T, Cache) ->
+  {length(T), maps:put({S, T}, length(T), Cache)};
+levenshtein_distance(S, [] = T, Cache) ->
+  {length(S), maps:put({S, T}, length(S), Cache)};
+levenshtein_distance([X|S], [X|T], Cache) ->
+  levenshtein_distance(S, T, Cache);
+levenshtein_distance([_SH|ST] = S, [_TH|TT] = T, Cache) ->
+  case maps:find({S, T}, Cache) of
+    {ok, Distance} ->
+      {Distance, Cache};
+    error ->
+      {L1, C1} = levenshtein_distance(S, TT, Cache),
+      {L2, C2} = levenshtein_distance(ST, T, C1),
+      {L3, C3} = levenshtein_distance(ST, TT, C2),
+      L = 1 + lists:min([L1, L2, L3]),
+      {L, maps:put({S, T}, L, C3)}
+  end.
+
+%%% Jaro distance
+
+%% @doc Computes the Jaro distance (similarity) between two strings.
+%%
+%%   Returns a float value between 0.0 (equates to no similarity) and 1.0 (is an
+%%   exact match) representing Jaro distance between String1 and String2.
+%%
+%%   The Jaro distance metric is designed and best suited for short strings such
+%%   as person names. Erlang LS uses this function to provide the "did you
+%%   mean?" functionality.
+%%
+%% @end
+-spec jaro_distance(S, S) -> float() when S :: string() | binary().
+jaro_distance(Str, Str) -> 1.0;
+jaro_distance(_, "") -> 0.0;
+jaro_distance("", _) -> 0.0;
+jaro_distance(Str1, Str2) when is_binary(Str1),
+                               is_binary(Str2) ->
+  jaro_distance(binary_to_list(Str1),
+                binary_to_list(Str2));
+jaro_distance(Str1, Str2) when is_list(Str1),
+                               is_list(Str2) ->
+  Len1 = length(Str1),
+  Len2 = length(Str2),
+  case jaro_match(Str1, Len1, Str2, Len2) of
+    {0, _Trans} ->
+      0.0;
+    {Comm, Trans} ->
+      (Comm / Len1 + Comm / Len2 + (Comm - Trans) / Comm) / 3
+  end.
+
+-type jaro_state() :: {integer(), integer(), integer()}.
+-type jaro_range() :: {integer(), integer()}.
+
+-spec jaro_match(string(), integer(), string(), integer()) ->
+        {integer(), integer()}.
+jaro_match(Chars1, Len1, Chars2, Len2) when Len1 < Len2 ->
+  jaro_match(Chars1, Chars2, (Len2 div 2) - 1);
+jaro_match(Chars1, Len1, Chars2, _Len2) ->
+  jaro_match(Chars2, Chars1, (Len1 div 2) - 1).
+
+-spec jaro_match(string(), string(), integer()) -> {integer(), integer()}.
+jaro_match(Chars1, Chars2, Lim) ->
+  jaro_match(Chars1, Chars2, {0, Lim}, {0, 0, -1}, 0).
+
+-spec jaro_match(string(), string(), jaro_range(), jaro_state(), integer()) ->
+        {integer(), integer()}.
+jaro_match([Char|Rest], Chars0, Range, State0, Idx) ->
+  {Chars, State} = jaro_submatch(Char, Chars0, Range, State0, Idx),
+  case Range of
+    {Lim, Lim} ->
+      jaro_match(Rest, tl(Chars), Range, State, Idx + 1);
+    {Pre, Lim} ->
+      jaro_match(Rest, Chars, {Pre + 1, Lim}, State, Idx + 1)
+  end;
+jaro_match([], _, _, {Comm, Trans, _}, _) ->
+  {Comm, Trans}.
+
+-spec jaro_submatch(char(), string(), jaro_range(), jaro_state(), integer()) ->
+        {string(), jaro_state()}.
+jaro_submatch(Char, Chars0, {Pre, _} = Range, State, Idx) ->
+  case jaro_detect(Char, Chars0, Range) of
+    undefined ->
+      {Chars0, State};
+    {SubIdx, Chars} ->
+      {Chars, jaro_proceed(State, Idx - Pre + SubIdx)}
+  end.
+
+-spec jaro_detect(char(), string(), jaro_range()) ->
+        {integer(), string()} | undefined.
+jaro_detect(Char, Chars, {Pre, Lim}) ->
+  jaro_detect(Char, Chars, Pre + 1 + Lim, 0, []).
+
+-spec jaro_detect(char(), string(), integer(), integer(), list()) ->
+        {integer(), string()} | undefined.
+jaro_detect(_Char, _Chars, 0, _Idx, _Acc) ->
+  undefined;
+jaro_detect(_Char, [], _Lim, _Idx, _Acc) ->
+  undefined;
+jaro_detect(Char, [Char | Rest], _Lim, Idx, Acc) ->
+  {Idx, lists:reverse(Acc) ++ [undefined | Rest]};
+jaro_detect(Char, [Other | Rest], Lim, Idx, Acc) ->
+  jaro_detect(Char, Rest, Lim - 1, Idx + 1, [Other | Acc]).
+
+-spec jaro_proceed(jaro_state(), integer()) -> jaro_state().
+jaro_proceed({Comm, Trans, Former}, Current) when Current < Former ->
+  {Comm + 1, Trans + 1, Current};
+jaro_proceed({Comm, Trans, _Former}, Current) ->
+  {Comm + 1, Trans, Current}.
+
+-ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
+
+jaro_distance_test_() ->
+    [ ?_assertEqual( jaro_distance("same", "same")
+                   , 1.0)
+    , ?_assertEqual( jaro_distance("any", "")
+                   , 0.0)
+    , ?_assertEqual( jaro_distance("", "any")
+                   , 0.0)
+    , ?_assertEqual( jaro_distance("martha", "marhta")
+                   , 0.9444444444444445)
+    , ?_assertEqual( jaro_distance("martha", "marhha")
+                   , 0.888888888888889)
+    , ?_assertEqual( jaro_distance("marhha", "martha")
+                   , 0.888888888888889)
+    , ?_assertEqual( jaro_distance("dwayne", "duane")
+                   , 0.8222222222222223)
+    , ?_assertEqual( jaro_distance("dixon", "dicksonx")
+                   , 0.7666666666666666)
+    , ?_assertEqual( jaro_distance("xdicksonx", "dixon")
+                   , 0.7851851851851852)
+    , ?_assertEqual( jaro_distance("shackleford", "shackelford")
+                   , 0.9696969696969697)
+    , ?_assertEqual( jaro_distance("dunningham", "cunnigham")
+                   , 0.8962962962962964)
+    , ?_assertEqual( jaro_distance("nichleson", "nichulson")
+                   , 0.9259259259259259)
+    , ?_assertEqual( jaro_distance("jones", "johnson")
+                   , 0.7904761904761904)
+    , ?_assertEqual( jaro_distance("massey", "massie")
+                   , 0.888888888888889)
+    , ?_assertEqual( jaro_distance("abroms", "abrams")
+                   , 0.888888888888889)
+    , ?_assertEqual( jaro_distance("hardin", "martinez")
+                   , 0.7222222222222222)
+    , ?_assertEqual( jaro_distance("itman", "smith")
+                   , 0.4666666666666666)
+    , ?_assertEqual( jaro_distance("jeraldine", "geraldine")
+                   , 0.9259259259259259)
+    , ?_assertEqual( jaro_distance("michelle", "michael")
+                   , 0.8690476190476191)
+    , ?_assertEqual( jaro_distance("julies", "julius")
+                   , 0.888888888888889)
+    , ?_assertEqual( jaro_distance("tanya", "tonya")
+                   , 0.8666666666666667)
+    , ?_assertEqual( jaro_distance("sean", "susan")
+                   , 0.7833333333333333)
+    , ?_assertEqual( jaro_distance("jon", "john")
+                   , 0.9166666666666666)
+    , ?_assertEqual( jaro_distance("jon", "jan")
+                   , 0.7777777777777777)
+    , ?_assertEqual( jaro_distance("семена", "стремя")
+                   , 0.6666666666666666)
+    ].
+
+-endif.

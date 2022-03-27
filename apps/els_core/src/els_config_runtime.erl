@@ -64,7 +64,8 @@ get_cookie() ->
 default_node_name() ->
   RootUri = els_config:get(root_uri),
   {ok, Hostname} = inet:gethostname(),
-  NodeName = els_utils:to_list(filename:basename(els_uri:path(RootUri))),
+  NodeName = els_distribution_server:normalize_node_name(
+               filename:basename(els_uri:path(RootUri))),
   NodeName ++ "@" ++ Hostname.
 
 -spec default_otp_path() -> string().

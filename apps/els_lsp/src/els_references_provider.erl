@@ -9,6 +9,7 @@
 %% For use in other providers
 -export([ find_references/2
         , find_scoped_references_for_def/2
+        , find_references_to_module/1
         ]).
 
 %%==============================================================================
@@ -67,6 +68,9 @@ find_references(Uri, #{ kind := Kind
           {M, F, A} -> {M, F, A}
         end,
   find_references_for_id(Kind, Key);
+find_references(Uri, #{kind := variable} = Var) ->
+  POIs = els_code_navigation:find_in_scope(Uri, Var),
+  [location(Uri, Range) || #{range := Range} = POI <- POIs, POI =/= Var];
 find_references(Uri, #{ kind := Kind
                       , id   := Id
                       }) when Kind =:= function_clause ->
@@ -102,16 +106,8 @@ find_references(Uri, Poi = #{kind := Kind})
         find_scoped_references_for_def(Uri, Poi))
   end;
 find_references(Uri, #{kind := module}) ->
-  case els_utils:lookup_document(Uri) of
-    {ok, Doc} ->
-      Exports = els_dt_document:pois(Doc, [export_entry]),
-      ExcludeLocalRefs =
-        fun(Loc) ->
-            maps:get(uri, Loc) =/= Uri
-        end,
-      Refs = lists:flatmap(fun(E) -> find_references(Uri, E) end, Exports),
-      lists:filter(ExcludeLocalRefs, Refs)
-  end;
+  Refs = find_references_to_module(Uri),
+  [location(U, R) || #{uri := U, range := R} <- Refs];
 find_references(_Uri, #{kind := Kind, id := Name})
   when Kind =:= behaviour ->
   find_references_for_id(Kind, Name);
@@ -138,6 +134,27 @@ kind_to_ref_kinds(type_definition) ->
 kind_to_ref_kinds(Kind) ->
   [Kind].
 
+-spec find_references_to_module(uri()) -> [els_dt_references:item()].
+find_references_to_module(Uri) ->
+  M = els_uri:module(Uri),
+  {ok, Doc} = els_utils:lookup_document(Uri),
+  ExportRefs =
+    lists:flatmap(
+      fun(#{id := {F, A}}) ->
+          {ok, Rs} =
+            els_dt_references:find_by_id(export_entry, {M, F, A}),
+          Rs
+      end, els_dt_document:pois(Doc, [export_entry])),
+  ExportTypeRefs =
+    lists:flatmap(
+      fun(#{id := {F, A}}) ->
+          {ok, Rs} =
+            els_dt_references:find_by_id(export_type_entry, {M, F, A}),
+          Rs
+      end, els_dt_document:pois(Doc, [export_type_entry])),
+  {ok, BehaviourRefs} = els_dt_references:find_by_id(behaviour, M),
+  ExcludeLocalRefs = fun(Loc) -> maps:get(uri, Loc) =/= Uri end,
+  lists:filter(ExcludeLocalRefs, ExportRefs ++ ExportTypeRefs ++ BehaviourRefs).
 
 -spec find_references_for_id(poi_kind(), any()) -> [location()].
 find_references_for_id(Kind, Id) ->

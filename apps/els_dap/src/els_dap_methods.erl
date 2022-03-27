@@ -36,21 +36,27 @@ dispatch(Command, Args, Type, State) ->
     Type:Reason:Stack ->
       ?LOG_ERROR( "Unexpected error [type=~p] [error=~p] [stack=~p]"
                 , [Type, Reason, Stack]),
-      Error = #{ code    => ?ERR_UNKNOWN_ERROR_CODE
-               , message => <<"Unexpected error while ", Command/binary>>
-               },
+      Error = <<"Unexpected error while ", Command/binary>>,
       {error_response, Error, State}
   end.
 
 -spec do_dispatch(atom(), params(), state()) -> result().
 do_dispatch(Command, Args, #{status := initialized} = State) ->
   Request = {Command, Args},
-  Result = els_provider:handle_request(els_dap_general_provider, Request),
-  {response, Result, State};
+  case els_provider:handle_request(els_dap_general_provider, Request) of
+    {error, Error} ->
+      {error_response, Error, State};
+    Result ->
+      {response, Result, State}
+  end;
 do_dispatch(<<"initialize">>, Args, State) ->
   Request = {<<"initialize">>, Args},
-  Result = els_provider:handle_request(els_dap_general_provider, Request),
-  {response, Result, State#{status => initialized}};
+  case els_provider:handle_request(els_dap_general_provider, Request) of
+    {error, Error} ->
+      {error_response, Error, State};
+    Result ->
+      {response, Result, State#{status => initialized}}
+  end;
 do_dispatch(_Command, _Args, State) ->
   Message = <<"The server is not fully initialized yet, please wait.">>,
   Result  = #{ code    => ?ERR_SERVER_NOT_INITIALIZED

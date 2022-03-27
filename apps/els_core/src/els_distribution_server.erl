@@ -18,6 +18,7 @@
         , rpc_call/4
         , node_name/2
         , node_name/3
+        , normalize_node_name/1
         ]).
 
 %%==============================================================================
@@ -56,14 +57,15 @@ start_link() ->
   gen_server:start_link({local, ?SERVER}, ?MODULE, unused, []).
 
 %% @doc Turns a non-distributed node into a distributed one
--spec start_distribution(atom()) -> ok.
+-spec start_distribution(atom()) -> ok | {error, any()}.
 start_distribution(Name) ->
   Cookie = els_config_runtime:get_cookie(),
   RemoteNode = els_config_runtime:get_node_name(),
   NameType = els_config_runtime:get_name_type(),
   start_distribution(Name, RemoteNode, Cookie, NameType).
 
--spec start_distribution(atom(), atom(), atom(), shortnames | longnames) -> ok.
+-spec start_distribution(atom(), atom(), atom(), shortnames | longnames) ->
+        ok | {error, any()}.
 start_distribution(Name, RemoteNode, Cookie, NameType) ->
   ?LOG_INFO("Enable distribution [name=~p]", [Name]),
   case net_kernel:start([Name, NameType]) of
@@ -74,12 +76,14 @@ start_distribution(Name, RemoteNode, Cookie, NameType) ->
         CustomCookie ->
           erlang:set_cookie(RemoteNode, CustomCookie)
       end,
-      ?LOG_INFO("Distribution enabled [name=~p]", [Name]);
+      ?LOG_INFO("Distribution enabled [name=~p]", [Name]),
+      ok;
     {error, {already_started, _Pid}} ->
-      ?LOG_INFO("Distribution already enabled [name=~p]", [Name]);
-    {error, {{shutdown, {failed_to_start_child, net_kernel, E1}}, E2}} ->
-      ?LOG_INFO("Distribution shutdown [errs=~p]", [{E1, E2}]),
-      ?LOG_INFO("Distribution shut down [name=~p]", [Name])
+      ?LOG_INFO("Distribution already enabled [name=~p]", [Name]),
+      ok;
+    {error, Error} ->
+      ?LOG_WARNING("Distribution shutdown [error=~p] [name=~p]", [Error, Name]),
+      {error, Error}
   end.
 
 %% @doc Connect to an existing runtime node, if available, or start one.
@@ -151,6 +155,8 @@ connect_and_monitor(Node, Type) ->
       erlang:monitor_node(Node, true),
       ok;
     false ->
+      error;
+    ignored ->
       error
   end.
 
@@ -205,8 +211,10 @@ ensure_epmd() ->
   0 = els_utils:cmd("epmd", ["-daemon"]),
   ok.
 
+
 -spec node_name(binary(), binary()) -> atom().
-node_name(Prefix, Name) ->
+node_name(Prefix, Name0) ->
+  Name = normalize_node_name(Name0),
   Int = erlang:phash2(erlang:timestamp()),
   Id = lists:flatten(io_lib:format("~s_~s_~p", [Prefix, Name, Int])),
   {ok, HostName} = inet:gethostname(),
@@ -219,8 +227,24 @@ node_name(Id, HostName, longnames) ->
   Domain = proplists:get_value(domain, inet:get_rc(), ""),
   list_to_atom(Id ++ "@" ++ HostName ++ "." ++ Domain).
 
+-spec normalize_node_name(string() | binary()) -> string().
+normalize_node_name(Name) ->
+  %% Replace invalid characters with _
+  re:replace(Name, "[^0-9A-Za-z_\\-]", "_", [global, {return, list}]).
+
 -spec connect_node(node(),  hidden | not_hidden) -> boolean() | ignored.
 connect_node(Node, not_hidden) ->
   net_kernel:connect_node(Node);
 connect_node(Node, hidden) ->
   net_kernel:hidden_connect_node(Node).
+
+-ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
+
+default_node_name_test_() ->
+  [ ?_assertEqual("foobar",  normalize_node_name("foobar"))
+  , ?_assertEqual("foo_bar", normalize_node_name("foo.bar"))
+  , ?_assertEqual("_",       normalize_node_name("&"))
+  ].
+
+-endif.

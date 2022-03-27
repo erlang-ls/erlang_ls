@@ -7,6 +7,7 @@
         , line/2
         , line/3
         , range/3
+        , split_at_line/2
         , tokens/1
         , apply_edits/2
         ]).
@@ -25,7 +26,7 @@
 %% @doc Extract the N-th line from a text.
 -spec line(text(), line_num()) -> text().
 line(Text, LineNum) ->
-  Lines = binary:split(Text, <<"\n">>, [global]),
+  Lines = binary:split(Text, [<<"\r\n">>, <<"\n">>], [global]),
   lists:nth(LineNum + 1, Lines).
 
 %% @doc Extract the N-th line from a text, up to the given column number.
@@ -42,6 +43,12 @@ range(Text, StartLoc, EndLoc) ->
   StartPos = pos(LineStarts, StartLoc),
   EndPos = pos(LineStarts, EndLoc),
   binary:part(Text, StartPos, EndPos - StartPos).
+
+-spec split_at_line(text(), line_num()) -> {text(), text()}.
+split_at_line(Text, Line) ->
+  StartPos = pos(line_starts(Text), {Line + 1, 1}),
+  <<Left:StartPos/binary, Right/binary>> = Text,
+  {Left, Right}.
 
 %% @doc Return tokens from text.
 -spec tokens(text()) -> [any()].
@@ -107,7 +114,7 @@ lines_to_bin(Lines) ->
 
 -spec bin_to_lines(text()) -> lines().
 bin_to_lines(Text) ->
-  [Bin || Bin <- binary:split(Text, <<"\n">>, [global])].
+  [Bin || Bin <- binary:split(Text, [<<"\r\n">>, <<"\n">>], [global])].
 
 -spec ensure_string(binary() | string()) -> string().
 ensure_string(Text) when is_binary(Text) ->

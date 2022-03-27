@@ -1,7 +1,7 @@
 %%==============================================================================
 %% @doc Erlang DAP General Provider
 %%
-%% Implements the logic for hanlding all of the commands in the protocol.
+%% Implements the logic for handling all of the commands in the protocol.
 %%
 %% The functionality in this module will eventually be broken into several
 %% different providers.
@@ -80,7 +80,8 @@ init() ->
    , timeout => 30
    , mode => undefined}.
 
--spec handle_request(request(), state()) -> {result(), state()}.
+-spec handle_request(request(), state()) ->
+        {result(), state()} | {{error, binary()}, state()}.
 handle_request({<<"initialize">>, _Params}, State) ->
   %% quick fix to satisfy els_config initialization
   {ok, RootPath} = file:get_cwd(),
@@ -90,59 +91,63 @@ handle_request({<<"initialize">>, _Params}, State) ->
   ok = els_config:initialize(RootUri, Capabilities, InitOptions),
   {Capabilities, State};
 handle_request({<<"launch">>, #{<<"cwd">> := Cwd} = Params}, State) ->
-  #{ <<"projectnode">> := ProjectNode
-   , <<"cookie">> := Cookie
-   , <<"timeout">> := TimeOut
-   , <<"use_long_names">> := UseLongNames} = start_distribution(Params),
-  case Params of
-    #{ <<"runinterminal">> := Cmd
-     } ->
-      ParamsR
-        = #{ <<"kind">> => <<"integrated">>
-           , <<"title">> => ProjectNode
-           , <<"cwd">> => Cwd
-           , <<"args">> => Cmd
-           },
-      ?LOG_INFO("Sending runinterminal request: [~p]", [ParamsR]),
-      els_dap_server:send_request(<<"runInTerminal">>, ParamsR),
-      ok;
-    _ ->
-      NameTypeParam = case UseLongNames of
-                        true ->
-                          "--name";
-                        false ->
-                          "--sname"
-                      end,
-      ?LOG_INFO("launching 'rebar3 shell`", []),
-      spawn(fun() ->
-                els_utils:cmd(
-                  "rebar3",
-                  [ "shell"
-                  , NameTypeParam
-                  , atom_to_list(ProjectNode)
-                  , "--setcookie"
-                  , erlang:binary_to_list(Cookie)
-                  ]
-                )
-            end)
-  end,
-
-  els_dap_server:send_event(<<"initialized">>, #{}),
-
-  {#{}, State#{ project_node => ProjectNode
-              , launch_params => Params
-              , timeout => TimeOut
-              }};
+  case start_distribution(Params) of
+    {ok, #{ <<"projectnode">> := ProjectNode
+          , <<"cookie">> := Cookie
+          , <<"timeout">> := TimeOut
+          , <<"use_long_names">> := UseLongNames}} ->
+      case Params of
+        #{ <<"runinterminal">> := Cmd
+         } ->
+          ParamsR
+            = #{ <<"kind">> => <<"integrated">>
+               , <<"title">> => ProjectNode
+               , <<"cwd">> => Cwd
+               , <<"args">> => Cmd
+               },
+          ?LOG_INFO("Sending runinterminal request: [~p]", [ParamsR]),
+          els_dap_server:send_request(<<"runInTerminal">>, ParamsR),
+          ok;
+        _ ->
+          NameTypeParam = case UseLongNames of
+                            true ->
+                              "--name";
+                            false ->
+                              "--sname"
+                          end,
+          ?LOG_INFO("launching 'rebar3 shell`", []),
+          spawn(fun() ->
+                    els_utils:cmd(
+                      "rebar3",
+                      [ "shell"
+                      , NameTypeParam
+                      , atom_to_list(ProjectNode)
+                      , "--setcookie"
+                      , erlang:binary_to_list(Cookie)
+                      ]
+                     )
+                end)
+      end,
+      els_dap_server:send_event(<<"initialized">>, #{}),
+      {#{}, State#{ project_node => ProjectNode
+                  , launch_params => Params
+                  , timeout => TimeOut
+                  }};
+    {error, Error} ->
+      {{error, distribution_error(Error)}, State}
+  end;
 handle_request({<<"attach">>, Params}, State) ->
-  #{ <<"projectnode">> := ProjectNode
-   , <<"timeout">> := TimeOut} = start_distribution(Params),
-
-  els_dap_server:send_event(<<"initialized">>, #{}),
-
-  {#{}, State#{ project_node => ProjectNode
-              , launch_params => Params
-              , timeout => TimeOut
-              }};
+  case start_distribution(Params) of
+    {ok, #{ <<"projectnode">> := ProjectNode
+          , <<"timeout">> := TimeOut}} ->
+      els_dap_server:send_event(<<"initialized">>, #{}),
+      {#{}, State#{ project_node => ProjectNode
+                  , launch_params => Params
+                  , timeout => TimeOut
+                  }};
+    {error, Error} ->
+      {{error, distribution_error(Error)}, State}
+  end;
 handle_request( {<<"configurationDone">>, _Params}
               , #{ project_node := ProjectNode
                  , launch_params := LaunchParams
@@ -422,7 +427,10 @@ handle_request({<<"disconnect">>, _Params}
     <<"launch">> ->
       els_dap_rpc:halt(ProjectNode)
   end,
-  els_utils:halt(0),
+  stop_debugger(),
+  {#{}, State};
+handle_request({<<"disconnect">>, _Params}, State) ->
+  stop_debugger(),
   {#{}, State}.
 
 -spec evaluate_condition(els_dap_breakpoints:line_breaks(), module(),
@@ -848,7 +856,7 @@ ensure_connected(Node, Timeout) ->
 stop_debugger() ->
   %% the project node is down, there is nothing left to do then to exit
   els_dap_server:send_event(<<"terminated">>, #{}),
-  els_dap_server:send_event(<<"exited">>, #{ <<"exitCode">> => <<"0">>}),
+  els_dap_server:send_event(<<"exited">>, #{ <<"exitCode">> => 0 }),
   ?LOG_NOTICE("terminating debug adapter"),
   els_utils:halt(0).
 
@@ -887,7 +895,7 @@ check_project_node_name(ProjectNode, true) ->
       binary_to_atom(ProjectNode, utf8)
   end.
 
--spec start_distribution(map()) -> map().
+-spec start_distribution(map()) -> {ok, map()} | {error, any()}.
 start_distribution(Params) ->
   #{<<"cwd">> := Cwd} = Params,
   ok = file:set_cwd(Cwd),
@@ -921,8 +929,18 @@ start_distribution(Params) ->
   %% start distribution
   LocalNode = els_distribution_server:node_name("erlang_ls_dap",
                                       binary_to_list(Name), NameType),
-  els_distribution_server:start_distribution(LocalNode, ConfProjectNode,
-                                             Cookie, NameType),
-  ?LOG_INFO("Distribution up on: [~p]", [LocalNode]),
+  case els_distribution_server:start_distribution(LocalNode, ConfProjectNode,
+                                                  Cookie, NameType) of
+    ok ->
+      ?LOG_INFO("Distribution up on: [~p]", [LocalNode]),
+      {ok, Config#{ <<"projectnode">> => ConfProjectNode}};
+    {error, Error} ->
+      ?LOG_ERROR("Cannot start distribution for ~p", [LocalNode]),
+      {error, Error}
+  end.
 
-  Config#{ <<"projectnode">> => ConfProjectNode}.
+-spec distribution_error(any()) -> binary().
+distribution_error(Error) ->
+  els_utils:to_binary(
+    lists:flatten(
+      io_lib:format("Could not start Erlang distribution. ~p", [Error]))).

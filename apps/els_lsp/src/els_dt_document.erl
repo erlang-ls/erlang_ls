@@ -19,6 +19,7 @@
 
 -export([ insert/1
         , lookup/1
+        , delete/1
         ]).
 
 -export([ new/2
@@ -124,6 +125,10 @@ insert(Map) when is_map(Map) ->
 lookup(Uri) ->
   {ok, Items} = els_db:lookup(name(), Uri),
   {ok, [to_item(Item) || Item <- Items]}.
+
+-spec delete(uri()) -> ok.
+delete(Uri) ->
+  els_db:delete(name(), Uri).
 
 -spec new(uri(), binary()) -> item().
 new(Uri, Text) ->

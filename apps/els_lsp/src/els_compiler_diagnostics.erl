@@ -723,7 +723,43 @@ compile_file(Path, Dependencies) ->
   [code:load_binary(Dependency, Filename, Binary)
    || {{Dependency, Binary, Filename}, _} <- Olds],
   Diagnostics = lists:flatten([ Diags || {_, Diags} <- Olds ]),
-  {Res, Diagnostics}.
+  {Res, Diagnostics ++ module_name_check(Path)}.
+
+%% The module_name error is only emitted by the Erlang compiler during
+%% the "save binary" phase. This phase does not occur when code
+%% generation is disabled (e.g. by using the basic_validation or
+%% strong_validation arguments when invoking the compile:file/2
+%% function), which is exactly the case for the Erlang LS compiler
+%% diagnostics. Therefore, let's replicate the check explicitly.
+%% See issue #1152.
+-spec module_name_check(string()) -> [els_diagnostics:diagnostic()].
+module_name_check(Path) ->
+  Basename = filename:basename(Path, ".erl"),
+  Uri = els_uri:uri(els_utils:to_binary(Path)),
+  case els_dt_document:lookup(Uri) of
+    {ok, [Document]} ->
+      case els_dt_document:pois(Document, [module]) of
+        [#{id := Module, range := Range}] ->
+          case atom_to_list(Module) =:= Basename of
+            true ->
+              [];
+            false ->
+              Message =
+                io_lib:format("Module name '~s' does not match file name '~ts'",
+                              [Module, Basename]),
+              Diagnostic = els_diagnostics:make_diagnostic(
+                             els_protocol:range(Range),
+                             els_utils:to_binary(Message),
+                             ?DIAGNOSTIC_ERROR,
+                             <<"Compiler (via Erlang LS)">>),
+              [Diagnostic]
+          end;
+        _ ->
+          []
+      end;
+    _ ->
+      []
+  end.
 
 %% @doc Load a dependency, return the old version of the code (if any),
 %% so it can be restored.

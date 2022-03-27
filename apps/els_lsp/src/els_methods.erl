@@ -429,9 +429,8 @@ workspace_executecommand(Params, State) ->
 %%==============================================================================
 
 -spec workspace_didchangewatchedfiles(map(), state()) -> result().
-workspace_didchangewatchedfiles(_Params, State) ->
-  %% Some clients rely on these notifications to be successful.
-  %% Let's just ignore them.
+workspace_didchangewatchedfiles(Params, State) ->
+  ok = els_text_synchronization:did_change_watched_files(Params),
   {noresponse, State}.
 
 %%==============================================================================
