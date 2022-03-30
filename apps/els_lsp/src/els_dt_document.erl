@@ -23,6 +23,7 @@
         ]).
 
 -export([ new/2
+        , new/3
         , pois/1
         , pois/2
         , get_element_at_pos/3
@@ -62,7 +63,7 @@
                  , kind := kind()
                  , text := binary()
                  , md5  => binary()
-                 , pois => [poi()]
+                 , pois => [poi()] | ondemand
                  }.
 -export_type([ id/0
              , item/0
@@ -132,21 +133,30 @@ delete(Uri) ->
 
 -spec new(uri(), binary()) -> item().
 new(Uri, Text) ->
+  new(Uri, Text, _StorePOIs = true).
+
+-spec new(uri(), binary(), boolean()) -> item().
+new(Uri, Text, StorePOIs) ->
   Extension = filename:extension(Uri),
   Id = binary_to_atom(filename:basename(Uri, Extension), utf8),
   case Extension of
     <<".erl">> ->
-      new(Uri, Text, Id, module);
+      new(Uri, Text, Id, module, StorePOIs);
     <<".hrl">> ->
-      new(Uri, Text, Id, header);
+      new(Uri, Text, Id, header, StorePOIs);
     _  ->
-      new(Uri, Text, Id, other)
+      new(Uri, Text, Id, other, StorePOIs)
   end.
 
--spec new(uri(), binary(), atom(), kind()) -> item().
-new(Uri, Text, Id, Kind) ->
-  {ok, POIs} = els_parser:parse(Text),
-  MD5        = erlang:md5(Text),
+-spec new(uri(), binary(), atom(), kind(), boolean()) -> item().
+new(Uri, Text, Id, Kind, StorePOIs) ->
+  {ok, POIs} = case StorePOIs of
+                 true ->
+                   els_parser:parse(Text);
+                 false ->
+                   {ok, ondemand}
+               end,
+  MD5 = erlang:md5(Text),
   #{ uri  => Uri
    , id   => Id
    , kind => Kind
@@ -157,6 +167,11 @@ new(Uri, Text, Id, Kind) ->
 
 %% @doc Returns the list of POIs for the current document
 -spec pois(item()) -> [poi()].
+pois(#{ uri := Uri, text := Text, pois := ondemand }) ->
+  Document = els_dt_document:new(Uri, Text, _StorePOIs = true),
+  #{ pois := POIs } = Document,
+  ok = els_dt_document:insert(Document),
+  POIs;
 pois(#{ pois := POIs }) ->
   POIs.
 

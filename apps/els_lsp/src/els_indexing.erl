@@ -46,20 +46,21 @@ find_and_index_file(FileName) ->
 -spec index_file(binary()) -> {ok, uri()}.
 index_file(Path) ->
   GeneratedFilesTag = els_config_indexing:get_generated_files_tag(),
-  try_index_file(Path, 'deep', false, GeneratedFilesTag),
+  try_index_file(Path, 'deep', _StorePOIs = true, false, GeneratedFilesTag),
   {ok, els_uri:uri(Path)}.
 
--spec index_if_not_generated(uri(), binary(), mode(), boolean(), string()) ->
+-spec index_if_not_generated(uri(), binary(), mode(),
+                             boolean(), boolean(), string()) ->
         ok | skipped.
-index_if_not_generated(Uri, Text, Mode, false, _GeneratedFilesTag) ->
-  index(Uri, Text, Mode);
-index_if_not_generated(Uri, Text, Mode, true, GeneratedFilesTag) ->
+index_if_not_generated(Uri, Text, Mode, StorePOIs, false, _GeneratedFilesTag) ->
+  index(Uri, Text, Mode, StorePOIs);
+index_if_not_generated(Uri, Text, Mode, StorePOIs, true, GeneratedFilesTag) ->
   case is_generated_file(Text, GeneratedFilesTag) of
     true ->
       ?LOG_DEBUG("Skip indexing for generated file ~p", [Uri]),
       skipped;
     false ->
-      ok = index(Uri, Text, Mode)
+      ok = index(Uri, Text, Mode, StorePOIs)
   end.
 
 -spec is_generated_file(binary(), string()) -> boolean().
@@ -74,21 +75,27 @@ is_generated_file(Text, Tag) ->
 
 -spec index(uri(), binary(), mode()) -> ok.
 index(Uri, Text, Mode) ->
+  index(Uri, Text, Mode, _StorePOIs = true).
+
+-spec index(uri(), binary(), mode(), boolean()) -> ok.
+index(Uri, Text, Mode, StorePOIs) ->
   MD5 = erlang:md5(Text),
   case els_dt_document:lookup(Uri) of
     {ok, [#{md5 := MD5}]} ->
       ok;
     {ok, LookupResult} ->
-      Document = els_dt_document:new(Uri, Text),
-      do_index(Document, Mode, LookupResult =/= [])
+      Document = els_dt_document:new(Uri, Text, StorePOIs),
+      do_index(Document, Mode, StorePOIs, LookupResult =/= [])
   end.
 
--spec do_index(els_dt_document:item(), mode(), boolean()) -> ok.
-do_index(#{uri := Uri, id := Id, kind := Kind} = Document, Mode, Reset) ->
-  case Mode of
-    'deep' ->
+-spec do_index(els_dt_document:item(), mode(), boolean(), boolean()) -> ok.
+do_index(#{ uri := Uri
+          , id := Id
+          , kind := Kind} = Document, Mode, StorePOIs, Reset) ->
+  case {Mode, StorePOIs} of
+    {'deep', true} ->
       ok = els_dt_document:insert(Document);
-    'shallow' ->
+    _ ->
       %% Don't store detailed POIs when "shallow" indexing.
       %% They will be reloaded and inserted when needed
       %% by calling els_utils:lookup_document/1
@@ -178,14 +185,15 @@ start(Group, Entries) ->
 
 
 %% @doc Try indexing a file.
--spec try_index_file(binary(), mode(), boolean(), string()) ->
+-spec try_index_file(binary(), mode(), boolean(), boolean(), string()) ->
         ok | skipped | {error, any()}.
-try_index_file(FullName, Mode, SkipGeneratedFiles, GeneratedFilesTag) ->
+try_index_file(FullName, Mode, StorePOIs,
+               SkipGeneratedFiles, GeneratedFilesTag) ->
   Uri = els_uri:uri(FullName),
   try
     ?LOG_DEBUG("Indexing file. [filename=~s, uri=~s]", [FullName, Uri]),
     {ok, Text} = file:read_file(FullName),
-    index_if_not_generated(Uri, Text, Mode,
+    index_if_not_generated(Uri, Text, Mode, StorePOIs,
                            SkipGeneratedFiles, GeneratedFilesTag)
   catch Type:Reason:St ->
       ?LOG_ERROR("Error indexing file "
@@ -227,6 +235,7 @@ index_dir(Dir, Mode, SkipGeneratedFiles, GeneratedFilesTag) ->
   ?LOG_DEBUG("Indexing directory. [dir=~s] [mode=~s]", [Dir, Mode]),
   F = fun(FileName, {Succeeded, Skipped, Failed}) ->
           case try_index_file(els_utils:to_binary(FileName), Mode,
+                              _StorePOIs = false,
                               SkipGeneratedFiles, GeneratedFilesTag) of
             ok -> {Succeeded + 1, Skipped, Failed};
             skipped -> {Succeeded, Skipped + 1, Failed};

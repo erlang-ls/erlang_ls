@@ -154,9 +154,9 @@ lookup_document(Uri) ->
       case els_dt_document:lookup(Uri) of
         {ok, [Document]} ->
           {ok, Document};
-        Error ->
-          ?LOG_INFO("Document lookup failed [error=~p] [uri=~p]", [Error, Uri]),
-          {error, Error}
+        {ok, []} ->
+          ?LOG_INFO("Document lookup failed [uri=~p]", [Uri]),
+          {error, document_lookup_failed}
       end
   end.
 
