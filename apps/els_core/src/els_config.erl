@@ -56,6 +56,7 @@
                | indexing_enabled
                | bsp_enabled
                | compiler_telemetry_enabled
+               | refactorerl
                | edoc_custom_tags.
 
 -type path()  :: file:filename().
@@ -77,6 +78,7 @@
                   , indexing_enabled => boolean()
                   , bsp_enabled      => boolean() | auto
                   , compiler_telemetry_enabled => boolean()
+                  , refactorerl      => map() | 'notconfigured'
                   }.
 
 %%==============================================================================
@@ -138,6 +140,8 @@ do_initialize(RootUri, Capabilities, InitOptions, {ConfigPath, Config}) ->
 
   IndexingEnabled = maps:get(<<"indexingEnabled">>, InitOptions, true),
 
+  RefactorErl = maps:get("refactorerl", Config, notconfigured),
+
   %% Passed by the LSP client
   ok = set(root_uri       , RootUri),
   %% Read from the configuration file
@@ -180,6 +184,8 @@ do_initialize(RootUri, Capabilities, InitOptions, {ConfigPath, Config}) ->
   %% Init Options
   ok = set(capabilities  , Capabilities),
   ok = set(indexing_enabled, IndexingEnabled),
+
+  ok = set(refactorerl, RefactorErl),
   ok.
 
 -spec start_link() -> {ok, pid()}.
