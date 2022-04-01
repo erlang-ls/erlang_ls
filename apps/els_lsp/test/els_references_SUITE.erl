@@ -88,7 +88,8 @@ end_per_testcase(TestCase, Config)
   when TestCase =:= refresh_after_watched_file_added ->
   PathB = ?config(watched_file_b_path, Config),
   ok = file:delete(filename:join(filename:dirname(PathB),
-                                 "watched_file_c.erl"));
+                                 "watched_file_c.erl")),
+  els_test_utils:end_per_testcase(TestCase, Config);
 end_per_testcase(TestCase, Config) ->
   els_test_utils:end_per_testcase(TestCase, Config).
 
