@@ -74,17 +74,22 @@ insert(Map) when is_map(Map) ->
 -spec lookup(mfa()) -> {ok, [item()]}.
 lookup({M, _F, _A} = MFA) ->
   %% TODO: Only do it when necessary
-  {ok, #{text := Text} = Document} = els_utils:lookup_document(els_uri:uri(M)),
-  Specs = els_dt_document:pois(Document, [spec]),
-  [ begin
-      #{from := From, to := To} = Range,
-      Spec = els_text:range(Text, From, To),
-      els_dt_signatures:insert(#{ mfa => {M, F, A} , spec => Spec})
-    end
-    || #{id := {F, A}, range := Range} <- Specs
-  ],
-  {ok, Items} = els_db:lookup(name(), MFA),
-  {ok, [to_item(Item) || Item <- Items]}.
+  case els_utils:find_module(M) of
+    {ok, Uri} ->
+      {ok, #{text := Text} = Document} = els_utils:lookup_document(Uri),
+      Specs = els_dt_document:pois(Document, [spec]),
+      [ begin
+          #{from := From, to := To} = Range,
+          Spec = els_text:range(Text, From, To),
+          els_dt_signatures:insert(#{ mfa => {M, F, A} , spec => Spec})
+        end
+        || #{id := {F, A}, range := Range} <- Specs
+      ],
+      {ok, Items} = els_db:lookup(name(), MFA),
+      {ok, [to_item(Item) || Item <- Items]};
+    {error, _} ->
+      {ok, []}
+  end.
 
 -spec delete_by_module(atom()) -> ok.
 delete_by_module(Module) ->
