@@ -85,22 +85,9 @@ index(Uri, Text, Mode) ->
   end.
 
 -spec do_index(els_dt_document:item(), mode(), boolean()) -> ok.
-do_index(#{uri := Uri, id := Id, kind := Kind} = Document, _Mode, _Reset) ->
+do_index(#{uri := Uri, id := Id, kind := Kind}, _Mode, _Reset) ->
   ModuleItem = els_dt_document_index:new(Id, Uri, Kind),
-  ok = els_dt_document_index:insert(ModuleItem),
-  index_signatures(Document).
-
--spec index_signatures(els_dt_document:item()) -> ok.
-index_signatures(#{id := Id, text := Text} = Document) ->
-  Specs  = els_dt_document:pois(Document, [spec]),
-  [ begin
-      #{from := From, to := To} = Range,
-      Spec = els_text:range(Text, From, To),
-      els_dt_signatures:insert(#{ mfa => {Id, F, A} , spec => Spec})
-    end
-    || #{id := {F, A}, range := Range} <- Specs
-  ],
-  ok.
+  ok = els_dt_document_index:insert(ModuleItem).
 
 -spec maybe_start() -> true | false.
 maybe_start() ->
