@@ -150,9 +150,9 @@ find_candidate_uris(Id) ->
   Paths = els_config:get(apps_paths) ++ els_config:get(deps_paths),
   PathsString = string:join(Paths, " "),
   Cmd = "grep -l -r \"" ++ IdString ++ "\" " ++ PathsString,
-  ?LOG_INFO("Command: ~p", [Cmd]),
+  ?LOG_DEBUG("Command: ~p", [Cmd]),
   Result = string:trim(os:cmd(Cmd), trailing),
-  ?LOG_INFO("Result: ~p", [Result]),
+  ?LOG_DEBUG("Result: ~p", [Result]),
   Candidates = string:split(Result, "\n", all),
   [els_uri:uri(els_utils:to_binary(Candidate)) || Candidate <- Candidates,
                                                   Candidate =/= []].
