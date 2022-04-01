@@ -18,16 +18,23 @@
 %%==============================================================================
 
 -export([ delete_by_uri/1
-        , find_all/0
         , find_by/1
         , find_by_id/2
         , insert/2
         ]).
 
 %%==============================================================================
+%% Test API
+%%==============================================================================
+
+-export([ find_candidate_uris/1
+        ]).
+
+%%==============================================================================
 %% Includes
 %%==============================================================================
 -include("els_lsp.hrl").
+-include_lib("kernel/include/logger.hrl").
 
 %%==============================================================================
 %% Item Definition
@@ -44,6 +51,14 @@
                  , range := poi_range()
                  }.
 -export_type([ item/0 ]).
+
+-type poi_category() :: function
+                      | type
+                      | macro
+                      | record
+                      | include
+                      | include_lib
+                      | behaviour.
 
 %%==============================================================================
 %% Callbacks for the els_db_table Behaviour
@@ -82,12 +97,6 @@ insert(Kind, Map) when is_map(Map) ->
   Record = from_item(Kind, Map),
   els_db:write(name(), Record).
 
-%% @doc Find all
--spec find_all() -> {ok, [item()]} | {error, any()}.
-find_all() ->
-  Pattern = #els_dt_references{_ = '_'},
-  find_by(Pattern).
-
 %% @doc Find by id
 -spec find_by_id(poi_kind(), any()) -> {ok, [item()]} | {error, any()}.
 find_by_id(Kind, Id) ->
@@ -97,10 +106,58 @@ find_by_id(Kind, Id) ->
 
 -spec find_by(tuple()) -> {ok, [item()]}.
 find_by(Pattern) ->
+  #els_dt_references{id = Id} = Pattern,
+  Uris = find_candidate_uris(Id),
+  [begin
+     {ok, Document} = els_utils:lookup_document(Uri),
+     POIs  = els_dt_document:pois(Document, [ application
+                                            , behaviour
+                                            , implicit_fun
+                                            , include
+                                            , include_lib
+                                            , type_application
+                                            , import_entry
+                                            ]),
+     %% TODO: Only re-register references if necessary
+     ok = els_dt_references:delete_by_uri(Uri),
+     [register_reference(Uri, POI) || POI <- POIs]
+   end || Uri <- Uris],
   {ok, Items} = els_db:match(name(), Pattern),
   {ok, [to_item(Item) || Item <- Items]}.
 
--spec kind_to_category(poi_kind()) -> function | type | macro | record.
+%% TODO: What about references from header files?
+-spec greppable_string({poi_category(), any()}) ->
+        {ok, string()} | {error, {any(), not_supported}}.
+greppable_string({function, {_M, F, _A}}) ->
+  io_lib:format("~p", [F]);
+greppable_string({type, {_M, F, _A}}) ->
+  io_lib:format("~p", [F]);
+greppable_string({macro, {Name, _Arity}}) ->
+  io_lib:format("~p", [Name]);
+greppable_string({macro, Name}) ->
+  io_lib:format("~p", [Name]);
+greppable_string({include, String}) ->
+  io_lib:format("~s", [String]);
+%% TODO: This could be tricky
+greppable_string({include_lib, String}) ->
+  io_lib:format("~s", [String]);
+greppable_string({behaviour, Name}) ->
+  io_lib:format("~p", [Name]).
+
+-spec find_candidate_uris(any()) -> [uri()].
+find_candidate_uris(Id) ->
+  IdString = greppable_string(Id),
+  Paths = els_config:get(apps_paths) ++ els_config:get(deps_paths),
+  PathsString = string:join(Paths, " "),
+  Cmd = "grep -l -r \"" ++ IdString ++ "\" " ++ PathsString,
+  ?LOG_INFO("Command: ~p", [Cmd]),
+  Result = string:trim(os:cmd(Cmd), trailing),
+  ?LOG_INFO("Result: ~p", [Result]),
+  Candidates = string:split(Result, "\n", all),
+  [els_uri:uri(els_utils:to_binary(Candidate)) || Candidate <- Candidates,
+                                                  Candidate =/= []].
+
+-spec kind_to_category(poi_kind()) -> poi_category().
 kind_to_category(Kind) when Kind =:= application;
                             Kind =:= export_entry;
                             Kind =:= function;
@@ -124,3 +181,23 @@ kind_to_category(Kind) when Kind =:= include_lib ->
   include_lib;
 kind_to_category(Kind) when Kind =:= behaviour ->
   behaviour.
+
+-spec register_reference(uri(), poi()) -> ok.
+register_reference(Uri, #{id := {F, A}} = POI) ->
+  M = els_uri:module(Uri),
+  register_reference(Uri, POI#{id => {M, F, A}});
+register_reference(Uri, #{kind := Kind, id := Id, range := Range})
+  when %% Include
+       Kind =:= include;
+       Kind =:= include_lib;
+       %% Function
+       Kind =:= application;
+       Kind =:= implicit_fun;
+       Kind =:= import_entry;
+       %% Type
+       Kind =:= type_application;
+       %% Behaviour
+       Kind =:= behaviour ->
+  insert( Kind
+        , #{id => Id, uri => Uri, range => Range}
+        ).

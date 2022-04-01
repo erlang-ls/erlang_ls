@@ -23,7 +23,6 @@
         ]).
 
 -export([ new/2
-        , new/3
         , pois/1
         , pois/2
         , get_element_at_pos/3
@@ -54,7 +53,7 @@
                          , kind :: kind()   | '_'
                          , text :: binary() | '_'
                          , md5  :: binary() | '_'
-                         , pois :: [poi()]  | '_'
+                         , pois :: [poi()]  | '_' | ondemand
                          }).
 -type els_dt_document() :: #els_dt_document{}.
 
@@ -133,44 +132,33 @@ delete(Uri) ->
 
 -spec new(uri(), binary()) -> item().
 new(Uri, Text) ->
-  new(Uri, Text, _StorePOIs = true).
-
--spec new(uri(), binary(), boolean()) -> item().
-new(Uri, Text, StorePOIs) ->
   Extension = filename:extension(Uri),
   Id = binary_to_atom(filename:basename(Uri, Extension), utf8),
   case Extension of
     <<".erl">> ->
-      new(Uri, Text, Id, module, StorePOIs);
+      new(Uri, Text, Id, module);
     <<".hrl">> ->
-      new(Uri, Text, Id, header, StorePOIs);
+      new(Uri, Text, Id, header);
     _  ->
-      new(Uri, Text, Id, other, StorePOIs)
+      new(Uri, Text, Id, other)
   end.
 
--spec new(uri(), binary(), atom(), kind(), boolean()) -> item().
-new(Uri, Text, Id, Kind, StorePOIs) ->
-  {ok, POIs} = case StorePOIs of
-                 true ->
-                   els_parser:parse(Text);
-                 false ->
-                   {ok, ondemand}
-               end,
+-spec new(uri(), binary(), atom(), kind()) -> item().
+new(Uri, Text, Id, Kind) ->
   MD5 = erlang:md5(Text),
   #{ uri  => Uri
    , id   => Id
    , kind => Kind
    , text => Text
    , md5  => MD5
-   , pois => POIs
+   , pois => ondemand
    }.
 
 %% @doc Returns the list of POIs for the current document
 -spec pois(item()) -> [poi()].
-pois(#{ uri := Uri, text := Text, pois := ondemand }) ->
-  Document = els_dt_document:new(Uri, Text, _StorePOIs = true),
-  #{ pois := POIs } = Document,
-  ok = els_dt_document:insert(Document),
+pois(#{ text := Text, pois := ondemand } = Document) ->
+  {ok, POIs} = els_parser:parse(Text),
+  ok = els_dt_document:insert(Document#{pois => POIs}),
   POIs;
 pois(#{ pois := POIs }) ->
   POIs.

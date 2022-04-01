@@ -27,7 +27,6 @@
         , included_record_field/1
         , undefined_record/1
         , undefined_record_field/1
-        , purge_references/1
         , type_local/1
         , type_remote/1
         , type_included/1
@@ -69,7 +68,8 @@ end_per_suite(Config) ->
 
 -spec init_per_testcase(atom(), config()) -> config().
 init_per_testcase(TestCase, Config0)
-  when TestCase =:= refresh_after_watched_file_changed ->
+  when TestCase =:= refresh_after_watched_file_changed;
+       TestCase =:= refresh_after_watched_file_deleted ->
   Config = els_test_utils:init_per_testcase(TestCase, Config0),
   PathB = ?config(watched_file_b_path, Config),
   {ok, OldContent} = file:read_file(PathB),
@@ -79,10 +79,16 @@ init_per_testcase(TestCase, Config) ->
 
 -spec end_per_testcase(atom(), config()) -> ok.
 end_per_testcase(TestCase, Config)
-  when TestCase =:= refresh_after_watched_file_changed ->
+  when TestCase =:= refresh_after_watched_file_changed;
+       TestCase =:= refresh_after_watched_file_deleted ->
   PathB = ?config(watched_file_b_path, Config),
   ok = file:write_file(PathB, ?config(old_content, Config)),
   els_test_utils:end_per_testcase(TestCase, Config);
+end_per_testcase(TestCase, Config)
+  when TestCase =:= refresh_after_watched_file_added ->
+  PathB = ?config(watched_file_b_path, Config),
+  ok = file:delete(filename:join(filename:dirname(PathB),
+                                 "watched_file_c.erl"));
 end_per_testcase(TestCase, Config) ->
   els_test_utils:end_per_testcase(TestCase, Config).
 
@@ -413,34 +419,6 @@ undefined_record_field(Config) ->
   assert_locations(Locations1, ExpectedLocations),
   ok.
 
-%% Issue #245
--spec purge_references(config()) -> ok.
-purge_references(_Config) ->
-  els_db:clear_tables(),
-  Uri   = <<"file:///tmp/foo.erl">>,
-  Text0 = <<"-spec foo() -> ok.\nfoo(_X) -> ok.\nbar() -> foo().">>,
-  Text1 = <<"\n-spec foo() -> ok.\nfoo(_X)-> ok.\nbar() -> foo().">>,
-  Doc0  = els_dt_document:new(Uri, Text0),
-  Doc1  = els_dt_document:new(Uri, Text1),
-
-  ok = els_indexing:index(Uri, Text0, 'deep'),
-  ?assertEqual({ok, [Doc0]}, els_dt_document:lookup(Uri)),
-  ?assertEqual({ok, [#{ id    => {foo, foo, 0}
-                      , range => #{from => {3, 10}, to => {3, 13}}
-                      , uri   => <<"file:///tmp/foo.erl">>
-                      }]}
-              , els_dt_references:find_all()
-              ),
-
-  ok = els_indexing:index(Uri, Text1, 'deep'),
-  ?assertEqual({ok, [Doc1]}, els_dt_document:lookup(Uri)),
-  ?assertEqual({ok, [#{ id    => {foo, foo, 0}
-                      , range => #{from => {4, 10}, to => {4, 13}}
-                      , uri   => <<"file:///tmp/foo.erl">>
-                      }]}
-              , els_dt_references:find_all()
-              ),
-  ok.
 
 -spec type_local(config()) -> ok.
 type_local(Config) ->
@@ -507,6 +485,7 @@ refresh_after_watched_file_deleted(Config) ->
   %% Before
   UriA = ?config(watched_file_a_uri, Config),
   UriB = ?config(watched_file_b_uri, Config),
+  PathB = ?config(watched_file_b_path, Config),
   ExpectedLocationsBefore = [ #{ uri   => UriB
                                , range => #{from => {6, 3}, to => {6, 22}}
                                }
@@ -514,6 +493,7 @@ refresh_after_watched_file_deleted(Config) ->
   #{result := LocationsBefore} = els_client:references(UriA, 5, 2),
   assert_locations(LocationsBefore, ExpectedLocationsBefore),
   %% Delete (Simulate a checkout, rebase or similar)
+  ok = file:delete(PathB),
   els_client:did_change_watched_files([{UriB, ?FILE_CHANGE_TYPE_DELETED}]),
   %% After
   #{result := null} = els_client:references(UriA, 5, 2),
@@ -554,6 +534,7 @@ refresh_after_watched_file_added(Config) ->
   %% Before
   UriA = ?config(watched_file_a_uri, Config),
   UriB = ?config(watched_file_b_uri, Config),
+  PathB = ?config(watched_file_b_path, Config),
   ExpectedLocationsBefore = [ #{ uri   => UriB
                                , range => #{from => {6, 3}, to => {6, 22}}
                                }
@@ -563,13 +544,16 @@ refresh_after_watched_file_added(Config) ->
   %% Add (Simulate a checkout, rebase or similar)
   DataDir = ?config(data_dir, Config),
   PathC = filename:join([DataDir, "watched_file_c.erl"]),
+  NewPathC = filename:join(filename:dirname(PathB), "watched_file_c.erl"),
   UriC = els_uri:uri(els_utils:to_binary(PathC)),
+  NewUriC = els_uri:uri(NewPathC),
+  {ok, _} = file:copy(PathC, NewPathC),
   els_client:did_change_watched_files([{UriC, ?FILE_CHANGE_TYPE_CREATED}]),
   %% After
-  ExpectedLocationsAfter = [ #{ uri   => UriC
+  ExpectedLocationsAfter = [ #{ uri   => UriB
                               , range => #{from => {6, 3}, to => {6, 22}}
                               }
-                           , #{ uri   => UriB
+                           , #{ uri   => NewUriC
                               , range => #{from => {6, 3}, to => {6, 22}}
                               }
                            ],
