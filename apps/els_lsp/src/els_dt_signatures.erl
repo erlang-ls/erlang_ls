@@ -105,4 +105,4 @@ index_signature(M, Text, POI) ->
   #{id := {F, A}, range := Range} = POI,
   #{from := From, to := To} = Range,
   Spec = els_text:range(Text, From, To),
-  els_dt_signatures:insert(#{ mfa => {M, F, A} , spec => Spec}).
+  insert(#{ mfa => {M, F, A} , spec => Spec}).

@@ -81,13 +81,22 @@ index(Uri, Text, Mode) ->
     {ok, LookupResult} ->
       Document = els_dt_document:new(Uri, Text),
       ok = els_dt_document:insert(Document),
-      do_index(Document, Mode, LookupResult =/= [])
+      #{id := Id, kind := Kind} = Document,
+      ModuleItem = els_dt_document_index:new(Id, Uri, Kind),
+      ok = els_dt_document_index:insert(ModuleItem),
+      case Mode of
+        shallow ->
+          ok;
+        deep ->
+          case LookupResult of
+            [] ->
+              ok;
+            _ ->
+              ok = els_dt_references:delete_by_uri(Uri),
+              ok = els_dt_signatures:delete_by_module(els_uri:module(Uri))
+          end
+      end
   end.
-
--spec do_index(els_dt_document:item(), mode(), boolean()) -> ok.
-do_index(#{uri := Uri, id := Id, kind := Kind}, _Mode, _Reset) ->
-  ModuleItem = els_dt_document_index:new(Id, Uri, Kind),
-  ok = els_dt_document_index:insert(ModuleItem).
 
 -spec maybe_start() -> true | false.
 maybe_start() ->
@@ -190,11 +199,11 @@ index_dir(Dir, Mode, SkipGeneratedFiles, GeneratedFilesTag) ->
 
 -spec entries_apps() -> [{string(), 'deep' | 'shallow'}].
 entries_apps() ->
-  [{Dir, 'deep'} || Dir <- els_config:get(apps_paths)].
+  [{Dir, 'shallow'} || Dir <- els_config:get(apps_paths)].
 
 -spec entries_deps() -> [{string(), 'deep' | 'shallow'}].
 entries_deps() ->
-  [{Dir, 'deep'} || Dir <- els_config:get(deps_paths)].
+  [{Dir, 'shallow'} || Dir <- els_config:get(deps_paths)].
 
 -spec entries_otp() -> [{string(), 'deep' | 'shallow'}].
 entries_otp() ->
