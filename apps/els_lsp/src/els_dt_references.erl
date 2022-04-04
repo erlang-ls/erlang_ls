@@ -24,17 +24,9 @@
         ]).
 
 %%==============================================================================
-%% Test API
-%%==============================================================================
-
--export([ find_candidate_uris/1
-        ]).
-
-%%==============================================================================
 %% Includes
 %%==============================================================================
 -include("els_lsp.hrl").
--include_lib("kernel/include/logger.hrl").
 
 %%==============================================================================
 %% Item Definition
@@ -59,6 +51,7 @@
                       | include
                       | include_lib
                       | behaviour.
+-export_type([ poi_category/0 ]).
 
 %%==============================================================================
 %% Callbacks for the els_db_table Behaviour
@@ -106,7 +99,7 @@ find_by_id(Kind, Id) ->
 
 -spec find_by(tuple()) -> {ok, [item()]}.
 find_by(#els_dt_references{id = Id} = Pattern) ->
-  Uris = find_candidate_uris(Id),
+  Uris = els_text_search:find_candidate_uris(Id),
   [begin
      {ok, Document} = els_utils:lookup_document(Uri),
      index_references(Document)
@@ -128,38 +121,6 @@ index_references(#{uri := Uri, pois := ondemand} = Document) ->
   ok;
 index_references(_) ->
   ok.
-
-%% TODO: What about references from header files?
--spec greppable_string({poi_category(), any()}) ->
-        {ok, string()} | {error, {any(), not_supported}}.
-greppable_string({function, {_M, F, _A}}) ->
-  io_lib:format("~p", [F]);
-greppable_string({type, {_M, F, _A}}) ->
-  io_lib:format("~p", [F]);
-greppable_string({macro, {Name, _Arity}}) ->
-  io_lib:format("~p", [Name]);
-greppable_string({macro, Name}) ->
-  io_lib:format("~p", [Name]);
-greppable_string({include, String}) ->
-  io_lib:format("~s", [String]);
-%% TODO: This could be tricky
-greppable_string({include_lib, String}) ->
-  io_lib:format("~s", [String]);
-greppable_string({behaviour, Name}) ->
-  io_lib:format("~p", [Name]).
-
--spec find_candidate_uris(any()) -> [uri()].
-find_candidate_uris(Id) ->
-  IdString = greppable_string(Id),
-  Paths = els_config:get(apps_paths) ++ els_config:get(deps_paths),
-  PathsString = string:join(Paths, " "),
-  Cmd = "grep -l -r \"" ++ IdString ++ "\" " ++ PathsString,
-  ?LOG_DEBUG("Command: ~p", [Cmd]),
-  Result = string:trim(os:cmd(Cmd), trailing),
-  ?LOG_DEBUG("Result: ~p", [Result]),
-  Candidates = string:split(Result, "\n", all),
-  [els_uri:uri(els_utils:to_binary(Candidate)) || Candidate <- Candidates,
-                                                  Candidate =/= []].
 
 -spec kind_to_category(poi_kind()) -> poi_category().
 kind_to_category(Kind) when Kind =:= application;
