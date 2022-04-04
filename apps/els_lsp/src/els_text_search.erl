@@ -35,7 +35,8 @@ searchable_paths() ->
 
 -spec search_command(string()) -> string().
 search_command(IdString) ->
-  PathsString = string:join(searchable_paths(), " "),
+  SearchablePaths = [io_lib:format("~p", [Path]) || Path <- searchable_paths()],
+  PathsString = string:join(SearchablePaths, " "),
   CmdFormat = els_config:get(search_command),
   CmdArgs = [IdString, PathsString],
   lists:flatten(io_lib:format(CmdFormat, CmdArgs)).
