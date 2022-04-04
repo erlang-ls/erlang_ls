@@ -105,25 +105,29 @@ find_by_id(Kind, Id) ->
   find_by(Pattern).
 
 -spec find_by(tuple()) -> {ok, [item()]}.
-find_by(Pattern) ->
-  #els_dt_references{id = Id} = Pattern,
+find_by(#els_dt_references{id = Id} = Pattern) ->
   Uris = find_candidate_uris(Id),
   [begin
      {ok, Document} = els_utils:lookup_document(Uri),
-     POIs  = els_dt_document:pois(Document, [ application
-                                            , behaviour
-                                            , implicit_fun
-                                            , include
-                                            , include_lib
-                                            , type_application
-                                            , import_entry
-                                            ]),
-     %% TODO: Only re-register references if necessary
-     ok = els_dt_references:delete_by_uri(Uri),
-     [register_reference(Uri, POI) || POI <- POIs]
+     index_references(Document)
    end || Uri <- Uris],
   {ok, Items} = els_db:match(name(), Pattern),
   {ok, [to_item(Item) || Item <- Items]}.
+
+-spec index_references(els_dt_document:id()) -> ok.
+index_references(#{uri := Uri, pois := ondemand} = Document) ->
+  POIs = els_dt_document:pois(Document, [ application
+                                        , behaviour
+                                        , implicit_fun
+                                        , include
+                                        , include_lib
+                                        , type_application
+                                        , import_entry
+                                        ]),
+  [register_reference(Uri, POI) || POI <- POIs],
+  ok;
+index_references(_) ->
+  ok.
 
 %% TODO: What about references from header files?
 -spec greppable_string({poi_category(), any()}) ->
