@@ -2,8 +2,11 @@
 
 -include("els_lsp.hrl").
 
+-include_lib("kernel/include/logger.hrl").
+
 -export([ compare/2
         , in/2
+        , in_range/3
         , range/4
         , range/1
         , line/1
@@ -25,6 +28,12 @@ compare(_, _) ->
 -spec in(poi_range(), poi_range()) -> boolean().
 in(#{from := FromA, to := ToA}, #{from := FromB, to := ToB}) ->
   FromA >= FromB andalso ToA =< ToB.
+
+-spec in_range(Line :: line(), Column :: column(), POI :: poi()) -> boolean().
+in_range(Line, Column, #{data := #{wrapping_range := #{from := {FromLine, FromColumn}, to := {ToLine, ToColumn}}}}) ->
+         (FromLine < Line andalso Line < ToLine)
+  orelse (FromLine =:= Line andalso FromColumn =< Column)
+  orelse (Line =:= ToLine andalso Column =< ToColumn).
 
 -spec range(pos() | {pos(), pos()} | erl_anno:anno(), poi_kind(), any(), any())
    -> poi_range().

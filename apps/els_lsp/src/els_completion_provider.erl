@@ -28,7 +28,7 @@
 %%==============================================================================
 -spec trigger_characters() -> [binary()].
 trigger_characters() ->
-  [<<":">>, <<"#">>, <<"?">>, <<".">>, <<"-">>, <<"\"">>].
+  [<<":">>, <<"#">>, <<"?">>, <<".">>, <<"-">>, <<"\"">>, <<";">>, <<"\n">>].
 
 -spec handle_request(els_provider:request(), any()) -> {response, any()}.
 handle_request({completion, Params}, _State) ->
@@ -147,6 +147,14 @@ find_completions( Prefix
     _ ->
       []
     end;
+find_completions( _Prefix
+                , ?COMPLETION_TRIGGER_KIND_CHARACTER
+                , #{ trigger := <<";">>
+                   , document := Document
+                   , line     := Line
+                   , column   := Column
+                  }) ->
+  clause(Document, Line, Column);
 find_completions( Prefix
                , ?COMPLETION_TRIGGER_KIND_INVOKED
                , #{ document := Document
@@ -154,8 +162,11 @@ find_completions( Prefix
                   , column   := Column
                   }
                ) ->
+  % ?LOG_WARNING("Triggered Completing ~p", [Prefix]),
   case lists:reverse(els_text:tokens(Prefix)) of
     %% Check for "[...] fun atom:"
+    [{';', _} | _] ->
+      clause(Document, Line, Column);
     [{':', _}, {atom, _, Module}, {'fun', _} | _] ->
       exported_definitions(Module, function, _ExportFormat = true);
     %% Check for "[...] fun atom:atom"
@@ -334,7 +345,7 @@ strip_app_version(App0) ->
         match   -> list_to_binary(lists:join("-", lists:droplast(Lexemes)));
         nomatch -> App0
       end
-  end.
+    end.
 
 -spec item_kind_file(binary()) -> item().
 item_kind_file(Path) ->
@@ -538,6 +549,20 @@ exported_definitions(Module, POIKind, ExportFormat) ->
       []
   end.
 
+-spec clause(els_dt_document:item(), line(), column()) -> [map()].
+clause(Document, Line, Column) ->
+  case els_dt_document:pois(Document, [function]) of
+    [] -> [];
+    POIs ->
+      case [POI || POI <- POIs, els_range:in_range(Line, Column, POI)] of
+        [POI] ->
+          I = completion_item(POI#{kind => function_clause}, #{}, false),
+          [I];
+        _ ->
+          []
+        end
+  end.
+
 %%==============================================================================
 %% Variables
 %%==============================================================================
@@ -689,6 +714,16 @@ completion_item(#{kind := Kind, id := {F, A}, data := POIData}, Data, false)
    , insertTextFormat => Format
    , data             => Data
    };
+completion_item(#{kind := function_clause, id := {F, A}, data := POIData}, Data, false) ->
+  ArgsNames = maps:get(args, POIData),
+  Label = io_lib:format("function clause for ~p/~p", [F, A]),
+  #{ label            => els_utils:to_binary(Label)
+   , kind             => completion_item_kind(function)
+   , insertText       => snippet_function_clause(F, ArgsNames)
+   , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+   , insertTextMode   => 1
+   , data             => Data
+   };
 completion_item(#{kind := Kind, id := {F, A}}, Data, true)
   when Kind =:= function;
        Kind =:= type_definition ->
@@ -736,6 +771,12 @@ format_macro({Name0, _Arity}, Args, SnippetSupport) ->
   format_args(Name, Args, SnippetSupport);
 format_macro(Name, none, _SnippetSupport) ->
   atom_to_binary(Name, utf8).
+
+-spec snippet_function_clause(atom(), [{integer(), string()}]) -> binary().
+snippet_function_clause(Name, Args) ->
+  FunctionSnippet = snippet_args(atom_to_label(Name), Args),
+  Clause = ["\n", FunctionSnippet, " -> "],
+  els_utils:to_binary(Clause).
 
 -spec format_args(binary(), [{integer(), string()}], boolean()) -> binary().
 format_args(Name, Args0, SnippetSupport) ->
