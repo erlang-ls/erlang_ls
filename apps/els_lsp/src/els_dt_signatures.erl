@@ -26,6 +26,7 @@
 %% Includes
 %%==============================================================================
 -include("els_lsp.hrl").
+-include_lib("kernel/include/logger.hrl").
 
 %%==============================================================================
 %% Item Definition
@@ -73,25 +74,35 @@ insert(Map) when is_map(Map) ->
 
 -spec lookup(mfa()) -> {ok, [item()]}.
 lookup({M, _F, _A} = MFA) ->
-  %% TODO: Only do it when necessary
-  case els_utils:find_module(M) of
-    {ok, Uri} ->
-      {ok, #{text := Text} = Document} = els_utils:lookup_document(Uri),
-      Specs = els_dt_document:pois(Document, [spec]),
-      [ begin
-          #{from := From, to := To} = Range,
-          Spec = els_text:range(Text, From, To),
-          els_dt_signatures:insert(#{ mfa => {M, F, A} , spec => Spec})
-        end
-        || #{id := {F, A}, range := Range} <- Specs
-      ],
-      {ok, Items} = els_db:lookup(name(), MFA),
-      {ok, [to_item(Item) || Item <- Items]};
-    {error, _} ->
-      {ok, []}
+  case els_db:lookup(name(), MFA) of
+    {ok, []} ->
+      ok = index_signatures(M),
+      els_db:lookup(name(), MFA);
+    {ok, Items} ->
+      {ok, [to_item(Item) || Item <- Items]}
   end.
 
 -spec delete_by_module(atom()) -> ok.
 delete_by_module(Module) ->
   Pattern = #els_dt_signatures{mfa = {Module, '_', '_'}, _ = '_'},
   ok = els_db:match_delete(name(), Pattern).
+
+-spec index_signatures(atom()) -> ok.
+index_signatures(M) ->
+  case els_utils:find_module(M) of
+    {ok, Uri} ->
+      {ok, #{text := Text} = Document} = els_utils:lookup_document(Uri),
+      POIs = els_dt_document:pois(Document, [spec]),
+      [index_signature(M, Text, POI) || POI <- POIs];
+    {error, Error} ->
+      ?LOG_DEBUG("[~p] Cannot find module. [module=~p] [error=~p]",
+                 [?MODULE, M, Error])
+  end,
+  ok.
+
+-spec index_signature(atom(), binary(), poi()) -> ok.
+index_signature(M, Text, POI) ->
+  #{id := {F, A}, range := Range} = POI,
+  #{from := From, to := To} = Range,
+  Spec = els_text:range(Text, From, To),
+  els_dt_signatures:insert(#{ mfa => {M, F, A} , spec => Spec}).
