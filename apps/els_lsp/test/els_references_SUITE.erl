@@ -551,10 +551,10 @@ refresh_after_watched_file_added(Config) ->
   {ok, _} = file:copy(PathC, NewPathC),
   els_client:did_change_watched_files([{UriC, ?FILE_CHANGE_TYPE_CREATED}]),
   %% After
-  ExpectedLocationsAfter = [ #{ uri   => UriB
+  ExpectedLocationsAfter = [ #{ uri   => NewUriC
                               , range => #{from => {6, 3}, to => {6, 22}}
                               }
-                           , #{ uri   => NewUriC
+                           , #{ uri   => UriB
                               , range => #{from => {6, 3}, to => {6, 22}}
                               }
                            ],

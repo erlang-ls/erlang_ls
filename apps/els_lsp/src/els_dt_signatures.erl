@@ -74,13 +74,15 @@ insert(Map) when is_map(Map) ->
 
 -spec lookup(mfa()) -> {ok, [item()]}.
 lookup({M, _F, _A} = MFA) ->
-  case els_db:lookup(name(), MFA) of
-    {ok, []} ->
-      ok = index_signatures(M),
-      els_db:lookup(name(), MFA);
-    {ok, Items} ->
-      {ok, [to_item(Item) || Item <- Items]}
-  end.
+  {ok, Items} =
+    case els_db:lookup(name(), MFA) of
+      {ok, []} ->
+        ok = index_signatures(M),
+        els_db:lookup(name(), MFA);
+      Result ->
+        Result
+    end,
+  {ok, [to_item(Item) || Item <- Items]}.
 
 -spec delete_by_module(atom()) -> ok.
 delete_by_module(Module) ->
