@@ -42,7 +42,7 @@ search_command(IdString) ->
   lists:flatten(io_lib:format(CmdFormat, CmdArgs)).
 
 -spec greppable_string({els_dt_references:poi_category(), any()}) ->
-        {ok, string()}.
+        string().
 greppable_string({function, {_M, F, _A}}) ->
   atom_to_greppable_string(F);
 greppable_string({type, {_M, F, _A}}) ->
