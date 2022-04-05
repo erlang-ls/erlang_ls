@@ -74,37 +74,12 @@ insert(Map) when is_map(Map) ->
 
 -spec lookup(mfa()) -> {ok, [item()]}.
 lookup({M, _F, _A} = MFA) ->
-  {ok, Items} =
-    case els_db:lookup(name(), MFA) of
-      {ok, []} ->
-        ok = index_signatures(M),
-        els_db:lookup(name(), MFA);
-      Result ->
-        Result
-    end,
+  {ok, Uris} = els_utils:find_modules(M),
+  [els_indexing:ensure_deeply_indexed(Uri) || Uri <- Uris],
+  {ok, Items} = els_db:lookup(name(), MFA),
   {ok, [to_item(Item) || Item <- Items]}.
 
 -spec delete_by_module(atom()) -> ok.
 delete_by_module(Module) ->
   Pattern = #els_dt_signatures{mfa = {Module, '_', '_'}, _ = '_'},
   ok = els_db:match_delete(name(), Pattern).
-
--spec index_signatures(atom()) -> ok.
-index_signatures(M) ->
-  case els_utils:find_module(M) of
-    {ok, Uri} ->
-      {ok, #{text := Text} = Document} = els_utils:lookup_document(Uri),
-      POIs = els_dt_document:pois(Document, [spec]),
-      [index_signature(M, Text, POI) || POI <- POIs];
-    {error, Error} ->
-      ?LOG_DEBUG("[~p] Cannot find module. [module=~p] [error=~p]",
-                 [?MODULE, M, Error])
-  end,
-  ok.
-
--spec index_signature(atom(), binary(), poi()) -> ok.
-index_signature(M, Text, POI) ->
-  #{id := {F, A}, range := Range} = POI,
-  #{from := From, to := To} = Range,
-  Spec = els_text:range(Text, From, To),
-  insert(#{ mfa => {M, F, A} , spec => Spec}).

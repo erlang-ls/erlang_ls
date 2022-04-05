@@ -30,7 +30,10 @@ did_change(Params) ->
       %% Full text sync
       #{<<"text">> := Text} = Change,
       {Duration, ok} =
-        timer:tc(fun() -> els_indexing:index(Uri, Text, 'deep') end),
+        timer:tc(fun() ->
+                     {ok, Document} = els_utils:lookup_document(Uri),
+                     els_indexing:deep_index(Document)
+                 end),
       ?LOG_DEBUG("didChange FULLSYNC [size: ~p] [duration: ~pms]\n",
                  [size(Text), Duration div 1000]),
       ok;
@@ -91,7 +94,4 @@ handle_file_change(Uri, Type) when Type =:= ?FILE_CHANGE_TYPE_CREATED;
   ok = els_index_buffer:load(Uri, Text),
   ok = els_index_buffer:flush(Uri);
 handle_file_change(Uri, Type) when Type =:= ?FILE_CHANGE_TYPE_DELETED ->
-  ok = els_dt_document:delete(Uri),
-  ok = els_dt_document_index:delete_by_uri(Uri),
-  ok = els_dt_references:delete_by_uri(Uri),
-  ok = els_dt_signatures:delete_by_module(els_uri:module(Uri)).
+  els_indexing:remove(Uri).

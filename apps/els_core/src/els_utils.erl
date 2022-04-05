@@ -110,7 +110,7 @@ find_header(Id) ->
       {ok, Uri};
     [] ->
       FileName = atom_to_list(Id) ++ ".hrl",
-      els_indexing:find_and_index_file(FileName)
+      els_indexing:find_and_deeply_index_file(FileName)
   end.
 
 %% @doc Look for a module in the DB
@@ -130,7 +130,7 @@ find_modules(Id) ->
   case [Uri || #{kind := module, uri := Uri} <- Candidates] of
       [] ->
           FileName = atom_to_list(Id) ++ ".erl",
-          case els_indexing:find_and_index_file(FileName) of
+          case els_indexing:find_and_deeply_index_file(FileName) of
               {ok, Uri} -> {ok, [Uri]};
               Error -> Error
           end;
@@ -150,7 +150,7 @@ lookup_document(Uri) ->
       {ok, Document};
     {ok, []} ->
       Path = els_uri:path(Uri),
-      {ok, Uri} = els_indexing:index_file(Path),
+      {ok, Uri} = els_indexing:shallow_index(Path, app),
       case els_dt_document:lookup(Uri) of
         {ok, [Document]} ->
           {ok, Document};

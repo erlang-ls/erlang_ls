@@ -22,7 +22,7 @@
         , delete/1
         ]).
 
--export([ new/2
+-export([ new/3
         , pois/1
         , pois/2
         , get_element_at_pos/3
@@ -44,17 +44,20 @@
 %%==============================================================================
 -type id()   :: atom().
 -type kind() :: module | header | other.
+-type source() :: otp | app | dep.
+-export_type([source/0]).
 
 %%==============================================================================
 %% Item Definition
 %%==============================================================================
 
--record(els_dt_document, { uri  :: uri()    | '_'
+-record(els_dt_document, { uri  :: uri()    | '_' | '$1'
                          , id   :: id()     | '_'
                          , kind :: kind()   | '_'
-                         , text :: binary() | '_'
+                         , text :: binary() | '_' | '$3'
                          , md5  :: binary() | '_'
                          , pois :: [poi()]  | '_' | ondemand
+                         , source :: source() | '$2'
                          }).
 -type els_dt_document() :: #els_dt_document{}.
 
@@ -64,6 +67,7 @@
                  , text := binary()
                  , md5  => binary()
                  , pois => [poi()] | ondemand
+                 , source => source()
                  }.
 -export_type([ id/0
              , item/0
@@ -92,6 +96,7 @@ from_item(#{ uri  := Uri
            , text := Text
            , md5  := MD5
            , pois := POIs
+           , source := Source
            }) ->
   #els_dt_document{ uri  = Uri
                   , id   = Id
@@ -99,6 +104,7 @@ from_item(#{ uri  := Uri
                   , text = Text
                   , md5  = MD5
                   , pois = POIs
+                  , source = Source
                   }.
 
 -spec to_item(els_dt_document()) -> item().
@@ -108,6 +114,7 @@ to_item(#els_dt_document{ uri  = Uri
                         , text = Text
                         , md5  = MD5
                         , pois = POIs
+                        , source = Source
                         }) ->
   #{ uri  => Uri
    , id   => Id
@@ -115,6 +122,7 @@ to_item(#els_dt_document{ uri  = Uri
    , text => Text
    , md5  => MD5
    , pois => POIs
+   , source => Source
    }.
 
 -spec insert(item()) -> ok | {error, any()}.
@@ -131,21 +139,21 @@ lookup(Uri) ->
 delete(Uri) ->
   els_db:delete(name(), Uri).
 
--spec new(uri(), binary()) -> item().
-new(Uri, Text) ->
+-spec new(uri(), binary(), source()) -> item().
+new(Uri, Text, Source) ->
   Extension = filename:extension(Uri),
   Id = binary_to_atom(filename:basename(Uri, Extension), utf8),
   case Extension of
     <<".erl">> ->
-      new(Uri, Text, Id, module);
+      new(Uri, Text, Id, module, Source);
     <<".hrl">> ->
-      new(Uri, Text, Id, header);
+      new(Uri, Text, Id, header, Source);
     _  ->
-      new(Uri, Text, Id, other)
+      new(Uri, Text, Id, other, Source)
   end.
 
--spec new(uri(), binary(), atom(), kind()) -> item().
-new(Uri, Text, Id, Kind) ->
+-spec new(uri(), binary(), atom(), kind(), source()) -> item().
+new(Uri, Text, Id, Kind, Source) ->
   MD5 = erlang:md5(Text),
   #{ uri  => Uri
    , id   => Id
@@ -153,13 +161,14 @@ new(Uri, Text, Id, Kind) ->
    , text => Text
    , md5  => MD5
    , pois => ondemand
+   , source => Source
    }.
 
 %% @doc Returns the list of POIs for the current document
 -spec pois(item()) -> [poi()].
-pois(#{ text := Text, pois := ondemand } = Document) ->
-  {ok, POIs} = els_parser:parse(Text),
-  ok = els_dt_document:insert(Document#{pois => POIs}),
+pois(#{ uri := Uri, pois := ondemand }) ->
+  els_indexing:ensure_deeply_indexed(Uri),
+  {ok, #{pois := POIs}} = els_utils:lookup_document(Uri),
   POIs;
 pois(#{ pois := POIs }) ->
   POIs.
@@ -208,8 +217,18 @@ wrapping_functions(Document, Range) ->
 
 -spec find_candidates(binary()) -> [uri()].
 find_candidates(Pattern) ->
-  All = ets:tab2list(name()),
-  Fun = fun(#els_dt_document{uri = Uri, text = Text}) ->
+  %% ets:fun2ms(fun(#els_dt_document{source = Source, uri = Uri, text = Text})
+  %% when Source =/= otp -> {Uri, Text} end).
+  MS = [{#els_dt_document{ uri = '$1'
+                         , source = '$2'
+                         , kind = '_'
+                         , text = '$3'
+                         , md5 = '_'
+                         ,pois = '_'}
+        , [{'=/=', '$2', otp}]
+        , [{{'$1', '$3'}}]}],
+  All = ets:select(name(), MS),
+  Fun = fun({Uri, Text}) ->
             case binary:matches(Text, Pattern) of
               [] -> false;
               _ -> {true, Uri}

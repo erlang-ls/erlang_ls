@@ -68,7 +68,7 @@ reindex_otp(_Config) ->
 
 -spec do_index_otp() -> ok.
 do_index_otp() ->
-  [els_indexing:index_dir(Dir, 'shallow') || Dir <- els_config:get(otp_paths)],
+  [els_indexing:index_dir(Dir, otp) || Dir <- els_config:get(otp_paths)],
   ok.
 
 -spec otp_apps_exclude() -> [string()].

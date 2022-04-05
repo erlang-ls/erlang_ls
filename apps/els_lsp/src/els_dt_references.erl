@@ -100,18 +100,7 @@ find_by_id(Kind, Id) ->
 -spec find_by(tuple()) -> {ok, [item()]}.
 find_by(#els_dt_references{id = Id} = Pattern) ->
   Uris = els_text_search:find_candidate_uris(Id),
-  [begin
-     {ok, Document} = els_utils:lookup_document(Uri),
-     POIs = els_dt_document:pois(Document, [ application
-                                           , behaviour
-                                           , implicit_fun
-                                           , include
-                                           , include_lib
-                                           , type_application
-                                           , import_entry
-                                           ]),
-     [register_reference(Uri, POI) || POI <- POIs]
-   end || Uri <- Uris],
+  [els_indexing:ensure_deeply_indexed(Uri) || Uri <- Uris],
   {ok, Items} = els_db:match(name(), Pattern),
   {ok, [to_item(Item) || Item <- Items]}.
 
@@ -139,23 +128,3 @@ kind_to_category(Kind) when Kind =:= include_lib ->
   include_lib;
 kind_to_category(Kind) when Kind =:= behaviour ->
   behaviour.
-
--spec register_reference(uri(), poi()) -> ok.
-register_reference(Uri, #{id := {F, A}} = POI) ->
-  M = els_uri:module(Uri),
-  register_reference(Uri, POI#{id => {M, F, A}});
-register_reference(Uri, #{kind := Kind, id := Id, range := Range})
-  when %% Include
-       Kind =:= include;
-       Kind =:= include_lib;
-       %% Function
-       Kind =:= application;
-       Kind =:= implicit_fun;
-       Kind =:= import_entry;
-       %% Type
-       Kind =:= type_application;
-       %% Behaviour
-       Kind =:= behaviour ->
-  insert( Kind
-        , #{id => Id, uri => Uri, range => Range}
-        ).

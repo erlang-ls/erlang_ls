@@ -96,12 +96,15 @@ loop() ->
 -spec do_apply_edits(uri(), [els_text:edit()]) -> ok.
 do_apply_edits(Uri, Edits0) ->
   ?LOG_DEBUG("[~p] Processing index request for ~p", [?SERVER, Uri]),
-  {ok, [#{text := Text0}]} = els_dt_document:lookup(Uri),
+  {ok, #{text := Text0}} = els_utils:lookup_document(Uri),
   ?LOG_DEBUG("[~p] Apply edits: ~p", [?SERVER, Edits0]),
   Text1 = els_text:apply_edits(Text0, Edits0),
   Text = receive_all(Uri, Text1),
   ?LOG_DEBUG("[~p] Started indexing ~p", [?SERVER, Uri]),
-  {Duration, ok} = timer:tc(fun() -> els_indexing:index(Uri, Text, 'deep') end),
+  {Duration, ok} = timer:tc(fun() ->
+                                Document = els_dt_document:new(Uri, Text, app),
+                                els_indexing:deep_index(Document)
+                            end),
   ?LOG_DEBUG("[~p] Done indexing ~p [duration: ~pms]",
              [?SERVER, Uri, Duration div 1000]),
   ok.
@@ -109,9 +112,12 @@ do_apply_edits(Uri, Edits0) ->
 -spec do_flush(uri()) -> ok.
 do_flush(Uri) ->
   ?LOG_DEBUG("[~p] Flushing ~p", [?SERVER, Uri]),
-  {ok, [#{text := Text0}]} = els_dt_document:lookup(Uri),
+  {ok, #{text := Text0}} = els_utils:lookup_document(Uri),
   Text = receive_all(Uri, Text0),
-  {Duration, ok} = timer:tc(fun() -> els_indexing:index(Uri, Text, 'deep') end),
+  {Duration, ok} = timer:tc(fun() ->
+                                Document = els_dt_document:new(Uri, Text, app),
+                                els_indexing:deep_index(Document)
+                            end),
   ?LOG_DEBUG("[~p] Done flushing ~p [duration: ~pms]",
              [?SERVER, Uri, Duration div 1000]),
   ok.
@@ -121,7 +127,8 @@ do_load(Uri, Text) ->
   ?LOG_DEBUG("[~p] Loading ~p", [?SERVER, Uri]),
   {Duration, ok} =
     timer:tc(fun() ->
-                 els_indexing:index(Uri, Text, 'deep')
+                 Document = els_dt_document:new(Uri, Text, app),
+                 els_indexing:deep_index(Document)
              end),
   ?LOG_DEBUG("[~p] Done load ~p [duration: ~pms]",
              [?SERVER, Uri, Duration div 1000]),

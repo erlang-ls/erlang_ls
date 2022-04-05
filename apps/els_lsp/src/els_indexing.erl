@@ -3,12 +3,14 @@
 -callback index(els_dt_document:item()) -> ok.
 
 %% API
--export([ find_and_index_file/1
-        , index_file/1
-        , index/3
+-export([ find_and_deeply_index_file/1
         , index_dir/2
         , start/0
         , maybe_start/0
+        , ensure_deeply_indexed/1
+        , shallow_index/2
+        , deep_index/1
+        , remove/1
         ]).
 
 %%==============================================================================
@@ -20,46 +22,28 @@
 %%==============================================================================
 %% Types
 %%==============================================================================
--type mode()  :: 'deep' | 'shallow'.
 
 %%==============================================================================
 %% Exported functions
 %%==============================================================================
 
--spec find_and_index_file(string()) ->
+-spec find_and_deeply_index_file(string()) ->
    {ok, uri()} | {error, any()}.
-find_and_index_file(FileName) ->
+find_and_deeply_index_file(FileName) ->
   SearchPaths = els_config:get(search_paths),
   case file:path_open( SearchPaths
                      , els_utils:to_binary(FileName)
                      , [read]
                      )
   of
-    {ok, IoDevice, FullName} ->
+    {ok, IoDevice, Path} ->
       %% TODO: Avoid opening file twice
       file:close(IoDevice),
-      index_file(FullName);
+      Uri = els_uri:uri(Path),
+      ensure_deeply_indexed(Uri),
+      {ok, Uri};
     {error, Error} ->
       {error, Error}
-  end.
-
--spec index_file(binary()) -> {ok, uri()}.
-index_file(Path) ->
-  GeneratedFilesTag = els_config_indexing:get_generated_files_tag(),
-  try_index_file(Path, 'deep', false, GeneratedFilesTag),
-  {ok, els_uri:uri(Path)}.
-
--spec index_if_not_generated(uri(), binary(), mode(), boolean(), string()) ->
-        ok | skipped.
-index_if_not_generated(Uri, Text, Mode, false, _GeneratedFilesTag) ->
-  index(Uri, Text, Mode);
-index_if_not_generated(Uri, Text, Mode, true, GeneratedFilesTag) ->
-  case is_generated_file(Text, GeneratedFilesTag) of
-    true ->
-      ?LOG_DEBUG("Skip indexing for generated file ~p", [Uri]),
-      skipped;
-    false ->
-      ok = index(Uri, Text, Mode)
   end.
 
 -spec is_generated_file(binary(), string()) -> boolean().
@@ -72,31 +56,82 @@ is_generated_file(Text, Tag) ->
       false
   end.
 
--spec index(uri(), binary(), mode()) -> ok.
-index(Uri, Text, Mode) ->
-  MD5 = erlang:md5(Text),
-  case els_dt_document:lookup(Uri) of
-    {ok, [#{md5 := MD5}]} ->
-      ok;
-    {ok, LookupResult} ->
-      Document = els_dt_document:new(Uri, Text),
-      ok = els_dt_document:insert(Document),
-      #{id := Id, kind := Kind} = Document,
-      ModuleItem = els_dt_document_index:new(Id, Uri, Kind),
-      ok = els_dt_document_index:insert(ModuleItem),
-      case Mode of
-        shallow ->
-          ok;
-        deep ->
-          case LookupResult of
-            [] ->
-              ok;
-            _ ->
-              ok = els_dt_references:delete_by_uri(Uri),
-              ok = els_dt_signatures:delete_by_module(els_uri:module(Uri))
-          end
-      end
+-spec ensure_deeply_indexed(uri()) -> ok.
+ensure_deeply_indexed(Uri) ->
+  {ok, #{pois := POIs} = Document} = els_utils:lookup_document(Uri),
+  case POIs of
+    ondemand ->
+      deep_index(Document);
+    _ ->
+      ok
   end.
+
+-spec deep_index(els_dt_document:item()) -> ok.
+deep_index(#{id := Id, uri := Uri, text := Text, source := Source} = Document) ->
+  {ok, POIs} = els_parser:parse(Text),
+  ok = els_dt_document:insert(Document#{pois => POIs}),
+  index_signatures(Id, Text, POIs),
+  case Source of
+    otp ->
+      ok;
+    S when S =:= app orelse S =:= dep ->
+      index_references(Id, Uri, POIs)
+  end.
+
+-spec index_signatures(atom(), binary(), [poi()]) -> ok.
+index_signatures(Id, Text, POIs) ->
+  ok = els_dt_signatures:delete_by_module(Id),
+  [index_signature(Id, Text, POI) || #{kind := spec} = POI <- POIs],
+  ok.
+
+-spec index_signature(atom(), binary(), poi()) -> ok.
+index_signature(_M, _Text, #{id := undefined}) ->
+  ok;
+index_signature(M, Text,   #{id := {F, A}, range := Range}) ->
+  #{from := From, to := To} = Range,
+  Spec = els_text:range(Text, From, To),
+  els_dt_signatures:insert(#{ mfa => {M, F, A}, spec => Spec}).
+
+-spec index_references(atom(), uri(), [poi()]) -> ok.
+index_references(Id, Uri, POIs) ->
+  ok = els_dt_references:delete_by_uri(Uri),
+  ReferenceKinds = [ %% Function
+                     application
+                   , implicit_fun
+                   , import_entry
+                     %% Include
+                   , include
+                   , include_lib
+                     %% Behaviour
+                   , behaviour
+                     %% Type
+                   , type_application
+                   ],
+  [index_reference(Id, Uri, POI)
+   || #{kind := Kind} = POI <- POIs,
+      lists:member(Kind, ReferenceKinds)],
+  ok.
+
+-spec index_reference(atom(), uri(), poi()) -> ok.
+index_reference(M, Uri, #{id := {F, A}} = POI) ->
+  index_reference(M, Uri, POI#{id => {M, F, A}});
+index_reference(_M, Uri, #{kind := Kind, id := Id, range := Range}) ->
+  els_dt_references:insert(Kind, #{id => Id, uri => Uri, range => Range}).
+
+-spec shallow_index(binary(), els_dt_document:source()) -> {ok, uri()}.
+shallow_index(Path, Source) ->
+  Uri = els_uri:uri(Path),
+  {ok, Text} = file:read_file(Path),
+  shallow_index(Uri, Text, Source),
+  {ok, Uri}.
+
+-spec shallow_index(uri(), binary(), els_dt_document:source()) -> ok.
+shallow_index(Uri, Text, Source) ->
+  Document = els_dt_document:new(Uri, Text, Source),
+  ok = els_dt_document:insert(Document),
+  #{id := Id, kind := Kind} = Document,
+  ModuleItem = els_dt_document_index:new(Id, Uri, Kind),
+  ok = els_dt_document_index:insert(ModuleItem).
 
 -spec maybe_start() -> true | false.
 maybe_start() ->
@@ -111,17 +146,17 @@ maybe_start() ->
 
 -spec start() -> ok.
 start() ->
-  start(<<"OTP">>, entries_otp()),
-  start(<<"Applications">>, entries_apps()),
-  start(<<"Dependencies">>, entries_deps()).
+  start(<<"OTP">>, els_config:get(otp_paths), otp),
+  start(<<"Applications">>, els_config:get(apps_paths), app),
+  start(<<"Dependencies">>, els_config:get(deps_paths), dep).
 
--spec start(binary(), [{string(), 'deep' | 'shallow'}]) -> ok.
-start(Group, Entries) ->
+-spec start(binary(), [string()], els_dt_document:source()) -> ok.
+start(Group, Entries, Source) ->
   SkipGeneratedFiles = els_config_indexing:get_skip_generated_files(),
   GeneratedFilesTag = els_config_indexing:get_generated_files_tag(),
-  Task = fun({Dir, Mode}, {Succeeded0, Skipped0, Failed0}) ->
-             {Su, Sk, Fa} = index_dir(Dir, Mode,
-                                      SkipGeneratedFiles, GeneratedFilesTag),
+  Task = fun(Dir, {Succeeded0, Skipped0, Failed0}) ->
+             {Su, Sk, Fa} =
+               index_dir(Dir, SkipGeneratedFiles, GeneratedFilesTag, Source),
              {Succeeded0 + Su, Skipped0 + Sk, Failed0 + Fa}
          end,
   Config = #{ task => Task
@@ -138,45 +173,49 @@ start(Group, Entries) ->
   {ok, _Pid} = els_background_job:new(Config),
   ok.
 
+-spec remove(uri()) -> ok.
+remove(Uri) ->
+  ok = els_dt_document:delete(Uri),
+  ok = els_dt_document_index:delete_by_uri(Uri),
+  ok = els_dt_references:delete_by_uri(Uri),
+  ok = els_dt_signatures:delete_by_module(els_uri:module(Uri)).
+
 %%==============================================================================
 %% Internal functions
 %%==============================================================================
 
-
-%% @doc Try indexing a file.
--spec try_index_file(binary(), mode(), boolean(), string()) ->
-        ok | skipped | {error, any()}.
-try_index_file(FullName, Mode, SkipGeneratedFiles, GeneratedFilesTag) ->
+-spec shallow_index(binary(), boolean(), string(), els_dt_document:source()) ->
+        ok | skipped.
+shallow_index(FullName, SkipGeneratedFiles, GeneratedFilesTag, Source) ->
   Uri = els_uri:uri(FullName),
-  try
-    ?LOG_DEBUG("Indexing file. [filename=~s, uri=~s]", [FullName, Uri]),
-    {ok, Text} = file:read_file(FullName),
-    index_if_not_generated(Uri, Text, Mode,
-                           SkipGeneratedFiles, GeneratedFilesTag)
-  catch Type:Reason:St ->
-      ?LOG_ERROR("Error indexing file "
-                 "[filename=~s, uri=~s] "
-                 "~p:~p:~p", [FullName, Uri, Type, Reason, St]),
-      {error, {Type, Reason}}
+  ?LOG_DEBUG("Shallow indexing file. [filename=~s] [uri=~s]",
+             [FullName, Uri]),
+  {ok, Text} = file:read_file(FullName),
+  case SkipGeneratedFiles andalso is_generated_file(Text, GeneratedFilesTag) of
+    true ->
+      ?LOG_DEBUG("Skip indexing for generated file ~p", [Uri]),
+      skipped;
+    false ->
+      shallow_index(Uri, Text, Source)
   end.
 
--spec index_dir(string(), mode()) ->
+-spec index_dir(string(), els_dt_document:source()) ->
         {non_neg_integer(), non_neg_integer(), non_neg_integer()}.
-index_dir(Dir, Mode) ->
+index_dir(Dir, Source) ->
   SkipGeneratedFiles = els_config_indexing:get_skip_generated_files(),
   GeneratedFilesTag = els_config_indexing:get_generated_files_tag(),
-  index_dir(Dir, Mode, SkipGeneratedFiles, GeneratedFilesTag).
+  index_dir(Dir, SkipGeneratedFiles, GeneratedFilesTag, Source).
 
--spec index_dir(string(), mode(), boolean(), string()) ->
+-spec index_dir(string(), boolean(), string(), els_dt_document:source()) ->
         {non_neg_integer(), non_neg_integer(), non_neg_integer()}.
-index_dir(Dir, Mode, SkipGeneratedFiles, GeneratedFilesTag) ->
-  ?LOG_DEBUG("Indexing directory. [dir=~s] [mode=~s]", [Dir, Mode]),
+index_dir(Dir, SkipGeneratedFiles, GeneratedFilesTag, Source) ->
+  ?LOG_DEBUG("Indexing directory. [dir=~s]", [Dir]),
   F = fun(FileName, {Succeeded, Skipped, Failed}) ->
-          case try_index_file(els_utils:to_binary(FileName), Mode,
-                              SkipGeneratedFiles, GeneratedFilesTag) of
+          case
+            shallow_index(els_utils:to_binary(FileName),
+                          SkipGeneratedFiles, GeneratedFilesTag, Source) of
             ok -> {Succeeded + 1, Skipped, Failed};
-            skipped -> {Succeeded, Skipped + 1, Failed};
-            {error, _Error} -> {Succeeded, Skipped, Failed + 1}
+            skipped -> {Succeeded, Skipped + 1, Failed}
           end
       end,
   Filter = fun(Path) ->
@@ -192,19 +231,7 @@ index_dir(Dir, Mode, SkipGeneratedFiles, GeneratedFilesTag) ->
                                                    , {0, 0, 0}
                                                    ]
                                                  ),
-  ?LOG_DEBUG("Finished indexing directory. [dir=~s] [mode=~s] [time=~p] "
+  ?LOG_DEBUG("Finished indexing directory. [dir=~s] [time=~p] "
              "[succeeded=~p] [skipped=~p] [failed=~p]",
-             [Dir, Mode, Time/1000/1000, Succeeded, Skipped, Failed]),
+             [Dir, Time/1000/1000, Succeeded, Skipped, Failed]),
   {Succeeded, Skipped, Failed}.
-
--spec entries_apps() -> [{string(), 'deep' | 'shallow'}].
-entries_apps() ->
-  [{Dir, 'shallow'} || Dir <- els_config:get(apps_paths)].
-
--spec entries_deps() -> [{string(), 'deep' | 'shallow'}].
-entries_deps() ->
-  [{Dir, 'shallow'} || Dir <- els_config:get(deps_paths)].
-
--spec entries_otp() -> [{string(), 'deep' | 'shallow'}].
-entries_otp() ->
-  [{Dir, 'shallow'} || Dir <- els_config:get(otp_paths)].
