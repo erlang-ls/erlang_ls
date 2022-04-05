@@ -164,7 +164,8 @@ incoming_calls(Config) ->
                   , start => #{character => 2, line => 15}
                   }]}
           ],
-  ?assertEqual(Calls, Result).
+  [?assert(lists:member(Call, Result)) || Call <- Calls],
+  ?assertEqual(length(Calls), length(Result)).
 
 -spec outgoing_calls(config()) -> ok.
 outgoing_calls(Config) ->
