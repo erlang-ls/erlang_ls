@@ -31,6 +31,7 @@
         , applications_at_pos/3
         , wrapping_functions/2
         , wrapping_functions/3
+        , find_candidates/1
         ]).
 
 %%==============================================================================
@@ -204,3 +205,14 @@ wrapping_functions(Document, Line, Column) ->
 wrapping_functions(Document, Range) ->
   #{start := #{character := Character, line := Line}} = Range,
   wrapping_functions(Document, Line, Character).
+
+-spec find_candidates(binary()) -> [uri()].
+find_candidates(Pattern) ->
+  All = ets:tab2list(name()),
+  Fun = fun(#els_dt_document{uri = Uri, text = Text}) ->
+            case binary:matches(Text, Pattern) of
+              [] -> false;
+              _ -> {true, Uri}
+            end
+        end,
+  lists:filtermap(Fun, All).

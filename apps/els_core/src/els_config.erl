@@ -56,8 +56,7 @@
                | indexing_enabled
                | bsp_enabled
                | compiler_telemetry_enabled
-               | edoc_custom_tags
-               | search_command.
+               | edoc_custom_tags.
 
 -type path()  :: file:filename().
 -type state() :: #{ apps_dirs        => [path()]
@@ -136,7 +135,6 @@ do_initialize(RootUri, Capabilities, InitOptions, {ConfigPath, Config}) ->
   CompilerTelemetryEnabled
     = maps:get("compiler_telemetry_enabled", Config, false),
   EDocCustomTags = maps:get("edoc_custom_tags", Config, []),
-  SearchCommand = maps:get("search_command", Config, "grep -l -r \"~s\" ~s"),
 
   IndexingEnabled = maps:get(<<"indexingEnabled">>, InitOptions, true),
 
@@ -161,7 +159,6 @@ do_initialize(RootUri, Capabilities, InitOptions, {ConfigPath, Config}) ->
   ok = set(bsp_enabled, BSPEnabled),
   ok = set(compiler_telemetry_enabled, CompilerTelemetryEnabled),
   ok = set(edoc_custom_tags, EDocCustomTags),
-  ok = set(search_command, SearchCommand),
   ok = set(incremental_sync, IncrementalSync),
   ok = set(indexing, maps:merge( els_config_indexing:default_config()
                                , Indexing)),
