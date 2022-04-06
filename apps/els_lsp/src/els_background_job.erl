@@ -193,7 +193,12 @@ terminate(Reason, #{ config := #{on_error := OnError}
                    , total := Total
                    , progress_enabled := ProgressEnabled
                    }) ->
-  ?LOG_WARNING( "Background job aborted. [reason=~p]", [Reason]),
+  case Reason of
+    shutdown ->
+      ?LOG_DEBUG("Background job terminated.", []);
+    _ ->
+      ?LOG_WARNING( "Background job aborted. [reason=~p]", [Reason])
+  end,
   notify_end(Token, Total, ProgressEnabled),
   OnError(InternalState),
   ok.
