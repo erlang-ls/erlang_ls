@@ -30,7 +30,10 @@ in(#{from := FromA, to := ToA}, #{from := FromB, to := ToB}) ->
   FromA >= FromB andalso ToA =< ToB.
 
 -spec in_range(Line :: line(), Column :: column(), POI :: poi()) -> boolean().
-in_range(Line, Column, #{data := #{wrapping_range := #{from := {FromLine, FromColumn}, to := {ToLine, ToColumn}}}}) ->
+in_range( Line
+        , Column
+        , #{ data := #{wrapping_range := #{from := {FromLine, FromColumn}
+           , to := {ToLine, ToColumn}}}}) ->
          (FromLine < Line andalso Line < ToLine)
   orelse (FromLine =:= Line andalso FromColumn =< Column)
   orelse (Line =:= ToLine andalso Column =< ToColumn).

@@ -714,7 +714,9 @@ completion_item(#{kind := Kind, id := {F, A}, data := POIData}, Data, false)
    , insertTextFormat => Format
    , data             => Data
    };
-completion_item(#{kind := function_clause, id := {F, A}, data := POIData}, Data, false) ->
+completion_item( #{kind := function_clause, id := {F, A}, data := POIData}
+               , Data
+               , false) ->
   ArgsNames = maps:get(args, POIData),
   Label = io_lib:format("function clause for ~p/~p", [F, A]),
   #{ label            => els_utils:to_binary(Label)
