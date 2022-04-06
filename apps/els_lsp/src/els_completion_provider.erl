@@ -44,17 +44,18 @@ handle_request({completion, Params}, State) ->
                             }
    , <<"textDocument">> := #{<<"uri">> := Uri}
    } = Params,
+  %% Ensure there are no pending changes.
   {ok, Document} = els_utils:lookup_document(Uri),
-  #{text := Text, buffer := Buffer} = Document,
-  %% Ensure there are no pending changes. This causes a heavy sync
-  %% point, since for a big module indexing could take a while.  Maybe
-  %% just do a 'soft' flush and avoid indexing here?
-  case Buffer of
-    undefined ->
-      ok;
-    _ ->
-      ok = els_buffer_server:flush(Buffer)
-  end,
+  #{buffer := Buffer, text := Text0} = Document,
+  Text = case Buffer of
+           undefined ->
+             %% This clause is only kept due to the current test suites,
+             %% where LSP clients can trigger a completion request
+             %% before a did_open
+             Text0;
+           _ ->
+             els_buffer_server:flush(Buffer)
+         end,
   Context = maps:get( <<"context">>
                     , Params
                     , #{ <<"triggerKind">> => ?COMPLETION_TRIGGER_KIND_INVOKED }

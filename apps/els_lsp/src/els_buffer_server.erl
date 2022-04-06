@@ -37,6 +37,7 @@
 -type state() :: #{ uri := uri()
                   , text := text()
                   , ref := undefined | reference()
+                  , pending := [{pid(), any()}]
                   }.
 -type buffer() :: pid().
 
@@ -61,7 +62,7 @@ stop(Buffer) ->
 apply_edits(Buffer, Edits) ->
   gen_server:cast(Buffer, {apply_edits, Edits}).
 
--spec flush(buffer()) -> ok.
+-spec flush(buffer()) -> text().
 flush(Buffer) ->
   gen_server:call(Buffer, {flush}).
 
@@ -74,40 +75,52 @@ start_link(Uri, Text) ->
 %%==============================================================================
 -spec init({uri(), text()}) -> {ok, state()}.
 init({Uri, Text}) ->
-  do_flush(Uri, Text),
-  {ok, #{ uri => Uri, text => Text, ref => undefined }}.
+  schedule_flush(),
+  {ok, #{ uri => Uri, text => Text, ref => undefined, pending => [] }}.
 
 -spec handle_call(any(), {pid(), any()}, state()) -> {reply, any(), state()}.
-handle_call({flush}, _From, #{uri := Uri, text := Text} = State) ->
-  ?LOG_DEBUG("[~p] Flushing request [uri=~p]", [?MODULE, Uri]),
-  do_flush(Uri, Text),
-  {reply, ok, State};
+handle_call({flush}, From, State) ->
+  #{uri := Uri, ref := Ref0, pending := Pending0} = State,
+  ?LOG_INFO("[~p] Flushing request [uri=~p]", [?MODULE, Uri]),
+  cancel_flush(Ref0),
+  Ref = schedule_flush(),
+  {noreply, State#{ref => Ref, pending => [From|Pending0]}};
 handle_call(Request, _From, State) ->
   {reply, {not_implemented, Request}, State}.
 
 -spec handle_cast(any(), state()) -> {noreply, state()}.
 handle_cast({apply_edits, Edits}, #{uri := Uri} = State) ->
-  ?LOG_DEBUG("[~p] Applying edits [uri=~p]", [?MODULE, Uri]),
+  ?LOG_INFO("[~p] Applying edits [uri=~p]", [?MODULE, Uri]),
   #{text := Text0, ref := Ref0} = State,
-  case Ref0 of
-    undefined -> ok;
-    _ -> erlang:cancel_timer(Ref0)
-  end,
+  cancel_flush(Ref0),
   Text = els_text:apply_edits(Text0, Edits),
-  Ref = erlang:send_after(?FLUSH_DELAY, self(), flush),
+  Ref = schedule_flush(),
   {noreply, State#{text => Text, ref => Ref}}.
 
 -spec handle_info(any(), state()) -> {noreply, state()}.
-handle_info(flush, #{uri := Uri, text := Text} = State) ->
-  ?LOG_DEBUG("[~p] Scheduled flushing [uri=~p]", [?MODULE, Uri]),
+handle_info(flush, #{uri := Uri, text := Text, pending := Pending0} = State) ->
+  ?LOG_INFO("[~p] Flushing [uri=~p]", [?MODULE, Uri]),
   do_flush(Uri, Text),
-  {noreply, State};
+  [gen_server:reply(From, Text) || From <- Pending0],
+  {noreply, State#{pending => []}};
 handle_info(_Request, State) ->
   {noreply, State}.
 
 %%==============================================================================
 %% Internal Functions
 %%==============================================================================
+
+-spec schedule_flush() -> reference().
+schedule_flush() ->
+  erlang:send_after(?FLUSH_DELAY, self(), flush).
+
+-spec cancel_flush(undefined | reference()) -> ok.
+cancel_flush(undefined) ->
+  ok;
+cancel_flush(Ref) ->
+  erlang:cancel_timer(Ref),
+  ok.
+
 -spec do_flush(uri(), text()) -> ok.
 do_flush(Uri, Text) ->
   {ok, Document} = els_utils:lookup_document(Uri),
