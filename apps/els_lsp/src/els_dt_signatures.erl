@@ -74,8 +74,8 @@ insert(Map) when is_map(Map) ->
 
 -spec lookup(mfa()) -> {ok, [item()]}.
 lookup({M, _F, _A} = MFA) ->
-  {ok, Uris} = els_utils:find_modules(M),
-  [els_indexing:ensure_deeply_indexed(Uri) || Uri <- Uris],
+  %% By finding a module, we also ensure the module is deeply indexed.
+  {ok, _Uris} = els_utils:find_modules(M),
   {ok, Items} = els_db:lookup(name(), MFA),
   {ok, [to_item(Item) || Item <- Items]}.
 

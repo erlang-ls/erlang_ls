@@ -67,7 +67,8 @@ ensure_deeply_indexed(Uri) ->
   end.
 
 -spec deep_index(els_dt_document:item()) -> ok.
-deep_index(#{id := Id, uri := Uri, text := Text, source := Source} = Document) ->
+deep_index(Document) ->
+  #{id := Id, uri := Uri, text := Text, source := Source} = Document,
   {ok, POIs} = els_parser:parse(Text),
   ok = els_dt_document:insert(Document#{pois => POIs}),
   index_signatures(Id, Text, POIs),

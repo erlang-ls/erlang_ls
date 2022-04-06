@@ -45,6 +45,7 @@
 -type id()   :: atom().
 -type kind() :: module | header | other.
 -type source() :: otp | app | dep.
+-type buffer() :: pid().
 -export_type([source/0]).
 
 %%==============================================================================
@@ -58,6 +59,7 @@
                          , md5  :: binary() | '_'
                          , pois :: [poi()]  | '_' | ondemand
                          , source :: source() | '$2'
+                         , buffer :: buffer() | '_' | undefined
                          }).
 -type els_dt_document() :: #els_dt_document{}.
 
@@ -68,6 +70,7 @@
                  , md5  => binary()
                  , pois => [poi()] | ondemand
                  , source => source()
+                 , buffer => buffer() | undefined
                  }.
 -export_type([ id/0
              , item/0
@@ -97,6 +100,7 @@ from_item(#{ uri  := Uri
            , md5  := MD5
            , pois := POIs
            , source := Source
+           , buffer := Buffer
            }) ->
   #els_dt_document{ uri  = Uri
                   , id   = Id
@@ -105,6 +109,7 @@ from_item(#{ uri  := Uri
                   , md5  = MD5
                   , pois = POIs
                   , source = Source
+                  , buffer = Buffer
                   }.
 
 -spec to_item(els_dt_document()) -> item().
@@ -115,6 +120,7 @@ to_item(#els_dt_document{ uri  = Uri
                         , md5  = MD5
                         , pois = POIs
                         , source = Source
+                        , buffer = Buffer
                         }) ->
   #{ uri  => Uri
    , id   => Id
@@ -123,6 +129,7 @@ to_item(#els_dt_document{ uri  = Uri
    , md5  => MD5
    , pois => POIs
    , source => Source
+   , buffer => Buffer
    }.
 
 -spec insert(item()) -> ok | {error, any()}.
@@ -162,6 +169,7 @@ new(Uri, Text, Id, Kind, Source) ->
    , md5  => MD5
    , pois => ondemand
    , source => Source
+   , buffer => undefined
    }.
 
 %% @doc Returns the list of POIs for the current document
@@ -221,10 +229,12 @@ find_candidates(Pattern) ->
   %% when Source =/= otp -> {Uri, Text} end).
   MS = [{#els_dt_document{ uri = '$1'
                          , source = '$2'
+                         , buffer = '_'
                          , kind = '_'
                          , text = '$3'
                          , md5 = '_'
-                         ,pois = '_'}
+                         , pois = '_'
+                         }
         , [{'=/=', '$2', otp}]
         , [{{'$1', '$3'}}]}],
   All = ets:select(name(), MS),

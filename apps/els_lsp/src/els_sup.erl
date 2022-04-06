@@ -67,14 +67,14 @@ init([]) ->
                   , start => {els_distribution_sup, start_link, []}
                   , type  => supervisor
                   }
-               , #{ id       => els_snippets_server
-                  , start    => {els_snippets_server, start_link, []}
+               , #{ id    => els_snippets_server
+                  , start => {els_snippets_server, start_link, []}
                   }
-               , #{ id => els_bsp_client
+               , #{ id    => els_bsp_client
                   , start => {els_bsp_client, start_link, []}
                   }
-               , #{ id => els_index_buffer
-                  , start => {els_index_buffer, start, []}
+               , #{ id    => els_buffer_sup
+                  , start => {els_buffer_sup, start_link, []}
                   }
                , #{ id       => els_server
                   , start    => {els_server, start_link, []}

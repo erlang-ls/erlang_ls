@@ -44,8 +44,17 @@ handle_request({completion, Params}, State) ->
                             }
    , <<"textDocument">> := #{<<"uri">> := Uri}
    } = Params,
-  ok = els_index_buffer:flush(Uri),
-  {ok, #{text := Text} = Document} = els_utils:lookup_document(Uri),
+  {ok, Document} = els_utils:lookup_document(Uri),
+  #{text := Text, buffer := Buffer} = Document,
+  %% Ensure there are no pending changes. This causes a heavy sync
+  %% point, since for a big module indexing could take a while.  Maybe
+  %% just do a 'soft' flush and avoid indexing here?
+  case Buffer of
+    undefined ->
+      ok;
+    _ ->
+      ok = els_buffer_server:flush(Buffer)
+  end,
   Context = maps:get( <<"context">>
                     , Params
                     , #{ <<"triggerKind">> => ?COMPLETION_TRIGGER_KIND_INVOKED }
