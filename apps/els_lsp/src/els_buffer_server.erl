@@ -102,7 +102,7 @@ handle_info(flush, #{uri := Uri, text := Text, pending := Pending0} = State) ->
   ?LOG_INFO("[~p] Flushing [uri=~p]", [?MODULE, Uri]),
   do_flush(Uri, Text),
   [gen_server:reply(From, Text) || From <- Pending0],
-  {noreply, State#{pending => []}};
+  {noreply, State#{pending => [], ref => undefined}};
 handle_info(_Request, State) ->
   {noreply, State}.
 
