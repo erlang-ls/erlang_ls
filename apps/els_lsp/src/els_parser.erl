@@ -165,7 +165,8 @@ ensure_dot(Tokens0) ->
       Tokens ++ [{dot, #{location => EndLocation, end_location => EndLocation}}]
   end.
 
--spec fix_tokens(erlfmt_scan:token(), [erlfmt_scan:token()]) -> [erlfmt_scan:token()].
+-spec fix_tokens( erlfmt_scan:token()
+                , [erlfmt_scan:token()]) -> [erlfmt_scan:token()].
 fix_tokens(T, InsertStack) ->
   L = erlfmt_scan:get_anno(end_location, T),
   case T of
@@ -214,15 +215,18 @@ fix_tokens(T, InsertStack) ->
 
 -spec token_fix(atom(), erl_anno:location()) -> [erlfmt_scan:token()].
 token_fix(Token, Location) ->
-  [ {Token, #{end_location => Location,location => Location}}
+  [ {Token, #{end_location => Location, location => Location}}
   ].
 
 -spec end_fix(erl_anno:location()) -> [erlfmt_scan:token()].
 end_fix(Location) ->
-  [ {var,#{end_location => Location, location => Location, text => "_"}, '_'},
-    {'->',#{end_location => Location,location => Location}},
-    {atom,#{end_location => Location, location => Location, text => "'__fix__'"}, '__fix__'},
-    {'end',#{end_location => Location,location => Location}}
+  [ {var, #{end_location => Location, location => Location, text => "_"}, '_'},
+    {'->', #{end_location => Location, location => Location}},
+    {atom, #{ end_location => Location
+            , location => Location
+            , text => "'__fix__'"}
+            , '__fix__'},
+    {'end', #{end_location => Location, location => Location}}
   ].
 
 
