@@ -1063,6 +1063,10 @@ resolve_application_remote_external(Config) ->
 
 -spec resolve_application_remote_otp(config()) -> ok.
 resolve_application_remote_otp(Config) ->
+  dbg:tracer(),
+  dbg:p(all, c),
+  dbg:tpl(els_utils, find_modules, x),
+  dbg:tpl(els_dt_signatures, x),
   Uri = ?config(completion_resolve_uri, Config),
   CompletionKind = ?COMPLETION_TRIGGER_KIND_INVOKED,
   #{result := CompletionItems} =
