@@ -7,7 +7,6 @@
 %% Getters
 -export([ get_skip_generated_files/0
         , get_generated_files_tag/0
-        , get_incremental/0
         ]).
 
 -type config() :: #{ string() => string() }.
@@ -16,7 +15,6 @@
 default_config() ->
   #{ "skip_generated_files" => default_skip_generated_files()
    , "generated_files_tag" => default_generated_files_tag()
-   , "incremental" => default_incremental()
    }.
 
 -spec get_skip_generated_files() -> boolean().
@@ -32,13 +30,6 @@ get_generated_files_tag() ->
            els_config:get(indexing),
            default_generated_files_tag()).
 
--spec get_incremental() -> boolean().
-get_incremental() ->
-  Value = maps:get("incremental",
-                   els_config:get(indexing),
-                   default_incremental()),
-  normalize_boolean(Value).
-
 -spec default_skip_generated_files() -> string().
 default_skip_generated_files() ->
   "false".
@@ -46,10 +37,6 @@ default_skip_generated_files() ->
 -spec default_generated_files_tag() -> string().
 default_generated_files_tag() ->
   "@generated".
-
--spec default_incremental() -> string().
-default_incremental() ->
-  "false".
 
 -spec normalize_boolean(boolean() | string()) -> boolean().
 normalize_boolean("true") -> true;
