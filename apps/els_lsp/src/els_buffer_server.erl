@@ -81,7 +81,7 @@ init({Uri, Text}) ->
 -spec handle_call(any(), {pid(), any()}, state()) -> {reply, any(), state()}.
 handle_call({flush}, From, State) ->
   #{uri := Uri, ref := Ref0, pending := Pending0} = State,
-  ?LOG_INFO("[~p] Flushing request [uri=~p]", [?MODULE, Uri]),
+  ?LOG_DEBUG("[~p] Flushing request [uri=~p]", [?MODULE, Uri]),
   cancel_flush(Ref0),
   Ref = schedule_flush(),
   {noreply, State#{ref => Ref, pending => [From|Pending0]}};
@@ -90,7 +90,7 @@ handle_call(Request, _From, State) ->
 
 -spec handle_cast(any(), state()) -> {noreply, state()}.
 handle_cast({apply_edits, Edits}, #{uri := Uri} = State) ->
-  ?LOG_INFO("[~p] Applying edits [uri=~p] [edits=~p]", [?MODULE, Uri, Edits]),
+  ?LOG_DEBUG("[~p] Applying edits [uri=~p] [edits=~p]", [?MODULE, Uri, Edits]),
   #{text := Text0, ref := Ref0} = State,
   cancel_flush(Ref0),
   Text = els_text:apply_edits(Text0, Edits),
@@ -99,7 +99,7 @@ handle_cast({apply_edits, Edits}, #{uri := Uri} = State) ->
 
 -spec handle_info(any(), state()) -> {noreply, state()}.
 handle_info(flush, #{uri := Uri, text := Text, pending := Pending0} = State) ->
-  ?LOG_INFO("[~p] Flushing [uri=~p]", [?MODULE, Uri]),
+  ?LOG_DEBUG("[~p] Flushing [uri=~p]", [?MODULE, Uri]),
   do_flush(Uri, Text),
   [gen_server:reply(From, Text) || From <- Pending0],
   {noreply, State#{pending => [], ref => undefined}};
