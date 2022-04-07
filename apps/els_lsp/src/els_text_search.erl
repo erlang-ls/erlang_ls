@@ -18,28 +18,29 @@
 %%==============================================================================
 -spec find_candidate_uris({els_dt_references:poi_category(), any()}) -> [uri()].
 find_candidate_uris(Id) ->
-  String = id_to_binary(Id),
-  els_dt_document:find_candidates(String).
+  Pattern = extract_pattern(Id),
+  els_dt_document:find_candidates(Pattern).
 
 %%==============================================================================
 %% Internal Functions
 %%==============================================================================
--spec id_to_binary({els_dt_references:poi_category(), any()}) -> binary().
-id_to_binary({function, {_M, F, _A}}) ->
-  atom_to_binary(F, utf8);
-id_to_binary({type, {_M, F, _A}}) ->
-  atom_to_binary(F, utf8);
-id_to_binary({macro, {Name, _Arity}}) ->
-  atom_to_binary(Name, utf8);
-id_to_binary({macro, Name}) ->
-  atom_to_binary(Name, utf8);
-id_to_binary({include, Id}) ->
-  include_id_to_binary(Id);
-id_to_binary({include_lib, Id}) ->
-  include_id_to_binary(Id);
-id_to_binary({behaviour, Name}) ->
-  atom_to_binary(Name, utf8).
+-spec extract_pattern({els_dt_references:poi_category(), any()}) ->
+        atom() | binary().
+extract_pattern({function, {_M, F, _A}}) ->
+  F;
+extract_pattern({type, {_M, F, _A}}) ->
+  F;
+extract_pattern({macro, {Name, _Arity}}) ->
+  Name;
+extract_pattern({macro, Name}) ->
+  Name;
+extract_pattern({include, Id}) ->
+  include_id(Id);
+extract_pattern({include_lib, Id}) ->
+  include_id(Id);
+extract_pattern({behaviour, Name}) ->
+  Name.
 
--spec include_id_to_binary(string()) -> binary().
-include_id_to_binary(Id) ->
-  els_utils:to_binary(filename:rootname(filename:basename(Id))).
+-spec include_id(string()) -> string().
+include_id(Id) ->
+  filename:rootname(filename:basename(Id)).

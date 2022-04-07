@@ -38,6 +38,7 @@
 %% Includes
 %%==============================================================================
 -include("els_lsp.hrl").
+-include_lib("kernel/include/logger.hrl").
 
 %%==============================================================================
 %% Type Definitions
@@ -55,11 +56,12 @@
 -record(els_dt_document, { uri  :: uri()    | '_' | '$1'
                          , id   :: id()     | '_'
                          , kind :: kind()   | '_'
-                         , text :: binary() | '_' | '$3'
+                         , text :: binary() | '_'
                          , md5  :: binary() | '_'
                          , pois :: [poi()]  | '_' | ondemand
                          , source :: source() | '$2'
                          , buffer :: buffer() | '_' | undefined
+                         , words :: sets:set() | '_' | '$3'
                          }).
 -type els_dt_document() :: #els_dt_document{}.
 
@@ -71,6 +73,7 @@
                  , pois => [poi()] | ondemand
                  , source => source()
                  , buffer => buffer() | undefined
+                 , words => sets:set()
                  }.
 -export_type([ id/0
              , item/0
@@ -101,6 +104,7 @@ from_item(#{ uri  := Uri
            , pois := POIs
            , source := Source
            , buffer := Buffer
+           , words := Words
            }) ->
   #els_dt_document{ uri  = Uri
                   , id   = Id
@@ -110,6 +114,7 @@ from_item(#{ uri  := Uri
                   , pois = POIs
                   , source = Source
                   , buffer = Buffer
+                  , words = Words
                   }.
 
 -spec to_item(els_dt_document()) -> item().
@@ -121,6 +126,7 @@ to_item(#els_dt_document{ uri  = Uri
                         , pois = POIs
                         , source = Source
                         , buffer = Buffer
+                        , words = Words
                         }) ->
   #{ uri  => Uri
    , id   => Id
@@ -130,6 +136,7 @@ to_item(#els_dt_document{ uri  = Uri
    , pois => POIs
    , source => Source
    , buffer => Buffer
+   , words => Words
    }.
 
 -spec insert(item()) -> ok | {error, any()}.
@@ -170,6 +177,7 @@ new(Uri, Text, Id, Kind, Source) ->
    , pois => ondemand
    , source => Source
    , buffer => undefined
+   , words => get_words(Text)
    }.
 
 %% @doc Returns the list of POIs for the current document
@@ -223,25 +231,42 @@ wrapping_functions(Document, Range) ->
   #{start := #{character := Character, line := Line}} = Range,
   wrapping_functions(Document, Line, Character).
 
--spec find_candidates(binary()) -> [uri()].
+-spec find_candidates(atom() | string()) -> [uri()].
 find_candidates(Pattern) ->
-  %% ets:fun2ms(fun(#els_dt_document{source = Source, uri = Uri, text = Text})
-  %% when Source =/= otp -> {Uri, Text} end).
+  %% ets:fun2ms(fun(#els_dt_document{source = Source, uri = Uri, words = Words})
+  %% when Source =/= otp -> {Uri, Words} end).
   MS = [{#els_dt_document{ uri = '$1'
                          , source = '$2'
                          , buffer = '_'
                          , kind = '_'
-                         , text = '$3'
+                         , text = '_'
                          , md5 = '_'
                          , pois = '_'
+                         , words = '$3'
                          }
         , [{'=/=', '$2', otp}]
         , [{{'$1', '$3'}}]}],
   All = ets:select(name(), MS),
-  Fun = fun({Uri, Text}) ->
-            case binary:matches(Text, Pattern) of
-              [] -> false;
-              _ -> {true, Uri}
+  Fun = fun({Uri, Words}) ->
+            case sets:is_element(Pattern, Words) of
+              true -> {true, Uri};
+              false -> false
             end
         end,
   lists:filtermap(Fun, All).
+
+-spec get_words(binary()) -> sets:set().
+get_words(Text) ->
+  case erl_scan:string(els_utils:to_list(Text)) of
+    {ok, Tokens, _EndLocation} ->
+      Fun = fun({atom, _Location, Atom}, Words) ->
+                sets:add_element(Atom, Words);
+               ({string, _Location, String}, Words) ->
+                sets:add_element(String, Words);
+               (_, Words) ->
+                Words
+            end,
+      lists:foldl(Fun, sets:new(), Tokens);
+    {error, ErrorInfo, _ErrorLocation} ->
+      ?LOG_DEBUG("Errors while get_words ~p", [ErrorInfo])
+  end.
