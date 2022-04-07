@@ -153,11 +153,11 @@ start() ->
 
 -spec start(binary(), [string()], els_dt_document:source()) -> ok.
 start(Group, Entries, Source) ->
-  SkipGeneratedFiles = els_config_indexing:get_skip_generated_files(),
-  GeneratedFilesTag = els_config_indexing:get_generated_files_tag(),
+  Skip = els_config_indexing:get_skip_generated_files(),
+  SkipTag = els_config_indexing:get_generated_files_tag(),
+  Incremental = els_config_indexing:get_incremental(),
   Task = fun(Dir, {Succeeded0, Skipped0, Failed0}) ->
-             {Su, Sk, Fa} =
-               index_dir(Dir, SkipGeneratedFiles, GeneratedFilesTag, Source),
+             {Su, Sk, Fa} = index_dir(Dir, Skip, SkipTag, Incremental, Source),
              {Succeeded0 + Su, Skipped0 + Sk, Failed0 + Fa}
          end,
   Config = #{ task => Task
@@ -200,23 +200,54 @@ shallow_index(FullName, SkipGeneratedFiles, GeneratedFilesTag, Source) ->
       shallow_index(Uri, Text, Source)
   end.
 
+-spec deep_index(binary(), boolean(), string(), els_dt_document:source()) ->
+        ok | skipped | error.
+deep_index(FullName, SkipGeneratedFiles, GeneratedFilesTag, Source) ->
+  Uri = els_uri:uri(FullName),
+  ?LOG_DEBUG("Deep indexing file. [filename=~s] [uri=~s]",
+             [FullName, Uri]),
+  {ok, Text} = file:read_file(FullName),
+  case SkipGeneratedFiles andalso is_generated_file(Text, GeneratedFilesTag) of
+    true ->
+      ?LOG_DEBUG("Skip indexing for generated file ~p", [Uri]),
+      skipped;
+    false ->
+      Document = els_dt_document:new(Uri, Text, Source),
+      try deep_index(Document)
+      catch Type:Reason:St ->
+          ?LOG_ERROR("Error indexing file "
+                     "[filename=~s, uri=~s] "
+                     "~p:~p:~p", [FullName, Uri, Type, Reason, St]),
+          failed
+      end
+  end.
+
 -spec index_dir(string(), els_dt_document:source()) ->
         {non_neg_integer(), non_neg_integer(), non_neg_integer()}.
 index_dir(Dir, Source) ->
-  SkipGeneratedFiles = els_config_indexing:get_skip_generated_files(),
-  GeneratedFilesTag = els_config_indexing:get_generated_files_tag(),
-  index_dir(Dir, SkipGeneratedFiles, GeneratedFilesTag, Source).
+  Skip = els_config_indexing:get_skip_generated_files(),
+  SkipTag = els_config_indexing:get_generated_files_tag(),
+  Incremental = els_config_indexing:get_incremental(),
+  index_dir(Dir, Skip, SkipTag, Incremental, Source).
 
--spec index_dir(string(), boolean(), string(), els_dt_document:source()) ->
+-spec index_dir(string(), boolean(), string(), boolean(),
+                els_dt_document:source()) ->
         {non_neg_integer(), non_neg_integer(), non_neg_integer()}.
-index_dir(Dir, SkipGeneratedFiles, GeneratedFilesTag, Source) ->
+index_dir(Dir, Skip, SkipTag, Incremental, Source) ->
   ?LOG_DEBUG("Indexing directory. [dir=~s]", [Dir]),
   F = fun(FileName, {Succeeded, Skipped, Failed}) ->
-          case
-            shallow_index(els_utils:to_binary(FileName),
-                          SkipGeneratedFiles, GeneratedFilesTag, Source) of
+          BinaryName = els_utils:to_binary(FileName),
+          Result =
+            case Incremental of
+              true ->
+                shallow_index(BinaryName, Skip, SkipTag, Source);
+              false ->
+                deep_index(BinaryName, Skip, SkipTag, Source)
+            end,
+          case Result of
             ok -> {Succeeded + 1, Skipped, Failed};
-            skipped -> {Succeeded, Skipped + 1, Failed}
+            skipped -> {Succeeded, Skipped + 1, Failed};
+            failed -> {Succeeded, Skipped, Failed}
           end
       end,
   Filter = fun(Path) ->
