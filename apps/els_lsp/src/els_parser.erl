@@ -147,7 +147,14 @@ pad_text(Text, {StartLine, StartColumn}) ->
     ++ Text.
 
 -spec ensure_dot([erlfmt_scan:token(), ...]) -> [erlfmt_scan:token(), ...].
-ensure_dot(Tokens) ->
+ensure_dot(Tokens0) ->
+  ToInsert = lists:foldl(
+    fun fix_tokens/2,
+    [],
+    Tokens0
+  ),
+  Tokens = Tokens0 ++ lists:concat(lists:reverse(ToInsert)),
+
   case lists:last(Tokens) of
     {dot, _} ->
       Tokens;
@@ -157,6 +164,68 @@ ensure_dot(Tokens) ->
       %% end location of the whole form
       Tokens ++ [{dot, #{location => EndLocation, end_location => EndLocation}}]
   end.
+
+-spec fix_tokens(erlfmt_scan:token(), [erlfmt_scan:token()]) -> [erlfmt_scan:token()].
+fix_tokens(T, InsertStack) ->
+  L = erlfmt_scan:get_anno(end_location, T),
+  case T of
+    {'case', _} ->
+      [token_fix('of', L), end_fix(L) | InsertStack];
+    {'of', _} ->
+      case InsertStack of
+        [[{'of', _}] | Rest] -> Rest;
+        _ -> InsertStack
+      end;
+    {'receive', _} ->
+     [end_fix(L) | InsertStack];
+    {'try', _} ->
+      [token_fix('catch', L), end_fix(L) | InsertStack];
+    {'catch', _} ->
+      case InsertStack of
+        [{'catch', _} | Rest] -> Rest;
+        _ -> InsertStack
+      end;
+    {OpenParenthesis, _} when OpenParenthesis =:= '['
+                       orelse OpenParenthesis =:= '{'
+                       orelse OpenParenthesis =:= '(' ->
+      ClosingParenthesis =
+        case OpenParenthesis of
+          '[' -> ']';
+          '{' -> '}';
+          '(' -> ')'
+        end,
+      [token_fix(ClosingParenthesis, L) | InsertStack];
+    {ClosingParenthesis, _} when ClosingParenthesis =:= ']'
+                          orelse ClosingParenthesis =:= '}'
+                          orelse ClosingParenthesis =:= ')' ->
+      case InsertStack of
+        [[{ClosingParenthesis, _}] | Rest] ->
+          Rest;
+        _ -> InsertStack
+      end;
+    {'end', _} ->
+      case InsertStack of
+        [[_, _, _, {'end', _}] | Rest] -> Rest;
+        _ -> InsertStack
+      end;
+    _  ->
+      InsertStack
+  end.
+
+-spec token_fix(atom(), erl_anno:location()) -> [erlfmt_scan:token()].
+token_fix(Token, Location) ->
+  [ {Token, #{end_location => Location,location => Location}}
+  ].
+
+-spec end_fix(erl_anno:location()) -> [erlfmt_scan:token()].
+end_fix(Location) ->
+  [ {var,#{end_location => Location, location => Location, text => "_"}, '_'},
+    {'->',#{end_location => Location,location => Location}},
+    {atom,#{end_location => Location, location => Location, text => "'__fix__'"}, '__fix__'},
+    {'end',#{end_location => Location,location => Location}}
+  ].
+
+
 
 %% @doc Resolve POI for specific sections
 %%
