@@ -187,7 +187,9 @@ terminate(normal, #{ config := #{on_complete := OnComplete}
   ?LOG_DEBUG("Background job completed.", []),
   OnComplete(InternalState),
   ok;
-terminate(Reason, #{ config := #{on_error := OnError}
+terminate(Reason, #{ config := #{ on_error := OnError
+                                , title := Title
+                                }
                    , internal_state := InternalState
                    , token := Token
                    , total := Total
@@ -197,7 +199,8 @@ terminate(Reason, #{ config := #{on_error := OnError}
     shutdown ->
       ?LOG_DEBUG("Background job terminated.", []);
     _ ->
-      ?LOG_WARNING( "Background job aborted. [reason=~p]", [Reason])
+      ?LOG_ERROR( "Background job aborted. [reason=~p] [title=~p",
+                  [Reason, Title])
   end,
   notify_end(Token, Total, ProgressEnabled),
   OnError(InternalState),
