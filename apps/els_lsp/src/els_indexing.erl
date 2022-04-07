@@ -147,15 +147,21 @@ maybe_start() ->
 
 -spec start() -> ok.
 start() ->
-  start(<<"OTP">>, els_config:get(otp_paths), otp),
-  start(<<"Applications">>, els_config:get(apps_paths), app),
-  start(<<"Dependencies">>, els_config:get(deps_paths), dep).
-
--spec start(binary(), [string()], els_dt_document:source()) -> ok.
-start(Group, Entries, Source) ->
   Skip = els_config_indexing:get_skip_generated_files(),
   SkipTag = els_config_indexing:get_generated_files_tag(),
   Incremental = els_config_indexing:get_incremental(),
+  ?LOG_INFO("Start indexing. [skip=~p] [skip_tag=~p] [incremental=~p]",
+            [Skip, SkipTag, Incremental]),
+  start(<<"OTP">>, Skip, SkipTag, Incremental,
+        els_config:get(otp_paths), otp),
+  start(<<"Applications">>, Skip, SkipTag, Incremental,
+        els_config:get(apps_paths), app),
+  start(<<"Dependencies">>, Skip, SkipTag, Incremental,
+        els_config:get(deps_paths), dep).
+
+-spec start(binary(), boolean(), string(), boolean(), [string()],
+            els_dt_document:source()) -> ok.
+start(Group, Skip, SkipTag, Incremental, Entries, Source) ->
   Task = fun(Dir, {Succeeded0, Skipped0, Failed0}) ->
              {Su, Sk, Fa} = index_dir(Dir, Skip, SkipTag, Incremental, Source),
              {Succeeded0 + Su, Skipped0 + Sk, Failed0 + Fa}
