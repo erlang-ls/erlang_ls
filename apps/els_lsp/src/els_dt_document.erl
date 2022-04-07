@@ -236,16 +236,16 @@ find_candidates(Pattern) ->
   %% ets:fun2ms(fun(#els_dt_document{source = Source, uri = Uri, words = Words})
   %% when Source =/= otp -> {Uri, Words} end).
   MS = [{#els_dt_document{ uri = '$1'
-                         , source = '$2'
-                         , buffer = '_'
+                         , id = '_'
                          , kind = '_'
                          , text = '_'
                          , md5 = '_'
                          , pois = '_'
-                         , words = '$3'
-                         }
-        , [{'=/=', '$2', otp}]
-        , [{{'$1', '$3'}}]}],
+                         , source = '$2'
+                         , buffer = '_'
+                         , words = '$3'},
+         [{'=/=', '$2', otp}],
+         [{{'$1', '$3'}}]}],
   All = ets:select(name(), MS),
   Fun = fun({Uri, Words}) ->
             case sets:is_element(Pattern, Words) of
