@@ -75,7 +75,6 @@ start_link(Uri, Text) ->
 %%==============================================================================
 -spec init({uri(), text()}) -> {ok, state()}.
 init({Uri, Text}) ->
-  schedule_flush(),
   {ok, #{ uri => Uri, text => Text, ref => undefined, pending => [] }}.
 
 -spec handle_call(any(), {pid(), any()}, state()) -> {reply, any(), state()}.
@@ -124,4 +123,4 @@ cancel_flush(Ref) ->
 -spec do_flush(uri(), text()) -> ok.
 do_flush(Uri, Text) ->
   {ok, Document} = els_utils:lookup_document(Uri),
-  els_indexing:deep_index(Document#{text => Text, buffer => self()}).
+  els_indexing:deep_index(Document#{text => Text}).

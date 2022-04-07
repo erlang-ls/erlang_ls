@@ -55,7 +55,9 @@ did_change(Params) ->
 did_open(Params) ->
   #{<<"textDocument">> := #{ <<"uri">> := Uri
                            , <<"text">> := Text}} = Params,
-  {ok, _Buffer} = els_buffer_server:new(Uri, Text),
+  {ok, Document} = els_utils:lookup_document(Uri),
+  {ok, Buffer} = els_buffer_server:new(Uri, Text),
+  els_dt_document:insert(Document#{buffer => Buffer}),
   Provider = els_diagnostics_provider,
   els_provider:handle_request(Provider, {run_diagnostics, Params}),
   ok.
@@ -97,7 +99,8 @@ handle_file_change(Uri, Type) when Type =:= ?FILE_CHANGE_TYPE_DELETED ->
 -spec reload_from_disk(uri()) -> ok.
 reload_from_disk(Uri) ->
   {ok, Text} = file:read_file(els_uri:path(Uri)),
-  {ok, #{buffer := OldBuffer}} = els_utils:lookup_document(Uri),
+  {ok, #{buffer := OldBuffer} = Document} = els_utils:lookup_document(Uri),
   els_buffer_server:stop(OldBuffer),
-  {ok, _NewBuffer} = els_buffer_server:new(Uri, Text),
+  {ok, NewBuffer} = els_buffer_server:new(Uri, Text),
+  els_dt_document:insert(Document#{buffer => NewBuffer}),
   ok.
