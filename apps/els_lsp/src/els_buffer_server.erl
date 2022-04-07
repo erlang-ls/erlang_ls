@@ -90,7 +90,7 @@ handle_call(Request, _From, State) ->
 
 -spec handle_cast(any(), state()) -> {noreply, state()}.
 handle_cast({apply_edits, Edits}, #{uri := Uri} = State) ->
-  ?LOG_INFO("[~p] Applying edits [uri=~p]", [?MODULE, Uri]),
+  ?LOG_INFO("[~p] Applying edits [uri=~p] [edits=~p]", [?MODULE, Uri, Edits]),
   #{text := Text0, ref := Ref0} = State,
   cancel_flush(Ref0),
   Text = els_text:apply_edits(Text0, Edits),
