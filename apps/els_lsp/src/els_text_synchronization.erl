@@ -100,7 +100,12 @@ handle_file_change(Uri, Type) when Type =:= ?FILE_CHANGE_TYPE_DELETED ->
 reload_from_disk(Uri) ->
   {ok, Text} = file:read_file(els_uri:path(Uri)),
   {ok, #{buffer := OldBuffer} = Document} = els_utils:lookup_document(Uri),
-  els_buffer_server:stop(OldBuffer),
-  {ok, NewBuffer} = els_buffer_server:new(Uri, Text),
-  els_dt_document:insert(Document#{buffer => NewBuffer}),
+  case OldBuffer of
+    undefined ->
+      els_indexing:deep_index(Document#{text => Text});
+    _ ->
+      els_buffer_server:stop(OldBuffer),
+      {ok, B} = els_buffer_server:new(Uri, Text),
+      els_indexing:deep_index(Document#{text => Text, buffer => B})
+  end,
   ok.

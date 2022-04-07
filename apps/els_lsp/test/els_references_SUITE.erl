@@ -546,10 +546,9 @@ refresh_after_watched_file_added(Config) ->
   DataDir = ?config(data_dir, Config),
   PathC = filename:join([DataDir, "watched_file_c.erl"]),
   NewPathC = filename:join(filename:dirname(PathB), "watched_file_c.erl"),
-  UriC = els_uri:uri(els_utils:to_binary(PathC)),
   NewUriC = els_uri:uri(NewPathC),
   {ok, _} = file:copy(PathC, NewPathC),
-  els_client:did_change_watched_files([{UriC, ?FILE_CHANGE_TYPE_CREATED}]),
+  els_client:did_change_watched_files([{NewUriC, ?FILE_CHANGE_TYPE_CREATED}]),
   %% After
   ExpectedLocationsAfter = [ #{ uri   => NewUriC
                               , range => #{from => {6, 3}, to => {6, 22}}
