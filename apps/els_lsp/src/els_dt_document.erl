@@ -18,6 +18,7 @@
 %%==============================================================================
 
 -export([ insert/1
+        , versioned_insert/1
         , lookup/1
         , delete/1
         ]).
@@ -32,6 +33,7 @@
         , wrapping_functions/2
         , wrapping_functions/3
         , find_candidates/1
+        , get_words/1
         ]).
 
 %%==============================================================================
@@ -46,20 +48,20 @@
 -type id()   :: atom().
 -type kind() :: module | header | other.
 -type source() :: otp | app | dep.
+-type version() :: null | integer().
 -export_type([source/0]).
 
 %%==============================================================================
 %% Item Definition
 %%==============================================================================
-
 -record(els_dt_document, { uri  :: uri()    | '_' | '$1'
                          , id   :: id()     | '_'
                          , kind :: kind()   | '_'
                          , text :: binary() | '_'
-                         , md5  :: binary() | '_'
                          , pois :: [poi()]  | '_' | ondemand
                          , source :: source() | '$2'
                          , words :: sets:set() | '_' | '$3'
+                         , version :: version() | '_'
                          }).
 -type els_dt_document() :: #els_dt_document{}.
 
@@ -67,10 +69,10 @@
                  , id   := id()
                  , kind := kind()
                  , text := binary()
-                 , md5  => binary()
                  , pois => [poi()] | ondemand
                  , source => source()
                  , words => sets:set()
+                 , version => version()
                  }.
 -export_type([ id/0
              , item/0
@@ -97,19 +99,19 @@ from_item(#{ uri  := Uri
            , id   := Id
            , kind := Kind
            , text := Text
-           , md5  := MD5
            , pois := POIs
            , source := Source
            , words := Words
+           , version := Version
            }) ->
   #els_dt_document{ uri  = Uri
                   , id   = Id
                   , kind = Kind
                   , text = Text
-                  , md5  = MD5
                   , pois = POIs
                   , source = Source
                   , words = Words
+                  , version = Version
                   }.
 
 -spec to_item(els_dt_document()) -> item().
@@ -117,25 +119,33 @@ to_item(#els_dt_document{ uri  = Uri
                         , id   = Id
                         , kind = Kind
                         , text = Text
-                        , md5  = MD5
                         , pois = POIs
                         , source = Source
                         , words = Words
+                        , version = Version
                         }) ->
   #{ uri  => Uri
    , id   => Id
    , kind => Kind
    , text => Text
-   , md5  => MD5
    , pois => POIs
    , source => Source
    , words => Words
+   , version => Version
    }.
 
 -spec insert(item()) -> ok | {error, any()}.
 insert(Map) when is_map(Map) ->
   Record = from_item(Map),
   els_db:write(name(), Record).
+
+-spec versioned_insert(item()) -> ok | {error, any()}.
+versioned_insert(#{uri := Uri, version := Version} = Map) ->
+  Record = from_item(Map),
+  Condition = fun(#els_dt_document{version = CurrentVersion}) ->
+                  CurrentVersion =:= null orelse Version >= CurrentVersion
+              end,
+  els_db:conditional_write(name(), Uri, Record, Condition).
 
 -spec lookup(uri()) -> {ok, [item()]}.
 lookup(Uri) ->
@@ -150,26 +160,26 @@ delete(Uri) ->
 new(Uri, Text, Source) ->
   Extension = filename:extension(Uri),
   Id = binary_to_atom(filename:basename(Uri, Extension), utf8),
+  Version = null,
   case Extension of
     <<".erl">> ->
-      new(Uri, Text, Id, module, Source);
+      new(Uri, Text, Id, module, Source, Version);
     <<".hrl">> ->
-      new(Uri, Text, Id, header, Source);
+      new(Uri, Text, Id, header, Source, Version);
     _  ->
-      new(Uri, Text, Id, other, Source)
+      new(Uri, Text, Id, other, Source, Version)
   end.
 
--spec new(uri(), binary(), atom(), kind(), source()) -> item().
-new(Uri, Text, Id, Kind, Source) ->
-  MD5 = erlang:md5(Text),
+-spec new(uri(), binary(), atom(), kind(), source(), version()) -> item().
+new(Uri, Text, Id, Kind, Source, Version) ->
   #{ uri  => Uri
    , id   => Id
    , kind => Kind
    , text => Text
-   , md5  => MD5
    , pois => ondemand
    , source => Source
    , words => get_words(Text)
+   , version => Version
    }.
 
 %% @doc Returns the list of POIs for the current document
@@ -231,10 +241,11 @@ find_candidates(Pattern) ->
                          , id = '_'
                          , kind = '_'
                          , text = '_'
-                         , md5 = '_'
                          , pois = '_'
                          , source = '$2'
-                         , words = '$3'},
+                         , words = '$3'
+                         , version = '_'
+                         },
          [{'=/=', '$2', otp}],
          [{{'$1', '$3'}}]}],
   All = ets:select(name(), MS),

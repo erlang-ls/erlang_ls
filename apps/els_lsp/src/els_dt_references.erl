@@ -18,15 +18,19 @@
 %%==============================================================================
 
 -export([ delete_by_uri/1
+        , versioned_delete_by_uri/2
         , find_by/1
         , find_by_id/2
         , insert/2
+        , versioned_insert/2
         ]).
 
 %%==============================================================================
 %% Includes
 %%==============================================================================
 -include("els_lsp.hrl").
+-include_lib("kernel/include/logger.hrl").
+-include_lib("stdlib/include/ms_transform.hrl").
 
 %%==============================================================================
 %% Item Definition
@@ -35,12 +39,14 @@
 -record(els_dt_references, { id    :: any()       | '_'
                            , uri   :: uri()       | '_'
                            , range :: poi_range() | '_'
+                           , version :: version() | '_'
                            }).
 -type els_dt_references() :: #els_dt_references{}.
-
+-type version() :: null | integer().
 -type item() :: #{ id    := any()
                  , uri   := uri()
                  , range := poi_range()
+                 , version := version()
                  }.
 -export_type([ item/0 ]).
 
@@ -69,15 +75,28 @@ opts() ->
 %%==============================================================================
 
 -spec from_item(poi_kind(), item()) -> els_dt_references().
-from_item(Kind, #{ id := Id, uri := Uri, range := Range}) ->
+from_item(Kind, #{ id := Id
+                 , uri := Uri
+                 , range := Range
+                 , version := Version
+                 }) ->
   InternalId = {kind_to_category(Kind), Id},
-  #els_dt_references{ id = InternalId, uri = Uri, range = Range}.
+  #els_dt_references{ id = InternalId
+                    , uri = Uri
+                    , range = Range
+                    , version = Version
+                    }.
 
 -spec to_item(els_dt_references()) -> item().
-to_item(#els_dt_references{ id = {_Category, Id}, uri = Uri, range = Range }) ->
+to_item(#els_dt_references{ id = {_Category, Id}
+                          , uri = Uri
+                          , range = Range
+                          , version = Version
+                          }) ->
   #{ id    => Id
    , uri   => Uri
    , range => Range
+   , version => Version
    }.
 
 -spec delete_by_uri(uri()) -> ok | {error, any()}.
@@ -85,10 +104,32 @@ delete_by_uri(Uri) ->
   Pattern = #els_dt_references{uri = Uri, _ = '_'},
   ok = els_db:match_delete(name(), Pattern).
 
+-spec versioned_delete_by_uri(uri(), version()) -> ok.
+versioned_delete_by_uri(Uri, Version) ->
+  MS = ets:fun2ms(fun(#els_dt_references{uri = U, version = CurrentVersion})
+                      when U =:= Uri,
+                           CurrentVersion =:= null orelse
+                           CurrentVersion =< Version
+                           ->
+                      true;
+
+                     (_) ->
+                      false
+                  end),
+  ok = els_db:select_delete(name(), MS).
+
 -spec insert(poi_kind(), item()) -> ok | {error, any()}.
 insert(Kind, Map) when is_map(Map) ->
   Record = from_item(Kind, Map),
   els_db:write(name(), Record).
+
+-spec versioned_insert(poi_kind(), item()) -> ok | {error, any()}.
+versioned_insert(Kind, #{id := Id, version := Version} = Map) ->
+  Record = from_item(Kind, Map),
+  Condition = fun(#els_dt_references{version = CurrentVersion}) ->
+                  CurrentVersion =:= null orelse Version >= CurrentVersion
+              end,
+  els_db:conditional_write(name(), Id, Record, Condition).
 
 %% @doc Find by id
 -spec find_by_id(poi_kind(), any()) -> {ok, [item()]} | {error, any()}.
