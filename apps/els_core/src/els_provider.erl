@@ -136,6 +136,7 @@ available_providers() ->
   , els_rename_provider
   , els_bsp_provider
   , els_call_hierarchy_provider
+  , els_text_synchronization_provider
   ].
 
 -spec enabled_providers() -> [provider()].

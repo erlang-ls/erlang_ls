@@ -186,7 +186,9 @@ exit(_Params, State) ->
 
 -spec textdocument_didopen(params(), state()) -> result().
 textdocument_didopen(Params, State) ->
-  ok = els_text_synchronization:did_open(Params),
+  Provider = els_text_synchronization_provider,
+  Request  = {did_open, Params},
+  ok = els_provider:handle_request(Provider, Request),
   {noresponse, State}.
 
 %%==============================================================================
@@ -195,7 +197,9 @@ textdocument_didopen(Params, State) ->
 
 -spec textdocument_didchange(params(), state()) -> result().
 textdocument_didchange(Params, State) ->
-  ok = els_text_synchronization:did_change(Params),
+  Provider = els_text_synchronization_provider,
+  Request = {did_change, Params},
+  ok = els_provider:handle_request(Provider, Request),
   {noresponse, State}.
 
 %%==============================================================================
@@ -204,7 +208,9 @@ textdocument_didchange(Params, State) ->
 
 -spec textdocument_didsave(params(), state()) -> result().
 textdocument_didsave(Params, State) ->
-  ok = els_text_synchronization:did_save(Params),
+  Provider = els_text_synchronization_provider,
+  Request  = {did_save, Params},
+  ok = els_provider:handle_request(Provider, Request),
   {noresponse, State}.
 
 %%==============================================================================
@@ -213,7 +219,9 @@ textdocument_didsave(Params, State) ->
 
 -spec textdocument_didclose(params(), state()) -> result().
 textdocument_didclose(Params, State) ->
-  ok = els_text_synchronization:did_close(Params),
+  Provider = els_text_synchronization_provider,
+  Request  = {did_close, Params},
+  ok = els_provider:handle_request(Provider, Request),
   {noresponse, State}.
 
 %%==============================================================================
@@ -430,7 +438,9 @@ workspace_executecommand(Params, State) ->
 
 -spec workspace_didchangewatchedfiles(map(), state()) -> result().
 workspace_didchangewatchedfiles(Params, State) ->
-  ok = els_text_synchronization:did_change_watched_files(Params),
+  Provider = els_text_synchronization_provider,
+  Request  = {did_change_watched_files, Params},
+  ok = els_provider:handle_request(Provider, Request),
   {noresponse, State}.
 
 %%==============================================================================

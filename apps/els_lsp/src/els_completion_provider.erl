@@ -44,18 +44,7 @@ handle_request({completion, Params}, State) ->
                             }
    , <<"textDocument">> := #{<<"uri">> := Uri}
    } = Params,
-  %% Ensure there are no pending changes.
-  {ok, Document} = els_utils:lookup_document(Uri),
-  #{buffer := Buffer, text := Text0} = Document,
-  Text = case Buffer of
-           undefined ->
-             %% This clause is only kept due to the current test suites,
-             %% where LSP clients can trigger a completion request
-             %% before a did_open
-             Text0;
-           _ ->
-             els_buffer_server:flush(Buffer)
-         end,
+  {ok, #{text := Text} = Document} = els_utils:lookup_document(Uri),
   Context = maps:get( <<"context">>
                     , Params
                     , #{ <<"triggerKind">> => ?COMPLETION_TRIGGER_KIND_INVOKED }

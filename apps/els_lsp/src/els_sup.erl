@@ -73,9 +73,6 @@ init([]) ->
                , #{ id    => els_bsp_client
                   , start => {els_bsp_client, start_link, []}
                   }
-               , #{ id    => els_buffer_sup
-                  , start => {els_buffer_sup, start_link, []}
-                  }
                , #{ id       => els_server
                   , start    => {els_server, start_link, []}
                   }

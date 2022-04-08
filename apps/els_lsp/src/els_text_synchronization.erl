@@ -18,7 +18,7 @@ sync_mode() ->
     false -> ?TEXT_DOCUMENT_SYNC_KIND_FULL
   end.
 
--spec did_change(map()) -> ok.
+-spec did_change(map()) -> {ok, pid()}.
 did_change(Params) ->
   ContentChanges = maps:get(<<"contentChanges">>, Params),
   TextDocument   = maps:get(<<"textDocument">>  , Params),
@@ -27,28 +27,15 @@ did_change(Params) ->
     [] ->
       ok;
     [Change] when not is_map_key(<<"range">>, Change) ->
-      %% Full text sync
       #{<<"text">> := Text} = Change,
-      {Duration, ok} =
-        timer:tc(fun() ->
-                     {ok, Document} = els_utils:lookup_document(Uri),
-                     els_indexing:deep_index(Document)
-                 end),
-      ?LOG_DEBUG("didChange FULLSYNC [size: ~p] [duration: ~pms]\n",
-                 [size(Text), Duration div 1000]),
-      ok;
+      {ok, Document} = els_utils:lookup_document(Uri),
+      background_index(Document#{text => Text});
     ContentChanges ->
-      %% Incremental sync
       ?LOG_DEBUG("didChange INCREMENTAL [changes: ~p]", [ContentChanges]),
       Edits = [to_edit(Change) || Change <- ContentChanges],
-      {Duration, ok} =
-        timer:tc(fun() ->
-                     {ok, #{buffer := Buffer}} = els_utils:lookup_document(Uri),
-                     els_buffer_server:apply_edits(Buffer, Edits)
-                 end),
-      ?LOG_DEBUG("didChange INCREMENTAL [duration: ~pms]\n",
-                 [Duration div 1000]),
-      ok
+      {ok, #{text := Text0} = Document} = els_utils:lookup_document(Uri),
+      Text = els_text:apply_edits(Text0, Edits),
+      background_index(Document#{text => Text})
   end.
 
 -spec did_open(map()) -> ok.
@@ -56,8 +43,7 @@ did_open(Params) ->
   #{<<"textDocument">> := #{ <<"uri">> := Uri
                            , <<"text">> := Text}} = Params,
   {ok, Document} = els_utils:lookup_document(Uri),
-  {ok, Buffer} = els_buffer_server:new(Uri, Text),
-  els_dt_document:insert(Document#{buffer => Buffer}),
+  els_indexing:deep_index(Document#{text => Text}),
   Provider = els_diagnostics_provider,
   els_provider:handle_request(Provider, {run_diagnostics, Params}),
   ok.
@@ -99,13 +85,16 @@ handle_file_change(Uri, Type) when Type =:= ?FILE_CHANGE_TYPE_DELETED ->
 -spec reload_from_disk(uri()) -> ok.
 reload_from_disk(Uri) ->
   {ok, Text} = file:read_file(els_uri:path(Uri)),
-  {ok, #{buffer := OldBuffer} = Document} = els_utils:lookup_document(Uri),
-  case OldBuffer of
-    undefined ->
-      els_indexing:deep_index(Document#{text => Text});
-    _ ->
-      els_buffer_server:stop(OldBuffer),
-      {ok, B} = els_buffer_server:new(Uri, Text),
-      els_indexing:deep_index(Document#{text => Text, buffer => B})
-  end,
+  {ok, Document} = els_utils:lookup_document(Uri),
+  els_indexing:deep_index(Document#{text => Text}),
   ok.
+
+-spec background_index(els_dt_document:item()) -> {ok, pid()}.
+background_index(#{uri := Uri} = Document) ->
+  Config = #{ task => fun (Doc, _State) ->
+                          els_indexing:deep_index(Doc)
+                      end
+            , entries => [Document]
+            , title => <<"Indexing ", Uri/binary>>
+            },
+  els_background_job:new(Config).

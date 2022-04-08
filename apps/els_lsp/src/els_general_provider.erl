@@ -130,10 +130,7 @@ server_capabilities() ->
   {ok, Version} = application:get_key(?APP, vsn),
   #{ capabilities =>
        #{ textDocumentSync =>
-            #{ openClose => true
-             , change    => els_text_synchronization:sync_mode()
-             , save      => #{includeText => false}
-             }
+            els_text_synchronization_provider:options()
         , hoverProvider =>
             els_hover_provider:is_enabled()
         , completionProvider =>
