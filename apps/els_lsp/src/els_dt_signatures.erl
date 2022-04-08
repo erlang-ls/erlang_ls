@@ -19,7 +19,7 @@
 
 -export([ insert/1
         , lookup/1
-        , delete_by_module/1
+        , delete_by_uri/1
         ]).
 
 %%==============================================================================
@@ -74,12 +74,17 @@ insert(Map) when is_map(Map) ->
 
 -spec lookup(mfa()) -> {ok, [item()]}.
 lookup({M, _F, _A} = MFA) ->
-  %% By finding a module, we also ensure the module is deeply indexed.
   {ok, _Uris} = els_utils:find_modules(M),
   {ok, Items} = els_db:lookup(name(), MFA),
   {ok, [to_item(Item) || Item <- Items]}.
 
--spec delete_by_module(atom()) -> ok.
-delete_by_module(Module) ->
-  Pattern = #els_dt_signatures{mfa = {Module, '_', '_'}, _ = '_'},
-  ok = els_db:match_delete(name(), Pattern).
+-spec delete_by_uri(uri()) -> ok.
+delete_by_uri(Uri) ->
+  case filename:extension(Uri) of
+    <<".erl">> ->
+      Module = els_uri:module(Uri),
+      Pattern = #els_dt_signatures{mfa = {Module, '_', '_'}, _ = '_'},
+      ok = els_db:match_delete(name(), Pattern);
+    _ ->
+      ok
+  end.

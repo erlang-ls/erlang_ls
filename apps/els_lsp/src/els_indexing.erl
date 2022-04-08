@@ -71,7 +71,7 @@ deep_index(Document) ->
   #{id := Id, uri := Uri, text := Text, source := Source} = Document,
   {ok, POIs} = els_parser:parse(Text),
   ok = els_dt_document:insert(Document#{pois => POIs}),
-  index_signatures(Id, Text, POIs),
+  index_signatures(Id, Uri, Text, POIs),
   case Source of
     otp ->
       ok;
@@ -79,9 +79,9 @@ deep_index(Document) ->
       index_references(Id, Uri, POIs)
   end.
 
--spec index_signatures(atom(), binary(), [poi()]) -> ok.
-index_signatures(Id, Text, POIs) ->
-  ok = els_dt_signatures:delete_by_module(Id),
+-spec index_signatures(atom(), uri(), binary(), [poi()]) -> ok.
+index_signatures(Id, Uri, Text, POIs) ->
+  ok = els_dt_signatures:delete_by_uri(Uri),
   [index_signature(Id, Text, POI) || #{kind := spec} = POI <- POIs],
   ok.
 
@@ -180,7 +180,7 @@ remove(Uri) ->
   ok = els_dt_document:delete(Uri),
   ok = els_dt_document_index:delete_by_uri(Uri),
   ok = els_dt_references:delete_by_uri(Uri),
-  ok = els_dt_signatures:delete_by_module(els_uri:module(Uri)).
+  ok = els_dt_signatures:delete_by_uri(Uri).
 
 %%==============================================================================
 %% Internal functions
