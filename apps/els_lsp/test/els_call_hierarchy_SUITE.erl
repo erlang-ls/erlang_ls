@@ -91,7 +91,36 @@ incoming_calls(Config) ->
           , uri => UriA},
   ?assertEqual([Item], PrepareResult),
   #{result := Result} = els_client:callhierarchy_incomingcalls(Item),
-  Calls = [#{ from =>
+  Calls = [ #{ from =>
+                 #{ data =>
+                      els_utils:base64_encode_term(
+                        #{ poi =>
+                             #{ data =>
+                                  #{ args => [{1, "Arg1"}]
+                                   , wrapping_range =>
+                                       #{ from => {7, 1}
+                                        , to => {14, 0}}}
+                              , id => {function_a, 1}
+                              , kind => function
+                              , range => #{from => {7, 1}, to => {7, 11}}}})
+                  , detail => <<"call_hierarchy_b [L11]">>
+                  , kind => 12
+                  , name => <<"function_a/1">>
+                  , range =>
+                      #{ 'end' => #{character => 29, line => 10}
+                       , start => #{character => 2, line => 10}
+                       }
+                  , selectionRange =>
+                      #{ 'end' => #{character => 29, line => 10}
+                       , start => #{character => 2, line => 10}
+                       }
+                  , uri => UriB}
+             , fromRanges =>
+                 [#{ 'end' => #{character => 29, line => 10}
+                   , start => #{character => 2, line => 10}
+                   }]
+             }
+          , #{ from =>
                 #{ data =>
                      els_utils:base64_encode_term(
                        #{ poi =>
@@ -134,37 +163,9 @@ incoming_calls(Config) ->
                 [#{ 'end' => #{character => 12, line => 15}
                   , start => #{character => 2, line => 15}
                   }]}
-          , #{ from =>
-                 #{ data =>
-                      els_utils:base64_encode_term(
-                        #{ poi =>
-                             #{ data =>
-                                  #{ args => [{1, "Arg1"}]
-                                   , wrapping_range =>
-                                       #{ from => {7, 1}
-                                        , to => {14, 0}}}
-                              , id => {function_a, 1}
-                              , kind => function
-                              , range => #{from => {7, 1}, to => {7, 11}}}})
-                  , detail => <<"call_hierarchy_b [L11]">>
-                  , kind => 12
-                  , name => <<"function_a/1">>
-                  , range =>
-                      #{ 'end' => #{character => 29, line => 10}
-                       , start => #{character => 2, line => 10}
-                       }
-                  , selectionRange =>
-                      #{ 'end' => #{character => 29, line => 10}
-                       , start => #{character => 2, line => 10}
-                       }
-                  , uri => UriB}
-             , fromRanges =>
-                 [#{ 'end' => #{character => 29, line => 10}
-                   , start => #{character => 2, line => 10}
-                   }]
-             }
           ],
-  ?assertEqual(Calls, Result).
+  [?assert(lists:member(Call, Result)) || Call <- Calls],
+  ?assertEqual(length(Calls), length(Result)).
 
 -spec outgoing_calls(config()) -> ok.
 outgoing_calls(Config) ->

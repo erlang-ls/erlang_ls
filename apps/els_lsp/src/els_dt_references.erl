@@ -18,7 +18,6 @@
 %%==============================================================================
 
 -export([ delete_by_uri/1
-        , find_all/0
         , find_by/1
         , find_by_id/2
         , insert/2
@@ -44,6 +43,15 @@
                  , range := poi_range()
                  }.
 -export_type([ item/0 ]).
+
+-type poi_category() :: function
+                      | type
+                      | macro
+                      | record
+                      | include
+                      | include_lib
+                      | behaviour.
+-export_type([ poi_category/0 ]).
 
 %%==============================================================================
 %% Callbacks for the els_db_table Behaviour
@@ -82,12 +90,6 @@ insert(Kind, Map) when is_map(Map) ->
   Record = from_item(Kind, Map),
   els_db:write(name(), Record).
 
-%% @doc Find all
--spec find_all() -> {ok, [item()]} | {error, any()}.
-find_all() ->
-  Pattern = #els_dt_references{_ = '_'},
-  find_by(Pattern).
-
 %% @doc Find by id
 -spec find_by_id(poi_kind(), any()) -> {ok, [item()]} | {error, any()}.
 find_by_id(Kind, Id) ->
@@ -96,11 +98,13 @@ find_by_id(Kind, Id) ->
   find_by(Pattern).
 
 -spec find_by(tuple()) -> {ok, [item()]}.
-find_by(Pattern) ->
+find_by(#els_dt_references{id = Id} = Pattern) ->
+  Uris = els_text_search:find_candidate_uris(Id),
+  [els_indexing:ensure_deeply_indexed(Uri) || Uri <- Uris],
   {ok, Items} = els_db:match(name(), Pattern),
   {ok, [to_item(Item) || Item <- Items]}.
 
--spec kind_to_category(poi_kind()) -> function | type | macro | record.
+-spec kind_to_category(poi_kind()) -> poi_category().
 kind_to_category(Kind) when Kind =:= application;
                             Kind =:= export_entry;
                             Kind =:= function;

@@ -110,7 +110,7 @@ find_header(Id) ->
       {ok, Uri};
     [] ->
       FileName = atom_to_list(Id) ++ ".hrl",
-      els_indexing:find_and_index_file(FileName)
+      els_indexing:find_and_deeply_index_file(FileName)
   end.
 
 %% @doc Look for a module in the DB
@@ -128,14 +128,14 @@ find_module(Id) ->
 find_modules(Id) ->
   {ok, Candidates} = els_dt_document_index:lookup(Id),
   case [Uri || #{kind := module, uri := Uri} <- Candidates] of
-      [] ->
-          FileName = atom_to_list(Id) ++ ".erl",
-          case els_indexing:find_and_index_file(FileName) of
-              {ok, Uri} -> {ok, [Uri]};
-              Error -> Error
-          end;
-      Uris ->
-          {ok, prioritize_uris(Uris)}
+    [] ->
+      FileName = atom_to_list(Id) ++ ".erl",
+      case els_indexing:find_and_deeply_index_file(FileName) of
+        {ok, Uri} -> {ok, [Uri]};
+        Error -> Error
+      end;
+    Uris ->
+      {ok, prioritize_uris(Uris)}
   end.
 
 %% @doc Look for a document in the DB.
@@ -150,13 +150,13 @@ lookup_document(Uri) ->
       {ok, Document};
     {ok, []} ->
       Path = els_uri:path(Uri),
-      {ok, Uri} = els_indexing:index_file(Path),
+      {ok, Uri} = els_indexing:shallow_index(Path, app),
       case els_dt_document:lookup(Uri) of
         {ok, [Document]} ->
           {ok, Document};
-        Error ->
-          ?LOG_INFO("Document lookup failed [error=~p] [uri=~p]", [Error, Uri]),
-          {error, Error}
+        {ok, []} ->
+          ?LOG_INFO("Document lookup failed [uri=~p]", [Uri]),
+          {error, document_lookup_failed}
       end
   end.
 

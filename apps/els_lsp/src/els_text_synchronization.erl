@@ -30,7 +30,10 @@ did_change(Params) ->
       %% Full text sync
       #{<<"text">> := Text} = Change,
       {Duration, ok} =
-        timer:tc(fun() -> els_indexing:index(Uri, Text, 'deep') end),
+        timer:tc(fun() ->
+                     {ok, Document} = els_utils:lookup_document(Uri),
+                     els_indexing:deep_index(Document)
+                 end),
       ?LOG_DEBUG("didChange FULLSYNC [size: ~p] [duration: ~pms]\n",
                  [size(Text), Duration div 1000]),
       ok;
@@ -39,7 +42,10 @@ did_change(Params) ->
       ?LOG_DEBUG("didChange INCREMENTAL [changes: ~p]", [ContentChanges]),
       Edits = [to_edit(Change) || Change <- ContentChanges],
       {Duration, ok} =
-        timer:tc(fun() -> els_index_buffer:apply_edits_async(Uri, Edits) end),
+        timer:tc(fun() ->
+                     {ok, #{buffer := Buffer}} = els_utils:lookup_document(Uri),
+                     els_buffer_server:apply_edits(Buffer, Edits)
+                 end),
       ?LOG_DEBUG("didChange INCREMENTAL [duration: ~pms]\n",
                  [Duration div 1000]),
       ok
@@ -49,8 +55,9 @@ did_change(Params) ->
 did_open(Params) ->
   #{<<"textDocument">> := #{ <<"uri">> := Uri
                            , <<"text">> := Text}} = Params,
-  ok = els_index_buffer:load(Uri, Text),
-  ok = els_index_buffer:flush(Uri),
+  {ok, Document} = els_utils:lookup_document(Uri),
+  {ok, Buffer} = els_buffer_server:new(Uri, Text),
+  els_dt_document:insert(Document#{buffer => Buffer}),
   Provider = els_diagnostics_provider,
   els_provider:handle_request(Provider, {run_diagnostics, Params}),
   ok.
@@ -58,9 +65,7 @@ did_open(Params) ->
 -spec did_save(map()) -> ok.
 did_save(Params) ->
   #{<<"textDocument">> := #{<<"uri">> := Uri}} = Params,
-  {ok, Text} = file:read_file(els_uri:path(Uri)),
-  ok = els_index_buffer:load(Uri, Text),
-  ok = els_index_buffer:flush(Uri),
+  reload_from_disk(Uri),
   Provider = els_diagnostics_provider,
   els_provider:handle_request(Provider, {run_diagnostics, Params}),
   ok.
@@ -87,11 +92,20 @@ to_edit(#{<<"text">> := Text, <<"range">> := Range}) ->
 -spec handle_file_change(uri(), file_change_type()) -> ok.
 handle_file_change(Uri, Type) when Type =:= ?FILE_CHANGE_TYPE_CREATED;
                                    Type =:= ?FILE_CHANGE_TYPE_CHANGED ->
-  {ok, Text} = file:read_file(els_uri:path(Uri)),
-  ok = els_index_buffer:load(Uri, Text),
-  ok = els_index_buffer:flush(Uri);
+  reload_from_disk(Uri);
 handle_file_change(Uri, Type) when Type =:= ?FILE_CHANGE_TYPE_DELETED ->
-  ok = els_dt_document:delete(Uri),
-  ok = els_dt_document_index:delete_by_uri(Uri),
-  ok = els_dt_references:delete_by_uri(Uri),
-  ok = els_dt_signatures:delete_by_module(els_uri:module(Uri)).
+  els_indexing:remove(Uri).
+
+-spec reload_from_disk(uri()) -> ok.
+reload_from_disk(Uri) ->
+  {ok, Text} = file:read_file(els_uri:path(Uri)),
+  {ok, #{buffer := OldBuffer} = Document} = els_utils:lookup_document(Uri),
+  case OldBuffer of
+    undefined ->
+      els_indexing:deep_index(Document#{text => Text});
+    _ ->
+      els_buffer_server:stop(OldBuffer),
+      {ok, B} = els_buffer_server:new(Uri, Text),
+      els_indexing:deep_index(Document#{text => Text, buffer => B})
+  end,
+  ok.

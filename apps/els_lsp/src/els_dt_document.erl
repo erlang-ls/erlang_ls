@@ -22,7 +22,7 @@
         , delete/1
         ]).
 
--export([ new/2
+-export([ new/3
         , pois/1
         , pois/2
         , get_element_at_pos/3
@@ -31,29 +31,37 @@
         , applications_at_pos/3
         , wrapping_functions/2
         , wrapping_functions/3
+        , find_candidates/1
         ]).
 
 %%==============================================================================
 %% Includes
 %%==============================================================================
 -include("els_lsp.hrl").
+-include_lib("kernel/include/logger.hrl").
 
 %%==============================================================================
 %% Type Definitions
 %%==============================================================================
 -type id()   :: atom().
 -type kind() :: module | header | other.
+-type source() :: otp | app | dep.
+-type buffer() :: pid().
+-export_type([source/0]).
 
 %%==============================================================================
 %% Item Definition
 %%==============================================================================
 
--record(els_dt_document, { uri  :: uri()    | '_'
+-record(els_dt_document, { uri  :: uri()    | '_' | '$1'
                          , id   :: id()     | '_'
                          , kind :: kind()   | '_'
                          , text :: binary() | '_'
                          , md5  :: binary() | '_'
-                         , pois :: [poi()]  | '_'
+                         , pois :: [poi()]  | '_' | ondemand
+                         , source :: source() | '$2'
+                         , buffer :: buffer() | '_' | undefined
+                         , words :: sets:set() | '_' | '$3'
                          }).
 -type els_dt_document() :: #els_dt_document{}.
 
@@ -62,7 +70,10 @@
                  , kind := kind()
                  , text := binary()
                  , md5  => binary()
-                 , pois => [poi()]
+                 , pois => [poi()] | ondemand
+                 , source => source()
+                 , buffer => buffer() | undefined
+                 , words => sets:set()
                  }.
 -export_type([ id/0
              , item/0
@@ -91,6 +102,9 @@ from_item(#{ uri  := Uri
            , text := Text
            , md5  := MD5
            , pois := POIs
+           , source := Source
+           , buffer := Buffer
+           , words := Words
            }) ->
   #els_dt_document{ uri  = Uri
                   , id   = Id
@@ -98,6 +112,9 @@ from_item(#{ uri  := Uri
                   , text = Text
                   , md5  = MD5
                   , pois = POIs
+                  , source = Source
+                  , buffer = Buffer
+                  , words = Words
                   }.
 
 -spec to_item(els_dt_document()) -> item().
@@ -107,6 +124,9 @@ to_item(#els_dt_document{ uri  = Uri
                         , text = Text
                         , md5  = MD5
                         , pois = POIs
+                        , source = Source
+                        , buffer = Buffer
+                        , words = Words
                         }) ->
   #{ uri  => Uri
    , id   => Id
@@ -114,6 +134,9 @@ to_item(#els_dt_document{ uri  = Uri
    , text => Text
    , md5  => MD5
    , pois => POIs
+   , source => Source
+   , buffer => Buffer
+   , words => Words
    }.
 
 -spec insert(item()) -> ok | {error, any()}.
@@ -130,33 +153,39 @@ lookup(Uri) ->
 delete(Uri) ->
   els_db:delete(name(), Uri).
 
--spec new(uri(), binary()) -> item().
-new(Uri, Text) ->
+-spec new(uri(), binary(), source()) -> item().
+new(Uri, Text, Source) ->
   Extension = filename:extension(Uri),
   Id = binary_to_atom(filename:basename(Uri, Extension), utf8),
   case Extension of
     <<".erl">> ->
-      new(Uri, Text, Id, module);
+      new(Uri, Text, Id, module, Source);
     <<".hrl">> ->
-      new(Uri, Text, Id, header);
+      new(Uri, Text, Id, header, Source);
     _  ->
-      new(Uri, Text, Id, other)
+      new(Uri, Text, Id, other, Source)
   end.
 
--spec new(uri(), binary(), atom(), kind()) -> item().
-new(Uri, Text, Id, Kind) ->
-  {ok, POIs} = els_parser:parse(Text),
-  MD5        = erlang:md5(Text),
+-spec new(uri(), binary(), atom(), kind(), source()) -> item().
+new(Uri, Text, Id, Kind, Source) ->
+  MD5 = erlang:md5(Text),
   #{ uri  => Uri
    , id   => Id
    , kind => Kind
    , text => Text
    , md5  => MD5
-   , pois => POIs
+   , pois => ondemand
+   , source => Source
+   , buffer => undefined
+   , words => get_words(Text)
    }.
 
 %% @doc Returns the list of POIs for the current document
 -spec pois(item()) -> [poi()].
+pois(#{ uri := Uri, pois := ondemand }) ->
+  els_indexing:ensure_deeply_indexed(Uri),
+  {ok, #{pois := POIs}} = els_utils:lookup_document(Uri),
+  POIs;
 pois(#{ pois := POIs }) ->
   POIs.
 
@@ -201,3 +230,49 @@ wrapping_functions(Document, Line, Column) ->
 wrapping_functions(Document, Range) ->
   #{start := #{character := Character, line := Line}} = Range,
   wrapping_functions(Document, Line, Character).
+
+-spec find_candidates(atom() | string()) -> [uri()].
+find_candidates(Pattern) ->
+  %% ets:fun2ms(fun(#els_dt_document{source = Source, uri = Uri, words = Words})
+  %% when Source =/= otp -> {Uri, Words} end).
+  MS = [{#els_dt_document{ uri = '$1'
+                         , id = '_'
+                         , kind = '_'
+                         , text = '_'
+                         , md5 = '_'
+                         , pois = '_'
+                         , source = '$2'
+                         , buffer = '_'
+                         , words = '$3'},
+         [{'=/=', '$2', otp}],
+         [{{'$1', '$3'}}]}],
+  All = ets:select(name(), MS),
+  Fun = fun({Uri, Words}) ->
+            case sets:is_element(Pattern, Words) of
+              true -> {true, Uri};
+              false -> false
+            end
+        end,
+  lists:filtermap(Fun, All).
+
+-spec get_words(binary()) -> sets:set().
+get_words(Text) ->
+  case erl_scan:string(els_utils:to_list(Text)) of
+    {ok, Tokens, _EndLocation} ->
+      Fun = fun({atom, _Location, Atom}, Words) ->
+                sets:add_element(Atom, Words);
+               ({string, _Location, String}, Words) ->
+                case filename:extension(String) of
+                  ".hrl" ->
+                    Id = filename:rootname(filename:basename(String)),
+                    sets:add_element(Id, Words);
+                  _ ->
+                    Words
+                end;
+               (_, Words) ->
+                Words
+            end,
+      lists:foldl(Fun, sets:new(), Tokens);
+    {error, ErrorInfo, _ErrorLocation} ->
+      ?LOG_DEBUG("Errors while get_words ~p", [ErrorInfo])
+  end.

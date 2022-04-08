@@ -273,8 +273,8 @@ consult_config([Path | Paths], ReportMissingConfig) ->
       [Config] -> {Path, Config}
   catch
     Class:Error ->
-      ?LOG_WARNING( "Could not read config file: path=~p class=~p error=~p"
-                  , [Path, Class, Error]),
+      ?LOG_DEBUG( "Could not read config file: path=~p class=~p error=~p"
+                , [Path, Class, Error]),
       consult_config(Paths, ReportMissingConfig)
   end.
 
