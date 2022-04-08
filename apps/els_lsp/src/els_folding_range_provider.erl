@@ -4,27 +4,23 @@
 
 -include("els_lsp.hrl").
 
--export([ handle_request/2
-        , is_enabled/0
+-export([ is_enabled/0
+        , handle_request/2
         ]).
 
 %%==============================================================================
 %% Type Definitions
 %%==============================================================================
-
 -type folding_range_result() :: [folding_range()] | null.
--type state() :: any().
 
 %%==============================================================================
 %% els_provider functions
 %%==============================================================================
-
 -spec is_enabled() -> boolean().
-is_enabled() ->
-  true.
+is_enabled() -> true.
 
--spec handle_request(tuple(), state()) -> {folding_range_result(), state()}.
-handle_request({document_foldingrange, Params}, State) ->
+-spec handle_request(tuple(), any()) -> {response, folding_range_result()}.
+handle_request({document_foldingrange, Params}, _State) ->
   #{ <<"textDocument">> := #{<<"uri">> := Uri} } = Params,
   {ok, Document} = els_utils:lookup_document(Uri),
   POIs = els_dt_document:pois(Document, [folding_range]),
@@ -32,7 +28,7 @@ handle_request({document_foldingrange, Params}, State) ->
                []     -> null;
                Ranges -> Ranges
              end,
-  {Response, State}.
+  {response, Response}.
 
 %%==============================================================================
 %% Internal functions

@@ -9,10 +9,8 @@
 %%==============================================================================
 -module(els_dap_general_provider).
 
--behaviour(els_provider).
 -export([ handle_request/2
         , handle_info/2
-        , is_enabled/0
         , init/0
         ]).
 
@@ -62,13 +60,6 @@
 %% extendable bindings type for customized pretty printing
 -type binding_type() :: generic | map_assoc.
 -type line()           :: non_neg_integer().
-
-%%==============================================================================
-%% els_provider functions
-%%==============================================================================
-
--spec is_enabled() -> boolean().
-is_enabled() -> true.
 
 -spec init() -> state().
 init() ->

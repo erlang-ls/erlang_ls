@@ -2,8 +2,8 @@
 
 -behaviour(els_provider).
 
--export([ handle_request/2
-        , is_enabled/0
+-export([ is_enabled/0
+        , handle_request/2
         ]).
 
 -include("els_lsp.hrl").
@@ -13,17 +13,16 @@
 %%==============================================================================
 %% els_provider functions
 %%==============================================================================
-
 -spec is_enabled() -> boolean().
 is_enabled() -> true.
 
--spec handle_request(any(), state()) -> {any(), state()}.
-handle_request({document_codeaction, Params}, State) ->
+-spec handle_request(any(), state()) -> {response, any()}.
+handle_request({document_codeaction, Params}, _State) ->
   #{ <<"textDocument">> := #{ <<"uri">> := Uri}
    , <<"range">>        := RangeLSP
    , <<"context">>      := Context } = Params,
   Result = code_actions(Uri, RangeLSP, Context),
-  {Result, State}.
+  {response, Result}.
 
 %%==============================================================================
 %% Internal Functions

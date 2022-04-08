@@ -43,7 +43,7 @@ dispatch(Command, Args, Type, State) ->
 -spec do_dispatch(atom(), params(), state()) -> result().
 do_dispatch(Command, Args, #{status := initialized} = State) ->
   Request = {Command, Args},
-  case els_provider:handle_request(els_dap_general_provider, Request) of
+  case els_dap_provider:handle_request(els_dap_general_provider, Request) of
     {error, Error} ->
       {error_response, Error, State};
     Result ->
@@ -51,7 +51,7 @@ do_dispatch(Command, Args, #{status := initialized} = State) ->
   end;
 do_dispatch(<<"initialize">>, Args, State) ->
   Request = {<<"initialize">>, Args},
-  case els_provider:handle_request(els_dap_general_provider, Request) of
+  case els_dap_provider:handle_request(els_dap_general_provider, Request) of
     {error, Error} ->
       {error_response, Error, State};
     Result ->

@@ -4,21 +4,18 @@
 
 -include("els_lsp.hrl").
 
--export([ handle_request/2
-        , is_enabled/0
+-export([ is_enabled/0
+        , handle_request/2
         ]).
 
 %%==============================================================================
 %% els_provider functions
 %%==============================================================================
-
 -spec is_enabled() -> boolean().
-is_enabled() ->
-  true.
+is_enabled() -> true.
 
--spec handle_request(tuple(), els_provider:state()) ->
-   {[location()], els_provider:state()}.
-handle_request({implementation, Params}, State) ->
+-spec handle_request(tuple(), els_provider:state()) -> {response, [location()]}.
+handle_request({implementation, Params}, _State) ->
   #{ <<"position">>     := #{ <<"line">>      := Line
                             , <<"character">> := Character
                             }
@@ -28,7 +25,7 @@ handle_request({implementation, Params}, State) ->
   Implementations = find_implementation(Document, Line, Character),
   Locations = [#{uri => U, range => els_protocol:range(Range)} ||
                 {U, #{range := Range}} <- Implementations],
-  {Locations, State}.
+  {response, Locations}.
 
 %%==============================================================================
 %% Internal functions

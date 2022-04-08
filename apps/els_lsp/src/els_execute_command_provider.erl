@@ -2,9 +2,9 @@
 
 -behaviour(els_provider).
 
--export([ handle_request/2
-        , is_enabled/0
+-export([ is_enabled/0
         , options/0
+        , handle_request/2
         ]).
 
 %%==============================================================================
@@ -18,7 +18,6 @@
 %%==============================================================================
 %% els_provider functions
 %%==============================================================================
-
 -spec is_enabled() -> boolean().
 is_enabled() -> true.
 
@@ -31,13 +30,13 @@ options() ->
                  , els_command:with_prefix(<<"function-references">>)
                  ] }.
 
--spec handle_request(any(), state()) -> {any(), state()}.
-handle_request({workspace_executecommand, Params}, State) ->
+-spec handle_request(any(), state()) -> {response, any()}.
+handle_request({workspace_executecommand, Params}, _State) ->
   #{ <<"command">> := PrefixedCommand } = Params,
   Arguments = maps:get(<<"arguments">>, Params, []),
   Result = execute_command( els_command:without_prefix(PrefixedCommand)
                           , Arguments),
-  {Result, State}.
+  {response, Result}.
 
 %%==============================================================================
 %% Internal Functions

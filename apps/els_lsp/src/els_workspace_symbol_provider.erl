@@ -2,8 +2,8 @@
 
 -behaviour(els_provider).
 
--export([ handle_request/2
-        , is_enabled/0
+-export([ is_enabled/0
+        , handle_request/2
         ]).
 
 -include("els_lsp.hrl").
@@ -15,18 +15,16 @@
 %%==============================================================================
 %% els_provider functions
 %%==============================================================================
-
 -spec is_enabled() -> boolean().
-is_enabled() ->
-  true.
+is_enabled() -> true.
 
--spec handle_request(any(), state()) -> {any(), state()}.
-handle_request({symbol, Params}, State) ->
+-spec handle_request(any(), state()) -> {response, any()}.
+handle_request({symbol, Params}, _State) ->
   %% TODO: Version 3.15 of the protocol introduces a much nicer way of
   %%       specifying queries, allowing clients to send the symbol kind.
   #{<<"query">> := Query} = Params,
   TrimmedQuery = string:trim(Query),
-  {modules(TrimmedQuery), State}.
+  {response, modules(TrimmedQuery)}.
 
 %%==============================================================================
 %% Internal Functions
