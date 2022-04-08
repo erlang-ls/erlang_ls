@@ -127,16 +127,15 @@ find_module(Id) ->
 -spec find_modules(atom()) -> {ok, [uri()]} | {error, any()}.
 find_modules(Id) ->
   {ok, Candidates} = els_dt_document_index:lookup(Id),
-  case [Uri || #{kind := module, uri := Uri, pois := POIs} <- Candidates,
-               POIs =/= ondemand] of
-      [] ->
-          FileName = atom_to_list(Id) ++ ".erl",
-          case els_indexing:find_and_deeply_index_file(FileName) of
-              {ok, Uri} -> {ok, [Uri]};
-              Error -> Error
-          end;
-      Uris ->
-          {ok, prioritize_uris(Uris)}
+  case [Uri || #{kind := module, uri := Uri} <- Candidates] of
+    [] ->
+      FileName = atom_to_list(Id) ++ ".erl",
+      case els_indexing:find_and_deeply_index_file(FileName) of
+        {ok, Uri} -> {ok, [Uri]};
+        Error -> Error
+      end;
+    Uris ->
+      {ok, prioritize_uris(Uris)}
   end.
 
 %% @doc Look for a document in the DB.
