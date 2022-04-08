@@ -15,6 +15,7 @@
 -export_type([edit/0]).
 
 -include("els_core.hrl").
+-include_lib("kernel/include/logger.hrl").
 
 -type edit()       :: {poi_range(), string()}.
 -type lines()      :: [string() | binary()].
@@ -90,6 +91,7 @@ apply_edit([CurrLine|RestLines], L, {#{from := {FromL, _}}, _} = Edit)
   [CurrLine|apply_edit(RestLines, L + 1, Edit)];
 apply_edit([CurrLine0|RestLines], L,
            {#{from := {L, FromC}, to := {L, ToC}}, Insert}) ->
+  ?LOG_INFO("One line edit: ~p", [{CurrLine0, L, FromC, ToC, Insert}]),
   CurrLine = ensure_string(CurrLine0),
   %% One line edit
   {Prefix, Rest} = lists:split(FromC, CurrLine),

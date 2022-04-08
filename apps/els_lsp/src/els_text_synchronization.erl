@@ -29,12 +29,14 @@ did_change(Params) ->
     [Change] when not is_map_key(<<"range">>, Change) ->
       #{<<"text">> := Text} = Change,
       {ok, Document} = els_utils:lookup_document(Uri),
+      ok = els_dt_document:insert(Document#{text => Text}),
       background_index(Document#{text => Text});
     ContentChanges ->
       ?LOG_DEBUG("didChange INCREMENTAL [changes: ~p]", [ContentChanges]),
       Edits = [to_edit(Change) || Change <- ContentChanges],
       {ok, #{text := Text0} = Document} = els_utils:lookup_document(Uri),
       Text = els_text:apply_edits(Text0, Edits),
+      ok = els_dt_document:insert(Document#{text => Text}),
       background_index(Document#{text => Text})
   end.
 
