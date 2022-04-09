@@ -695,10 +695,16 @@ completion_item(#{kind := Kind, id := {F, A}, data := POIData}, Data, false)
        Kind =:= type_definition ->
   ArgsNames = maps:get(args, POIData),
   Label = io_lib:format("~p/~p", [F, A]),
+  SnippetSupport = snippet_support(),
+  Format =
+    case SnippetSupport of
+      true -> ?INSERT_TEXT_FORMAT_SNIPPET;
+      false -> ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+    end,
   #{ label            => els_utils:to_binary(Label)
    , kind             => completion_item_kind(Kind)
-   , insertText       => snippet_function(F, ArgsNames)
-   , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+   , insertText       => format_function(F, ArgsNames, SnippetSupport)
+   , insertTextFormat => Format
    , data             => Data
    };
 completion_item(#{kind := Kind, id := {F, A}}, Data, true)
@@ -717,10 +723,16 @@ completion_item(#{kind := Kind = record, id := Name}, Data, _) ->
    };
 completion_item(#{kind := Kind = define, id := Name, data := Info}, Data, _) ->
   #{args := ArgNames} = Info,
+  SnippetSupport = snippet_support(),
+  Format =
+    case SnippetSupport of
+      true -> ?INSERT_TEXT_FORMAT_SNIPPET;
+      false -> ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+    end,
   #{ label            => macro_label(Name)
    , kind             => completion_item_kind(Kind)
-   , insertText       => snippet_macro(Name, ArgNames)
-   , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+   , insertText       => format_macro(Name, ArgNames, SnippetSupport)
+   , insertTextFormat => Format
    , data             => Data
    }.
 
@@ -730,29 +742,30 @@ macro_label({Name, Arity}) ->
 macro_label(Name) ->
   atom_to_binary(Name, utf8).
 
--spec snippet_function(atom(), [{integer(), string()}]) -> binary().
-snippet_function(Name, Args) ->
-  snippet_args(atom_to_label(Name), Args).
+-spec format_function(atom(), [{integer(), string()}], boolean()) -> binary().
+format_function(Name, Args, SnippetSupport) ->
+  format_args(atom_to_label(Name), Args, SnippetSupport).
 
--spec snippet_macro( atom() | {atom(), non_neg_integer()}
-                   , [{integer(), string()}]) -> binary().
-snippet_macro({Name0, _Arity}, Args) ->
+-spec format_macro( atom() | {atom(), non_neg_integer()}
+                   , [{integer(), string()}]
+                   , boolean()) -> binary().
+format_macro({Name0, _Arity}, Args, SnippetSupport) ->
   Name = atom_to_binary(Name0, utf8),
-  snippet_args(Name, Args);
-snippet_macro(Name, none) ->
+  format_args(Name, Args, SnippetSupport);
+format_macro(Name, none, _SnippetSupport) ->
   atom_to_binary(Name, utf8).
 
--spec snippet_args(binary(), [{integer(), string()}]) -> binary().
-snippet_args(Name, Args0) ->
+-spec format_args(binary(), [{integer(), string()}], boolean()) -> binary().
+format_args(Name, Args0, SnippetSupport) ->
   Args =
-    case snippet_support() of
+    case SnippetSupport of
       false ->
-        [A || {_N, A} <- Args0];
+        [];
       true ->
-        [["${", integer_to_list(N), ":", A, "}"] || {N, A} <- Args0]
+        ArgList = [["${", integer_to_list(N), ":", A, "}"] || {N, A} <- Args0],
+        ["(", string:join(ArgList, ", "), ")"]
     end,
-  Snippet = [Name, "(", string:join(Args, ", "), ")"],
-  els_utils:to_binary(Snippet).
+  els_utils:to_binary([Name | Args]).
 
 -spec snippet_support() -> boolean().
 snippet_support() ->
