@@ -33,12 +33,7 @@
 %%==============================================================================
 -spec init() -> state().
 init() ->
-  case els_config:get(bsp_enabled) of
-    false ->
-      [ fun format_document_local/3 ];
-    _ ->
-      [ fun format_document_bsp/3,  fun format_document_local/3 ]
-  end.
+  [ fun format_document_local/3 ].
 
 %% Keep the behaviour happy
 -spec is_enabled() -> boolean().
@@ -113,26 +108,6 @@ format_document(Path, RelativePath, Options, Formatters) ->
         end,
   tempdir:mktmp(Fun).
 
--spec format_document_bsp(string(), string(), formatting_options()) ->
-           boolean().
-format_document_bsp(Dir, RelativePath, _Options) ->
-  Method = <<"rebar3/run">>,
-  Params = #{ <<"args">> => ["format", "-o", Dir, "-f", RelativePath] },
-  try
-    case els_bsp_provider:request(Method, Params) of
-      {error, Reason} ->
-        error(Reason);
-      {reply, #{ error := _Error } = Result} ->
-        error(Result);
-      {reply, Result} ->
-        ?LOG_DEBUG("BSP format succeeded. [result=~p]", [Result]),
-        true
-    end
-  catch
-    C:E:S ->
-      ?LOG_WARNING("format_document_bsp failed. ~p:~p ~p", [C, E, S]),
-      false
-  end.
 
 -spec format_document_local(string(), string(), formatting_options()) ->
            boolean().

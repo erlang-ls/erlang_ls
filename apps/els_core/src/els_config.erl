@@ -54,7 +54,6 @@
                | code_reload
                | elvis_config_path
                | indexing_enabled
-               | bsp_enabled
                | compiler_telemetry_enabled
                | refactorerl
                | edoc_custom_tags.
@@ -76,7 +75,6 @@
                   , search_paths     => [path()]
                   , code_reload      => map() | 'disabled'
                   , indexing_enabled => boolean()
-                  , bsp_enabled      => boolean() | auto
                   , compiler_telemetry_enabled => boolean()
                   , refactorerl      => map() | 'notconfigured'
                   }.
@@ -131,7 +129,6 @@ do_initialize(RootUri, Capabilities, InitOptions, {ConfigPath, Config}) ->
   CodePathExtraDirs = maps:get("code_path_extra_dirs", Config, []),
   ok = add_code_paths(CodePathExtraDirs, RootPath),
   ElvisConfigPath = maps:get("elvis_config_path", Config, undefined),
-  BSPEnabled = maps:get("bsp_enabled", Config, auto),
   IncrementalSync = maps:get("incremental_sync", Config, true),
   Indexing = maps:get("indexing", Config, #{}),
   CompilerTelemetryEnabled
@@ -160,7 +157,6 @@ do_initialize(RootUri, Capabilities, InitOptions, {ConfigPath, Config}) ->
   ok = set('ct-run-test', maps:merge( els_config_ct_run_test:default_config()
                                     , CtRunTest)),
   ok = set(elvis_config_path, ElvisConfigPath),
-  ok = set(bsp_enabled, BSPEnabled),
   ok = set(compiler_telemetry_enabled, CompilerTelemetryEnabled),
   ok = set(edoc_custom_tags, EDocCustomTags),
   ok = set(incremental_sync, IncrementalSync),

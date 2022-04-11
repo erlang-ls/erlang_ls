@@ -43,7 +43,6 @@
                   | els_code_lens_provider
                   | els_execute_command_provider
                   | els_rename_provider
-                  | els_bsp_provider
                   | els_text_synchronization_provider.
 -type request()  :: {atom() | binary(), map()}.
 -type state()    :: #{ provider := provider()
@@ -135,7 +134,6 @@ available_providers() ->
   , els_execute_command_provider
   , els_diagnostics_provider
   , els_rename_provider
-  , els_bsp_provider
   , els_call_hierarchy_provider
   , els_text_synchronization_provider
   ].

@@ -86,29 +86,7 @@ handle_request({initialized, _Params}, State) ->
                                               , filename:basename(RootUri)),
   els_distribution_server:start_distribution(NodeName),
   ?LOG_INFO("Started distribution for: [~p]", [NodeName]),
-
-  case els_bsp_provider:maybe_start(RootUri) of
-    {error, Reason} ->
-      case els_config:get(bsp_enabled) of
-        true ->
-          ?LOG_ERROR( "BSP server startup failed, shutting down. [reason=~p]"
-                    , [Reason]
-                    ),
-          els_utils:halt(1);
-        auto ->
-          ?LOG_INFO("BSP server startup failed. [reason=~p]", [Reason]),
-          ok
-      end;
-    _ ->
-      ok
-  end,
-  case els_bsp_provider:info(is_running) of
-    true ->  %% The BSP provider will start indexing when it's ready
-      ok;
-    false -> %% We need to start indexing here
-      els_indexing:maybe_start()
-  end,
-
+  els_indexing:maybe_start(),
   {null, State};
 handle_request({shutdown, _Params}, State) ->
   {null, State};
