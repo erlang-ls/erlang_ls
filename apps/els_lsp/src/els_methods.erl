@@ -131,7 +131,7 @@ method_to_function_name(Method) ->
 initialize(Params, State) ->
   Provider = els_general_provider,
   Request  = {initialize, Params},
-  Response = els_provider:handle_request(Provider, Request),
+  {response, Response} = els_provider:handle_request(Provider, Request),
   {response, Response, State#{status => initialized}}.
 
 %%==============================================================================
@@ -142,7 +142,7 @@ initialize(Params, State) ->
 initialized(Params, State) ->
   Provider = els_general_provider,
   Request  = {initialized, Params},
-  _Response = els_provider:handle_request(Provider, Request),
+  {response, _Response} = els_provider:handle_request(Provider, Request),
   %% Report to the user the server version
   {ok, Version} = application:get_key(?APP, vsn),
   ?LOG_INFO("initialized: [App=~p] [Version=~p]", [?APP, Version]),
@@ -166,7 +166,7 @@ initialized(Params, State) ->
 shutdown(Params, State) ->
   Provider = els_general_provider,
   Request  = {shutdown, Params},
-  Response = els_provider:handle_request(Provider, Request),
+  {response, Response} = els_provider:handle_request(Provider, Request),
   {response, Response, State#{status => shutdown}}.
 
 %%==============================================================================
@@ -177,7 +177,7 @@ shutdown(Params, State) ->
 exit(_Params, State) ->
   Provider = els_general_provider,
   Request  = {exit, #{status => maps:get(status, State, undefined)}},
-  _Response = els_provider:handle_request(Provider, Request),
+  {response, _Response} = els_provider:handle_request(Provider, Request),
   {noresponse, #{}}.
 
 %%==============================================================================
@@ -188,7 +188,7 @@ exit(_Params, State) ->
 textdocument_didopen(Params, State) ->
   Provider = els_text_synchronization_provider,
   Request  = {did_open, Params},
-  ok = els_provider:handle_request(Provider, Request),
+  noresponse = els_provider:handle_request(Provider, Request),
   {noresponse, State}.
 
 %%==============================================================================
@@ -197,9 +197,11 @@ textdocument_didopen(Params, State) ->
 
 -spec textdocument_didchange(params(), state()) -> result().
 textdocument_didchange(Params, State) ->
+  #{<<"textDocument">> := #{ <<"uri">> := Uri}} = Params,
+  els_provider:cancel_request_by_uri(Uri),
   Provider = els_text_synchronization_provider,
   Request = {did_change, Params},
-  ok = els_provider:handle_request(Provider, Request),
+  els_provider:handle_request(Provider, Request),
   {noresponse, State}.
 
 %%==============================================================================
@@ -210,7 +212,7 @@ textdocument_didchange(Params, State) ->
 textdocument_didsave(Params, State) ->
   Provider = els_text_synchronization_provider,
   Request  = {did_save, Params},
-  ok = els_provider:handle_request(Provider, Request),
+  noresponse = els_provider:handle_request(Provider, Request),
   {noresponse, State}.
 
 %%==============================================================================
@@ -221,7 +223,7 @@ textdocument_didsave(Params, State) ->
 textdocument_didclose(Params, State) ->
   Provider = els_text_synchronization_provider,
   Request  = {did_close, Params},
-  ok = els_provider:handle_request(Provider, Request),
+  noresponse = els_provider:handle_request(Provider, Request),
   {noresponse, State}.
 
 %%==============================================================================
@@ -232,7 +234,7 @@ textdocument_didclose(Params, State) ->
 textdocument_documentsymbol(Params, State) ->
   Provider = els_document_symbol_provider,
   Request  = {document_symbol, Params},
-  Response = els_provider:handle_request(Provider, Request),
+  {response, Response} = els_provider:handle_request(Provider, Request),
   {response, Response, State}.
 
 %%==============================================================================
@@ -242,8 +244,8 @@ textdocument_documentsymbol(Params, State) ->
 -spec textdocument_hover(params(), state()) -> result().
 textdocument_hover(Params, State) ->
   Provider = els_hover_provider,
-  Job = els_provider:handle_request(Provider, {hover, Params}),
-  {noresponse, {Provider, Job}, State}.
+  {async, Job} = els_provider:handle_request(Provider, {hover, Params}),
+  {noresponse, Job, State}.
 
 %%==============================================================================
 %% textDocument/completion
@@ -252,7 +254,8 @@ textdocument_hover(Params, State) ->
 -spec textdocument_completion(params(), state()) -> result().
 textdocument_completion(Params, State) ->
   Provider = els_completion_provider,
-  Response = els_provider:handle_request(Provider, {completion, Params}),
+  {response, Response} =
+    els_provider:handle_request(Provider, {completion, Params}),
   {response, Response, State}.
 
 %%==============================================================================
@@ -262,7 +265,8 @@ textdocument_completion(Params, State) ->
 -spec completionitem_resolve(params(), state()) -> result().
 completionitem_resolve(Params, State) ->
   Provider = els_completion_provider,
-  Response = els_provider:handle_request(Provider, {resolve, Params}),
+  {response, Response} =
+    els_provider:handle_request(Provider, {resolve, Params}),
   {response, Response, State}.
 
 %%==============================================================================
@@ -272,7 +276,8 @@ completionitem_resolve(Params, State) ->
 -spec textdocument_definition(params(), state()) -> result().
 textdocument_definition(Params, State) ->
   Provider = els_definition_provider,
-  Response = els_provider:handle_request(Provider, {definition, Params}),
+  {response, Response} =
+    els_provider:handle_request(Provider, {definition, Params}),
   {response, Response, State}.
 
 %%==============================================================================
@@ -282,7 +287,8 @@ textdocument_definition(Params, State) ->
 -spec textdocument_references(params(), state()) -> result().
 textdocument_references(Params, State) ->
   Provider = els_references_provider,
-  Response = els_provider:handle_request(Provider, {references, Params}),
+  {response, Response} =
+    els_provider:handle_request(Provider, {references, Params}),
   {response, Response, State}.
 
 %%==============================================================================
@@ -292,8 +298,8 @@ textdocument_references(Params, State) ->
 -spec textdocument_documenthighlight(params(), state()) -> result().
 textdocument_documenthighlight(Params, State) ->
   Provider = els_document_highlight_provider,
-  Response = els_provider:handle_request(Provider,
-                                         {document_highlight, Params}),
+  {response, Response} =
+    els_provider:handle_request(Provider, {document_highlight, Params}),
   {response, Response, State}.
 
 %%==============================================================================
@@ -303,8 +309,8 @@ textdocument_documenthighlight(Params, State) ->
 -spec textdocument_formatting(params(), state()) -> result().
 textdocument_formatting(Params, State) ->
   Provider = els_formatting_provider,
-  Response = els_provider:handle_request(Provider,
-                                         {document_formatting, Params}),
+  {response, Response} =
+    els_provider:handle_request(Provider, {document_formatting, Params}),
   {response, Response, State}.
 
 %%==============================================================================
@@ -336,8 +342,8 @@ textdocument_ontypeformatting(Params, State) ->
 -spec textdocument_foldingrange(params(), state()) -> result().
 textdocument_foldingrange(Params, State) ->
   Provider = els_folding_range_provider,
-  Response = els_provider:handle_request( Provider
-                                        , {document_foldingrange, Params}),
+  {response, Response} =
+    els_provider:handle_request(Provider, {document_foldingrange, Params}),
   {response, Response, State}.
 
 %%==============================================================================
@@ -347,7 +353,8 @@ textdocument_foldingrange(Params, State) ->
 -spec textdocument_implementation(params(), state()) -> result().
 textdocument_implementation(Params, State) ->
   Provider = els_implementation_provider,
-  Response = els_provider:handle_request(Provider, {implementation, Params}),
+  {response, Response} =
+    els_provider:handle_request(Provider, {implementation, Params}),
   {response, Response, State}.
 
 %%==============================================================================
@@ -367,8 +374,8 @@ workspace_didchangeconfiguration(_Params, State) ->
 -spec textdocument_codeaction(params(), state()) -> result().
 textdocument_codeaction(Params, State) ->
   Provider = els_code_action_provider,
-  Response = els_provider:handle_request(Provider,
-                                         {document_codeaction, Params}),
+  {response, Response} =
+    els_provider:handle_request(Provider, {document_codeaction, Params}),
   {response, Response, State}.
 
 %%==============================================================================
@@ -378,8 +385,9 @@ textdocument_codeaction(Params, State) ->
 -spec textdocument_codelens(params(), state()) -> result().
 textdocument_codelens(Params, State) ->
   Provider = els_code_lens_provider,
-  Job = els_provider:handle_request(Provider, {document_codelens, Params}),
-  {noresponse, {Provider, Job}, State}.
+  {async, Job} =
+    els_provider:handle_request(Provider, {document_codelens, Params}),
+  {noresponse, Job, State}.
 
 %%==============================================================================
 %% textDocument/rename
@@ -388,7 +396,8 @@ textdocument_codelens(Params, State) ->
 -spec textdocument_rename(params(), state()) -> result().
 textdocument_rename(Params, State) ->
   Provider = els_rename_provider,
-  Response = els_provider:handle_request(Provider, {rename, Params}),
+  {response, Response} =
+    els_provider:handle_request(Provider, {rename, Params}),
   {response, Response, State}.
 
 %%==============================================================================
@@ -398,7 +407,8 @@ textdocument_rename(Params, State) ->
 -spec textdocument_preparecallhierarchy(params(), state()) -> result().
 textdocument_preparecallhierarchy(Params, State) ->
   Provider = els_call_hierarchy_provider,
-  Response = els_provider:handle_request(Provider, {prepare, Params}),
+  {response, Response} =
+    els_provider:handle_request(Provider, {prepare, Params}),
   {response, Response, State}.
 
 %%==============================================================================
@@ -428,8 +438,8 @@ callhierarchy_outgoingcalls(Params, State) ->
 -spec workspace_executecommand(params(), state()) -> result().
 workspace_executecommand(Params, State) ->
   Provider = els_execute_command_provider,
-  Response = els_provider:handle_request(Provider,
-                                         {workspace_executecommand, Params}),
+  {response, Response} =
+    els_provider:handle_request(Provider, {workspace_executecommand, Params}),
   {response, Response, State}.
 
 %%==============================================================================
@@ -450,5 +460,6 @@ workspace_didchangewatchedfiles(Params, State) ->
 -spec workspace_symbol(map(), state()) -> result().
 workspace_symbol(Params, State) ->
   Provider = els_workspace_symbol_provider,
-  Response = els_provider:handle_request(Provider, {symbol, Params}),
+  {response, Response} =
+    els_provider:handle_request(Provider, {symbol, Params}),
   {response, Response, State}.

@@ -26,11 +26,6 @@
 %%==============================================================================
 %% Type Definitions
 %%==============================================================================
--type provider_spec() ::
-        #{ id := els_provider:provider()
-         , start := {els_provider, start_link, [els_provider:provider()]}
-         , shutdown := brutal_kill
-         }.
 
 %%==============================================================================
 %% API
@@ -48,12 +43,9 @@ init([]) ->
               , intensity => 5
               , period    => 60
               },
-  ChildSpecs = [provider_specs(P) || P <- els_provider:enabled_providers()],
+  ChildSpecs = [ #{ id => els_provider
+                  , start => {els_provider, start_link, []}
+                  , shutdown => brutal_kill
+                  }
+               ],
   {ok, {SupFlags, ChildSpecs}}.
-
--spec provider_specs(els_provider:provider()) -> provider_spec().
-provider_specs(Provider) ->
-  #{ id => Provider
-   , start => {els_provider, start_link, [Provider]}
-   , shutdown => brutal_kill
-   }.

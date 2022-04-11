@@ -2,24 +2,21 @@
 
 -behaviour(els_provider).
 
--export([ handle_request/2
-        , is_enabled/0
+-export([ is_enabled/0
+        , handle_request/2
         ]).
 
 -include("els_lsp.hrl").
-
 
 -type state() :: any().
 
 %%==============================================================================
 %% els_provider functions
 %%==============================================================================
-
 -spec is_enabled() -> boolean().
-is_enabled() ->
-  true.
+is_enabled() -> true.
 
--spec handle_request(any(), state()) -> {any(), state()}.
+-spec handle_request(any(), state()) -> {response, any()}.
 handle_request({definition, Params}, State) ->
   #{ <<"position">>     := #{ <<"line">>      := Line
                             , <<"character">> := Character
@@ -36,10 +33,10 @@ handle_request({definition, Params}, State) ->
         null ->
           els_references_provider:handle_request({references, Params}, State);
         GoTo ->
-          {GoTo, State}
+          {response, GoTo}
       end;
     GoTo ->
-      {GoTo, State}
+      {response, GoTo}
   end.
 
 -spec goto_definition(uri(), [poi()]) -> map() | null.

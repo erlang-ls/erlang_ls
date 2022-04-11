@@ -18,7 +18,7 @@ sync_mode() ->
     false -> ?TEXT_DOCUMENT_SYNC_KIND_FULL
   end.
 
--spec did_change(map()) -> {ok, pid()}.
+-spec did_change(map()) -> ok | {ok, pid()}.
 did_change(Params) ->
   ContentChanges = maps:get(<<"contentChanges">>, Params),
   TextDocument   = maps:get(<<"textDocument">>  , Params),
@@ -46,16 +46,12 @@ did_open(Params) ->
                            , <<"text">> := Text}} = Params,
   {ok, Document} = els_utils:lookup_document(Uri),
   els_indexing:deep_index(Document#{text => Text}),
-  Provider = els_diagnostics_provider,
-  els_provider:handle_request(Provider, {run_diagnostics, Params}),
   ok.
 
 -spec did_save(map()) -> ok.
 did_save(Params) ->
   #{<<"textDocument">> := #{<<"uri">> := Uri}} = Params,
   reload_from_disk(Uri),
-  Provider = els_diagnostics_provider,
-  els_provider:handle_request(Provider, {run_diagnostics, Params}),
   ok.
 
 -spec did_change_watched_files(map()) -> ok.

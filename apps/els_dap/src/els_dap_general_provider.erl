@@ -9,7 +9,6 @@
 %%==============================================================================
 -module(els_dap_general_provider).
 
--behaviour(els_provider).
 -export([ handle_request/2
         , handle_info/2
         , is_enabled/0

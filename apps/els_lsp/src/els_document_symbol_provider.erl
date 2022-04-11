@@ -2,8 +2,8 @@
 
 -behaviour(els_provider).
 
--export([ handle_request/2
-        , is_enabled/0
+-export([ is_enabled/0
+        , handle_request/2
         ]).
 
 -include("els_lsp.hrl").
@@ -13,18 +13,16 @@
 %%==============================================================================
 %% els_provider functions
 %%==============================================================================
-
 -spec is_enabled() -> boolean().
-is_enabled() ->
-  true.
+is_enabled() -> true.
 
--spec handle_request(any(), state()) -> {any(), state()}.
-handle_request({document_symbol, Params}, State) ->
+-spec handle_request(any(), state()) -> {response, any()}.
+handle_request({document_symbol, Params}, _State) ->
   #{ <<"textDocument">> := #{ <<"uri">> := Uri}} = Params,
   Functions = functions(Uri),
   case Functions of
-    [] -> {null, State};
-    _  -> {Functions, State}
+    [] -> {response, null};
+    _  -> {response, Functions}
   end.
 
 %%==============================================================================

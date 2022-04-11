@@ -19,7 +19,6 @@
 %%==============================================================================
 %% Types
 %%==============================================================================
--type state() :: any().
 
 %%==============================================================================
 %% els_provider functions
@@ -27,8 +26,8 @@
 -spec is_enabled() -> boolean().
 is_enabled() -> true.
 
--spec handle_request(any(), state()) -> {any(), state()}.
-handle_request({rename, Params}, State) ->
+-spec handle_request(any(), any()) -> {response, any()}.
+handle_request({rename, Params}, _State) ->
   #{ <<"textDocument">> := #{<<"uri">> := Uri}
    , <<"position">> := #{ <<"line">>      := Line
                         , <<"character">> := Character
@@ -38,7 +37,7 @@ handle_request({rename, Params}, State) ->
   {ok, Document} = els_utils:lookup_document(Uri),
   Elem = els_dt_document:get_element_at_pos(Document, Line + 1, Character + 1),
   WorkspaceEdits = workspace_edits(Uri, Elem, NewName),
-  {WorkspaceEdits, State}.
+  {response, WorkspaceEdits}.
 
 %%==============================================================================
 %% Internal functions

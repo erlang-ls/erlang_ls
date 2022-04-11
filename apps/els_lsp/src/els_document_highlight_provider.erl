@@ -2,8 +2,8 @@
 
 -behaviour(els_provider).
 
--export([ handle_request/2
-        , is_enabled/0
+-export([ is_enabled/0
+        , handle_request/2
         ]).
 
 %%==============================================================================
@@ -19,13 +19,11 @@
 %%==============================================================================
 %% els_provider functions
 %%==============================================================================
-
 -spec is_enabled() -> boolean().
-is_enabled() ->
-  true.
+is_enabled() -> true.
 
--spec handle_request(any(), state()) -> {any(), state()}.
-handle_request({document_highlight, Params}, State) ->
+-spec handle_request(any(), state()) -> {response, any()}.
+handle_request({document_highlight, Params}, _State) ->
   #{ <<"position">>     := #{ <<"line">>      := Line
                             , <<"character">> := Character
                             }
@@ -35,8 +33,8 @@ handle_request({document_highlight, Params}, State) ->
   case
     els_dt_document:get_element_at_pos(Document, Line + 1, Character + 1)
   of
-    [POI | _] -> {find_highlights(Document, POI), State};
-    []        -> {null, State}
+    [POI | _] -> {response, find_highlights(Document, POI)};
+    []        -> {response, null}
   end.
 
 %%==============================================================================
