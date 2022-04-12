@@ -494,27 +494,17 @@ function(Tree) ->
                      )
                   || {I, Clause} <- IndexedClauses,
                      erl_syntax:type(Clause) =:= clause],
-  {StartLine, StartColumn} = StartLocation = get_start_location(Tree),
+  {StartLine, StartColumn} = get_start_location(Tree),
   {EndLine, _EndColumn} = get_end_location(Tree),
-  %% It only makes sense to fold a function if the function contains
-  %% at least one line apart from its signature.
-  FoldingRanges = case EndLine > StartLine of
-                    true ->
-                      Range = #{ from => {StartLine, ?END_OF_LINE}
-                               , to   => {EndLine, ?END_OF_LINE}
-                               },
-                      [ els_poi:new(Range, folding_range, StartLocation) ];
-                    false ->
-                      []
-                  end,
+
   FunctionPOI = poi(erl_syntax:get_pos(FunName), function, {F, A},
                     #{ args => Args
                      , wrapping_range => #{ from => {StartLine, StartColumn}
                                           , to => {EndLine + 1, 0}
                                           }
+                     , folding_range => maybe_fold_range(StartLine, EndLine)
                      }),
   lists:append([ [ FunctionPOI ]
-               , FoldingRanges
                , ClausesPOIs
                ]).
 
@@ -1150,3 +1140,14 @@ get_end_location(Tree) ->
   %% erl_anno:end_location(erl_syntax:get_pos(Tree)).
   Anno = erl_syntax:get_pos(Tree),
   proplists:get_value(end_location, erl_anno:to_term(Anno)).
+
+%% It only makes sense to fold a function if the function contains
+%% at least one line apart from its signature.
+-spec maybe_fold_range(erl_anno:line(), erl_anno:line()) ->
+  els_core:poi_range() | unfoldable.
+maybe_fold_range(StartLine, EndLine) when EndLine > StartLine ->
+  #{ from => {StartLine, ?END_OF_LINE}
+   , to   => {EndLine, ?END_OF_LINE}
+   };
+maybe_fold_range(_, _) ->
+  unfoldable.
