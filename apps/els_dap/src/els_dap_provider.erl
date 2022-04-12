@@ -29,7 +29,7 @@
 
 -type config()   :: any().
 -type provider() :: els_dap_general_provider.
--type request()  :: {atom(), map()}.
+-type request()  :: {binary(), map()}.
 -type state()    :: #{ internal_state := any() }.
 
 -export_type([ config/0
