@@ -47,7 +47,7 @@
 -type result()       :: {response, params() | null, state()}
                       | {error, params(), state()}
                       | {noresponse, state()}
-                      | {noresponse, {els_provider:provider(), pid()}, state()}
+                      | {noresponse, pid(), state()}
                       | {notification, binary(), params(), state()}.
 -type request_type() :: notification | request.
 
@@ -201,7 +201,7 @@ textdocument_didchange(Params, State) ->
   els_provider:cancel_request_by_uri(Uri),
   Provider = els_text_synchronization_provider,
   Request = {did_change, Params},
-  els_provider:handle_request(Provider, Request),
+  noresponse = els_provider:handle_request(Provider, Request),
   {noresponse, State}.
 
 %%==============================================================================
@@ -320,8 +320,8 @@ textdocument_formatting(Params, State) ->
 -spec textdocument_rangeformatting(params(), state()) -> result().
 textdocument_rangeformatting(Params, State) ->
   Provider = els_formatting_provider,
-  Response = els_provider:handle_request(Provider,
-                                         {document_rangeformatting, Params}),
+  {response, Response} =
+    els_provider:handle_request(Provider, {document_rangeformatting, Params}),
   {response, Response, State}.
 
 %%==============================================================================
@@ -331,8 +331,8 @@ textdocument_rangeformatting(Params, State) ->
 -spec textdocument_ontypeformatting(params(), state()) -> result().
 textdocument_ontypeformatting(Params, State) ->
   Provider = els_formatting_provider,
-  Response = els_provider:handle_request(Provider,
-                                         {document_ontypeformatting, Params}),
+  {response, Response} =
+    els_provider:handle_request(Provider, {document_ontypeformatting, Params}),
   {response, Response, State}.
 
 %%==============================================================================
@@ -418,7 +418,8 @@ textdocument_preparecallhierarchy(Params, State) ->
 -spec callhierarchy_incomingcalls(params(), state()) -> result().
 callhierarchy_incomingcalls(Params, State) ->
   Provider = els_call_hierarchy_provider,
-  Response = els_provider:handle_request(Provider, {incoming_calls, Params}),
+  {response, Response} =
+    els_provider:handle_request(Provider, {incoming_calls, Params}),
   {response, Response, State}.
 
 %%==============================================================================
@@ -428,7 +429,8 @@ callhierarchy_incomingcalls(Params, State) ->
 -spec callhierarchy_outgoingcalls(params(), state()) -> result().
 callhierarchy_outgoingcalls(Params, State) ->
   Provider = els_call_hierarchy_provider,
-  Response = els_provider:handle_request(Provider, {outgoing_calls, Params}),
+  {response, Response} =
+    els_provider:handle_request(Provider, {outgoing_calls, Params}),
   {response, Response, State}.
 
 %%==============================================================================
@@ -450,7 +452,7 @@ workspace_executecommand(Params, State) ->
 workspace_didchangewatchedfiles(Params, State) ->
   Provider = els_text_synchronization_provider,
   Request  = {did_change_watched_files, Params},
-  ok = els_provider:handle_request(Provider, Request),
+  noresponse = els_provider:handle_request(Provider, Request),
   {noresponse, State}.
 
 %%==============================================================================
