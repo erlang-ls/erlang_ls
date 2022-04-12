@@ -27,14 +27,6 @@
 %%==============================================================================
 %% Type Definitions
 %%==============================================================================
--type provider_spec() ::
-        #{ id := els_dap_provider:provider()
-         , start := { els_dap_provider
-                    , start_link
-                    , [els_dap_provider:provider()]
-                    }
-         , shutdown := brutal_kill
-         }.
 
 %%==============================================================================
 %% API
@@ -52,12 +44,8 @@ init([]) ->
               , intensity => 1
               , period    => 5
               },
-  ChildSpecs = [provider_specs(P) || P <- els_dap_provider:enabled_providers()],
+  ChildSpecs =   #{ id => els_dap_provider
+                  , start => {els_dap_provider, start_link, []}
+                  , shutdown => brutal_kill
+                  },
   {ok, {SupFlags, ChildSpecs}}.
-
--spec provider_specs(els_dap_provider:provider()) -> provider_spec().
-provider_specs(Provider) ->
-  #{ id => Provider
-   , start => {els_dap_provider, start_link, [Provider]}
-   , shutdown => brutal_kill
-   }.

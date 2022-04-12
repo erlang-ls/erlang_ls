@@ -89,7 +89,7 @@ init_per_testcase(TestCase, Config) when
     TestCase =:= breakpoints_with_cond orelse
     TestCase =:= breakpoints_with_hit orelse
     TestCase =:= breakpoints_with_cond_and_hit ->
-  {ok, DAPProvider} = els_provider:start_link(els_dap_general_provider),
+  {ok, DAPProvider} = els_dap_provider:start_link(),
   {ok, _} = els_config:start_link(),
   meck:expect(els_dap_server, send_event, 2, meck:val(ok)),
   [{provider, DAPProvider}, {node, node_name()} | Config];
@@ -167,18 +167,18 @@ wait_for_break(NodeName, WantModule, WantLine) ->
 %%==============================================================================
 
 -spec initialize(config()) -> ok.
-initialize(Config) ->
-  Provider = ?config(provider, Config),
-  els_provider:handle_request(Provider, request_initialize(#{})),
+initialize(_Config) ->
+  Provider = els_dap_general_provider,
+  els_dap_provider:handle_request(Provider, request_initialize(#{})),
   ok.
 
 -spec launch_mfa(config()) -> ok.
 launch_mfa(Config) ->
-  Provider = ?config(provider, Config),
+  Provider = els_dap_general_provider,
   DataDir = ?config(data_dir, Config),
   Node = ?config(node, Config),
-  els_provider:handle_request(Provider, request_initialize(#{})),
-  els_provider:handle_request(
+  els_dap_provider:handle_request(Provider, request_initialize(#{})),
+  els_dap_provider:handle_request(
     Provider,
     request_launch(DataDir, Node, els_dap_test_module, entry, [])
   ),
@@ -187,11 +187,11 @@ launch_mfa(Config) ->
 
 -spec launch_mfa_with_cookie(config()) -> ok.
 launch_mfa_with_cookie(Config) ->
-  Provider = ?config(provider, Config),
+  Provider = els_dap_general_provider,
   DataDir = ?config(data_dir, Config),
   Node = ?config(node, Config),
-  els_provider:handle_request(Provider, request_initialize(#{})),
-  els_provider:handle_request(
+  els_dap_provider:handle_request(Provider, request_initialize(#{})),
+  els_dap_provider:handle_request(
     Provider,
     request_launch(DataDir, Node, <<"some_cookie">>,
                    els_dap_test_module, entry, [])
@@ -201,26 +201,26 @@ launch_mfa_with_cookie(Config) ->
 
 -spec configuration_done(config()) -> ok.
 configuration_done(Config) ->
-  Provider = ?config(provider, Config),
+  Provider = els_dap_general_provider,
   DataDir = ?config(data_dir, Config),
   Node = ?config(node, Config),
-  els_provider:handle_request(Provider, request_initialize(#{})),
-  els_provider:handle_request(
+  els_dap_provider:handle_request(Provider, request_initialize(#{})),
+  els_dap_provider:handle_request(
     Provider,
     request_launch(DataDir, Node, els_dap_test_module, entry, [])
   ),
   els_test_utils:wait_until_mock_called(els_dap_server, send_event),
-  els_provider:handle_request(Provider, request_configuration_done(#{})),
+  els_dap_provider:handle_request(Provider, request_configuration_done(#{})),
   ok.
 
 -spec configuration_done_with_long_names(config()) -> ok.
 configuration_done_with_long_names(Config) ->
-  Provider = ?config(provider, Config),
+  Provider = els_dap_general_provider,
   DataDir = ?config(data_dir, Config),
   NodeStr = io_lib:format("~s~p", [?MODULE, erlang:unique_integer()]),
   Node = unicode:characters_to_binary(NodeStr),
-  els_provider:handle_request(Provider, request_initialize(#{})),
-  els_provider:handle_request(
+  els_dap_provider:handle_request(Provider, request_initialize(#{})),
+  els_dap_provider:handle_request(
     Provider,
     request_launch(DataDir, Node, <<"some_cookie">>,
                    els_dap_test_module, entry, [], use_long_names)
@@ -230,11 +230,11 @@ configuration_done_with_long_names(Config) ->
 
 -spec configuration_done_with_long_names_using_host(config()) -> ok.
 configuration_done_with_long_names_using_host(Config) ->
-  Provider = ?config(provider, Config),
+  Provider = els_dap_general_provider,
   DataDir = ?config(data_dir, Config),
   Node = ?config(node, Config),
-  els_provider:handle_request(Provider, request_initialize(#{})),
-  els_provider:handle_request(
+  els_dap_provider:handle_request(Provider, request_initialize(#{})),
+  els_dap_provider:handle_request(
     Provider,
     request_launch(DataDir, Node, <<"some_cookie">>,
                    els_dap_test_module, entry, [], use_long_names)
@@ -244,43 +244,43 @@ configuration_done_with_long_names_using_host(Config) ->
 
 -spec configuration_done_with_breakpoint(config()) -> ok.
 configuration_done_with_breakpoint(Config) ->
-  Provider = ?config(provider, Config),
+  Provider = els_dap_general_provider,
   DataDir = ?config(data_dir, Config),
   Node = ?config(node, Config),
-  els_provider:handle_request(Provider, request_initialize(#{})),
-  els_provider:handle_request(
+  els_dap_provider:handle_request(Provider, request_initialize(#{})),
+  els_dap_provider:handle_request(
     Provider,
     request_launch(DataDir, Node, els_dap_test_module, entry, [5])
   ),
   els_test_utils:wait_until_mock_called(els_dap_server, send_event),
 
-  els_provider:handle_request(
+  els_dap_provider:handle_request(
     Provider,
     request_set_breakpoints( path_to_test_module(DataDir, els_dap_test_module)
                            , [9, 29])
   ),
-  els_provider:handle_request(Provider, request_configuration_done(#{})),
+  els_dap_provider:handle_request(Provider, request_configuration_done(#{})),
   ?assertEqual(ok, wait_for_break(Node, els_dap_test_module, 9)),
   ok.
 
 -spec frame_variables(config()) -> ok.
-frame_variables(Config) ->
-  Provider = ?config(provider, Config),
+frame_variables(_Config) ->
+  Provider = els_dap_general_provider,
   %% get thread ID from mocked DAP response
   #{ <<"reason">> := <<"breakpoint">>
    , <<"threadId">> := ThreadId} =
     meck:capture(last, els_dap_server, send_event, [<<"stopped">>, '_'], 2),
   %% get stackframe
   #{<<"stackFrames">> := [#{<<"id">> := FrameId}]} =
-    els_provider:handle_request( Provider
+    els_dap_provider:handle_request( Provider
                                , request_stack_frames(ThreadId)
                                ),
   %% get scope
   #{<<"scopes">> := [#{<<"variablesReference">> := VariableRef}]} =
-    els_provider:handle_request(Provider, request_scope(FrameId)),
+    els_dap_provider:handle_request(Provider, request_scope(FrameId)),
   %% extract variable
   #{<<"variables">> := [NVar]} =
-    els_provider:handle_request(Provider, request_variable(VariableRef)),
+    els_dap_provider:handle_request(Provider, request_variable(VariableRef)),
   %% at this point there should be only one variable present,
   ?assertMatch(#{ <<"name">> := <<"N">>
                 , <<"value">> := <<"5">>
@@ -290,32 +290,32 @@ frame_variables(Config) ->
   ok.
 
 -spec navigation_and_frames(config()) -> ok.
-navigation_and_frames(Config) ->
+navigation_and_frames(_Config) ->
   %% test next, stepIn, continue and check against expected stack frames
-  Provider = ?config(provider, Config),
+  Provider = els_dap_general_provider,
   #{<<"threads">> := [#{<<"id">> := ThreadId}]} =
-    els_provider:handle_request( Provider
+    els_dap_provider:handle_request( Provider
                                , request_threads()
                                ),
   %% next
   %%, reset meck history, to capture next call
   meck:reset([els_dap_server]),
-  els_provider:handle_request(Provider, request_next(ThreadId)),
+  els_dap_provider:handle_request(Provider, request_next(ThreadId)),
   els_test_utils:wait_until_mock_called(els_dap_server, send_event),
   %% check
   #{<<"stackFrames">> := Frames1} =
-    els_provider:handle_request( Provider
+    els_dap_provider:handle_request( Provider
                                , request_stack_frames(ThreadId)
                                ),
   ?assertMatch([#{ <<"line">> := 11
                  , <<"name">> := <<"els_dap_test_module:entry/1">>}], Frames1),
   %% continue
   meck:reset([els_dap_server]),
-  els_provider:handle_request(Provider, request_continue(ThreadId)),
+  els_dap_provider:handle_request(Provider, request_continue(ThreadId)),
   els_test_utils:wait_until_mock_called(els_dap_server, send_event),
   %% check
   #{<<"stackFrames">> := Frames2} =
-    els_provider:handle_request( Provider
+    els_dap_provider:handle_request( Provider
                                , request_stack_frames(ThreadId)
                                ),
   ?assertMatch( [ #{ <<"line">> := 9
@@ -327,11 +327,11 @@ navigation_and_frames(Config) ->
               ),
   %% stepIn
   meck:reset([els_dap_server]),
-  els_provider:handle_request(Provider, request_step_in(ThreadId)),
+  els_dap_provider:handle_request(Provider, request_step_in(ThreadId)),
   els_test_utils:wait_until_mock_called(els_dap_server, send_event),
   %% check
   #{<<"stackFrames">> := Frames3} =
-    els_provider:handle_request( Provider
+    els_dap_provider:handle_request( Provider
                                , request_stack_frames(ThreadId)
                                ),
   ?assertMatch( [ #{ <<"line">> := 15
@@ -347,19 +347,19 @@ navigation_and_frames(Config) ->
   ok.
 
 -spec set_variable(config()) -> ok.
-set_variable(Config) ->
-  Provider = ?config(provider, Config),
+set_variable(_Config) ->
+  Provider = els_dap_general_provider,
   #{<<"threads">> := [#{<<"id">> := ThreadId}]} =
-    els_provider:handle_request( Provider
+    els_dap_provider:handle_request( Provider
                                , request_threads()
                                ),
   #{<<"stackFrames">> := [#{<<"id">> := FrameId1}]} =
-    els_provider:handle_request( Provider
+    els_dap_provider:handle_request( Provider
                                , request_stack_frames(ThreadId)
                                ),
   meck:reset([els_dap_server]),
   Result1 =
-    els_provider:handle_request( Provider
+    els_dap_provider:handle_request( Provider
                                , request_evaluate( <<"repl">>
                                                  , FrameId1
                                                  , <<"N=1">>
@@ -370,12 +370,12 @@ set_variable(Config) ->
   %% get variable value through hover evaluate
   els_test_utils:wait_until_mock_called(els_dap_server, send_event),
   #{<<"stackFrames">> := [#{<<"id">> := FrameId2}]} =
-    els_provider:handle_request( Provider
+    els_dap_provider:handle_request( Provider
                                , request_stack_frames(ThreadId)
                                ),
   ?assertNotEqual(FrameId1, FrameId2),
   Result2 =
-    els_provider:handle_request( Provider
+    els_dap_provider:handle_request( Provider
                                , request_evaluate( <<"hover">>
                                                  , FrameId2
                                                  , <<"N">>
@@ -384,10 +384,10 @@ set_variable(Config) ->
   ?assertEqual(#{<<"result">> => <<"1">>}, Result2),
   %% get variable value through scopes
   #{ <<"scopes">> := [ #{<<"variablesReference">> := VariableRef} ] } =
-    els_provider:handle_request(Provider, request_scope(FrameId2)),
+    els_dap_provider:handle_request(Provider, request_scope(FrameId2)),
   %% extract variable
   #{<<"variables">> := [NVar]} =
-    els_provider:handle_request( Provider
+    els_dap_provider:handle_request( Provider
                                , request_variable(VariableRef)
                                ),
   %% at this point there should be only one variable present
@@ -401,17 +401,17 @@ set_variable(Config) ->
 
 -spec breakpoints(config()) -> ok.
 breakpoints(Config) ->
-  Provider = ?config(provider, Config),
+  Provider = els_dap_general_provider,
   NodeName = ?config(node, Config),
   Node = binary_to_atom(NodeName, utf8),
   DataDir = ?config(data_dir, Config),
-  els_provider:handle_request(
+  els_dap_provider:handle_request(
     Provider,
     request_set_breakpoints( path_to_test_module(DataDir, els_dap_test_module)
                            , [9])
   ),
   ?assertMatch([{{els_dap_test_module, 9}, _}], els_dap_rpc:all_breaks(Node)),
-  els_provider:handle_request(
+  els_dap_provider:handle_request(
     Provider,
     request_set_function_breakpoints([<<"els_dap_test_module:entry/1">>])
   ),
@@ -419,7 +419,7 @@ breakpoints(Config) ->
     [{{els_dap_test_module, 7}, _}, {{els_dap_test_module, 9}, _}],
     els_dap_rpc:all_breaks(Node)
   ),
-  els_provider:handle_request(
+  els_dap_provider:handle_request(
     Provider,
     request_set_breakpoints(path_to_test_module(DataDir, els_dap_test_module)
                            , [])
@@ -428,12 +428,12 @@ breakpoints(Config) ->
     [{{els_dap_test_module, 7}, _}, {{els_dap_test_module, 9}, _}],
     els_dap_rpc:all_breaks(Node)
   ),
-  els_provider:handle_request(
+  els_dap_provider:handle_request(
     Provider,
     request_set_breakpoints(path_to_test_module(DataDir, els_dap_test_module)
                            , [9])
   ),
-  els_provider:handle_request(
+  els_dap_provider:handle_request(
     Provider,
     request_set_function_breakpoints([])
   ),
@@ -474,18 +474,18 @@ breakpoints_with_cond_and_hit(Config) ->
 %% Parameterizable base test for breakpoints: sets up a breakpoint with given
 %% parameters and checks the value of N when first hit
 breakpoints_base(Config, BreakLine, Params, NExp) ->
-  Provider = ?config(provider, Config),
+  Provider = els_dap_general_provider,
   DataDir = ?config(data_dir, Config),
   Node = ?config(node, Config),
-  els_provider:handle_request(Provider, request_initialize(#{})),
-  els_provider:handle_request(
+  els_dap_provider:handle_request(Provider, request_initialize(#{})),
+  els_dap_provider:handle_request(
     Provider,
     request_launch(DataDir, Node, els_dap_test_module, entry, [10])
   ),
   els_test_utils:wait_until_mock_called(els_dap_server, send_event),
   meck:reset([els_dap_server]),
 
-  els_provider:handle_request(
+  els_dap_provider:handle_request(
     Provider,
     request_set_breakpoints(
       path_to_test_module(DataDir, els_dap_test_module),
@@ -493,21 +493,21 @@ breakpoints_base(Config, BreakLine, Params, NExp) ->
     )
   ),
   %% hit breakpoint
-  els_provider:handle_request(Provider, request_configuration_done(#{})),
+  els_dap_provider:handle_request(Provider, request_configuration_done(#{})),
   ?assertEqual(ok, wait_for_break(Node, els_dap_test_module, BreakLine)),
   %% check value of N
   #{<<"threads">> := [#{<<"id">> := ThreadId}]} =
-    els_provider:handle_request( Provider
+    els_dap_provider:handle_request( Provider
                                , request_threads()
                                ),
   #{<<"stackFrames">> := [#{<<"id">> := FrameId}|_]} =
-    els_provider:handle_request( Provider
+    els_dap_provider:handle_request( Provider
                                , request_stack_frames(ThreadId)
                                ),
   #{<<"scopes">> := [#{<<"variablesReference">> := VariableRef}]} =
-    els_provider:handle_request(Provider, request_scope(FrameId)),
+    els_dap_provider:handle_request(Provider, request_scope(FrameId)),
   #{<<"variables">> := [NVar]} =
-    els_provider:handle_request(Provider, request_variable(VariableRef)),
+    els_dap_provider:handle_request(Provider, request_variable(VariableRef)),
   ?assertMatch(#{ <<"name">> := <<"N">>
                 , <<"value">> := NExp
                 , <<"variablesReference">> := 0
@@ -548,25 +548,25 @@ log_points_empty_cond(Config) ->
 %% Parameterizable base test for logpoints: sets up a logpoint with given
 %% parameters and checks how many hits it gets before hitting a given breakpoint
 log_points_base(Config, LogLine, Params, BreakLine, NumCalls) ->
-  Provider = ?config(provider, Config),
+  Provider = els_dap_general_provider,
   DataDir = ?config(data_dir, Config),
   Node = ?config(node, Config),
-  els_provider:handle_request(Provider, request_initialize(#{})),
-  els_provider:handle_request(
+  els_dap_provider:handle_request(Provider, request_initialize(#{})),
+  els_dap_provider:handle_request(
     Provider,
     request_launch(DataDir, Node, els_dap_test_module, entry, [10])
   ),
   els_test_utils:wait_until_mock_called(els_dap_server, send_event),
   meck:reset([els_dap_server]),
 
-  els_provider:handle_request(
+  els_dap_provider:handle_request(
     Provider,
     request_set_breakpoints(
       path_to_test_module(DataDir, els_dap_test_module),
       [{LogLine, Params}, BreakLine]
     )
   ),
-  els_provider:handle_request(Provider, request_configuration_done(#{})),
+  els_dap_provider:handle_request(Provider, request_configuration_done(#{})),
   ?assertEqual(ok, wait_for_break(Node, els_dap_test_module, BreakLine)),
   ?assertEqual(NumCalls,
                meck:num_calls(els_dap_server, send_event, [<<"output">>, '_'])),
