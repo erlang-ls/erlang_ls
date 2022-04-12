@@ -52,9 +52,8 @@ init([]) ->
                   , start    => {els_config, start_link, []}
                   , shutdown => brutal_kill
                   }
-               , #{ id    => els_dap_providers_sup
-                  , start => {els_dap_providers_sup, start_link, []}
-                  , type  => supervisor
+               , #{ id    => els_dap_provider
+                  , start => {els_dap_provider, start_link, []}
                   }
                , #{ id       => els_dap_server
                   , start    => {els_dap_server, start_link, []}

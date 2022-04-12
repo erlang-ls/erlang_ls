@@ -55,10 +55,6 @@ init([]) ->
                   , start    => {els_db_server, start_link, []}
                   , shutdown => brutal_kill
                   }
-               , #{ id    => els_providers_sup
-                  , start => {els_providers_sup, start_link, []}
-                  , type  => supervisor
-                  }
                , #{ id    => els_background_job_sup
                   , start => {els_background_job_sup, start_link, []}
                   , type  => supervisor
@@ -69,6 +65,9 @@ init([]) ->
                   }
                , #{ id    => els_snippets_server
                   , start => {els_snippets_server, start_link, []}
+                  }
+               , #{ id       => els_provider
+                  , start    => {els_provider, start_link, []}
                   }
                , #{ id       => els_server
                   , start    => {els_server, start_link, []}
