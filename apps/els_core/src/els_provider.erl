@@ -158,17 +158,19 @@ handle_info({diagnostics, Diagnostics, Job}, State) ->
   } = find_entry(Job, InProgress),
   NewDiagnostics = Diagnostics ++ OldDiagnostics,
   els_diagnostics_provider:publish(Uri, NewDiagnostics),
-  case lists:delete(Job, Jobs) of
-    [] ->
-      State#{in_progress_diagnostics => Rest};
-    Remaining ->
-      State#{in_progress_diagnostics => [#{ pending => Remaining
-                                          , diagnostics => NewDiagnostics
-                                          , uri => Uri
-                                          }|Rest]}
-  end;
+  NewState = case lists:delete(Job, Jobs) of
+               [] ->
+                 State#{in_progress_diagnostics => Rest};
+               Remaining ->
+                 State#{in_progress_diagnostics =>
+                          [#{ pending => Remaining
+                            , diagnostics => NewDiagnostics
+                            , uri => Uri
+                            }|Rest]}
+             end,
+  {noreply, NewState};
 handle_info(_Request, State) ->
-  State.
+  {noreply, State}.
 
 -spec available_providers() -> [provider()].
 available_providers() ->
