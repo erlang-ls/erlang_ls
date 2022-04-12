@@ -201,8 +201,12 @@ textdocument_didchange(Params, State) ->
   els_provider:cancel_request_by_uri(Uri),
   Provider = els_text_synchronization_provider,
   Request = {did_change, Params},
-  noresponse = els_provider:handle_request(Provider, Request),
-  {noresponse, State}.
+  case els_provider:handle_request(Provider, Request) of
+    noresponse ->
+      {noresponse, State};
+    {async, Job} ->
+      {noresponse, Job, State}
+  end.
 
 %%==============================================================================
 %% textDocument/didsave
