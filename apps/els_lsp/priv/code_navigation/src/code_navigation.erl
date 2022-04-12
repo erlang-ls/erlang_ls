@@ -122,3 +122,8 @@ macro_b(_X, _Y) ->
 
 function_mb() ->
   ?MACRO_B(m, b).
+
+-record(folding_record, { field_a
+                        , field_b
+                        , field_c
+                        }).
