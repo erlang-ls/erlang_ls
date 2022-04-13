@@ -45,6 +45,7 @@ make_code_action(Uri,
     , {"Module name '(.*)' does not match file name '(.*)'",
        fun action_fix_module_name/4}
     , {"Unused macro: (.*)", fun action_remove_macro/4}
+    , {"function (.*) undefined", fun action_create_function/4}
     , {"Unused file: (.*)", fun action_remove_unused/4}
     ], Uri, Range, Data, Message).
 
@@ -61,6 +62,29 @@ make_code_action([{RE, Fun}|Rest], Uri, Range, Data, Message) ->
                 []
             end,
   Actions ++ make_code_action(Rest, Uri, Range, Data, Message).
+
+
+
+-spec action_create_function(uri(), range(), binary(), [binary()]) -> [map()].
+action_create_function(Uri, _Range, _Data, [UndefinedFun]) ->
+  {ok, Document} = els_utils:lookup_document(Uri),
+  case els_poi:sort(els_dt_document:pois(Document)) of
+    [] ->
+      [];
+    POIs->
+      #{range := #{to := {Line, _Col}}} = lists:last(POIs),
+
+      [FunctionName,_|_] = re:replace(UndefinedFun, "/", ""),
+
+      %LastFunction = lists:last(POIs),
+      %{LastLine,_} = maps:get(to,maps:get(wrapping_range, maps:get(data, LastFunction))),
+      [ make_edit_action( Uri
+                          , <<"Add the undefined function ", UndefinedFun/binary>>
+                          , ?CODE_ACTION_KIND_QUICKFIX
+                          , <<"-spec ", FunctionName/binary, "() -> ok. \n ", FunctionName/binary,"() -> \n \t ok.">>
+                          , els_protocol:range(#{from => {Line+1,1}, to => {Line+2,1}}))]
+  end.
+
 
 -spec action_export_function(uri(), range(), binary(), [binary()]) -> [map()].
 action_export_function(Uri, _Range, _Data, [UnusedFun]) ->
