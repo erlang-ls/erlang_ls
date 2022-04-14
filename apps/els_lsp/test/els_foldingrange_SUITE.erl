@@ -60,106 +60,16 @@ end_per_testcase(TestCase, Config) ->
 -spec folding_range(config()) -> ok.
 folding_range(Config) ->
   #{result := Result} =
-    els_client:folding_range(?config(code_navigation_uri, Config)),
+    els_client:folding_range(?config(folding_ranges_uri, Config)),
   Expected = [ #{ endCharacter   => ?END_OF_LINE
-                , endLine        => 22
+                , endLine        => 3
                 , startCharacter => ?END_OF_LINE
-                , startLine      => 20
+                , startLine      => 2
                 }
              , #{ endCharacter   => ?END_OF_LINE
-                , endLine        => 25
+                , endLine        => 10
                 , startCharacter => ?END_OF_LINE
-                , startLine      => 24
-                }
-             , #{ endCharacter   => ?END_OF_LINE
-                , endLine        => 28
-                , startCharacter => ?END_OF_LINE
-                , startLine      => 27
-                }
-             , #{ endCharacter   => ?END_OF_LINE
-                , endLine        => 34
-                , startCharacter => ?END_OF_LINE
-                , startLine      => 30
-                }
-             , #{ endCharacter   => ?END_OF_LINE
-                , endLine        => 39
-                , startCharacter => ?END_OF_LINE
-                , startLine      => 38
-                }
-             , #{ endCharacter   => ?END_OF_LINE
-                , endLine        => 42
-                , startCharacter => ?END_OF_LINE
-                , startLine      => 41
-                }
-             , #{ endCharacter   => ?END_OF_LINE
-                , endLine        => 47
-                , startCharacter => ?END_OF_LINE
-                , startLine      => 46
-                }
-             , #{ endCharacter   => ?END_OF_LINE
-                , endLine        => 52
-                , startCharacter => ?END_OF_LINE
-                , startLine      => 49
-                }
-             , #{ endCharacter   => ?END_OF_LINE
-                , endLine        => 56
-                , startCharacter => ?END_OF_LINE
-                , startLine      => 55
-                }
-             , #{ endCharacter   => ?END_OF_LINE
-                , endLine        => 67
-                , startCharacter => ?END_OF_LINE
-                , startLine      => 66
-                }
-             , #{ endCharacter   => ?END_OF_LINE
-                , endLine        => 75
-                , startCharacter => ?END_OF_LINE
-                , startLine      => 73
-                }
-             , #{ endCharacter   => ?END_OF_LINE
-                , endLine        => 80
-                , startCharacter => ?END_OF_LINE
-                , startLine      => 78
-                }
-             , #{ endCharacter   => ?END_OF_LINE
-                , endLine        => 85
-                , startCharacter => ?END_OF_LINE
-                , startLine      => 83
-                }
-             , #{ endCharacter   => ?END_OF_LINE
-                , endLine        => 89
-                , startCharacter => ?END_OF_LINE
-                , startLine      => 88
-                }
-             , #{ endCharacter   => ?END_OF_LINE
-                , endLine        => 93
-                , startCharacter => ?END_OF_LINE
-                , startLine      => 92
-                }
-             , #{ endCharacter   => ?END_OF_LINE
-                , endLine        => 100
-                , startCharacter => ?END_OF_LINE
-                , startLine      => 97
-                }
-             , #{ endCharacter   => ?END_OF_LINE
-                , endLine        => 107
-                , startCharacter => ?END_OF_LINE
-                , startLine      => 102
-                }
-             , #{ endCharacter   => ?END_OF_LINE
-                , endLine        => 115
-                , startCharacter => ?END_OF_LINE
-                , startLine      => 113
-                }
-             , #{ endCharacter   => ?END_OF_LINE
-                , endLine        => 120
-                , startCharacter => ?END_OF_LINE
-                , startLine      => 119
-                }
-             , #{ endCharacter   => ?END_OF_LINE
-                , endLine        => 123
-                , startCharacter => ?END_OF_LINE
-                , startLine      => 122
+                , startLine      => 7
                 }
              ],
   ?assertEqual(Expected, Result),
