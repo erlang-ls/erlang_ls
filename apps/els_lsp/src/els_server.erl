@@ -49,7 +49,7 @@
 -record(state, { io_device      :: any()
                , request_id     :: number()
                , internal_state :: map()
-               , pending        :: [{number(), els_provider:provider(), pid()}]
+               , pending        :: [{number(), pid()}]
                }).
 
 %%==============================================================================
@@ -144,10 +144,9 @@ handle_request(#{ <<"method">> := <<"$/cancelRequest">>
       ?LOG_DEBUG("Trying to cancel not existing request [params=~p]",
                  [Params]),
       State0;
-    {RequestId, Provider, Job} when RequestId =:= Id ->
-      ?LOG_DEBUG("[SERVER] Cancelling request [id=~p] [provider=~p] [job=~p]",
-                 [Id, Provider, Job]),
-      els_provider:cancel_request(Provider, Job),
+    {RequestId, Job} when RequestId =:= Id ->
+      ?LOG_DEBUG("[SERVER] Cancelling request [id=~p] [job=~p]", [Id, Job]),
+      els_provider:cancel_request(Job),
       State0#state{pending = lists:keydelete(Id, 1, Pending)}
   end;
 handle_request(#{ <<"method">> := _ReqMethod } = Request
@@ -178,11 +177,11 @@ handle_request(#{ <<"method">> := _ReqMethod } = Request
     {noresponse, NewInternalState} ->
       ?LOG_DEBUG("[SERVER] No response", []),
       State0#state{internal_state = NewInternalState};
-    {noresponse, {Provider, BackgroundJob}, NewInternalState} ->
+    {noresponse, BackgroundJob, NewInternalState} ->
       RequestId = maps:get(<<"id">>, Request),
       ?LOG_DEBUG("[SERVER] Suspending response [background_job=~p]",
                  [BackgroundJob]),
-      NewPending = [{RequestId, Provider, BackgroundJob}| Pending],
+      NewPending = [{RequestId, BackgroundJob}| Pending],
       State0#state{ internal_state = NewInternalState
                   , pending = NewPending
                   };
@@ -222,13 +221,13 @@ do_send_request(Method, Params, #state{request_id = RequestId0} = State0) ->
 -spec do_send_response(pid(), any(), state()) -> state().
 do_send_response(Job, Result, State0) ->
   #state{pending = Pending0} = State0,
-  case lists:keyfind(Job, 3, Pending0) of
+  case lists:keyfind(Job, 2, Pending0) of
     false ->
       ?LOG_DEBUG(
          "[SERVER] Sending delayed response, but no request found [job=~p]",
          [Job]),
       State0;
-    {RequestId, _Provider, J} when J =:= Job ->
+    {RequestId, J} when J =:= Job ->
       Response = els_protocol:response(RequestId, Result),
       ?LOG_DEBUG( "[SERVER] Sending delayed response [job=~p] [response=~p]"
                 , [Job, Response]

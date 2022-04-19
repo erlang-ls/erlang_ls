@@ -6,7 +6,6 @@
 -include_lib("kernel/include/logger.hrl").
 
 -export([ handle_request/2
-        , is_enabled/0
         , trigger_characters/0
         ]).
 
@@ -23,39 +22,22 @@
 
 -type items() :: [item()].
 -type item() :: completion_item().
--type state() :: any().
 
 %%==============================================================================
 %% els_provider functions
 %%==============================================================================
-
--spec is_enabled() -> boolean().
-is_enabled() ->
-  true.
-
 -spec trigger_characters() -> [binary()].
 trigger_characters() ->
   [<<":">>, <<"#">>, <<"?">>, <<".">>, <<"-">>, <<"\"">>].
 
--spec handle_request(els_provider:request(), state()) -> {any(), state()}.
-handle_request({completion, Params}, State) ->
+-spec handle_request(els_provider:request(), any()) -> {response, any()}.
+handle_request({completion, Params}, _State) ->
   #{ <<"position">>     := #{ <<"line">>      := Line
                             , <<"character">> := Character
                             }
    , <<"textDocument">> := #{<<"uri">> := Uri}
    } = Params,
-  %% Ensure there are no pending changes.
-  {ok, Document} = els_utils:lookup_document(Uri),
-  #{buffer := Buffer, text := Text0} = Document,
-  Text = case Buffer of
-           undefined ->
-             %% This clause is only kept due to the current test suites,
-             %% where LSP clients can trigger a completion request
-             %% before a did_open
-             Text0;
-           _ ->
-             els_buffer_server:flush(Buffer)
-         end,
+  {ok, #{text := Text} = Document} = els_utils:lookup_document(Uri),
   Context = maps:get( <<"context">>
                     , Params
                     , #{ <<"triggerKind">> => ?COMPLETION_TRIGGER_KIND_INVOKED }
@@ -79,9 +61,9 @@ handle_request({completion, Params}, State) ->
             , column   => Character
             },
   Completions = find_completions(Prefix, TriggerKind, Opts),
-  {Completions, State};
-handle_request({resolve, CompletionItem}, State) ->
-  {resolve(CompletionItem), State}.
+  {response, Completions};
+handle_request({resolve, CompletionItem}, _State) ->
+  {response, resolve(CompletionItem)}.
 
 %%==============================================================================
 %% Internal functions

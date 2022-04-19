@@ -33,12 +33,7 @@
 %%==============================================================================
 -spec init() -> state().
 init() ->
-  case els_config:get(bsp_enabled) of
-    false ->
-      [ fun format_document_local/3 ];
-    _ ->
-      [ fun format_document_bsp/3,  fun format_document_local/3 ]
-  end.
+  [ fun format_document_local/3 ].
 
 %% Keep the behaviour happy
 -spec is_enabled() -> boolean().
@@ -57,19 +52,19 @@ is_enabled_range() ->
 -spec is_enabled_on_type() -> document_ontypeformatting_options().
 is_enabled_on_type() -> false.
 
--spec handle_request(any(), state()) -> {any(), state()}.
-handle_request({document_formatting, Params}, State) ->
+-spec handle_request(any(), state()) -> {response, any()}.
+handle_request({document_formatting, Params}, _State) ->
   #{ <<"options">>      := Options
    , <<"textDocument">> := #{<<"uri">> := Uri}
    } = Params,
   Path = els_uri:path(Uri),
   case els_utils:project_relative(Uri) of
     {error, not_relative} ->
-      {[], State};
+      {response, []};
     RelativePath ->
-      format_document(Path, RelativePath, Options, State)
+      format_document(Path, RelativePath, Options)
   end;
-handle_request({document_rangeformatting, Params}, State) ->
+handle_request({document_rangeformatting, Params}, _State) ->
   #{ <<"range">>     := #{ <<"start">> := StartPos
                          , <<"end">>   := EndPos
                          }
@@ -78,10 +73,9 @@ handle_request({document_rangeformatting, Params}, State) ->
    } = Params,
   Range = #{ start => StartPos, 'end' => EndPos },
   {ok, Document} = els_utils:lookup_document(Uri),
-  case rangeformat_document(Uri, Document, Range, Options) of
-    {ok, TextEdit} -> {TextEdit, State}
-  end;
-handle_request({document_ontypeformatting, Params}, State) ->
+  {ok, TextEdit} = rangeformat_document(Uri, Document, Range, Options),
+  {response, TextEdit};
+handle_request({document_ontypeformatting, Params}, _State) ->
   #{ <<"position">>     := #{ <<"line">>      := Line
                             , <<"character">> := Character
                             }
@@ -90,52 +84,25 @@ handle_request({document_ontypeformatting, Params}, State) ->
    , <<"textDocument">> := #{<<"uri">> := Uri}
    } = Params,
   {ok, Document} = els_utils:lookup_document(Uri),
-  case ontypeformat_document(Uri, Document, Line + 1, Character + 1, Char
-                            , Options) of
-    {ok, TextEdit} -> {TextEdit, State}
-  end.
+  {ok, TextEdit} =
+    ontypeformat_document(Uri, Document, Line + 1, Character + 1,
+                          Char, Options),
+  {response, TextEdit}.
 
 %%==============================================================================
 %% Internal functions
 %%==============================================================================
--spec format_document(binary(), string(), formatting_options(), state()) ->
-        {[text_edit()], state()}.
-format_document(Path, RelativePath, Options, Formatters) ->
+-spec format_document(binary(), string(), formatting_options()) ->
+        {[text_edit()]}.
+format_document(Path, RelativePath, Options) ->
   Fun = fun(Dir) ->
-            NewFormatters = lists:dropwhile(
-                              fun(F) ->
-                                  not F(Dir, RelativePath, Options)
-                              end,
-                              Formatters
-                             ),
+            format_document_local(Dir, RelativePath, Options),
             Outfile = filename:join(Dir, RelativePath),
-            {els_text_edit:diff_files(Path, Outfile), NewFormatters}
+            {response, els_text_edit:diff_files(Path, Outfile)}
         end,
   tempdir:mktmp(Fun).
 
--spec format_document_bsp(string(), string(), formatting_options()) ->
-           boolean().
-format_document_bsp(Dir, RelativePath, _Options) ->
-  Method = <<"rebar3/run">>,
-  Params = #{ <<"args">> => ["format", "-o", Dir, "-f", RelativePath] },
-  try
-    case els_bsp_provider:request(Method, Params) of
-      {error, Reason} ->
-        error(Reason);
-      {reply, #{ error := _Error } = Result} ->
-        error(Result);
-      {reply, Result} ->
-        ?LOG_DEBUG("BSP format succeeded. [result=~p]", [Result]),
-        true
-    end
-  catch
-    C:E:S ->
-      ?LOG_WARNING("format_document_bsp failed. ~p:~p ~p", [C, E, S]),
-      false
-  end.
-
--spec format_document_local(string(), string(), formatting_options()) ->
-           boolean().
+-spec format_document_local(string(), string(), formatting_options()) -> ok.
 format_document_local(Dir, RelativePath,
                       #{ <<"insertSpaces">> := InsertSpaces
                        , <<"tabSize">> := TabSize } = Options) ->
@@ -147,7 +114,7 @@ format_document_local(Dir, RelativePath,
           },
   Formatter = rebar3_formatter:new(default_formatter, Opts, unused),
   rebar3_formatter:format_file(RelativePath, Formatter),
-  true.
+  ok.
 
 -spec rangeformat_document(uri(), map(), range(), formatting_options())
                           -> {ok, [text_edit()]}.

@@ -46,7 +46,6 @@
 -type id()   :: atom().
 -type kind() :: module | header | other.
 -type source() :: otp | app | dep.
--type buffer() :: pid().
 -export_type([source/0]).
 
 %%==============================================================================
@@ -60,7 +59,6 @@
                          , md5  :: binary() | '_'
                          , pois :: [poi()]  | '_' | ondemand
                          , source :: source() | '$2'
-                         , buffer :: buffer() | '_' | undefined
                          , words :: sets:set() | '_' | '$3'
                          }).
 -type els_dt_document() :: #els_dt_document{}.
@@ -72,7 +70,6 @@
                  , md5  => binary()
                  , pois => [poi()] | ondemand
                  , source => source()
-                 , buffer => buffer() | undefined
                  , words => sets:set()
                  }.
 -export_type([ id/0
@@ -103,7 +100,6 @@ from_item(#{ uri  := Uri
            , md5  := MD5
            , pois := POIs
            , source := Source
-           , buffer := Buffer
            , words := Words
            }) ->
   #els_dt_document{ uri  = Uri
@@ -113,7 +109,6 @@ from_item(#{ uri  := Uri
                   , md5  = MD5
                   , pois = POIs
                   , source = Source
-                  , buffer = Buffer
                   , words = Words
                   }.
 
@@ -125,7 +120,6 @@ to_item(#els_dt_document{ uri  = Uri
                         , md5  = MD5
                         , pois = POIs
                         , source = Source
-                        , buffer = Buffer
                         , words = Words
                         }) ->
   #{ uri  => Uri
@@ -135,7 +129,6 @@ to_item(#els_dt_document{ uri  = Uri
    , md5  => MD5
    , pois => POIs
    , source => Source
-   , buffer => Buffer
    , words => Words
    }.
 
@@ -176,7 +169,6 @@ new(Uri, Text, Id, Kind, Source) ->
    , md5  => MD5
    , pois => ondemand
    , source => Source
-   , buffer => undefined
    , words => get_words(Text)
    }.
 
@@ -242,7 +234,6 @@ find_candidates(Pattern) ->
                          , md5 = '_'
                          , pois = '_'
                          , source = '$2'
-                         , buffer = '_'
                          , words = '$3'},
          [{'=/=', '$2', otp}],
          [{{'$1', '$3'}}]}],

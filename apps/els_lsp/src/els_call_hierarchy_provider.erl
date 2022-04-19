@@ -2,8 +2,8 @@
 
 -behaviour(els_provider).
 
--export([ handle_request/2
-        , is_enabled/0
+-export([ is_enabled/0
+        , handle_request/2
         ]).
 
 %%==============================================================================
@@ -27,21 +27,21 @@
 -spec is_enabled() -> boolean().
 is_enabled() -> true.
 
--spec handle_request(any(), state()) -> {any(), state()}.
-handle_request({prepare, Params}, State) ->
+-spec handle_request(any(), state()) -> {response, any()}.
+handle_request({prepare, Params}, _State) ->
   {Uri, Line, Char} =
     els_text_document_position_params:uri_line_character(Params),
   {ok, Document} = els_utils:lookup_document(Uri),
   Functions = els_dt_document:wrapping_functions(Document, Line + 1, Char + 1),
   Items = [function_to_item(Uri, F) ||  F <- Functions],
-  {Items, State};
-handle_request({incoming_calls, Params}, State) ->
+  {response, Items};
+handle_request({incoming_calls, Params}, _State) ->
   #{ <<"item">> := #{<<"uri">> := Uri} = Item } = Params,
   POI = els_call_hierarchy_item:poi(Item),
   References = els_references_provider:find_references(Uri, POI),
   Items = [reference_to_item(Reference) || Reference <- References],
-  {incoming_calls(Items), State};
-handle_request({outgoing_calls, Params}, State) ->
+  {response, incoming_calls(Items)};
+handle_request({outgoing_calls, Params}, _State) ->
   #{ <<"item">> := Item } = Params,
   #{ <<"uri">> := Uri } = Item,
   POI = els_call_hierarchy_item:poi(Item),
@@ -56,7 +56,7 @@ handle_request({outgoing_calls, Params}, State) ->
                               [I|Acc]
                           end
                       end, [], Applications),
-  {outgoing_calls(lists:reverse(Items)), State}.
+  {response, outgoing_calls(lists:reverse(Items))}.
 
 %%==============================================================================
 %% Internal functions

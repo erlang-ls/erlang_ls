@@ -1,8 +1,8 @@
 -module(els_general_provider).
 
 -behaviour(els_provider).
--export([ handle_request/2
-        , is_enabled/0
+-export([ is_enabled/0
+        , handle_request/2
         ]).
 
 -export([ server_capabilities/0
@@ -46,7 +46,6 @@
 %%==============================================================================
 %% els_provider functions
 %%==============================================================================
-
 -spec is_enabled() -> boolean().
 is_enabled() -> true.
 
@@ -55,13 +54,13 @@ is_enabled() -> true.
                     | shutdown_request()
                     | exit_request()
                     , state()) ->
-        { initialize_result()
+        { response,
+          initialize_result()
         | initialized_result()
         | shutdown_result()
         | exit_result()
-        , state()
         }.
-handle_request({initialize, Params}, State) ->
+handle_request({initialize, Params}, _State) ->
   #{ <<"rootUri">> := RootUri0
    , <<"capabilities">> := Capabilities
    } = Params,
@@ -77,49 +76,25 @@ handle_request({initialize, Params}, State) ->
                   _ -> #{}
                 end,
   ok = els_config:initialize(RootUri, Capabilities, InitOptions, true),
-  NewState = State#{ root_uri => RootUri, init_options => InitOptions},
-  {server_capabilities(), NewState};
-handle_request({initialized, _Params}, State) ->
-  #{root_uri := RootUri} = State,
-
+  {response, server_capabilities()};
+handle_request({initialized, _Params}, _State) ->
+  RootUri = els_config:get(root_uri),
   NodeName = els_distribution_server:node_name( <<"erlang_ls">>
                                               , filename:basename(RootUri)),
   els_distribution_server:start_distribution(NodeName),
   ?LOG_INFO("Started distribution for: [~p]", [NodeName]),
-
-  case els_bsp_provider:maybe_start(RootUri) of
-    {error, Reason} ->
-      case els_config:get(bsp_enabled) of
-        true ->
-          ?LOG_ERROR( "BSP server startup failed, shutting down. [reason=~p]"
-                    , [Reason]
-                    ),
-          els_utils:halt(1);
-        auto ->
-          ?LOG_INFO("BSP server startup failed. [reason=~p]", [Reason]),
-          ok
-      end;
-    _ ->
-      ok
-  end,
-  case els_bsp_provider:info(is_running) of
-    true ->  %% The BSP provider will start indexing when it's ready
-      ok;
-    false -> %% We need to start indexing here
-      els_indexing:maybe_start()
-  end,
-
-  {null, State};
-handle_request({shutdown, _Params}, State) ->
-  {null, State};
-handle_request({exit, #{status := Status}}, State) ->
+  els_indexing:maybe_start(),
+  {response, null};
+handle_request({shutdown, _Params}, _State) ->
+  {response, null};
+handle_request({exit, #{status := Status}}, _State) ->
   ?LOG_INFO("Language server stopping..."),
   ExitCode = case Status of
                shutdown -> 0;
                _        -> 1
              end,
   els_utils:halt(ExitCode),
-  {null, State}.
+  {response, null}.
 
 %%==============================================================================
 %% API
@@ -130,12 +105,8 @@ server_capabilities() ->
   {ok, Version} = application:get_key(?APP, vsn),
   #{ capabilities =>
        #{ textDocumentSync =>
-            #{ openClose => true
-             , change    => els_text_synchronization:sync_mode()
-             , save      => #{includeText => false}
-             }
-        , hoverProvider =>
-            els_hover_provider:is_enabled()
+            els_text_synchronization_provider:options()
+        , hoverProvider => true
         , completionProvider =>
             #{ resolveProvider => true
              , triggerCharacters =>

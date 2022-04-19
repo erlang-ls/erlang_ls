@@ -2,8 +2,8 @@
 
 -behaviour(els_provider).
 
--export([ handle_request/2
-        , is_enabled/0
+-export([ is_enabled/0
+        , handle_request/2
         ]).
 
 %% For use in other providers
@@ -20,18 +20,15 @@
 %%==============================================================================
 %% Types
 %%==============================================================================
--type state() :: any().
 
 %%==============================================================================
 %% els_provider functions
 %%==============================================================================
-
 -spec is_enabled() -> boolean().
-is_enabled() ->
-  true.
+is_enabled() -> true.
 
--spec handle_request(any(), state()) -> {[location()] | null, state()}.
-handle_request({references, Params}, State) ->
+-spec handle_request(any(), any()) -> {response, [location()] | null}.
+handle_request({references, Params}, _State) ->
   #{ <<"position">>     := #{ <<"line">>      := Line
                             , <<"character">> := Character
                             }
@@ -46,8 +43,8 @@ handle_request({references, Params}, State) ->
       []        -> []
     end,
   case Refs of
-    [] -> {null, State};
-    Rs -> {Rs, State}
+    [] -> {response, null};
+    Rs -> {response, Rs}
   end.
 
 %%==============================================================================

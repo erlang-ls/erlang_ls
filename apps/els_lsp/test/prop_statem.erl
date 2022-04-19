@@ -202,6 +202,7 @@ did_open_pre(#{ connected := Connected
   Connected andalso InitializedSent.
 
 did_open_next(#{documents := Documents0} = S, _R, [Uri, _, _, _]) ->
+  file:write_file(els_uri:path(Uri), <<"dummy">>),
   S#{ documents => Documents0 ++ [Uri]}.
 
 did_open_post(_S, _Args, Res) ->
@@ -222,7 +223,8 @@ did_save_pre(#{ connected := Connected
               } = _S) ->
   Connected andalso InitializedSent.
 
-did_save_next(S, _R, _Args) ->
+did_save_next(S, _R, [Uri]) ->
+  file:write_file(els_uri:path(Uri), <<"dummy">>),
   S.
 
 did_save_post(_S, _Args, Res) ->
