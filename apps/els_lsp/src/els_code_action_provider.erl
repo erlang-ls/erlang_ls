@@ -74,10 +74,7 @@ action_create_function(Uri, _Range, _Data, [UndefinedFun]) ->
     POIs->
       #{range := #{to := {Line, _Col}}} = lists:last(POIs),
 
-      [FunctionName,_|_] = re:replace(UndefinedFun, "/", ""),
-
-      %LastFunction = lists:last(POIs),
-      %{LastLine,_} = maps:get(to,maps:get(wrapping_range, maps:get(data, LastFunction))),
+      [FunctionName,_Arity] = string:split(UndefinedFun, "/"),
       [ make_edit_action( Uri
                           , <<"Add the undefined function ", UndefinedFun/binary>>
                           , ?CODE_ACTION_KIND_QUICKFIX
