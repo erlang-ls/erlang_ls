@@ -25,6 +25,8 @@ main(Args) ->
   ok = parse_args(Args),
   application:set_env(els_core, server, els_dap_server),
   configure_logging(),
+  ?LOG_DEBUG("Ensure EPMD is running", []),
+  0 = els_utils:cmd("epmd", ["-daemon"]),
   {ok, _} = application:ensure_all_started(?APP, permanent),
   patch_logging(),
   ?LOG_INFO("Started Erlang LS - DAP server", []),
