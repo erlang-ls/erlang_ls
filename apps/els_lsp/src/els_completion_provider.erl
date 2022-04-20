@@ -616,7 +616,7 @@ last_clause(POIs, Line, WantName, WantArity) ->
                , undefined
                , SortedClauses).
 
--spec clause_completion_type(erlfmt_scan:token()) -> function | 'fun' | other.
+-spec clause_completion_type([erlfmt_scan:token()]) -> function | 'fun' | other.
 clause_completion_type(Tokens) ->
   [_ | BodyToken] =
     lists:dropwhile( fun ({'->', _}) -> false;
@@ -653,6 +653,7 @@ process_token(T, Stack) ->
       Stack
   end.
 
+-spec clause_completion_snipppets(other_clause | fun_clause) -> map().
 clause_completion_snipppets(other_clause) ->
   #{ label            => els_utils:to_binary("new clause")
    , kind             => completion_item_kind(snippet)
