@@ -248,7 +248,8 @@ create_undefined_function(Config) ->
     [ #{ edit => #{changes =>
                      #{ binary_to_atom(Uri, utf8) =>
                           [#{ range => els_protocol:range(LineRange)
-                            , newText => <<"-spec e() -> ok. \n e() -> \n \t ok.">>
+                            , newText =>
+                              <<"-spec e() -> ok. \n e() -> \n \t ok.">>
                             }]
                       }}
        , kind => <<"quickfix">>

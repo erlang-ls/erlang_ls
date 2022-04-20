@@ -71,15 +71,17 @@ action_create_function(Uri, _Range, _Data, [UndefinedFun]) ->
   case els_poi:sort(els_dt_document:pois(Document)) of
     [] ->
       [];
-    POIs->
+    POIs ->
       #{range := #{to := {Line, _Col}}} = lists:last(POIs),
-
-      [FunctionName,_Arity] = string:split(UndefinedFun, "/"),
+      [FunctionName, _Arity] = string:split(UndefinedFun, "/"),
       [ make_edit_action( Uri
-                          , <<"Add the undefined function ", UndefinedFun/binary>>
+                          , <<"Add the undefined function ",
+                          UndefinedFun/binary>>
                           , ?CODE_ACTION_KIND_QUICKFIX
-                          , <<"-spec ", FunctionName/binary, "() -> ok. \n ", FunctionName/binary,"() -> \n \t ok.">>
-                          , els_protocol:range(#{from => {Line+1,1}, to => {Line+2,1}}))]
+                          , <<"-spec ", FunctionName/binary, "() -> ok. \n ",
+                        FunctionName/binary, "() -> \n \t ok.">>
+                          , els_protocol:range(#{from => {Line+1, 1},
+                          to => {Line+2, 1}}))]
   end.
 
 
