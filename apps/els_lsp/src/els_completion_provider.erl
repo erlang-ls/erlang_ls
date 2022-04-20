@@ -549,19 +549,126 @@ exported_definitions(Module, POIKind, ExportFormat) ->
       []
   end.
 
+%%==============================================================================
+%% Clauses
+%%==============================================================================
+
 -spec clause(els_dt_document:item(), line(), column()) -> [map()].
 clause(Document, Line, Column) ->
-  case els_dt_document:pois(Document, [function]) of
+  try
+  case els_dt_document:pois(Document, [function, function_clause]) of
     [] -> [];
     POIs ->
       case [POI || POI <- POIs, els_range:in_range(Line, Column, POI)] of
-        [POI] ->
-          I = completion_item(POI#{kind => function_clause}, #{}, false),
+        [#{id := {Name, Arity}} = POI] ->
+          %% lookup clause text
+          #{range := #{from := From}} = last_clause(POIs, Line, Name, Arity),
+          #{text := Text} = Document,
+          ClauseText =
+            erlang:binary_to_list(els_text:range(Text, From, {Line, Column})),
+
+          %% tokenize
+          {ok, Tokens, _Comments, _Cont} = erlfmt_scan:string_node(ClauseText),
+
+          %% return completion
+          I = case clause_completion_type(Tokens) of
+                function ->
+                  completion_item(POI#{kind => function_clause}, #{}, false);
+                'fun' ->
+                  clause_completion_snipppets(fun_clause);
+                other ->
+                  clause_completion_snipppets(other_clause)
+              end,
           [I];
         _ ->
           []
-        end
+      end
+  end
+  catch
+    E:R:ST ->
+      ?LOG_WARNING("~p", [{E, R, ST}]),
+      []
   end.
+
+-spec last_clause([poi()], line(), atom(), arity()) -> poi().
+last_clause(POIs, Line, WantName, WantArity) ->
+  Clauses =
+      [  ClausePOI
+      || ClausePOI = #{id := {Name, Arity, _}} <- POIs
+      ,  WantName =:= Name
+      ,  WantArity =:= Arity],
+  SortedClauses =
+    lists:sort(
+      fun ( #{id := {_, _, P1}}
+          , #{id := {_, _, P2}}) ->
+            P1 =< P2
+      end,
+      Clauses
+    ),
+    lists:foldl( fun (ClausePOI, undefined) -> ClausePOI;
+                     ( ClausePOI = #{range := #{from := {FromLine, _}}}
+                     , Prev) ->
+                       case FromLine =< Line of
+                         true -> ClausePOI;
+                         false -> Prev
+                       end
+                 end
+               , undefined
+               , SortedClauses).
+
+-spec clause_completion_type(erlfmt_scan:token()) -> function | 'fun' | other.
+clause_completion_type(Tokens) ->
+  [_ | BodyToken] =
+    lists:dropwhile( fun ({'->', _}) -> false;
+                         (_) -> true
+                     end
+                   , Tokens),
+  Processed = lists:foldl(
+    fun process_token/2,
+    [],
+    BodyToken
+  ),
+  case Processed of
+    [] -> function;
+    [Type | _] -> Type
+  end.
+
+-spec process_token( erlfmt_scan:token()
+                   , [erlfmt_scan:token()]) -> [erlfmt_scan:token()].
+process_token(T, Stack) ->
+  case T of
+    {Other, _} when Other =:= 'case'
+                  ; Other =:= 'receive'
+                  ; Other =:= 'try'
+                  ; Other =:= 'catch' ->
+      [other | Stack];
+    {'fun', _} ->
+      ['fun' | Stack];
+    {'end', _} ->
+      case Stack of
+        [_ | NewStack] -> NewStack;
+        _ -> []
+      end;
+    _  ->
+      Stack
+  end.
+
+clause_completion_snipppets(other_clause) ->
+  #{ label            => els_utils:to_binary("new clause")
+   , kind             => completion_item_kind(snippet)
+   , insertText       =>
+       <<"\n${1:pattern}${2: when ${3:guard}} ->\n    ${4:body}">>
+   , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+   , data             => #{}
+  };
+clause_completion_snipppets(fun_clause) ->
+  #{ label            => els_utils:to_binary("new clause")
+   , kind             => completion_item_kind(function)
+   , insertText       =>
+       <<"\n(${1:pattern})${2: when ${3:guard}} ->\n    ${4:body}">>
+   , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+   , data             => #{}
+  }.
 
 %%==============================================================================
 %% Variables
@@ -820,7 +927,9 @@ completion_item_kind(record) ->
 completion_item_kind(type_definition) ->
   ?COMPLETION_ITEM_KIND_TYPE_PARAM;
 completion_item_kind(function) ->
-  ?COMPLETION_ITEM_KIND_FUNCTION.
+  ?COMPLETION_ITEM_KIND_FUNCTION;
+completion_item_kind(snippet) ->
+  ?COMPLETION_ITEM_KIND_SNIPPET.
 
 %% @doc Maps a POI kind to its export entry POI kind
 -spec export_entry_kind(poi_kind()) ->
