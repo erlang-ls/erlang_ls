@@ -385,9 +385,16 @@ attribute(Tree) ->
 -spec record_attribute_pois(tree(), tree(), atom(), tree()) -> [poi()].
 record_attribute_pois(Tree, Record, RecordName, Fields) ->
   FieldList = record_def_field_name_list(Fields),
-  ValueRange = #{ from => get_start_location(Tree),
-                  to => get_end_location(Tree)},
-  Data = #{field_list => FieldList, value_range => ValueRange},
+  {StartLine, StartColumn} = get_start_location(Tree),
+  {EndLine, EndColumn} = get_end_location(Tree),
+  ValueRange = #{ from => {StartLine, StartColumn}
+                , to => {EndLine, EndColumn}
+                },
+  FoldingRange = exceeds_one_line(StartLine, EndLine),
+  Data = #{ field_list => FieldList
+          , value_range => ValueRange
+          , folding_range => FoldingRange
+          },
   [poi(erl_syntax:get_pos(Record), record, RecordName, Data)
   | record_def_fields(Fields, RecordName)].
 
@@ -494,27 +501,17 @@ function(Tree) ->
                      )
                   || {I, Clause} <- IndexedClauses,
                      erl_syntax:type(Clause) =:= clause],
-  {StartLine, StartColumn} = StartLocation = get_start_location(Tree),
+  {StartLine, StartColumn} = get_start_location(Tree),
   {EndLine, _EndColumn} = get_end_location(Tree),
-  %% It only makes sense to fold a function if the function contains
-  %% at least one line apart from its signature.
-  FoldingRanges = case EndLine > StartLine of
-                    true ->
-                      Range = #{ from => {StartLine, ?END_OF_LINE}
-                               , to   => {EndLine, ?END_OF_LINE}
-                               },
-                      [ els_poi:new(Range, folding_range, StartLocation) ];
-                    false ->
-                      []
-                  end,
+  FoldingRange = exceeds_one_line(StartLine, EndLine),
   FunctionPOI = poi(erl_syntax:get_pos(FunName), function, {F, A},
                     #{ args => Args
                      , wrapping_range => #{ from => {StartLine, StartColumn}
                                           , to => {EndLine + 1, 0}
                                           }
+                     , folding_range => FoldingRange
                      }),
   lists:append([ [ FunctionPOI ]
-               , FoldingRanges
                , ClausesPOIs
                ]).
 
@@ -1043,6 +1040,15 @@ skip_function_entries(FunList) ->
     _ ->
       [FunList]
   end.
+
+%% Helpers for determining valid Folding Ranges
+-spec exceeds_one_line(erl_anno:line(), erl_anno:line()) ->
+  poi_range() | oneliner.
+exceeds_one_line(StartLine, EndLine) when EndLine > StartLine ->
+  #{  from => {StartLine, ?END_OF_LINE}
+   ,  to => {EndLine, ?END_OF_LINE}
+  };
+exceeds_one_line(_, _) -> oneliner.
 
 %% Skip visiting atoms of record names as they are already
 %% represented as `record_expr' pois

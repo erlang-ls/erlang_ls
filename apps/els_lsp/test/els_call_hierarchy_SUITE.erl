@@ -70,6 +70,9 @@ incoming_calls(Config) ->
                       , wrapping_range => #{ from => {7, 1}
                                            , to => {17, 0}
                                            }
+                      , folding_range => #{ from => {7, ?END_OF_LINE}
+                                          , to => {16, ?END_OF_LINE}
+                                          }
                       }
                  , id => {function_a, 1}
                  , kind => function
@@ -99,7 +102,10 @@ incoming_calls(Config) ->
                                   #{ args => [{1, "Arg1"}]
                                    , wrapping_range =>
                                        #{ from => {7, 1}
-                                        , to => {14, 0}}}
+                                        , to => {14, 0}}
+                                   , folding_range =>
+                                        #{ from => {7, ?END_OF_LINE}
+                                         , to => {13, ?END_OF_LINE}}}
                               , id => {function_a, 1}
                               , kind => function
                               , range => #{from => {7, 1}, to => {7, 11}}}})
@@ -129,6 +135,10 @@ incoming_calls(Config) ->
                                   , wrapping_range =>
                                       #{ from => {7, 1}
                                        , to => {17, 0}
+                                       }
+                                  , folding_range =>
+                                      #{ from => {7, ?END_OF_LINE}
+                                       , to => {16, ?END_OF_LINE}
                                        }
                                   }
                              , id => {function_a, 1}
@@ -178,6 +188,9 @@ outgoing_calls(Config) ->
                             , wrapping_range => #{ from => {7, 1}
                                                  , to => {17, 0}
                                                  }
+                            , folding_range => #{ from => {7, ?END_OF_LINE}
+                                                , to => {16, ?END_OF_LINE}
+                                                }
                             }
                  , id => {function_a, 1}
                  , kind => function
@@ -205,7 +218,10 @@ outgoing_calls(Config) ->
                           #{ args => [{1, "Arg1"}]
                            , wrapping_range => #{ from => {7, 1}
                                                 , to => {17, 0}
-                                                }}
+                                                }
+                           , folding_range => #{ from => {7, ?END_OF_LINE}
+                                               , to => {16, ?END_OF_LINE}
+                                               }}
                       , id => {function_a, 1}
                       , kind => function
                       , range => #{ from => {7, 1}
@@ -217,7 +233,10 @@ outgoing_calls(Config) ->
                            #{ args => []
                             , wrapping_range => #{ from => {18, 1}
                                                  , to => {20, 0}
-                                                 }}
+                                                 }
+                            , folding_range => #{ from => {18, ?END_OF_LINE}
+                                               , to => {19, ?END_OF_LINE}
+                                               }}
                        , id => {function_b, 0}
                        , kind => function
                        , range => #{ from => {18, 1}
@@ -229,7 +248,10 @@ outgoing_calls(Config) ->
                            #{ args => [{1, "Arg1"}]
                             , wrapping_range => #{ from => {7, 1}
                                                  , to => {14, 0}
-                                                 }}
+                                                 }
+                            , folding_range => #{ from => {7, ?END_OF_LINE}
+                                                , to => {13, ?END_OF_LINE}
+                                                }}
                        , id => {function_a, 1}
                        , kind => function
                        , range => #{ from => {7, 1}
@@ -241,7 +263,10 @@ outgoing_calls(Config) ->
                            #{ args => []
                             , wrapping_range => #{ from => {18, 1}
                                                  , to => {20, 0}
-                                                 }}
+                                                 }
+                            , folding_range => #{ from => {18, ?END_OF_LINE}
+                                                , to => {19, ?END_OF_LINE}
+                                                }}
                        , id => {function_b, 0}
                        , kind => function
                        , range => #{ from => {18, 1}
