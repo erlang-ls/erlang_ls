@@ -2,7 +2,7 @@
 %% Please only add new cases from bottom, otherwise it might break those tests.
 -module(code_action_oops).
 
--export([function_a/0]).
+-export([function_a/0, function_d/0]).
 
 function_a() ->
   A = 123,
@@ -19,3 +19,6 @@ function_c() ->
 -define(TIMEOUT, 200).
 
 -include_lib("stdlib/include/assert.hrl").
+function_d() ->
+  e(),
+  ok.

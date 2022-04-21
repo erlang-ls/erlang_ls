@@ -16,6 +16,7 @@
         , fix_module_name/1
         , remove_unused_macro/1
         , remove_unused_import/1
+        , create_undefined_function/1
         ]).
 
 %%==============================================================================
@@ -221,6 +222,38 @@ remove_unused_import(Config) ->
                       }}
        , kind => <<"quickfix">>
        , title => <<"Remove unused -include_lib(assert.hrl).">>
+       }
+    ],
+  ?assertEqual(Expected, Result),
+  ok.
+
+
+-spec create_undefined_function((config())) -> ok.
+create_undefined_function(Config) ->
+  Uri = ?config(code_action_uri, Config),
+  Range = els_protocol:range(#{from => {?COMMENTS_LINES + 23, 9}
+                              , to => {?COMMENTS_LINES + 23, 39}}),
+  LineRange = els_range:line(#{from => {?COMMENTS_LINES + 23, 9}
+                              , to => {?COMMENTS_LINES + 23, 39}}),
+  {ok, FileName} = els_utils:find_header(
+    els_utils:filename_to_atom("stdlib/include/assert.hrl")),
+  Diag = #{ message  => <<"function e/0 undefined">>
+          , range    => Range
+          , severity => 2
+          , source   => <<"">>
+          , data     => FileName
+          },
+  #{result := Result} = els_client:document_codeaction(Uri, Range, [Diag]),
+  Expected =
+    [ #{ edit => #{changes =>
+                     #{ binary_to_atom(Uri, utf8) =>
+                          [#{ range => els_protocol:range(LineRange)
+                            , newText =>
+                              <<"-spec e() -> ok. \n e() -> \n \t ok.">>
+                            }]
+                      }}
+       , kind => <<"quickfix">>
+       , title => <<"Add the undefined function e/0">>
        }
     ],
   ?assertEqual(Expected, Result),
