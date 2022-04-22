@@ -23,21 +23,24 @@ did_change(Params) ->
   ContentChanges = maps:get(<<"contentChanges">>, Params),
   TextDocument   = maps:get(<<"textDocument">>  , Params),
   Uri            = maps:get(<<"uri">>           , TextDocument),
+  Version        = maps:get(<<"version">>       , TextDocument),
   case ContentChanges of
     [] ->
       ok;
     [Change] when not is_map_key(<<"range">>, Change) ->
       #{<<"text">> := Text} = Change,
       {ok, Document} = els_utils:lookup_document(Uri),
-      ok = els_dt_document:insert(Document#{text => Text}),
-      background_index(Document#{text => Text});
-    ContentChanges ->
+      NewDocument = Document#{text => Text, version => Version},
+      els_dt_document:insert(NewDocument),
+      background_index(NewDocument);
+    _ ->
       ?LOG_DEBUG("didChange INCREMENTAL [changes: ~p]", [ContentChanges]),
       Edits = [to_edit(Change) || Change <- ContentChanges],
       {ok, #{text := Text0} = Document} = els_utils:lookup_document(Uri),
       Text = els_text:apply_edits(Text0, Edits),
-      ok = els_dt_document:insert(Document#{text => Text}),
-      background_index(Document#{text => Text})
+      NewDocument = Document#{text => Text, version => Version},
+      els_dt_document:insert(NewDocument),
+      background_index(NewDocument)
   end.
 
 -spec did_open(map()) -> ok.

@@ -22,6 +22,7 @@
 %%==============================================================================
 %% Types
 %%==============================================================================
+-type version() :: null | integer().
 
 %%==============================================================================
 %% Exported functions
@@ -68,34 +69,49 @@ ensure_deeply_indexed(Uri) ->
 
 -spec deep_index(els_dt_document:item()) -> ok.
 deep_index(Document) ->
-  #{id := Id, uri := Uri, text := Text, source := Source} = Document,
+  #{ id := Id
+   , uri := Uri
+   , text := Text
+   , source := Source
+   , version := Version
+   } = Document,
   {ok, POIs} = els_parser:parse(Text),
-  ok = els_dt_document:insert(Document#{pois => POIs}),
-  index_signatures(Id, Uri, Text, POIs),
-  case Source of
-    otp ->
-      ok;
-    S when S =:= app orelse S =:= dep ->
-      index_references(Id, Uri, POIs)
+  Words = els_dt_document:get_words(Text),
+  case els_dt_document:versioned_insert(Document#{ pois => POIs
+                                                 , words => Words}) of
+    ok ->
+      index_signatures(Id, Uri, Text, POIs, Version),
+      case Source of
+        otp ->
+          ok;
+        S when S =:= app orelse S =:= dep ->
+          index_references(Id, Uri, POIs, Version)
+      end;
+    {error, condition_not_satisfied} ->
+      ?LOG_DEBUG("Skip indexing old version [uri=~p]", [Uri]),
+      ok
   end.
 
--spec index_signatures(atom(), uri(), binary(), [poi()]) -> ok.
-index_signatures(Id, Uri, Text, POIs) ->
-  ok = els_dt_signatures:delete_by_uri(Uri),
-  [index_signature(Id, Text, POI) || #{kind := spec} = POI <- POIs],
+-spec index_signatures(atom(), uri(), binary(), [poi()], version()) -> ok.
+index_signatures(Id, Uri, Text, POIs, Version) ->
+  ok = els_dt_signatures:versioned_delete_by_uri(Uri, Version),
+  [index_signature(Id, Text, POI, Version) || #{kind := spec} = POI <- POIs],
   ok.
 
--spec index_signature(atom(), binary(), poi()) -> ok.
-index_signature(_M, _Text, #{id := undefined}) ->
+-spec index_signature(atom(), binary(), poi(), version()) -> ok.
+index_signature(_M, _Text, #{id := undefined}, _Version) ->
   ok;
-index_signature(M, Text,   #{id := {F, A}, range := Range}) ->
+index_signature(M, Text, #{id := {F, A}, range := Range}, Version) ->
   #{from := From, to := To} = Range,
   Spec = els_text:range(Text, From, To),
-  els_dt_signatures:insert(#{ mfa => {M, F, A}, spec => Spec}).
+  els_dt_signatures:versioned_insert(#{ mfa => {M, F, A}
+                                      , spec => Spec
+                                      , version => Version
+                                      }).
 
--spec index_references(atom(), uri(), [poi()]) -> ok.
-index_references(Id, Uri, POIs) ->
-  ok = els_dt_references:delete_by_uri(Uri),
+-spec index_references(atom(), uri(), [poi()], version()) -> ok.
+index_references(Id, Uri, POIs, Version) ->
+  ok = els_dt_references:versioned_delete_by_uri(Uri, Version),
   ReferenceKinds = [ %% Function
                      application
                    , implicit_fun
@@ -108,16 +124,20 @@ index_references(Id, Uri, POIs) ->
                      %% Type
                    , type_application
                    ],
-  [index_reference(Id, Uri, POI)
+  [index_reference(Id, Uri, POI, Version)
    || #{kind := Kind} = POI <- POIs,
       lists:member(Kind, ReferenceKinds)],
   ok.
 
--spec index_reference(atom(), uri(), poi()) -> ok.
-index_reference(M, Uri, #{id := {F, A}} = POI) ->
-  index_reference(M, Uri, POI#{id => {M, F, A}});
-index_reference(_M, Uri, #{kind := Kind, id := Id, range := Range}) ->
-  els_dt_references:insert(Kind, #{id => Id, uri => Uri, range => Range}).
+-spec index_reference(atom(), uri(), poi(), version()) -> ok.
+index_reference(M, Uri, #{id := {F, A}} = POI, Version) ->
+  index_reference(M, Uri, POI#{id => {M, F, A}}, Version);
+index_reference(_M, Uri, #{kind := Kind, id := Id, range := Range}, Version) ->
+  els_dt_references:versioned_insert(Kind, #{ id => Id
+                                            , uri => Uri
+                                            , range => Range
+                                            , version => Version
+                                            }).
 
 -spec shallow_index(binary(), els_dt_document:source()) -> {ok, uri()}.
 shallow_index(Path, Source) ->
@@ -129,10 +149,15 @@ shallow_index(Path, Source) ->
 -spec shallow_index(uri(), binary(), els_dt_document:source()) -> ok.
 shallow_index(Uri, Text, Source) ->
   Document = els_dt_document:new(Uri, Text, Source),
-  ok = els_dt_document:insert(Document),
-  #{id := Id, kind := Kind} = Document,
-  ModuleItem = els_dt_document_index:new(Id, Uri, Kind),
-  ok = els_dt_document_index:insert(ModuleItem).
+  case els_dt_document:versioned_insert(Document) of
+    ok ->
+      #{id := Id, kind := Kind} = Document,
+      ModuleItem = els_dt_document_index:new(Id, Uri, Kind),
+      ok = els_dt_document_index:insert(ModuleItem);
+    {error, condition_not_satisfied} ->
+      ?LOG_DEBUG("Skip indexing old version [uri=~p]", [Uri]),
+      ok
+  end.
 
 -spec maybe_start() -> true | false.
 maybe_start() ->

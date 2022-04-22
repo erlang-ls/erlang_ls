@@ -8,9 +8,17 @@
         , lookup/2
         , match/2
         , match_delete/2
+        , select_delete/2
         , tables/0
         , write/2
+        , conditional_write/4
         ]).
+
+%%==============================================================================
+%% Type Definitions
+%%==============================================================================
+-type condition() :: fun((tuple()) -> boolean()).
+-export_type([ condition/0 ]).
 
 %%==============================================================================
 %% Exported functions
@@ -44,9 +52,18 @@ match(Table, Pattern) when is_tuple(Pattern) ->
 match_delete(Table, Pattern) when is_tuple(Pattern) ->
   els_db_server:match_delete(Table, Pattern).
 
+-spec select_delete(atom(), any()) -> ok.
+select_delete(Table, MS) ->
+  els_db_server:select_delete(Table, MS).
+
 -spec write(atom(), tuple()) -> ok.
 write(Table, Object) when is_tuple(Object) ->
   els_db_server:write(Table, Object).
+
+-spec conditional_write(atom(), any(), tuple(), condition()) ->
+        ok | {error, any()}.
+conditional_write(Table, Key, Object, Condition) when is_tuple(Object) ->
+  els_db_server:conditional_write(Table, Key, Object, Condition).
 
 -spec clear_table(atom()) -> ok.
 clear_table(Table) ->
