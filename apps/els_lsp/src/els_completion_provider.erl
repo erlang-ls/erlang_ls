@@ -571,15 +571,14 @@ clause(Document, Line, Column) ->
           {ok, Tokens, _Comments, _Cont} = erlfmt_scan:string_node(ClauseText),
 
           %% return completion
-          I = case clause_completion_type(Tokens) of
-                function ->
-                  completion_item(POI#{kind => function_clause}, #{}, false);
-                'fun' ->
-                  clause_completion_snipppets(fun_clause);
-                other ->
-                  clause_completion_snipppets(other_clause)
-              end,
-          [I];
+          case clause_completion_type(Tokens) of
+            function ->
+              [completion_item(POI#{kind => function_clause}, #{}, false)];
+            'fun' ->
+              clause_completion_snipppets(fun_clause);
+            other ->
+              clause_completion_snipppets(other_clause)
+          end;
         _ ->
           []
       end
@@ -655,19 +654,31 @@ process_token(T, Stack) ->
 
 -spec clause_completion_snipppets(other_clause | fun_clause) -> map().
 clause_completion_snipppets(other_clause) ->
-  #{ label            => els_utils:to_binary("new clause")
-   , kind             => completion_item_kind(snippet)
-   , insertText       =>
-       <<"\n${1:pattern}${2: when ${3:guard}} ->\n    ${4:body}">>
-   , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
-   , data             => #{}
-  };
+  [ clause_completion_snippet(
+        <<"Pattern ->">>
+      , <<"\n${1:Pattern} ->\n\t">>
+      , true)
+  , clause_completion_snippet(
+      <<"Pattern when Guard ->">>
+    , <<"\n${1:Pattern}${2: when ${3:Guard}} ->\n\t">>
+    , false)];
 clause_completion_snipppets(fun_clause) ->
-  #{ label            => els_utils:to_binary("new clause")
+  [ clause_completion_snippet(
+      <<"(Args) ->">>
+    , <<"\n(${1:Args}) ->\n\t">>
+    , true)
+  , clause_completion_snippet(
+      <<"(Args) when Guard ->">>
+    , <<"\n$){1:Args})${2: when ${3:Guard}} ->\n\t">>
+    , false)].
+
+-spec clause_completion_snippet(binary(), binary(), boolean()) -> map().
+clause_completion_snippet(Label, InsertText, Preselect) ->
+  #{ label            => Label
    , kind             => completion_item_kind(function)
-   , insertText       =>
-       <<"\n(${1:pattern})${2: when ${3:guard}} ->\n    ${4:body}">>
+   , insertText       => InsertText
    , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+   , preselect        => Preselect
    , data             => #{}
   }.
 
@@ -822,11 +833,12 @@ completion_item(#{kind := Kind, id := {F, A}, data := POIData}, Data, false)
    , insertTextFormat => Format
    , data             => Data
    };
-completion_item( #{kind := function_clause, id := {F, A}, data := POIData}
+completion_item( #{kind := function_clause, id := {F, _}, data := POIData}
                , Data
                , false) ->
   ArgsNames = maps:get(args, POIData),
-  Label = io_lib:format("function clause for ~p/~p", [F, A]),
+  ArgsLabel = lists:join(", ", [Arg || {_, Arg} <- ArgsNames]),
+  Label = io_lib:format("~p(~s) -> ", [F, ArgsLabel]),
   #{ label            => els_utils:to_binary(Label)
    , kind             => completion_item_kind(function)
    , insertText       => snippet_function_clause(F, ArgsNames)
