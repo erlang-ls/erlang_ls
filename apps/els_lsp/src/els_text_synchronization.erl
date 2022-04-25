@@ -52,9 +52,7 @@ did_open(Params) ->
   ok.
 
 -spec did_save(map()) -> ok.
-did_save(Params) ->
-  #{<<"textDocument">> := #{<<"uri">> := Uri}} = Params,
-  reload_from_disk(Uri),
+did_save(_Params) ->
   ok.
 
 -spec did_change_watched_files(map()) -> ok.
