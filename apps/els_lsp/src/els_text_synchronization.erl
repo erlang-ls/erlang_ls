@@ -46,9 +46,13 @@ did_change(Params) ->
 -spec did_open(map()) -> ok.
 did_open(Params) ->
   #{<<"textDocument">> := #{ <<"uri">> := Uri
-                           , <<"text">> := Text}} = Params,
+                           , <<"text">> := Text
+                           , <<"version">> := Version
+                           }} = Params,
   {ok, Document} = els_utils:lookup_document(Uri),
-  els_indexing:deep_index(Document#{text => Text}),
+  NewDocument = Document#{text => Text, version => Version},
+  els_dt_document:insert(NewDocument),
+  els_indexing:deep_index(NewDocument),
   ok.
 
 -spec did_save(map()) -> ok.
