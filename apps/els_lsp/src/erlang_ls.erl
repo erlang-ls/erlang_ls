@@ -107,14 +107,21 @@ configure_logging() ->
   LogFile = filename:join([log_root(), "server.log"]),
   {ok, LoggingLevel} = application:get_env(els_core, log_level),
   ok = filelib:ensure_dir(LogFile),
+  [logger:remove_handler(H) || H <-  logger:get_handler_ids()],
   Handler = #{ config => #{ file => LogFile }
              , level => LoggingLevel
              , formatter => { logger_formatter
                             , #{ template => ?LSP_LOG_FORMAT }
                             }
              },
-  [logger:remove_handler(H) || H <-  logger:get_handler_ids()],
+  StdErrHandler = #{ config => #{ type => standard_error }
+                   , level => error
+                   , formatter => { logger_formatter
+                                  , #{ template => ?LSP_LOG_FORMAT }
+                                  }
+                   },
   logger:add_handler(els_core_handler, logger_std_h, Handler),
+  logger:add_handler(els_stderr_handler, logger_std_h, StdErrHandler),
   logger:set_primary_config(level, LoggingLevel),
   ok.
 
