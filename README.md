@@ -24,7 +24,7 @@ To install the produced `erlang_ls` escript in `/usr/local/bin`:
 
 To install to a different directory set the `PREFIX` environment variable:
 
-    PREFIX=/path/to/directory make -e install
+    PREFIX=/path/to/directory make install
 
 ## Command-line Arguments
 

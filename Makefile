@@ -1,6 +1,6 @@
 .PHONY: all
 
-PREFIX = '/usr/local'
+PREFIX ?= '/usr/local'
 
 all:
 	@ echo "Building escript..."
