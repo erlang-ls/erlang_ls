@@ -897,7 +897,10 @@ format_macro({Name0, _Arity}, Args, SnippetSupport) ->
 format_macro(Name, none, _SnippetSupport) ->
   atom_to_binary(Name, utf8).
 
--spec snippet_function_clause(atom(), [{integer(), string()}], boolean()) -> binary().
+-spec snippet_function_clause( atom()
+                             , [{integer()
+                             , string()}]
+                             , boolean()) -> binary().
 snippet_function_clause(Name, Args, SnippetSupport) ->
   FunctionSnippet = format_args(atom_to_label(Name), Args, SnippetSupport),
   Clause = ["\n", FunctionSnippet, " -> "],
