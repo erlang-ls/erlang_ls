@@ -146,7 +146,7 @@ find_completions( Prefix
       record_fields(Document, RecordName);
     _ ->
       []
-    end;
+  end;
 find_completions( _Prefix
                 , ?COMPLETION_TRIGGER_KIND_CHARACTER
                 , #{ trigger := <<";">>
@@ -619,35 +619,34 @@ clause_completion_type(Tokens) ->
                          (_) -> true
                      end
                    , Tokens),
-  Processed = lists:foldl(
-    fun process_token/2,
-    [],
-    BodyToken
-  ),
+  Processed = process_tokens(BodyToken, []),
   case Processed of
     [] -> function;
     [Type | _] -> Type
   end.
 
--spec process_token( erlfmt_scan:token()
-                   , [erlfmt_scan:token()]) -> [erlfmt_scan:token()].
-process_token(T, Stack) ->
-  case T of
-    {Other, _} when Other =:= 'case'
-                  ; Other =:= 'receive'
-                  ; Other =:= 'try'
-                  ; Other =:= 'catch' ->
-      [other | Stack];
-    {'fun', _} ->
-      ['fun' | Stack];
-    {'end', _} ->
-      case Stack of
-        [_ | NewStack] -> NewStack;
-        _ -> []
-      end;
-    _  ->
-      Stack
-  end.
+-spec process_tokens( [erlfmt_scan:token()]
+                    , [other | 'fun']) -> [other | 'fun'].
+process_tokens([], Stack) -> Stack;
+process_tokens([{Other, _} | Rest], Stack) when Other =:= 'case'
+                                              ; Other =:= 'receive'
+                                              ; Other =:= 'try' ->
+  process_tokens(Rest, [other | Stack]);
+process_tokens([{'fun', _}, {atom, _, _}, {'/', _} | Rest], Stack) ->
+  process_tokens(Rest, Stack);
+process_tokens([ {'fun', _}, {atom, _, _}, {':', _}, {atom, _, _}, {'/', _}
+               | Rest], Stack) ->
+  process_tokens(Rest, Stack);
+process_tokens([{'fun', _} | Rest], Stack) ->
+  process_tokens(Rest, ['fun' | Stack]);
+process_tokens([{'end', _} | Rest], Stack) ->
+  NextStack = case Stack of
+                [_ | Poped] -> Poped;
+                _ -> []
+              end,
+  process_tokens(Rest, NextStack);
+process_tokens([_ | Rest], Stack) ->
+  process_tokens(Rest, Stack).
 
 -spec clause_completion_snipppets(other_clause | fun_clause) -> [map()].
 clause_completion_snipppets(other_clause) ->
