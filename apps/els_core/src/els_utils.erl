@@ -144,12 +144,14 @@ find_modules(Id) ->
 %% If the module is not in the DB, try to index it.
 -spec lookup_document(uri()) ->
   {ok, els_dt_document:item()} | {error, any()}.
-lookup_document(Uri) ->
-  case els_dt_document:lookup(Uri) of
+lookup_document(Uri0) ->
+  case els_dt_document:lookup(Uri0) of
     {ok, [Document]} ->
       {ok, Document};
     {ok, []} ->
-      Path = els_uri:path(Uri),
+      Path = els_uri:path(Uri0),
+      %% The returned Uri could be different from the original input
+      %% (e.g. if the original Uri would contain a query string)
       {ok, Uri} = els_indexing:shallow_index(Path, app),
       case els_dt_document:lookup(Uri) of
         {ok, [Document]} ->
