@@ -162,7 +162,6 @@ find_completions( Prefix
                   , column   := Column
                   }
                ) ->
-  % ?LOG_WARNING("Triggered Completing ~p", [Prefix]),
   case lists:reverse(els_text:tokens(Prefix)) of
     %% Check for "[...] fun atom:"
     [{';', _} | _] ->
@@ -555,8 +554,7 @@ exported_definitions(Module, POIKind, ExportFormat) ->
 
 -spec clause(els_dt_document:item(), line(), column()) -> [map()].
 clause(Document, Line, Column) ->
-  try
-  case els_dt_document:pois(Document, [function, function_clause]) of
+  try els_dt_document:pois(Document, [function, function_clause]) of
     [] -> [];
     POIs ->
       case [POI || POI <- POIs, els_range:in_range(Line, Column, POI)] of
@@ -582,10 +580,9 @@ clause(Document, Line, Column) ->
         _ ->
           []
       end
-  end
   catch
     E:R:ST ->
-      ?LOG_WARNING("~p", [{E, R, ST}]),
+      ?LOG_DEBUG("failed to determine clause to complete ~p", [{E, R, ST}]),
       []
   end.
 
@@ -652,7 +649,7 @@ process_token(T, Stack) ->
       Stack
   end.
 
--spec clause_completion_snipppets(other_clause | fun_clause) -> map().
+-spec clause_completion_snipppets(other_clause | fun_clause) -> [map()].
 clause_completion_snipppets(other_clause) ->
   [ clause_completion_snippet(
         <<"Pattern ->">>
@@ -675,7 +672,7 @@ clause_completion_snipppets(fun_clause) ->
 -spec clause_completion_snippet(binary(), binary(), boolean()) -> map().
 clause_completion_snippet(Label, InsertText, Preselect) ->
   #{ label            => Label
-   , kind             => completion_item_kind(function)
+   , kind             => completion_item_kind(snippet)
    , insertText       => InsertText
    , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
    , preselect        => Preselect
@@ -839,10 +836,16 @@ completion_item( #{kind := function_clause, id := {F, _}, data := POIData}
   ArgsNames = maps:get(args, POIData),
   ArgsLabel = lists:join(", ", [Arg || {_, Arg} <- ArgsNames]),
   Label = io_lib:format("~p(~s) -> ", [F, ArgsLabel]),
+  SnippetSupport = snippet_support(),
+  Format =
+    case SnippetSupport of
+      true -> ?INSERT_TEXT_FORMAT_SNIPPET;
+      false -> ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+    end,
   #{ label            => els_utils:to_binary(Label)
    , kind             => completion_item_kind(function)
-   , insertText       => snippet_function_clause(F, ArgsNames)
-   , insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+   , insertText       => snippet_function_clause(F, ArgsNames, SnippetSupport)
+   , insertTextFormat => Format
    , insertTextMode   => 1
    , data             => Data
    };
@@ -894,9 +897,9 @@ format_macro({Name0, _Arity}, Args, SnippetSupport) ->
 format_macro(Name, none, _SnippetSupport) ->
   atom_to_binary(Name, utf8).
 
--spec snippet_function_clause(atom(), [{integer(), string()}]) -> binary().
-snippet_function_clause(Name, Args) ->
-  FunctionSnippet = snippet_args(atom_to_label(Name), Args),
+-spec snippet_function_clause(atom(), [{integer(), string()}], boolean()) -> binary().
+snippet_function_clause(Name, Args, SnippetSupport) ->
+  FunctionSnippet = format_args(atom_to_label(Name), Args, SnippetSupport),
   Clause = ["\n", FunctionSnippet, " -> "],
   els_utils:to_binary(Clause).
 
@@ -932,7 +935,7 @@ is_in(Document, Line, Column, POIKinds) ->
   lists:any(IsKind, POIs).
 
 %% @doc Maps a POI kind to its completion item kind
--spec completion_item_kind(poi_kind()) -> completion_item_kind().
+-spec completion_item_kind(poi_kind() | snippet) -> completion_item_kind().
 completion_item_kind(define) ->
   ?COMPLETION_ITEM_KIND_CONSTANT;
 completion_item_kind(record) ->
