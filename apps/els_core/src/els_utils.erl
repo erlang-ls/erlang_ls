@@ -22,8 +22,9 @@
         , base64_decode_term/1
         , levenshtein_distance/2
         , jaro_distance/2
+        , is_windows/0
+        , system_tmp_dir/0
         ]).
-
 
 %%==============================================================================
 %% Includes
@@ -248,6 +249,20 @@ to_list(X) when is_binary(X) ->
   case unicode:characters_to_list(X) of
     Result when is_list(Result) -> Result;
     _ -> binary_to_list(X)
+  end.
+
+-spec is_windows() -> boolean().
+is_windows() ->
+  {OS, _} = os:type(),
+  OS =:= win32.
+
+-spec system_tmp_dir() -> string().
+system_tmp_dir() ->
+  case is_windows() of
+    true ->
+      os:getenv("TEMP");
+    false ->
+      "/tmp"
   end.
 
 %%==============================================================================

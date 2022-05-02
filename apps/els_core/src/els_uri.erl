@@ -31,7 +31,7 @@ module(Uri) ->
 
 -spec path(uri()) -> path().
 path(Uri) ->
-  path(Uri, is_windows()).
+  path(Uri, els_utils:is_windows()).
 
 -spec path(uri(), boolean()) -> path().
 path(Uri, IsWindows) ->
@@ -57,7 +57,7 @@ path(Uri, IsWindows) ->
 -spec uri(path()) -> uri().
 uri(Path) ->
   [Head | Tail] = filename:split(Path),
-  {Host, Path1} = case {is_windows(), Head} of
+  {Host, Path1} = case {els_utils:is_windows(), Head} of
                    {false, <<"/">>} ->
                      {<<>>, uri_join(Tail)};
                    {true, X} when X =:= <<"//">> orelse X =:= <<"\\\\">> ->
@@ -80,11 +80,6 @@ uri(Path) ->
 -spec uri_join([path()]) -> iolist().
 uri_join(List) ->
   lists:join(<<"/">>, List).
-
--spec is_windows() -> boolean().
-is_windows() ->
-  {OS, _} = os:type(),
-  OS =:= win32.
 
 -if(?OTP_RELEASE >= 23).
 -spec percent_decode(binary()) -> binary().

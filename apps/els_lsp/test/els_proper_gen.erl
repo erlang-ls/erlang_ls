@@ -19,17 +19,17 @@
 uri() ->
   ?LET( B
       , document()
-      , <<"file:///tmp/", B/binary, ".erl">>
+      , els_uri:uri(filename:join([system_tmp_dir(), B ++ ".erl"]))
       ).
 
 root_uri() ->
-  <<"file:///tmp">>.
+  els_uri:uri(system_tmp_dir()).
 
 init_options() ->
   #{<<"indexingEnabled">> => false}.
 
 document() ->
-  elements([<<"a">>, <<"b">>, <<"c">>]).
+  elements(["a", "b", "c"]).
 
 tokens() ->
   ?LET( Tokens
@@ -42,3 +42,9 @@ tokens() ->
 
 token() ->
   elements(["foo", "Bar", "\"baz\""]).
+
+%%==============================================================================
+%% Internal Functions
+%%==============================================================================
+system_tmp_dir() ->
+  els_utils:to_binary(els_utils:system_tmp_dir()).
