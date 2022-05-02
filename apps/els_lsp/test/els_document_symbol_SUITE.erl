@@ -10,9 +10,8 @@
         ]).
 
 %% Test cases
--export([ functions/1
+-export([ symbols/1
         ]).
-
 
 -include("els_lsp.hrl").
 
@@ -57,21 +56,15 @@ end_per_testcase(TestCase, Config) ->
 %%==============================================================================
 %% Testcases
 %%==============================================================================
--spec functions(config()) -> ok.
-functions(Config) ->
+-spec symbols(config()) -> ok.
+symbols(Config) ->
   Uri = ?config(code_navigation_uri, Config),
   #{result := Symbols} = els_client:document_symbol(Uri),
-  Expected = [ #{ kind => ?SYMBOLKIND_FUNCTION,
-                  location =>
-                    #{ range =>
-                         #{ 'end' => #{character => ToC, line => ToL},
-                            start => #{character => FromC, line => FromL}
-                          },
-                       uri => Uri
-                     },
-                  name => Name
-                } || {Name, {FromL, FromC}, {ToL, ToC}}
-                       <- lists:append([functions()])],
+  Expected = lists:append([ expected_functions(Uri)
+                          , expected_macros(Uri)
+                          , expected_records(Uri)
+                          , expected_types(Uri)
+                          ]),
   ?assertEqual(length(Expected), length(Symbols)),
   Pairs = lists:zip(lists:sort(Expected), lists:sort(Symbols)),
   [?assertEqual(E, S) || {E, S} <- Pairs],
@@ -80,6 +73,54 @@ functions(Config) ->
 %%==============================================================================
 %% Internal Functions
 %%==============================================================================
+expected_functions(Uri) ->
+  [ #{ kind => ?SYMBOLKIND_FUNCTION,
+       location =>
+         #{ range =>
+              #{ 'end' => #{character => ToC, line => ToL},
+                 start => #{character => FromC, line => FromL}
+               },
+            uri => Uri
+          },
+       name => Name
+     } || {Name, {FromL, FromC}, {ToL, ToC}} <- lists:append([functions()])].
+
+expected_macros(Uri) ->
+  [ #{ kind => ?SYMBOLKIND_CONSTANT,
+       location =>
+         #{ range =>
+              #{ 'end' => #{character => ToC, line => ToL},
+                 start => #{character => FromC, line => FromL}
+               },
+            uri => Uri
+          },
+       name => Name
+     } || {Name, {FromL, FromC}, {ToL, ToC}} <- lists:append([macros()])].
+
+expected_records(Uri) ->
+  [ #{ kind => ?SYMBOLKIND_STRUCT,
+       location =>
+         #{ range =>
+              #{ 'end' => #{character => ToC, line => ToL},
+                 start => #{character => FromC, line => FromL}
+               },
+            uri => Uri
+          },
+       name => Name
+     } || {Name, {FromL, FromC}, {ToL, ToC}} <- lists:append([records()])].
+
+expected_types(Uri) ->
+  [ #{ kind => ?SYMBOLKIND_TYPE_PARAMETER,
+       location =>
+         #{ range =>
+              #{ 'end' => #{character => ToC, line => ToL},
+                 start => #{character => FromC, line => FromL}
+               },
+            uri => Uri
+          },
+       name => Name
+     } || {Name, {FromL, FromC}, {ToL, ToC}} <- lists:append([types()])].
+
 functions() ->
   [ {<<"function_a/0">>, {20, 0}, {20, 10}}
   , {<<"function_b/0">>, {24, 0}, {24, 10}}
@@ -98,9 +139,25 @@ functions() ->
   , {<<"function_m/1">>, {83, 0}, {83, 10}}
   , {<<"function_n/0">>, {88, 0}, {88, 10}}
   , {<<"function_o/0">>, {92, 0}, {92, 10}}
-  , {<<"'PascalCaseFunction'/1">>, {97, 0}, {97, 20}}
+  , {<<"PascalCaseFunction/1">>, {97, 0}, {97, 20}}
   , {<<"function_p/1">>, {102, 0}, {102, 10}}
   , {<<"function_q/0">>, {113, 0}, {113, 10}}
   , {<<"macro_b/2">>, {119, 0}, {119, 7}}
   , {<<"function_mb/0">>, {122, 0}, {122, 11}}
+  ].
+
+macros() ->
+  [ {<<"macro_A">>, {44, 8}, {44, 15}}
+  , {<<"MACRO_B">>, {117, 8}, {117, 15}}
+  , {<<"MACRO_A">>, {17, 8}, {17, 15}}
+  , {<<"MACRO_A/1">>, {18, 8}, {18, 15}}
+  ].
+
+records() ->
+  [ {<<"record_a">>, {15, 8}, {15, 16}}
+  , {<<"?MODULE">>, {110, 8}, {110, 15}}
+  ].
+
+types() ->
+  [ {<<"type_a/0">>, {36, 0}, {36, 24}}
   ].
