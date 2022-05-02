@@ -355,7 +355,8 @@ setup() ->
   ServerIo = els_fake_stdio:start(),
   ok = application:set_env(els_core, io_device, ServerIo),
   application:ensure_all_started(els_lsp),
-  file:write_file("/tmp/erlang_ls.config", <<"">>),
+  ConfigFile = filename:join([els_utils:system_tmp_dir(), "erlang_ls.config"]),
+  file:write_file(ConfigFile, <<"">>),
   ok.
 
 %%==============================================================================
