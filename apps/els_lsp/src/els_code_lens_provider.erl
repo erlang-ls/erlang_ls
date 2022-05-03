@@ -35,8 +35,9 @@ run_lenses_job(Uri) ->
   Config = #{ task =>
                 fun(Doc, _) ->
                     lists:flatten(
-                      [els_code_lens:lenses(Id, Doc) ||
-                        Id <- els_code_lens:enabled_lenses()])
+                      [els_code_lens:lenses(Id, Doc) || Id <- els_code_lens:enabled_lenses()]
+                      ++ wrangler_handler:get_code_lenses(Doc)
+                    )
                 end
             , entries => [Document]
             , title => <<"Lenses">>

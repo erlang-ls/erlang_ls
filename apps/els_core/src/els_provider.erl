@@ -44,7 +44,8 @@
                   | els_code_lens_provider
                   | els_execute_command_provider
                   | els_rename_provider
-                  | els_text_synchronization_provider.
+                  | els_text_synchronization_provider
+                  | els_semantic_token_provider.
 -type request()  :: {atom() | binary(), map()}.
 -type state() :: #{ in_progress := [progress_entry()]
                   , in_progress_diagnostics := [diagnostic_entry()]
@@ -205,6 +206,7 @@ available_providers() ->
   , els_rename_provider
   , els_call_hierarchy_provider
   , els_text_synchronization_provider
+  , els_semantic_token_provider
   ].
 
 %%==============================================================================

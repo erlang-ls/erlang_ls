@@ -23,12 +23,14 @@ is_enabled() -> true.
 
 -spec options() -> map().
 options() ->
-  #{ commands => [ els_command:with_prefix(<<"server-info">>)
-                 , els_command:with_prefix(<<"ct-run-test">>)
-                 , els_command:with_prefix(<<"show-behaviour-usages">>)
-                 , els_command:with_prefix(<<"suggest-spec">>)
-                 , els_command:with_prefix(<<"function-references">>)
-                 ] }.
+  Commands = [ <<"server-info">>
+             , <<"ct-run-test">>
+             , <<"show-behaviour-usages">>
+             , <<"suggest-spec">>
+             , <<"function-references">>
+             ],
+  #{ commands => [ els_command:with_prefix(Cmd)
+    || Cmd <- Commands ++ wrangler_handler:enabled_commands() ] }.
 
 -spec handle_request(any(), state()) -> {response, any()}.
 handle_request({workspace_executecommand, Params}, _State) ->
@@ -98,6 +100,8 @@ execute_command(<<"suggest-spec">>, [#{ <<"uri">> := Uri
   els_server:send_request(Method, Params),
   [];
 execute_command(Command, Arguments) ->
-  ?LOG_INFO("Unsupported command: [Command=~p] [Arguments=~p]"
-           , [Command, Arguments]),
+  case wrangler_handler:execute_command(Command, Arguments) of
+    true -> ok;
+    _ -> ?LOG_INFO("Unsupported command: [Command=~p] [Arguments=~p]", [Command, Arguments])
+  end,
   [].

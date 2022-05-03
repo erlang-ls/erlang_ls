@@ -424,6 +424,7 @@ method_lookup(did_close)                -> <<"textDocument/didClose">>;
 method_lookup(hover)                    -> <<"textDocument/hover">>;
 method_lookup(implementation)           -> <<"textDocument/implementation">>;
 method_lookup(folding_range)            -> <<"textDocument/foldingRange">>;
+method_lookup(semantic_tokens)      -> <<"textDocument/semanticTokens/full">>;
 method_lookup(preparecallhierarchy) -> <<"textDocument/prepareCallHierarchy">>;
 method_lookup(callhierarchy_incomingcalls) -> <<"callHierarchy/incomingCalls">>;
 method_lookup(callhierarchy_outgoingcalls) -> <<"callHierarchy/outgoingCalls">>;

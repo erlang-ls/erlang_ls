@@ -30,11 +30,15 @@ handle_request({document_highlight, Params}, _State) ->
    , <<"textDocument">> := #{<<"uri">> := Uri}
    } = Params,
   {ok, Document} = els_utils:lookup_document(Uri),
-  case
-    els_dt_document:get_element_at_pos(Document, Line + 1, Character + 1)
-  of
-    [POI | _] -> {response, find_highlights(Document, POI)};
-    []        -> {response, null}
+  Highlights = case
+      els_dt_document:get_element_at_pos(Document, Line + 1, Character + 1)
+    of
+      [POI | _] -> find_highlights(Document, POI);
+      []        -> null
+    end,
+  case {Highlights, wrangler_handler:get_highlights(Uri, Line, Character)} of
+    {H, null} -> {response, H};
+    {_, H} -> {response, H} %% overwrites them for more transparent Wrangler forms.
   end.
 
 %%==============================================================================
