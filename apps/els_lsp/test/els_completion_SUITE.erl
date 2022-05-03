@@ -45,6 +45,7 @@
         , resolve_type_application_remote_external/1
         , resolve_opaque_application_remote_external/1
         , resolve_type_application_remote_otp/1
+        , resolve_clause/1
         ]).
 
 %%==============================================================================
@@ -1263,6 +1264,9 @@ resolve_type_application_remote_otp(Config) ->
                       },
   ?assertEqual(Expected, Result).
 
+select_completionitems(CompletionItems, Kind) ->
+  [CI || #{ kind := K } = CI <- CompletionItems, K =:= Kind].
+
 select_completionitems(CompletionItems, Kind, Label) ->
   [CI || #{ kind := K , label := L
           } = CI <- CompletionItems, L =:= Label, K =:= Kind].
@@ -1274,3 +1278,50 @@ has_eep48(Module) ->
     {ok, _} -> true;
     _ -> false
   end.
+
+-spec resolve_clause(config()) -> ok.
+resolve_clause(Config) ->
+  Uri = ?config(completion_clause_uri, Config),
+  CompletionKind = ?COMPLETION_TRIGGER_KIND_INVOKED,
+  %% check function clause
+  #{result := FunctionCompletionItems} =
+    els_client:completion(Uri, 11, 9, CompletionKind, <<";">>),
+  [FunctionClause] = select_completionitems(FunctionCompletionItems,
+                  ?COMPLETION_ITEM_KIND_FUNCTION, <<"f(Arg1) -> ">>),
+  #{result := FunctionClauseResult} =
+    els_client:completionitem_resolve(FunctionClause),
+  ?assertMatch( #{ insertText := <<"\nf(${1:Arg1}) -> ">>
+                 , insertTextMode := 1}
+              , FunctionClauseResult),
+
+  %% check fun clause
+  #{result := FunCompletionItems} =
+    els_client:completion(Uri, 7, 30, CompletionKind, <<";">>),
+  [FunClause1, FunClause2] = select_completionitems(FunCompletionItems,
+                  ?COMPLETION_ITEM_KIND_SNIPPET),
+
+  #{result := FunClauseResult1} = els_client:completionitem_resolve(FunClause1),
+  ?assertMatch(#{ insertText := <<"\n(${1:Args}) ->\n\t">>}, FunClauseResult1),
+
+  #{result := FunClauseResult2} = els_client:completionitem_resolve(FunClause2),
+  ?assertMatch(
+      #{ insertText := <<"\n$({1:Args})${2: when ${3:Guard}} ->\n\t">>}
+    , FunClauseResult2
+  ),
+  %% check other clause
+  #{result := OtherCompletionItems} =
+    els_client:completion(Uri, 9, 19, CompletionKind, <<";">>),
+  [OtherClause1, OtherClause2] = select_completionitems(OtherCompletionItems,
+                  ?COMPLETION_ITEM_KIND_SNIPPET),
+
+  #{result := OtherClauseResult1} =
+    els_client:completionitem_resolve(OtherClause1),
+  ?assertMatch( #{ insertText := <<"\n${1:Pattern} ->\n\t">>}
+              , OtherClauseResult1),
+
+  #{result := OtherClauseResult2} =
+    els_client:completionitem_resolve(OtherClause2),
+  ?assertMatch(
+      #{ insertText := <<"\n${1:Pattern}${2: when ${3:Guard}} ->\n\t">>}
+    , OtherClauseResult2
+  ).

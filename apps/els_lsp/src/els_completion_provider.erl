@@ -665,7 +665,7 @@ clause_completion_snipppets(fun_clause) ->
     , true)
   , clause_completion_snippet(
       <<"(Args) when Guard ->">>
-    , <<"\n$){1:Args})${2: when ${3:Guard}} ->\n\t">>
+    , <<"\n$({1:Args})${2: when ${3:Guard}} ->\n\t">>
     , false)].
 
 -spec clause_completion_snippet(binary(), binary(), boolean()) -> map().
