@@ -131,7 +131,7 @@ includes() ->
 -spec index_file(binary()) -> [{atom(), any()}].
 index_file(Path) ->
   Uri = els_uri:uri(Path),
-  ok = els_indexing:ensure_deeply_indexed(Uri),
+  els_indexing:ensure_deeply_indexed(Uri),
   {ok, Text} = file:read_file(Path),
   ConfigId = config_id(Path),
   [ {atoms_append(ConfigId, '_path'), Path}

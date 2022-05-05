@@ -57,28 +57,28 @@ is_generated_file(Text, Tag) ->
       false
   end.
 
--spec ensure_deeply_indexed(uri()) -> ok.
+-spec ensure_deeply_indexed(uri()) -> els_dt_document:item().
 ensure_deeply_indexed(Uri) ->
   {ok, #{pois := POIs} = Document} = els_utils:lookup_document(Uri),
   case POIs of
     ondemand ->
       deep_index(Document);
     _ ->
-      ok
+      Document
   end.
 
--spec deep_index(els_dt_document:item()) -> ok.
-deep_index(Document) ->
+-spec deep_index(els_dt_document:item()) -> els_dt_document:item().
+deep_index(Document0) ->
   #{ id := Id
    , uri := Uri
    , text := Text
    , source := Source
    , version := Version
-   } = Document,
+   } = Document0,
   {ok, POIs} = els_parser:parse(Text),
   Words = els_dt_document:get_words(Text),
-  case els_dt_document:versioned_insert(Document#{ pois => POIs
-                                                 , words => Words}) of
+  Document = Document0#{pois => POIs, words => Words},
+  case els_dt_document:versioned_insert(Document) of
     ok ->
       index_signatures(Id, Uri, Text, POIs, Version),
       case Source of
@@ -90,7 +90,8 @@ deep_index(Document) ->
     {error, condition_not_satisfied} ->
       ?LOG_DEBUG("Skip indexing old version [uri=~p]", [Uri]),
       ok
-  end.
+  end,
+  Document.
 
 -spec index_signatures(atom(), uri(), binary(), [poi()], version()) -> ok.
 index_signatures(Id, Uri, Text, POIs, Version) ->

@@ -95,7 +95,8 @@ reload_from_disk(Uri) ->
 -spec background_index(els_dt_document:item()) -> {ok, pid()}.
 background_index(#{uri := Uri} = Document) ->
   Config = #{ task => fun (Doc, _State) ->
-                          els_indexing:deep_index(Doc)
+                          els_indexing:deep_index(Doc),
+                          ok
                       end
             , entries => [Document]
             , title => <<"Indexing ", Uri/binary>>
