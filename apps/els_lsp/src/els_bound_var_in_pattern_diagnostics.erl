@@ -59,12 +59,22 @@ find_vars(Uri) ->
 find_vars_in_form(Form) ->
   case erl_syntax:type(Form) of
     function ->
-      AnnotatedForm = erl_syntax_lib:annotate_bindings(Form, []),
-      %% There are no bound variables in function heads or guards
-      %% so lets descend straight into the bodies
-      Clauses = erl_syntax:function_clauses(AnnotatedForm),
-      ClauseBodies = lists:map(fun erl_syntax:clause_body/1, Clauses),
-      fold_subtrees(ClauseBodies, []);
+      %% #1288: The try catch should allow us to understand the root cause
+      %% of the occasional crashes, which could be due to an incorrect mapping
+      %% between the erlfmt AST and erl_syntax AST
+      try
+        AnnotatedForm = erl_syntax_lib:annotate_bindings(Form, []),
+        %% There are no bound variables in function heads or guards
+        %% so lets descend straight into the bodies
+        Clauses = erl_syntax:function_clauses(AnnotatedForm),
+        ClauseBodies = lists:map(fun erl_syntax:clause_body/1, Clauses),
+        fold_subtrees(ClauseBodies, [])
+      catch C:E:St ->
+          ?LOG_ERROR("Error annotating bindings "
+                     "[form=~p] [class=~p] [error=~p] [stacktrace=~p]",
+                     [Form, C, E, St]),
+          []
+      end;
     _ ->
       []
   end.
