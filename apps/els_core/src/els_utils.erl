@@ -115,17 +115,17 @@ find_header(Id) ->
   end.
 
 %% @doc Look for a module in the DB
--spec find_module(atom()) -> {ok, uri()} | {error, any()}.
+-spec find_module(atom()) -> {ok, uri()} | {error, not_found}.
 find_module(Id) ->
   case find_modules(Id) of
       {ok, [Uri | _]} ->
           {ok, Uri};
-      Else ->
-          Else
+      {ok, []} ->
+          {error, not_found}
   end.
 
 %% @doc Look for all versions of a module in the DB
--spec find_modules(atom()) -> {ok, [uri()]} | {error, any()}.
+-spec find_modules(atom()) -> {ok, [uri()]}.
 find_modules(Id) ->
   {ok, Candidates} = els_dt_document_index:lookup(Id),
   case [Uri || #{kind := module, uri := Uri} <- Candidates] of
@@ -133,7 +133,9 @@ find_modules(Id) ->
       FileName = atom_to_list(Id) ++ ".erl",
       case els_indexing:find_and_deeply_index_file(FileName) of
         {ok, Uri} -> {ok, [Uri]};
-        Error -> Error
+        _Error ->
+          ?LOG_INFO("Finding module failed [filename=~p]", [FileName]),
+          {ok, []}
       end;
     Uris ->
       {ok, prioritize_uris(Uris)}
