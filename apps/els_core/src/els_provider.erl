@@ -13,6 +13,7 @@
         , handle_call/3
         , handle_cast/2
         , handle_info/2
+        , terminate/2
         ]).
 
 %%==============================================================================
@@ -93,6 +94,9 @@ cancel_request_by_uri(Uri) ->
 
 -spec init(unused) -> {ok, state()}.
 init(unused) ->
+  %% Ensure the terminate function is called on shutdown, allowing the
+  %% job to clean up.
+  process_flag(trap_exit, true),
   {ok, #{in_progress => [], in_progress_diagnostics => []}}.
 
 -spec handle_call(any(), {pid(), any()}, state()) ->
@@ -150,27 +154,36 @@ handle_info({result, Result, Job}, State) ->
 handle_info({diagnostics, Diagnostics, Job}, State) ->
   #{in_progress_diagnostics := InProgress} = State,
   ?LOG_DEBUG("Received diagnostics [job=~p]", [Job]),
-  { #{ pending := Jobs
-     , diagnostics := OldDiagnostics
-     , uri := Uri
-     }
-  , Rest
-  } = find_entry(Job, InProgress),
-  NewDiagnostics = Diagnostics ++ OldDiagnostics,
-  els_diagnostics_provider:publish(Uri, NewDiagnostics),
-  NewState = case lists:delete(Job, Jobs) of
-               [] ->
-                 State#{in_progress_diagnostics => Rest};
-               Remaining ->
-                 State#{in_progress_diagnostics =>
-                          [#{ pending => Remaining
-                            , diagnostics => NewDiagnostics
-                            , uri => Uri
-                            }|Rest]}
-             end,
-  {noreply, NewState};
+    case find_entry(Job, InProgress) of
+      {ok, { #{ pending := Jobs
+              , diagnostics := OldDiagnostics
+              , uri := Uri
+              }
+           , Rest
+           }} ->
+        NewDiagnostics = Diagnostics ++ OldDiagnostics,
+        els_diagnostics_provider:publish(Uri, NewDiagnostics),
+        NewState = case lists:delete(Job, Jobs) of
+                     [] ->
+                       State#{in_progress_diagnostics => Rest};
+                     Remaining ->
+                       State#{in_progress_diagnostics =>
+                                [#{ pending => Remaining
+                                  , diagnostics => NewDiagnostics
+                                  , uri => Uri
+                                  }|Rest]}
+                   end,
+        {noreply, NewState};
+      {error, not_found} ->
+        {noreply, State}
+    end;
 handle_info(_Request, State) ->
   {noreply, State}.
+
+-spec terminate(any(), state()) -> ok.
+terminate(_Reason, #{in_progress := InProgress}) ->
+  [els_background_job:stop(Job) || {_Uri, Job} <- InProgress],
+  ok.
 
 -spec available_providers() -> [provider()].
 available_providers() ->
@@ -198,16 +211,20 @@ available_providers() ->
 %% Internal Functions
 %%==============================================================================
 -spec find_entry(job(), [diagnostic_entry()]) ->
-        {diagnostic_entry(), [diagnostic_entry()]}.
+        {ok, {diagnostic_entry(), [diagnostic_entry()]}} |
+        {error, not_found}.
 find_entry(Job, InProgress) ->
   find_entry(Job, InProgress, []).
 
 -spec find_entry(job(), [diagnostic_entry()], [diagnostic_entry()]) ->
-        {diagnostic_entry(), [diagnostic_entry()]}.
+        {ok, {diagnostic_entry(), [diagnostic_entry()]}} |
+        {error, not_found}.
+find_entry(_Job, [], []) ->
+  {error, not_found};
 find_entry(Job, [#{pending := Pending} = Entry|Rest], Acc) ->
   case lists:member(Job, Pending) of
     true ->
-      {Entry, Rest ++ Acc};
+      {ok, {Entry, Rest ++ Acc}};
     false ->
       find_entry(Job, Rest, [Entry|Acc])
   end.
