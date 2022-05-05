@@ -33,6 +33,7 @@
         , local_opaque/1
         , remote_opaque/1
         , nonexisting_type/1
+        , nonexisting_module/1
         ]).
 
 %%==============================================================================
@@ -366,6 +367,15 @@ nonexisting_type(Config) ->
   Uri = ?config(hover_type_uri, Config),
   #{result := Result} = els_client:hover(Uri, 22, 10),
   Expected = null,
+  ?assertEqual(Expected, Result),
+  ok.
+
+nonexisting_module(Config) ->
+  Uri = ?config(hover_nonexisting_uri, Config),
+  #{result := Result} = els_client:hover(Uri, 6, 12),
+  Expected =  #{contents =>
+                  #{kind => <<"markdown">>,
+                    value => <<"## nonexisting:main/0">>}},
   ?assertEqual(Expected, Result),
   ok.
 
