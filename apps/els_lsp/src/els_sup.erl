@@ -66,11 +66,11 @@ init([]) ->
                , #{ id    => els_snippets_server
                   , start => {els_snippets_server, start_link, []}
                   }
-               , #{ id       => els_provider
-                  , start    => {els_provider, start_link, []}
-                  }
                , #{ id       => els_server
                   , start    => {els_server, start_link, []}
+                  }
+               , #{ id       => els_provider
+                  , start    => {els_provider, start_link, []}
                   }
                ],
   {ok, {SupFlags, ChildSpecs}}.

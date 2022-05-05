@@ -22,7 +22,7 @@ start_listener(Cb) ->
 
 -spec init({function(), atom() | pid()}) -> no_return().
 init({Cb, IoDevice}) ->
-  ?LOG_INFO("Starting stdio server..."),
+  ?LOG_INFO("Starting stdio server... [io_device=~p]", [IoDevice]),
   ok = io:setopts(IoDevice, [binary, {encoding, latin1}]),
   {ok, Server} = application:get_env(els_core, server),
   ok = Server:set_io_device(IoDevice),
