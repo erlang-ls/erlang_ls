@@ -28,10 +28,7 @@ is_enabled() ->
   case els_config:get(wrangler) of
     notconfigured -> false;
     Config ->
-      case maps:get("enabled", Config, false) of
-        true -> true;
-        false -> false
-      end
+      maps:get("enabled", Config, false)
   end.
 
 %% Returns Wrangler`s config from the config file.
