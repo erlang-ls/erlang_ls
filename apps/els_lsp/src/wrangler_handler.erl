@@ -75,12 +75,12 @@ enabled_commands() ->
 get_code_actions(Uri, Range) ->
   case is_enabled() of
     true ->
-      Actions = wls_code_actions:get_actions(Uri, Range),
-      if Actions /= [] ->
-        ?LOG_INFO("Wrangler Code Actions: ~p", [Actions]);
-        true -> ok
-      end,
-      Actions;
+      case wls_code_actions:get_actions(Uri, Range) of
+        [] -> [];
+        Actions ->
+          ?LOG_INFO("Wrangler Code Actions: ~p", [Actions]),
+          Actions
+      end;
     false -> []
   end.
 
@@ -88,15 +88,14 @@ get_code_actions(Uri, Range) ->
 get_code_lenses(Document) ->
   case is_enabled() of
     true ->
-      Lenses = lists:flatten(
-        [wls_code_lens:lenses(Id, Document)
-          || Id <- wls_code_lens:enabled_lenses()]
-      ),
-      if Lenses /= [] ->
-        ?LOG_INFO("Wrangler Code Lenses: ~p", [Lenses]);
-        true -> ok
-      end,
-      Lenses;
+      case lists:flatten([wls_code_lens:lenses(Id, Document)
+                            || Id <- wls_code_lens:enabled_lenses()])
+      of
+        [] -> [];
+        Lenses ->
+          ?LOG_INFO("Wrangler Code Lenses: ~p", [Lenses]),
+          Lenses
+      end;
     false -> []
   end.
 
@@ -104,12 +103,12 @@ get_code_lenses(Document) ->
 get_highlights(Uri, Line, Character) ->
   case is_enabled() of
     true ->
-      Highlights = wls_highlight:get_highlights(Uri, {Line, Character}),
-      if Highlights /= null ->
-        ?LOG_INFO("Wrangler Highlights: ~p", [Highlights]);
-        true -> ok
-      end,
-      Highlights;
+      case wls_highlight:get_highlights(Uri, {Line, Character}) of
+        null -> null;
+        Highlights ->
+          ?LOG_INFO("Wrangler Highlights: ~p", [Highlights]),
+          Highlights
+      end;
     false -> null
   end.
 
@@ -117,12 +116,12 @@ get_highlights(Uri, Line, Character) ->
 get_semantic_tokens(Uri) ->
   case is_enabled() of
     true ->
-      SemanticTokens = wls_semantic_tokens:semantic_tokens(Uri),
-      if SemanticTokens /= [] ->
-        ?LOG_INFO("Wrangler Semantic Tokens: ~p", [SemanticTokens]);
-        true -> ok
-      end,
-      SemanticTokens;
+      case wls_semantic_tokens:semantic_tokens(Uri) of
+        [] -> [];
+        SemanticTokens ->
+          ?LOG_INFO("Wrangler Semantic Tokens: ~p", [SemanticTokens]),
+          SemanticTokens
+      end;
     false -> []
   end.
 

@@ -147,11 +147,14 @@ do_initialize(RootUri, Capabilities, InitOptions, {ConfigPath, Config}) ->
       ok = set(wrangler, Wrangler),
       case maps:get("path", Wrangler, notconfigured) of
         notconfigured ->
-          ?LOG_INFO("Wrangler path is not configured, assuming it is installed system-wide.");
+          ?LOG_INFO("Wrangler path is not configured,
+            assuming it is installed system-wide.");
         Path ->
           case code:add_path(Path) of
             true -> ok;
-            {error, bad_directory} -> ?LOG_INFO("Wrangler path is configured but not a valid ebin directory: ~p", [Path])
+            {error, bad_directory} ->
+              ?LOG_INFO("Wrangler path is configured but
+                not a valid ebin directory: ~p", [Path])
           end
       end,
       case application:load(wrangler) of

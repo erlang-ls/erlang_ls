@@ -38,7 +38,8 @@ handle_request({document_highlight, Params}, _State) ->
     end,
   case {Highlights, wrangler_handler:get_highlights(Uri, Line, Character)} of
     {H, null} -> {response, H};
-    {_, H} -> {response, H} %% overwrites them for more transparent Wrangler forms.
+    {_, H} -> {response, H}
+              %% overwrites them for more transparent Wrangler forms.
   end.
 
 %%==============================================================================

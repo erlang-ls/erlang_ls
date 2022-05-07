@@ -102,6 +102,7 @@ execute_command(<<"suggest-spec">>, [#{ <<"uri">> := Uri
 execute_command(Command, Arguments) ->
   case wrangler_handler:execute_command(Command, Arguments) of
     true -> ok;
-    _ -> ?LOG_INFO("Unsupported command: [Command=~p] [Arguments=~p]", [Command, Arguments])
+    _ -> ?LOG_INFO("Unsupported command: [Command=~p] [Arguments=~p]",
+          [Command, Arguments])
   end,
   [].
