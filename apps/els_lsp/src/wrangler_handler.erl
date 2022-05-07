@@ -5,6 +5,7 @@
 
 -module(wrangler_handler).
 -export([ is_enabled/0
+        , wrangler_config/0
         , get_code_actions/2
         , get_code_lenses/1
         , enabled_commands/0
@@ -17,56 +18,48 @@
 -include("els_lsp.hrl").
 -include_lib("kernel/include/logger.hrl").
 
+%%==============================================================================
+%% Configuration related functions.
+%%==============================================================================
 
+%% Check if Wrangler is enabled in the config file.
 -spec is_enabled() -> boolean().
 is_enabled() ->
   case els_config:get(wrangler) of
     notconfigured -> false;
-    _ -> true
-  end.
-
--spec get_code_actions(uri(), range()) -> [map()].
-get_code_actions(Uri, Range) ->
-  case is_enabled() of
-    true -> wls_code_actions:get_actions(Uri, Range);
-    false -> []
-  end.
-
--spec get_code_lenses(els_dt_document:item()) -> [els_code_lens:lens()].
-get_code_lenses(Document) ->
-  case is_enabled() of
-    true ->
-      Lenses = [wls_code_lens:lenses(Id, Document) || Id <- wls_code_lens:enabled_lenses()],
-      ?LOG_INFO("Wrangler Code Lenses: ~p", [Lenses]),
-      Lenses;
-    false -> []
-  end.
-
--spec get_highlights(uri(), integer(), integer()) -> 'null' | [map()].
-get_highlights(Uri, Line, Character) ->
-  case is_enabled() of
-    true ->
-      Highlights = wls_highlight:get_highlights(Uri, {Line, Character}),
-      ?LOG_INFO("Wrangler Highlights: ~p", [Highlights]),
-      Highlights;
-    false -> null
-  end.
-
-
--spec execute_command(els_command:command_id(), [any()]) -> boolean().
-execute_command(Command, Arguments) ->
-  case is_enabled() of
-    true ->
-      case lists:member(Command, wls_execute_command_provider:enabled_commands()) of
-        true ->
-          wls_execute_command_provider:execute_command(Command, Arguments),
-          true;
+    Config ->
+      case maps:get("enabled", Config, false) of
+        true -> true;
         false -> false
-      end;
-    false -> false
+      end
   end.
 
+%% Returns Wrangler`s config from the config file.
+%% Used by Wrangler.
+-spec wrangler_config() -> map().
+wrangler_config() ->
+  els_config:get(wrangler).
 
+%% Returns the semantic token types defined by Wrangler.
+%% Used to register server capabilities.
+-spec semantic_token_types() -> any().
+semantic_token_types() ->
+  case is_enabled() of
+    true -> wls_semantic_tokens:token_types();
+    false -> []
+  end.
+
+%% Returns the semantic token modifiers defined by Wrangler.
+%% Used to register server capabilities.
+-spec semantic_token_modifiers() -> any().
+semantic_token_modifiers() ->
+  case is_enabled() of
+    true -> wls_semantic_tokens:token_modifiers();
+    false -> []
+  end.
+
+%% Returns the enabled Wrangler commands.
+%% Used to register server capabilities.
 -spec enabled_commands() -> [els_command:command_id()].
 enabled_commands() ->
   case is_enabled() of
@@ -77,18 +70,50 @@ enabled_commands() ->
     false -> []
   end.
 
--spec semantic_token_types() -> any().
-semantic_token_types() ->
+%%==============================================================================
+%% Getters for the language features provided by Wrangler.
+%%==============================================================================
+
+-spec get_code_actions(uri(), range()) -> [map()].
+get_code_actions(Uri, Range) ->
   case is_enabled() of
-    true -> wls_semantic_tokens:token_types();
+    true ->
+      Actions = wls_code_actions:get_actions(Uri, Range),
+      if Actions /= [] ->
+        ?LOG_INFO("Wrangler Code Actions: ~p", [Actions]);
+        true -> ok
+      end,
+      Actions;
     false -> []
   end.
 
--spec semantic_token_modifiers() -> any().
-semantic_token_modifiers() ->
+-spec get_code_lenses(els_dt_document:item()) -> [els_code_lens:lens()].
+get_code_lenses(Document) ->
   case is_enabled() of
-    true -> wls_semantic_tokens:token_modifiers();
+    true ->
+      Lenses = lists:flatten(
+        [wls_code_lens:lenses(Id, Document)
+          || Id <- wls_code_lens:enabled_lenses()]
+      ),
+      if Lenses /= [] ->
+        ?LOG_INFO("Wrangler Code Lenses: ~p", [Lenses]);
+        true -> ok
+      end,
+      Lenses;
     false -> []
+  end.
+
+-spec get_highlights(uri(), integer(), integer()) -> 'null' | [map()].
+get_highlights(Uri, Line, Character) ->
+  case is_enabled() of
+    true ->
+      Highlights = wls_highlight:get_highlights(Uri, {Line, Character}),
+      if Highlights /= null ->
+        ?LOG_INFO("Wrangler Highlights: ~p", [Highlights]);
+        true -> ok
+      end,
+      Highlights;
+    false -> null
   end.
 
 -spec get_semantic_tokens(uri()) -> [integer()].
@@ -96,7 +121,29 @@ get_semantic_tokens(Uri) ->
   case is_enabled() of
     true ->
       SemanticTokens = wls_semantic_tokens:semantic_tokens(Uri),
-      ?LOG_INFO("Wrangler Semantic Tokens: ~p", [SemanticTokens]),
+      if SemanticTokens /= [] ->
+        ?LOG_INFO("Wrangler Semantic Tokens: ~p", [SemanticTokens]);
+        true -> ok
+      end,
       SemanticTokens;
     false -> []
+  end.
+
+%%==============================================================================
+%% Passing commands to Wrangler.
+%%==============================================================================
+
+-spec execute_command(els_command:command_id(), [any()]) -> boolean().
+execute_command(Command, Arguments) ->
+  case is_enabled() of
+    true ->
+      case lists:member(Command,
+        wls_execute_command_provider:enabled_commands())
+      of
+        true ->
+          wls_execute_command_provider:execute_command(Command, Arguments),
+          true;
+        false -> false
+      end;
+    false -> false
   end.
