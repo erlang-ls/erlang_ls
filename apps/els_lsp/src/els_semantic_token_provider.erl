@@ -13,7 +13,7 @@
 
 -spec is_enabled() -> boolean().
 is_enabled() ->
-  true.
+  wrangler_handler:is_enabled(). %% Currently this is used by Wrangler only.
 
 -spec handle_request(els_provider:request(), state()) -> {response, any()}.
 handle_request({semantic_tokens, Params}, _State) ->
