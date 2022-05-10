@@ -33,6 +33,7 @@
         , refresh_after_watched_file_deleted/1
         , refresh_after_watched_file_changed/1
         , refresh_after_watched_file_added/1
+        , ignore_open_watched_file_added/1
         ]).
 
 %%==============================================================================
@@ -85,7 +86,8 @@ end_per_testcase(TestCase, Config)
   ok = file:write_file(PathB, ?config(old_content, Config)),
   els_test_utils:end_per_testcase(TestCase, Config);
 end_per_testcase(TestCase, Config)
-  when TestCase =:= refresh_after_watched_file_added ->
+  when TestCase =:= refresh_after_watched_file_added;
+       TestCase =:= ignore_open_watched_file_added ->
   PathB = ?config(watched_file_b_path, Config),
   ok = file:delete(filename:join(filename:dirname(PathB),
                                  "watched_file_c.erl")),
@@ -561,13 +563,61 @@ refresh_after_watched_file_added(Config) ->
   assert_locations(LocationsAfter, ExpectedLocationsAfter),
   ok.
 
+-spec ignore_open_watched_file_added(config()) -> ok.
+ignore_open_watched_file_added(Config) ->
+  %% Before
+  UriA = ?config(watched_file_a_uri, Config),
+  UriB = ?config(watched_file_b_uri, Config),
+  PathB = ?config(watched_file_b_path, Config),
+  ExpectedLocationsBefore = [ #{ uri   => UriB
+                               , range => #{from => {6, 3}, to => {6, 22}}
+                               }
+                            ],
+  #{result := LocationsBefore} = els_client:references(UriA, 5, 2),
+  assert_locations(LocationsBefore, ExpectedLocationsBefore),
+  %% Add (Simulate a checkout, rebase or similar)
+  DataDir = ?config(data_dir, Config),
+  PathC = filename:join([DataDir, "watched_file_c.erl"]),
+  NewPathC = filename:join(filename:dirname(PathB), "watched_file_c.erl"),
+  NewUriC = els_uri:uri(NewPathC),
+  {ok, _} = file:copy(PathC, NewPathC),
+  %% Open file, did_change_watched_files requests should be ignored
+  els_client:did_open(NewUriC, erlang, 1, <<"dummy">>),
+  els_client:did_change_watched_files([{NewUriC, ?FILE_CHANGE_TYPE_CREATED}]),
+  %% After
+  ExpectedLocationsOpen = [ #{ uri   => UriB
+                             , range => #{from => {6, 3}, to => {6, 22}}
+                             }
+                          ],
+  #{result := LocationsOpen} = els_client:references(UriA, 5, 2),
+  assert_locations(LocationsOpen, ExpectedLocationsOpen),
+  %% Close file, did_change_watched_files requests should be resumed
+  els_client:did_close(NewUriC),
+  els_client:did_change_watched_files([{NewUriC, ?FILE_CHANGE_TYPE_CREATED}]),
+  %% After
+  ExpectedLocationsClose = [ #{ uri   => NewUriC
+                              , range => #{from => {6, 3}, to => {6, 22}}
+                              }
+                           , #{ uri   => UriB
+                              , range => #{from => {6, 3}, to => {6, 22}}
+                              }
+                           ],
+  #{result := LocationsClose} = els_client:references(UriA, 5, 2),
+  assert_locations(LocationsClose, ExpectedLocationsClose),
+  ok.
+
 %%==============================================================================
 %% Internal functions
 %%==============================================================================
 
 -spec assert_locations([map()], [map()]) -> ok.
 assert_locations(Locations, ExpectedLocations) ->
-  ?assertEqual(length(ExpectedLocations), length(Locations)),
+  ?assertEqual(length(ExpectedLocations),
+               length(Locations),
+               { {expected, ExpectedLocations}
+               , {actual, Locations}
+               }
+              ),
   Pairs = lists:zip(sort_locations(Locations), ExpectedLocations),
   [ begin
       #{range := Range} = Location,

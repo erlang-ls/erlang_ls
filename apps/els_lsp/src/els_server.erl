@@ -103,7 +103,7 @@ reset_internal_state() ->
 init([]) ->
   ?LOG_INFO("Starting els_server..."),
   State = #state{ request_id     = 0
-                , internal_state = #{}
+                , internal_state = #{open_buffers => []}
                 , pending        = []
                 },
   {ok, State}.

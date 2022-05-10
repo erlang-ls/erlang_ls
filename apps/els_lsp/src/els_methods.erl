@@ -185,11 +185,12 @@ exit(_Params, State) ->
 %%==============================================================================
 
 -spec textdocument_didopen(params(), state()) -> result().
-textdocument_didopen(Params, State) ->
+textdocument_didopen(Params, #{open_buffers := OpenBuffers} = State) ->
+  #{<<"textDocument">> := #{ <<"uri">> := Uri}} = Params,
   Provider = els_text_synchronization_provider,
   Request  = {did_open, Params},
   noresponse = els_provider:handle_request(Provider, Request),
-  {noresponse, State}.
+  {noresponse, State#{open_buffers => [Uri|lists:delete(Uri, OpenBuffers)]}}.
 
 %%==============================================================================
 %% textDocument/didchange
@@ -220,11 +221,12 @@ textdocument_didsave(Params, State) ->
 %%==============================================================================
 
 -spec textdocument_didclose(params(), state()) -> result().
-textdocument_didclose(Params, State) ->
+textdocument_didclose(Params, #{open_buffers := OpenBuffers} = State) ->
+  #{<<"textDocument">> := #{ <<"uri">> := Uri}} = Params,
   Provider = els_text_synchronization_provider,
   Request  = {did_close, Params},
   noresponse = els_provider:handle_request(Provider, Request),
-  {noresponse, State}.
+  {noresponse, State#{open_buffers => lists:delete(Uri, OpenBuffers)}}.
 
 %%==============================================================================
 %% textdocument/documentSymbol
@@ -449,7 +451,12 @@ workspace_executecommand(Params, State) ->
 %%==============================================================================
 
 -spec workspace_didchangewatchedfiles(map(), state()) -> result().
-workspace_didchangewatchedfiles(Params, State) ->
+workspace_didchangewatchedfiles(Params0, State) ->
+  #{open_buffers := OpenBuffers} = State,
+  #{<<"changes">> := Changes0} = Params0,
+  Changes = [C || #{<<"uri">> := Uri} = C <- Changes0,
+                  not lists:member(Uri, OpenBuffers)],
+  Params = Params0#{<<"changes">> => Changes},
   Provider = els_text_synchronization_provider,
   Request  = {did_change_watched_files, Params},
   noresponse = els_provider:handle_request(Provider, Request),
