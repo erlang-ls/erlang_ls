@@ -48,7 +48,9 @@
 -type request()  :: {atom() | binary(), map()}.
 -type state() :: #{ in_progress := [progress_entry()]
                   , in_progress_diagnostics := [diagnostic_entry()]
+                  , open_buffers := sets:set(buffer())
                   }.
+-type buffer() :: uri().
 -type progress_entry() :: {uri(), job()}.
 -type diagnostic_entry() :: #{ uri := uri()
                              , pending := [job()]
@@ -97,7 +99,10 @@ init(unused) ->
   %% Ensure the terminate function is called on shutdown, allowing the
   %% job to clean up.
   process_flag(trap_exit, true),
-  {ok, #{in_progress => [], in_progress_diagnostics => []}}.
+  {ok, #{ in_progress => []
+        , in_progress_diagnostics => []
+        , open_buffers => sets:new()
+        }}.
 
 -spec handle_call(any(), {pid(), any()}, state()) ->
   {reply, any(), state()}.
