@@ -185,8 +185,7 @@ new(Uri, Text, Id, Kind, Source, Version) ->
 %% @doc Returns the list of POIs for the current document
 -spec pois(item()) -> [poi()].
 pois(#{ uri := Uri, pois := ondemand }) ->
-  els_indexing:ensure_deeply_indexed(Uri),
-  {ok, #{pois := POIs}} = els_utils:lookup_document(Uri),
+  #{pois := POIs} = els_indexing:ensure_deeply_indexed(Uri),
   POIs;
 pois(#{ pois := POIs }) ->
   POIs.
