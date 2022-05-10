@@ -190,7 +190,7 @@ textdocument_didopen(Params, #{open_buffers := OpenBuffers} = State) ->
   Provider = els_text_synchronization_provider,
   Request  = {did_open, Params},
   noresponse = els_provider:handle_request(Provider, Request),
-  {noresponse, State#{open_buffers => [Uri|lists:delete(Uri, OpenBuffers)]}}.
+  {noresponse, State#{open_buffers => sets:add_element(Uri, OpenBuffers)}}.
 
 %%==============================================================================
 %% textDocument/didchange
@@ -226,7 +226,7 @@ textdocument_didclose(Params, #{open_buffers := OpenBuffers} = State) ->
   Provider = els_text_synchronization_provider,
   Request  = {did_close, Params},
   noresponse = els_provider:handle_request(Provider, Request),
-  {noresponse, State#{open_buffers => lists:delete(Uri, OpenBuffers)}}.
+  {noresponse, State#{open_buffers => sets:del_element(Uri, OpenBuffers)}}.
 
 %%==============================================================================
 %% textdocument/documentSymbol
@@ -455,7 +455,7 @@ workspace_didchangewatchedfiles(Params0, State) ->
   #{open_buffers := OpenBuffers} = State,
   #{<<"changes">> := Changes0} = Params0,
   Changes = [C || #{<<"uri">> := Uri} = C <- Changes0,
-                  not lists:member(Uri, OpenBuffers)],
+                  not sets:is_element(Uri, OpenBuffers)],
   Params = Params0#{<<"changes">> => Changes},
   Provider = els_text_synchronization_provider,
   Request  = {did_change_watched_files, Params},

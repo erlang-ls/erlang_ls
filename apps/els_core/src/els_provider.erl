@@ -48,7 +48,7 @@
 -type request()  :: {atom() | binary(), map()}.
 -type state() :: #{ in_progress := [progress_entry()]
                   , in_progress_diagnostics := [diagnostic_entry()]
-                  , open_buffers := [buffer()]
+                  , open_buffers := sets:set(buffer())
                   }.
 -type buffer() :: uri().
 -type progress_entry() :: {uri(), job()}.
@@ -101,7 +101,7 @@ init(unused) ->
   process_flag(trap_exit, true),
   {ok, #{ in_progress => []
         , in_progress_diagnostics => []
-        , open_buffers => []
+        , open_buffers => sets:new()
         }}.
 
 -spec handle_call(any(), {pid(), any()}, state()) ->
