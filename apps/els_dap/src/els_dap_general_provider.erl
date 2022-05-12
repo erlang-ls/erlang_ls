@@ -918,8 +918,11 @@ start_distribution(Params) ->
                  shortnames
              end,
   %% start distribution
-  LocalNode = els_distribution_server:node_name("erlang_ls_dap",
-                                      binary_to_list(Name), NameType),
+  Prefix = <<"erlang_ls_dap">>,
+  Int = erlang:phash2(erlang:timestamp()),
+  Id = lists:flatten(io_lib:format("~s_~s_~p", [Prefix, Name, Int])),
+  {ok, HostName} = inet:gethostname(),
+  LocalNode = els_distribution_server:node_name(Id, HostName, NameType),
   case els_distribution_server:start_distribution(LocalNode, ConfProjectNode,
                                                   Cookie, NameType) of
     ok ->
