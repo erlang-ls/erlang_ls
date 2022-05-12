@@ -9,16 +9,19 @@
 -define(LSP_MESSAGE_TYPE_INFO, 3).
 -define(LSP_MESSAGE_TYPE_LOG, 4).
 
--type lsp_message_type() :: ?LSP_MESSAGE_TYPE_ERROR |
-                            ?LSP_MESSAGE_TYPE_WARNING |
-                            ?LSP_MESSAGE_TYPE_INFO |
-                            ?LSP_MESSAGE_TYPE_LOG.
+-type lsp_message_type() ::
+    ?LSP_MESSAGE_TYPE_ERROR
+    | ?LSP_MESSAGE_TYPE_WARNING
+    | ?LSP_MESSAGE_TYPE_INFO
+    | ?LSP_MESSAGE_TYPE_LOG.
 
 -spec log(logger:log_event(), logger:config_handler()) -> ok.
 log(#{level := Level} = LogEvent, _Config) ->
     try
-        Msg = logger_formatter:format( LogEvent
-                                     , #{ template => ?LSP_LOG_FORMAT}),
+        Msg = logger_formatter:format(
+            LogEvent,
+            #{template => ?LSP_LOG_FORMAT}
+        ),
         els_server:send_notification(<<"window/logMessage">>, #{
             <<"message">> => unicode:characters_to_binary(Msg),
             <<"type">> => otp_log_level_to_lsp(Level)
@@ -26,8 +29,10 @@ log(#{level := Level} = LogEvent, _Config) ->
     catch
         E:R:ST ->
             ErrMsg =
-                io_lib:format( "Logger Exception ({~w, ~w}): ~n~p"
-                             , [E, R, ST]),
+                io_lib:format(
+                    "Logger Exception ({~w, ~w}): ~n~p",
+                    [E, R, ST]
+                ),
             els_server:send_notification(<<"window/logMessage">>, #{
                 <<"message">> => unicode:characters_to_binary(ErrMsg),
                 <<"type">> => 1

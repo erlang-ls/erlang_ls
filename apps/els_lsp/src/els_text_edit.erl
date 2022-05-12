@@ -1,9 +1,10 @@
 -module(els_text_edit).
 
--export([ diff_files/2
-        , edit_insert_text/3
-        , edit_replace_text/4
-        ]).
+-export([
+    diff_files/2,
+    edit_insert_text/3,
+    edit_replace_text/4
+]).
 
 -include("els_lsp.hrl").
 
@@ -41,49 +42,51 @@ make_text_edits(Diffs) ->
     make_text_edits(Diffs, 0, []).
 
 -spec make_text_edits([diff()], number(), [text_edit()]) -> [text_edit()].
-make_text_edits([{eq, Data}|T], Line, Acc) ->
+make_text_edits([{eq, Data} | T], Line, Acc) ->
     make_text_edits(T, Line + length(Data), Acc);
-
-make_text_edits([{del, Del}, {ins, Ins}|T], Line, Acc) ->
+make_text_edits([{del, Del}, {ins, Ins} | T], Line, Acc) ->
     Len = length(Del),
-    Pos1 = #{ line => Line,       character => 0 },
-    Pos2 = #{ line => Line + Len, character => 0 },
-    Edit = #{ range => #{ start => Pos1, 'end' => Pos2 }
-            , newText => els_utils:to_binary(lists:concat(Ins))
-            },
-    make_text_edits(T, Line + Len, [Edit|Acc]);
-
-make_text_edits([{ins, Data}|T], Line, Acc) ->
-    Pos = #{ line => Line, character => 0 },
-    Edit = #{ range => #{ start => Pos, 'end' => Pos }
-            , newText => els_utils:to_binary(lists:concat(Data))
-            },
-    make_text_edits(T, Line, [Edit|Acc]);
-
-make_text_edits([{del, Data}|T], Line, Acc) ->
+    Pos1 = #{line => Line, character => 0},
+    Pos2 = #{line => Line + Len, character => 0},
+    Edit = #{
+        range => #{start => Pos1, 'end' => Pos2},
+        newText => els_utils:to_binary(lists:concat(Ins))
+    },
+    make_text_edits(T, Line + Len, [Edit | Acc]);
+make_text_edits([{ins, Data} | T], Line, Acc) ->
+    Pos = #{line => Line, character => 0},
+    Edit = #{
+        range => #{start => Pos, 'end' => Pos},
+        newText => els_utils:to_binary(lists:concat(Data))
+    },
+    make_text_edits(T, Line, [Edit | Acc]);
+make_text_edits([{del, Data} | T], Line, Acc) ->
     Len = length(Data),
-    Pos1 = #{ line => Line,       character => 0 },
-    Pos2 = #{ line => Line + Len, character => 0 },
-    Edit = #{ range => #{ start => Pos1, 'end' => Pos2 }
-            , newText => <<"">>
-            },
-    make_text_edits(T, Line + Len, [Edit|Acc]);
-
-make_text_edits([], _Line, Acc) -> lists:reverse(Acc).
+    Pos1 = #{line => Line, character => 0},
+    Pos2 = #{line => Line + Len, character => 0},
+    Edit = #{
+        range => #{start => Pos1, 'end' => Pos2},
+        newText => <<"">>
+    },
+    make_text_edits(T, Line + Len, [Edit | Acc]);
+make_text_edits([], _Line, Acc) ->
+    lists:reverse(Acc).
 
 -spec edit_insert_text(uri(), binary(), number()) -> map().
 edit_insert_text(Uri, Data, Line) ->
-    Pos  = #{ line    => Line, character => 0 },
-    Edit = #{ range   => #{ start => Pos, 'end' => Pos }
-            , newText => els_utils:to_binary(Data)
-            },
-    #{ changes => #{ Uri => [Edit] }}.
+    Pos = #{line => Line, character => 0},
+    Edit = #{
+        range => #{start => Pos, 'end' => Pos},
+        newText => els_utils:to_binary(Data)
+    },
+    #{changes => #{Uri => [Edit]}}.
 
 -spec edit_replace_text(uri(), binary(), number(), number()) -> map().
 edit_replace_text(Uri, Data, LineFrom, LineTo) ->
-    Pos1 = #{ line    => LineFrom, character => 0 },
-    Pos2 = #{ line    => LineTo,   character => 0 },
-    Edit = #{ range   => #{ start => Pos1, 'end' => Pos2 }
-            , newText => els_utils:to_binary(Data)
-            },
-    #{ changes => #{ Uri => [Edit] }}.
+    Pos1 = #{line => LineFrom, character => 0},
+    Pos2 = #{line => LineTo, character => 0},
+    Edit = #{
+        range => #{start => Pos1, 'end' => Pos2},
+        newText => els_utils:to_binary(Data)
+    },
+    #{changes => #{Uri => [Edit]}}.

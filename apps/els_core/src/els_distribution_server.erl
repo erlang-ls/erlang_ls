@@ -8,28 +8,30 @@
 %%==============================================================================
 %% API
 %%==============================================================================
--export([ start_link/0
-        , start_distribution/1
-        , start_distribution/4
-        , connect/0
-        , wait_connect_and_monitor/1
-        , wait_connect_and_monitor/3
-        , rpc_call/3
-        , rpc_call/4
-        , node_name/2
-        , node_name/3
-        , normalize_node_name/1
-        ]).
+-export([
+    start_link/0,
+    start_distribution/1,
+    start_distribution/4,
+    connect/0,
+    wait_connect_and_monitor/1,
+    wait_connect_and_monitor/3,
+    rpc_call/3,
+    rpc_call/4,
+    node_name/2,
+    node_name/3,
+    normalize_node_name/1
+]).
 
 %%==============================================================================
 %% Callbacks for the gen_server behaviour
 %%==============================================================================
 -behaviour(gen_server).
--export([ init/1
-        , handle_call/3
-        , handle_cast/2
-        , handle_info/2
-        ]).
+-export([
+    init/1,
+    handle_call/3,
+    handle_cast/2,
+    handle_info/2
+]).
 
 %%==============================================================================
 %% Includes
@@ -54,197 +56,202 @@
 %%==============================================================================
 -spec start_link() -> {ok, pid()}.
 start_link() ->
-  gen_server:start_link({local, ?SERVER}, ?MODULE, unused, []).
+    gen_server:start_link({local, ?SERVER}, ?MODULE, unused, []).
 
 %% @doc Turns a non-distributed node into a distributed one
 -spec start_distribution(atom()) -> ok | {error, any()}.
 start_distribution(Name) ->
-  Cookie = els_config_runtime:get_cookie(),
-  RemoteNode = els_config_runtime:get_node_name(),
-  NameType = els_config_runtime:get_name_type(),
-  start_distribution(Name, RemoteNode, Cookie, NameType).
+    Cookie = els_config_runtime:get_cookie(),
+    RemoteNode = els_config_runtime:get_node_name(),
+    NameType = els_config_runtime:get_name_type(),
+    start_distribution(Name, RemoteNode, Cookie, NameType).
 
 -spec start_distribution(atom(), atom(), atom(), shortnames | longnames) ->
-        ok | {error, any()}.
+    ok | {error, any()}.
 start_distribution(Name, RemoteNode, Cookie, NameType) ->
-  ?LOG_INFO("Enable distribution [name=~p]", [Name]),
-  case net_kernel:start([Name, NameType]) of
-    {ok, _Pid} ->
-      case Cookie of
-        nocookie ->
-          ok;
-        CustomCookie ->
-          erlang:set_cookie(RemoteNode, CustomCookie)
-      end,
-      ?LOG_INFO("Distribution enabled [name=~p]", [Name]),
-      ok;
-    {error, {already_started, _Pid}} ->
-      ?LOG_INFO("Distribution already enabled [name=~p]", [Name]),
-      ok;
-    {error, Error} ->
-      ?LOG_WARNING("Distribution shutdown [error=~p] [name=~p]", [Error, Name]),
-      {error, Error}
-  end.
+    ?LOG_INFO("Enable distribution [name=~p]", [Name]),
+    case net_kernel:start([Name, NameType]) of
+        {ok, _Pid} ->
+            case Cookie of
+                nocookie ->
+                    ok;
+                CustomCookie ->
+                    erlang:set_cookie(RemoteNode, CustomCookie)
+            end,
+            ?LOG_INFO("Distribution enabled [name=~p]", [Name]),
+            ok;
+        {error, {already_started, _Pid}} ->
+            ?LOG_INFO("Distribution already enabled [name=~p]", [Name]),
+            ok;
+        {error, Error} ->
+            ?LOG_WARNING("Distribution shutdown [error=~p] [name=~p]", [Error, Name]),
+            {error, Error}
+    end.
 
 %% @doc Connect to an existing runtime node, if available, or start one.
 -spec connect() -> ok.
 connect() ->
-  gen_server:call(?SERVER, {connect}, infinity).
+    gen_server:call(?SERVER, {connect}, infinity).
 
 %% @doc Make a RPC call towards the runtime node.
 -spec rpc_call(atom(), atom(), [any()]) -> {any(), binary()}.
 rpc_call(M, F, A) ->
-  rpc_call(M, F, A, ?RPC_TIMEOUT).
+    rpc_call(M, F, A, ?RPC_TIMEOUT).
 
 %% @doc Make a RPC call towards the runtime node.
 -spec rpc_call(atom(), atom(), [any()], timeout()) -> {any(), binary()}.
 rpc_call(M, F, A, Timeout) ->
-  gen_server:call(?SERVER, {rpc_call, M, F, A, Timeout}, Timeout).
+    gen_server:call(?SERVER, {rpc_call, M, F, A, Timeout}, Timeout).
 
 %%==============================================================================
 %% Callbacks for the gen_server behaviour
 %%==============================================================================
 -spec init(unused) -> {ok, state()}.
 init(unused) ->
-  ?LOG_INFO("Ensure EPMD is running", []),
-  ok = ensure_epmd(),
-  {ok, #{}}.
+    ?LOG_INFO("Ensure EPMD is running", []),
+    ok = ensure_epmd(),
+    {ok, #{}}.
 
 -spec handle_call(any(), {pid(), any()}, state()) ->
-        {reply, any(), state()} | {noreply, state()}.
+    {reply, any(), state()} | {noreply, state()}.
 handle_call({connect}, _From, State) ->
-  Node = els_config_runtime:get_node_name(),
-  case connect_and_monitor(Node, not_hidden) of
-    ok ->
-      ok;
-    error ->
-      ok = start(Node)
-  end,
-  {reply, ok, State};
+    Node = els_config_runtime:get_node_name(),
+    case connect_and_monitor(Node, not_hidden) of
+        ok ->
+            ok;
+        error ->
+            ok = start(Node)
+    end,
+    {reply, ok, State};
 handle_call({rpc_call, M, F, A, Timeout}, _From, State) ->
-  {ok, P} = els_group_leader_server:new(),
-  Node = els_config_runtime:get_node_name(),
-  ?LOG_INFO("RPC Call [node=~p] [mfa=~p]", [Node, {M, F, A}]),
-  Result = rpc:call(Node, M, F, A, Timeout),
-  Output = els_group_leader_server:flush(P),
-  ok = els_group_leader_server:stop(P),
-  {reply, {Result, Output}, State};
+    {ok, P} = els_group_leader_server:new(),
+    Node = els_config_runtime:get_node_name(),
+    ?LOG_INFO("RPC Call [node=~p] [mfa=~p]", [Node, {M, F, A}]),
+    Result = rpc:call(Node, M, F, A, Timeout),
+    Output = els_group_leader_server:flush(P),
+    ok = els_group_leader_server:stop(P),
+    {reply, {Result, Output}, State};
 handle_call(_Request, _From, State) ->
-  {noreply, State}.
+    {noreply, State}.
 
 -spec handle_cast(any(), state()) -> {noreply, state()}.
 handle_cast(_Request, State) ->
-  {noreply, State}.
+    {noreply, State}.
 
 -spec handle_info(any(), state()) -> {noreply, state()}.
 handle_info({nodedown, Node}, State) ->
-  ?LOG_ERROR("Runtime node down [node=~p]", [Node]),
-  {noreply, State};
+    ?LOG_ERROR("Runtime node down [node=~p]", [Node]),
+    {noreply, State};
 handle_info(Request, State) ->
-  ?LOG_WARNING("Unexpected request [request=~p]", [Request]),
-  {noreply, State}.
+    ?LOG_WARNING("Unexpected request [request=~p]", [Request]),
+    {noreply, State}.
 
 %%==============================================================================
 %% Internal Functions
 %%==============================================================================
 -spec connect_and_monitor(atom(), hidden | not_hidden) -> ok | error.
 connect_and_monitor(Node, Type) ->
-  case connect_node(Node, Type) of
-    true ->
-      ?LOG_INFO("Connected to node [node=~p]", [Node]),
-      erlang:monitor_node(Node, true),
-      ok;
-    false ->
-      error;
-    ignored ->
-      error
-  end.
+    case connect_node(Node, Type) of
+        true ->
+            ?LOG_INFO("Connected to node [node=~p]", [Node]),
+            erlang:monitor_node(Node, true),
+            ok;
+        false ->
+            error;
+        ignored ->
+            error
+    end.
 
 -spec start(atom()) -> ok.
 start(Node) ->
-  Cmd = els_config_runtime:get_start_cmd(),
-  Args = els_config_runtime:get_start_args(),
-  Path = els_config_runtime:get_otp_path(),
-  ?LOG_INFO( "Starting new Erlang node [node=~p] [cmd=~p] [args=~p] [path=~p]"
-           , [Node, Cmd, Args, Path]
-           ),
-  spawn_link(fun() -> els_utils:cmd(Cmd, Args, Path) end),
-  wait_connect_and_monitor(Node),
-  ok.
+    Cmd = els_config_runtime:get_start_cmd(),
+    Args = els_config_runtime:get_start_args(),
+    Path = els_config_runtime:get_otp_path(),
+    ?LOG_INFO(
+        "Starting new Erlang node [node=~p] [cmd=~p] [args=~p] [path=~p]",
+        [Node, Cmd, Args, Path]
+    ),
+    spawn_link(fun() -> els_utils:cmd(Cmd, Args, Path) end),
+    wait_connect_and_monitor(Node),
+    ok.
 
--spec wait_connect_and_monitor(atom()) ->  ok | error.
+-spec wait_connect_and_monitor(atom()) -> ok | error.
 wait_connect_and_monitor(Node) ->
-  wait_connect_and_monitor(Node, ?WAIT_ATTEMPTS, not_hidden).
+    wait_connect_and_monitor(Node, ?WAIT_ATTEMPTS, not_hidden).
 
 -spec wait_connect_and_monitor(
-  Node :: atom(),
-  Attempts :: pos_integer(),
-  Type :: hidden | not_hidden
-) ->  ok | error.
+    Node :: atom(),
+    Attempts :: pos_integer(),
+    Type :: hidden | not_hidden
+) -> ok | error.
 wait_connect_and_monitor(Node, Attempts, Type) ->
-  wait_connect_and_monitor(Node, Type, Attempts, Attempts).
+    wait_connect_and_monitor(Node, Type, Attempts, Attempts).
 
 -spec wait_connect_and_monitor(
-  Node :: atom(),
-  Type :: hidden | not_hidden,
-  Attempts :: pos_integer(),
-  MaxAttempts :: pos_integer()
+    Node :: atom(),
+    Type :: hidden | not_hidden,
+    Attempts :: pos_integer(),
+    MaxAttempts :: pos_integer()
 ) -> ok | error.
 wait_connect_and_monitor(Node, _, 0, MaxAttempts) ->
-  ?LOG_ERROR( "Failed to connect to node ~p after ~p attempts"
-            , [Node, MaxAttempts]),
-  error;
+    ?LOG_ERROR(
+        "Failed to connect to node ~p after ~p attempts",
+        [Node, MaxAttempts]
+    ),
+    error;
 wait_connect_and_monitor(Node, Type, Attempts, MaxAttempts) ->
-  timer:sleep(?WAIT_INTERVAL),
-  case connect_and_monitor(Node, Type) of
-    ok ->
-      ok;
-    error ->
-      ?LOG_WARNING( "Trying to connect to node ~p (~p/~p)"
-                  , [Node, MaxAttempts - Attempts + 1, MaxAttempts]),
-      wait_connect_and_monitor(Node, Type, Attempts - 1, MaxAttempts)
-  end.
+    timer:sleep(?WAIT_INTERVAL),
+    case connect_and_monitor(Node, Type) of
+        ok ->
+            ok;
+        error ->
+            ?LOG_WARNING(
+                "Trying to connect to node ~p (~p/~p)",
+                [Node, MaxAttempts - Attempts + 1, MaxAttempts]
+            ),
+            wait_connect_and_monitor(Node, Type, Attempts - 1, MaxAttempts)
+    end.
 
 %% @doc Ensure the Erlang Port Mapper Daemon (EPMD) is up and running
 -spec ensure_epmd() -> ok.
 ensure_epmd() ->
-  0 = els_utils:cmd("epmd", ["-daemon"]),
-  ok.
-
+    0 = els_utils:cmd("epmd", ["-daemon"]),
+    ok.
 
 -spec node_name(binary(), binary()) -> atom().
 node_name(Prefix, Name0) ->
-  Name = normalize_node_name(Name0),
-  Int = erlang:phash2(erlang:timestamp()),
-  Id = lists:flatten(io_lib:format("~s_~s_~p", [Prefix, Name, Int])),
-  {ok, HostName} = inet:gethostname(),
-  node_name(Id, HostName, els_config_runtime:get_name_type()).
+    Name = normalize_node_name(Name0),
+    Int = erlang:phash2(erlang:timestamp()),
+    Id = lists:flatten(io_lib:format("~s_~s_~p", [Prefix, Name, Int])),
+    {ok, HostName} = inet:gethostname(),
+    node_name(Id, HostName, els_config_runtime:get_name_type()).
 
 -spec node_name(string(), string(), 'longnames' | 'shortnames') -> atom().
 node_name(Id, HostName, shortnames) ->
-  list_to_atom(Id ++ "@" ++ HostName);
+    list_to_atom(Id ++ "@" ++ HostName);
 node_name(Id, HostName, longnames) ->
-  Domain = proplists:get_value(domain, inet:get_rc(), ""),
-  list_to_atom(Id ++ "@" ++ HostName ++ "." ++ Domain).
+    Domain = proplists:get_value(domain, inet:get_rc(), ""),
+    list_to_atom(Id ++ "@" ++ HostName ++ "." ++ Domain).
 
 -spec normalize_node_name(string() | binary()) -> string().
 normalize_node_name(Name) ->
-  %% Replace invalid characters with _
-  re:replace(Name, "[^0-9A-Za-z_\\-]", "_", [global, {return, list}]).
+    %% Replace invalid characters with _
+    re:replace(Name, "[^0-9A-Za-z_\\-]", "_", [global, {return, list}]).
 
--spec connect_node(node(),  hidden | not_hidden) -> boolean() | ignored.
+-spec connect_node(node(), hidden | not_hidden) -> boolean() | ignored.
 connect_node(Node, not_hidden) ->
-  net_kernel:connect_node(Node);
+    net_kernel:connect_node(Node);
 connect_node(Node, hidden) ->
-  net_kernel:hidden_connect_node(Node).
+    net_kernel:hidden_connect_node(Node).
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 
 default_node_name_test_() ->
-  [ ?_assertEqual("foobar",  normalize_node_name("foobar"))
-  , ?_assertEqual("foo_bar", normalize_node_name("foo.bar"))
-  , ?_assertEqual("_",       normalize_node_name("&"))
-  ].
+    [
+        ?_assertEqual("foobar", normalize_node_name("foobar")),
+        ?_assertEqual("foo_bar", normalize_node_name("foo.bar")),
+        ?_assertEqual("_", normalize_node_name("&"))
+    ].
 
 -endif.

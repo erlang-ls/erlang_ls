@@ -38,7 +38,7 @@
 %% Hence, the erl_syntax:set_pos() function is used for all annotations.
 
 erlfmt_to_st(Node) ->
-  Context = get('$erlfmt_ast_context$'),
+    Context = get('$erlfmt_ast_context$'),
     case Node of
         %% ---------------------------------------------------------------------
         %% The following cases can be easily rewritten without losing information
@@ -94,7 +94,7 @@ erlfmt_to_st(Node) ->
                     _ ->
                         erlfmt_to_st(F)
                 end
-                || F <- Fields
+             || F <- Fields
             ],
             Tuple1 = update_tree_with_meta(erl_syntax:tuple(Fields1), TPos),
             update_tree_with_meta(
@@ -110,158 +110,206 @@ erlfmt_to_st(Node) ->
         %% Representation for types is in general the same as for
         %% corresponding values. The `type` node is not used at all. This
         %% means new binary operators `|`, `::`, and `..` inside types.
-      {attribute, Pos, {atom, _, Tag} = Name, [{op, OPos, '::', Type, Definition}]}
-        when Tag =:= type; Tag =:= opaque ->
-        put('$erlfmt_ast_context$', type),
-        {TypeName, Args} =
-          case Type of
-            {call, _CPos, TypeName0, Args0} ->
-              {TypeName0, Args0};
-            {macro_call, _, _, _} ->
-              %% Note: in the following example the arguments belong to the macro
-              %% so we set empty type args.
-              %% `-type ?M(A) :: A.'
-              %% The erlang preprocessor also prefers the M/1 macro if both M/0
-              %% and M/1 are defined, but it also allows only M/0. Unfortunately
-              %% erlang_ls doesn't know what macros are defined.
-              {Type, []};
-            _ ->
-              %% whatever stands at the left side of '::', let's keep it.
-              %% erlfmt_parser allows atoms and vars too
-              {Type, []}
-          end,
-        Tree =
-          update_tree_with_meta(
-            erl_syntax:attribute(erlfmt_to_st(Name),
-                                 [update_tree_with_meta(
-                                    erl_syntax:tuple([erlfmt_to_st(TypeName),
-                                                      erlfmt_to_st(Definition),
-                                                      erl_syntax:list([erlfmt_to_st(A) || A <- Args])]),
-                                    OPos)]),
-            Pos),
-        erase('$erlfmt_ast_context$'),
-        Tree;
-      {attribute, Pos, {atom, _, Tag} = Name, [Def]} when Tag =:= type; Tag =:= opaque ->
-        %% an incomplete attribute, where `::` operator and the definition missing
-        %% eg "-type t()."
-        put('$erlfmt_ast_context$', type),
-        OPos = element(2, Def),
-        {TypeName, Args} =
-          case Def of
-            {call, _CPos, TypeName0, Args0} ->
-              {TypeName0, Args0};
-            _ ->
-              {Def, []}
-          end,
-        %% Set definition as an empty tuple for which els_parser generates no POIs
-        EmptyDef = erl_syntax:tuple([]),
-        Tree =
-          update_tree_with_meta(
-            erl_syntax:attribute(erlfmt_to_st(Name),
-                                 [update_tree_with_meta(
-                                    erl_syntax:tuple([erlfmt_to_st(TypeName),
-                                                      EmptyDef,
-                                                      erl_syntax:list([erlfmt_to_st(A) || A <- Args])]),
-                                    OPos)]),
-            Pos),
-        erase('$erlfmt_ast_context$'),
-        Tree;
-      {attribute, Pos, {atom, _, RawName} = Name, Args} when RawName =:= callback;
-                                                             RawName =:= spec ->
-        put('$erlfmt_ast_context$', type),
-        [{spec, SPos, FName, Clauses}] = Args,
-        {spec_clause, _, {args, _, ClauseArgs}, _, _} = hd(Clauses),
-        Arity = length(ClauseArgs),
-        Tree =
-          update_tree_with_meta(
-            erl_syntax:attribute(erlfmt_to_st(Name),
-                                 [update_tree_with_meta(
-                                    erl_syntax:tuple([erl_syntax:tuple([erlfmt_to_st(FName), erl_syntax:integer(Arity)]),
-                                                      erl_syntax:list([erlfmt_to_st(C) || C <- Clauses])]),
-                                       SPos)]),
-            Pos),
-        erase('$erlfmt_ast_context$'),
-        Tree;
-      {spec_clause, Pos, {args, _HeadMeta, Args}, ReturnType, empty} ->
-        update_tree_with_meta(
-          erl_syntax_function_type([erlfmt_to_st(A) || A <- Args],
-                                   erlfmt_to_st(ReturnType)),
-          Pos);
-      {spec_clause, Pos, {args, _HeadMeta, Args}, ReturnType, GuardOr} ->
-        FunctionType =
-          update_tree_with_meta(
-            erl_syntax_function_type([erlfmt_to_st(A) || A <- Args],
-                                     erlfmt_to_st(ReturnType)),
-            Pos),
-        FunctionConstraint = erlfmt_guard_to_st(GuardOr),
+        {attribute, Pos, {atom, _, Tag} = Name, [{op, OPos, '::', Type, Definition}]} when
+            Tag =:= type; Tag =:= opaque
+        ->
+            put('$erlfmt_ast_context$', type),
+            {TypeName, Args} =
+                case Type of
+                    {call, _CPos, TypeName0, Args0} ->
+                        {TypeName0, Args0};
+                    {macro_call, _, _, _} ->
+                        %% Note: in the following example the arguments belong to the macro
+                        %% so we set empty type args.
+                        %% `-type ?M(A) :: A.'
+                        %% The erlang preprocessor also prefers the M/1 macro if both M/0
+                        %% and M/1 are defined, but it also allows only M/0. Unfortunately
+                        %% erlang_ls doesn't know what macros are defined.
+                        {Type, []};
+                    _ ->
+                        %% whatever stands at the left side of '::', let's keep it.
+                        %% erlfmt_parser allows atoms and vars too
+                        {Type, []}
+                end,
+            Tree =
+                update_tree_with_meta(
+                    erl_syntax:attribute(
+                        erlfmt_to_st(Name),
+                        [
+                            update_tree_with_meta(
+                                erl_syntax:tuple([
+                                    erlfmt_to_st(TypeName),
+                                    erlfmt_to_st(Definition),
+                                    erl_syntax:list([erlfmt_to_st(A) || A <- Args])
+                                ]),
+                                OPos
+                            )
+                        ]
+                    ),
+                    Pos
+                ),
+            erase('$erlfmt_ast_context$'),
+            Tree;
+        {attribute, Pos, {atom, _, Tag} = Name, [Def]} when Tag =:= type; Tag =:= opaque ->
+            %% an incomplete attribute, where `::` operator and the definition missing
+            %% eg "-type t()."
+            put('$erlfmt_ast_context$', type),
+            OPos = element(2, Def),
+            {TypeName, Args} =
+                case Def of
+                    {call, _CPos, TypeName0, Args0} ->
+                        {TypeName0, Args0};
+                    _ ->
+                        {Def, []}
+                end,
+            %% Set definition as an empty tuple for which els_parser generates no POIs
+            EmptyDef = erl_syntax:tuple([]),
+            Tree =
+                update_tree_with_meta(
+                    erl_syntax:attribute(
+                        erlfmt_to_st(Name),
+                        [
+                            update_tree_with_meta(
+                                erl_syntax:tuple([
+                                    erlfmt_to_st(TypeName),
+                                    EmptyDef,
+                                    erl_syntax:list([erlfmt_to_st(A) || A <- Args])
+                                ]),
+                                OPos
+                            )
+                        ]
+                    ),
+                    Pos
+                ),
+            erase('$erlfmt_ast_context$'),
+            Tree;
+        {attribute, Pos, {atom, _, RawName} = Name, Args} when
+            RawName =:= callback;
+            RawName =:= spec
+        ->
+            put('$erlfmt_ast_context$', type),
+            [{spec, SPos, FName, Clauses}] = Args,
+            {spec_clause, _, {args, _, ClauseArgs}, _, _} = hd(Clauses),
+            Arity = length(ClauseArgs),
+            Tree =
+                update_tree_with_meta(
+                    erl_syntax:attribute(
+                        erlfmt_to_st(Name),
+                        [
+                            update_tree_with_meta(
+                                erl_syntax:tuple([
+                                    erl_syntax:tuple([
+                                        erlfmt_to_st(FName), erl_syntax:integer(Arity)
+                                    ]),
+                                    erl_syntax:list([erlfmt_to_st(C) || C <- Clauses])
+                                ]),
+                                SPos
+                            )
+                        ]
+                    ),
+                    Pos
+                ),
+            erase('$erlfmt_ast_context$'),
+            Tree;
+        {spec_clause, Pos, {args, _HeadMeta, Args}, ReturnType, empty} ->
+            update_tree_with_meta(
+                erl_syntax_function_type(
+                    [erlfmt_to_st(A) || A <- Args],
+                    erlfmt_to_st(ReturnType)
+                ),
+                Pos
+            );
+        {spec_clause, Pos, {args, _HeadMeta, Args}, ReturnType, GuardOr} ->
+            FunctionType =
+                update_tree_with_meta(
+                    erl_syntax_function_type(
+                        [erlfmt_to_st(A) || A <- Args],
+                        erlfmt_to_st(ReturnType)
+                    ),
+                    Pos
+                ),
+            FunctionConstraint = erlfmt_guard_to_st(GuardOr),
 
-        update_tree_with_meta(
-          erl_syntax:constrained_function_type(FunctionType, [FunctionConstraint]),
-          Pos);
-      {op, Pos, '|', A, B} when Context =:= type ->
-        update_tree_with_meta(
-          erl_syntax:type_union([erlfmt_to_st(A),
-                                 erlfmt_to_st(B)]),
-          Pos);
-      {op, Pos, '..', A, B} when Context =:= type ->
-        %% erlfmt_to_st_1({type, Pos, range, [A, B]}),
-        update_tree_with_meta(
-          erl_syntax:integer_range_type(erlfmt_to_st(A),
-                                        erlfmt_to_st(B)),
-          Pos);
-      %%{op, Pos, '::', A, B} when Context =:= type ->
-      %%  update_tree_with_meta(
-      %%    erl_syntax:annotated_type(erlfmt_to_st(A),
-      %%                              erlfmt_to_st(B)),
-      %%    Pos);
-      {record, Pos, Name, Fields} when Context =:= type ->
-        %% The record name is represented as node instead of a raw atom
-        %% and typed record fields are represented as '::' ops
-        Fields1 = [
-                   case F of
-                     {op, FPos, '::', B, T} ->
-                       B1 = erlfmt_to_st(B),
-                       T1 = erlfmt_to_st(T),
-                       update_tree_with_meta(
-                         erl_syntax:record_type_field(B1, T1),
-                         FPos
+            update_tree_with_meta(
+                erl_syntax:constrained_function_type(FunctionType, [FunctionConstraint]),
+                Pos
+            );
+        {op, Pos, '|', A, B} when Context =:= type ->
+            update_tree_with_meta(
+                erl_syntax:type_union([
+                    erlfmt_to_st(A),
+                    erlfmt_to_st(B)
+                ]),
+                Pos
+            );
+        {op, Pos, '..', A, B} when Context =:= type ->
+            %% erlfmt_to_st_1({type, Pos, range, [A, B]}),
+            update_tree_with_meta(
+                erl_syntax:integer_range_type(
+                    erlfmt_to_st(A),
+                    erlfmt_to_st(B)
+                ),
+                Pos
+            );
+        %%{op, Pos, '::', A, B} when Context =:= type ->
+        %%  update_tree_with_meta(
+        %%    erl_syntax:annotated_type(erlfmt_to_st(A),
+        %%                              erlfmt_to_st(B)),
+        %%    Pos);
+        {record, Pos, Name, Fields} when Context =:= type ->
+            %% The record name is represented as node instead of a raw atom
+            %% and typed record fields are represented as '::' ops
+            Fields1 = [
+                case F of
+                    {op, FPos, '::', B, T} ->
+                        B1 = erlfmt_to_st(B),
+                        T1 = erlfmt_to_st(T),
+                        update_tree_with_meta(
+                            erl_syntax:record_type_field(B1, T1),
+                            FPos
                         );
-                     _ ->
-                       erlfmt_to_st(F)
-                   end
-                   || F <- Fields
-                  ],
+                    _ ->
+                        erlfmt_to_st(F)
+                end
+             || F <- Fields
+            ],
 
-        update_tree_with_meta(
-          erl_syntax:record_type(
-            erlfmt_to_st(Name),
-            Fields1
-           ),
-          Pos
-         );
-      {call, Pos, {remote, _, _, _} = Name, Args} when Context =:= type ->
-        update_tree_with_meta(
-          erl_syntax:type_application(erlfmt_to_st(Name),
-                                      [erlfmt_to_st(A) || A <- Args]),
-          Pos);
-      {call, Pos, Name, Args} when Context =:= type ->
-        TypeTag =
-          case Name of
-            {atom, _, NameAtom} ->
-              Arity = length(Args),
-              case erl_internal:is_type(NameAtom, Arity) of
-                true ->
-                  type_application;
-                false ->
-                  user_type_application
-              end;
-            _ ->
-              user_type_application
-          end,
-        update_tree_with_meta(
-          erl_syntax:TypeTag(erlfmt_to_st(Name),
-                             [erlfmt_to_st(A) || A <- Args]),
-          Pos);
+            update_tree_with_meta(
+                erl_syntax:record_type(
+                    erlfmt_to_st(Name),
+                    Fields1
+                ),
+                Pos
+            );
+        {call, Pos, {remote, _, _, _} = Name, Args} when Context =:= type ->
+            update_tree_with_meta(
+                erl_syntax:type_application(
+                    erlfmt_to_st(Name),
+                    [erlfmt_to_st(A) || A <- Args]
+                ),
+                Pos
+            );
+        {call, Pos, Name, Args} when Context =:= type ->
+            TypeTag =
+                case Name of
+                    {atom, _, NameAtom} ->
+                        Arity = length(Args),
+                        case erl_internal:is_type(NameAtom, Arity) of
+                            true ->
+                                type_application;
+                            false ->
+                                user_type_application
+                        end;
+                    _ ->
+                        user_type_application
+                end,
+            update_tree_with_meta(
+                erl_syntax:TypeTag(
+                    erlfmt_to_st(Name),
+                    [erlfmt_to_st(A) || A <- Args]
+                ),
+                Pos
+            );
         {attribute, Pos, {atom, _, define} = Tag, [Name, empty]} ->
             %% the erlfmt parser allows defines with empty bodies (with the
             %% closing parens following after the comma); we must turn the
@@ -322,18 +370,20 @@ erlfmt_to_st(Node) ->
         {'try', Pos, {body, _, _} = Body, Clauses, Handlers, After} ->
             %% TODO: preserving annotations on bodies and clause groups
             Body1 = [erlfmt_to_st(Body)],
-            Clauses1 = case Clauses of
-                         {clauses, _, CList} ->
-                           [erlfmt_clause_to_st(C) || C <- CList];
-                         none ->
-                           []
-                       end,
-            Handlers1 = case Handlers of
-                          {clauses, _, HList} ->
-                            [erlfmt_clause_to_st(C) || C <- HList];
-                          none ->
-                            []
-                        end,
+            Clauses1 =
+                case Clauses of
+                    {clauses, _, CList} ->
+                        [erlfmt_clause_to_st(C) || C <- CList];
+                    none ->
+                        []
+                end,
+            Handlers1 =
+                case Handlers of
+                    {clauses, _, HList} ->
+                        [erlfmt_clause_to_st(C) || C <- HList];
+                    none ->
+                        []
+                end,
             After1 = [erlfmt_to_st(E) || E <- After],
             update_tree_with_meta(
                 erl_syntax:try_expr(
@@ -476,38 +526,45 @@ erlfmt_to_st(Node) ->
                 FPos
             ),
             update_tree_with_meta(erl_syntax:implicit_fun(FName), Pos);
-      {'fun', Pos, type} ->
-        update_tree_with_meta(erl_syntax:fun_type(), Pos);
-      {'fun', Pos, {type, _, {args, _, Args}, Res}} ->
-        update_tree_with_meta(
-          erl_syntax_function_type(
-            [erlfmt_to_st(A) || A <- Args],
-            erlfmt_to_st(Res)),
-          Pos);
-      {'bin', Pos, Elements} when Context =:= type ->
-        %% Note: we loose a lot of Annotation info here
-        %% Note2: erl_parse assigns the line number (with no column) to the dummy zeros
-        {M, N} =
-          case Elements of
-            [{bin_element, _, {var, _, '_'}, {bin_size, _, {var, _, '_'}, NNode}, default}] ->
-              {{integer, dummy_anno(), 0}, NNode};
-            [{bin_element, _, {var, _, '_'}, MNode, default}] ->
-              {MNode, {integer, dummy_anno(), 0}};
-            [{bin_element, _, {var, _, '_'}, MNode, default},
-             {bin_element, _, {var, _, '_'}, {bin_size, _, {var, _, '_'}, NNode}, default}] ->
-              {MNode, NNode};
-            [] ->
-              {{integer, dummy_anno(), 0}, {integer, dummy_anno(), 0}};
-            _ ->
-              %% No idea what this is - what ST should we create?
-              %% maybe just a binary(), or an empty text node
-              {{integer, dummy_anno(), 0}, {integer, dummy_anno(), 1}}
-          end,
-        update_tree_with_meta(
-          erl_syntax:bitstring_type(
-            erlfmt_to_st(M),
-            erlfmt_to_st(N)),
-          Pos);
+        {'fun', Pos, type} ->
+            update_tree_with_meta(erl_syntax:fun_type(), Pos);
+        {'fun', Pos, {type, _, {args, _, Args}, Res}} ->
+            update_tree_with_meta(
+                erl_syntax_function_type(
+                    [erlfmt_to_st(A) || A <- Args],
+                    erlfmt_to_st(Res)
+                ),
+                Pos
+            );
+        {'bin', Pos, Elements} when Context =:= type ->
+            %% Note: we loose a lot of Annotation info here
+            %% Note2: erl_parse assigns the line number (with no column) to the dummy zeros
+            {M, N} =
+                case Elements of
+                    [{bin_element, _, {var, _, '_'}, {bin_size, _, {var, _, '_'}, NNode}, default}] ->
+                        {{integer, dummy_anno(), 0}, NNode};
+                    [{bin_element, _, {var, _, '_'}, MNode, default}] ->
+                        {MNode, {integer, dummy_anno(), 0}};
+                    [
+                        {bin_element, _, {var, _, '_'}, MNode, default},
+                        {bin_element, _, {var, _, '_'}, {bin_size, _, {var, _, '_'}, NNode},
+                            default}
+                    ] ->
+                        {MNode, NNode};
+                    [] ->
+                        {{integer, dummy_anno(), 0}, {integer, dummy_anno(), 0}};
+                    _ ->
+                        %% No idea what this is - what ST should we create?
+                        %% maybe just a binary(), or an empty text node
+                        {{integer, dummy_anno(), 0}, {integer, dummy_anno(), 1}}
+                end,
+            update_tree_with_meta(
+                erl_syntax:bitstring_type(
+                    erlfmt_to_st(M),
+                    erlfmt_to_st(N)
+                ),
+                Pos
+            );
         %% Bit type definitions inside binaries are represented as full nodes
         %% instead of raw atoms and integers. The unit notation `unit:Int` is
         %% represented with a `{remote, Anno, {atom, Anno, unit}, Int}` node.
@@ -540,24 +597,27 @@ erlfmt_to_st(Node) ->
                 ),
                 Pos
             );
-      {'receive', Pos, {clauses, _PosClauses, ClauseList}} ->
-        update_tree_with_meta(
-          erl_syntax:receive_expr([erlfmt_to_st(C) || C <- ClauseList]),
-          Pos);
-      {'receive', Pos, Clauses, {after_clause, _PosAfter, Timeout, Action}} ->
-        Clauses1 = case Clauses of
-                     empty ->
-                       [];
-                     {clauses, _PosClauses, ClauseList} ->
-                       [erlfmt_to_st(C) || C <- ClauseList]
-                   end,
-        update_tree_with_meta(
-          erl_syntax:receive_expr(
-            Clauses1,
-            erlfmt_to_st(Timeout),
-            [erlfmt_to_st(A) || A <- Action]),
-          Pos);
-
+        {'receive', Pos, {clauses, _PosClauses, ClauseList}} ->
+            update_tree_with_meta(
+                erl_syntax:receive_expr([erlfmt_to_st(C) || C <- ClauseList]),
+                Pos
+            );
+        {'receive', Pos, Clauses, {after_clause, _PosAfter, Timeout, Action}} ->
+            Clauses1 =
+                case Clauses of
+                    empty ->
+                        [];
+                    {clauses, _PosClauses, ClauseList} ->
+                        [erlfmt_to_st(C) || C <- ClauseList]
+                end,
+            update_tree_with_meta(
+                erl_syntax:receive_expr(
+                    Clauses1,
+                    erlfmt_to_st(Timeout),
+                    [erlfmt_to_st(A) || A <- Action]
+                ),
+                Pos
+            );
         %% ---------------------------------------------------------------------
         %% The remaining cases have been added by erlfmt and need special handling
         %% (many are represented as magically-tagged tuples for now)
@@ -633,11 +693,11 @@ erlfmt_to_st(Node) ->
 %% So first replace the Meta from Node with proper erl_syntax pos+annotation to
 %% make dialyzer happy.
 -spec erlfmt_to_st_1(erlfmt() | syntax_tools()) -> syntax_tools().
-erlfmt_to_st_1(Node) when is_map(element(2, Node))->
-  Node2 = convert_meta_to_anno(Node),
-  erlfmt_to_st_2(Node2);
+erlfmt_to_st_1(Node) when is_map(element(2, Node)) ->
+    Node2 = convert_meta_to_anno(Node),
+    erlfmt_to_st_2(Node2);
 erlfmt_to_st_1(Node) ->
-  erlfmt_to_st_2(Node).
+    erlfmt_to_st_2(Node).
 
 -spec erlfmt_to_st_2(syntax_tools()) -> syntax_tools().
 erlfmt_to_st_2(Node) ->
@@ -656,9 +716,9 @@ erlfmt_subtrees_to_st(Groups) ->
     [
         [
             erlfmt_to_st(Subtree)
-            || Subtree <- Group
+         || Subtree <- Group
         ]
-        || Group <- Groups
+     || Group <- Groups
     ].
 
 -spec get_function_name(maybe_improper_list()) -> any().
@@ -707,7 +767,7 @@ erlfmt_clause_to_st(Other) ->
     %% might be a macro call
     erlfmt_to_st(Other).
 
--spec erlfmt_clause_to_st(_,[any()],_,[any()]) -> any().
+-spec erlfmt_clause_to_st(_, [any()], _, [any()]) -> any().
 erlfmt_clause_to_st(Pos, Patterns, Guard, Body) ->
     Groups = [
         Patterns,
@@ -727,7 +787,7 @@ erlfmt_guard_to_st({guard_or, Pos, List}) ->
     update_tree_with_meta(
         erl_syntax:disjunction([
             erlfmt_guard_to_st(E)
-            || E <- List
+         || E <- List
         ]),
         Pos
     );
@@ -735,7 +795,7 @@ erlfmt_guard_to_st({guard_and, Pos, List}) ->
     update_tree_with_meta(
         erl_syntax:conjunction([
             erlfmt_guard_to_st(E)
-            || E <- List
+         || E <- List
         ]),
         Pos
     );
@@ -779,7 +839,7 @@ fold_arity_qualifier(Node) ->
 
 -spec dummy_anno() -> erl_anno:anno().
 dummy_anno() ->
-  erl_anno:set_generated(true, erl_anno:new({0, 1})).
+    erl_anno:set_generated(true, erl_anno:new({0, 1})).
 
 %% erlfmt ast utilities
 
@@ -795,43 +855,43 @@ set_anno(Node, Loc) ->
 %% erl_syntax:function_type/2 has wrong spec before OTP 24
 -spec erl_syntax_function_type('any_arity' | [syntax_tools()], syntax_tools()) -> syntax_tools().
 erl_syntax_function_type(Arguments, Return) ->
-  apply(erl_syntax, function_type, [Arguments, Return]).
+    apply(erl_syntax, function_type, [Arguments, Return]).
 
 %% Convert erlfmt_scan:anno to erl_syntax pos+annotation
 %%
 %% Note: nothing from meta is stored in annotation
 %% as erlang_ls only needs start and end locations.
--spec update_tree_with_meta(syntax_tools(), erlfmt_scan:anno())
-                           -> syntax_tools().
+-spec update_tree_with_meta(syntax_tools(), erlfmt_scan:anno()) ->
+    syntax_tools().
 update_tree_with_meta(Tree, Meta) ->
-  Anno = meta_to_anno(Meta),
-  Tree2 = erl_syntax:set_pos(Tree, Anno),
-  %% erl_syntax:set_ann(Tree2, [{meta, Meta}]).
-  Tree2.
+    Anno = meta_to_anno(Meta),
+    Tree2 = erl_syntax:set_pos(Tree, Anno),
+    %% erl_syntax:set_ann(Tree2, [{meta, Meta}]).
+    Tree2.
 
 -spec convert_meta_to_anno(erlfmt()) -> syntax_tools().
 convert_meta_to_anno(Node) ->
-  Meta = get_anno(Node),
-  Node2 = set_anno(Node, meta_to_anno(Meta)),
-  %% erl_syntax:set_ann(Node2, [{meta, Meta}]).
-  Node2.
+    Meta = get_anno(Node),
+    Node2 = set_anno(Node, meta_to_anno(Meta)),
+    %% erl_syntax:set_ann(Node2, [{meta, Meta}]).
+    Node2.
 
 -spec meta_to_anno(erlfmt_scan:anno()) -> erl_anno:anno().
 meta_to_anno(Meta) ->
-  %% Recommenting can modify the start and end locations of certain trees
-  %% see erlfmt_recomment:put_(pre|post)_comments/1
-  From =
-    case maps:is_key(pre_comments, Meta) of
-      true ->
-        maps:get(inner_location, Meta);
-      false ->
-        maps:get(location, Meta)
-    end,
-  To =
-    case maps:is_key(post_comments, Meta) of
-      true ->
-        maps:get(inner_end_location, Meta);
-      false ->
-        maps:get(end_location, Meta)
-    end,
-  erl_anno:from_term([{location, From}, {end_location, To}]).
+    %% Recommenting can modify the start and end locations of certain trees
+    %% see erlfmt_recomment:put_(pre|post)_comments/1
+    From =
+        case maps:is_key(pre_comments, Meta) of
+            true ->
+                maps:get(inner_location, Meta);
+            false ->
+                maps:get(location, Meta)
+        end,
+    To =
+        case maps:is_key(post_comments, Meta) of
+            true ->
+                maps:get(inner_end_location, Meta);
+            false ->
+                maps:get(end_location, Meta)
+        end,
+    erl_anno:from_term([{location, From}, {end_location, To}]).

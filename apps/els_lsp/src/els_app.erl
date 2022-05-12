@@ -12,18 +12,19 @@
 %% Exports
 %%==============================================================================
 %% Application Callbacks
--export([ start/2
-        , stop/1
-        ]).
+-export([
+    start/2,
+    stop/1
+]).
 
 %%==============================================================================
 %% Application Callbacks
 %%==============================================================================
 -spec start(normal, any()) -> {ok, pid()}.
 start(_StartType, _StartArgs) ->
-  ok = application:set_env(elvis_core, no_output, true),
-  els_sup:start_link().
+    ok = application:set_env(elvis_core, no_output, true),
+    els_sup:start_link().
 
 -spec stop(any()) -> ok.
 stop(_State) ->
-  ok.
+    ok.

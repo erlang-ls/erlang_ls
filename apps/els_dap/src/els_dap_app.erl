@@ -12,17 +12,18 @@
 %% Exports
 %%==============================================================================
 %% Application Callbacks
--export([ start/2
-        , stop/1
-        ]).
+-export([
+    start/2,
+    stop/1
+]).
 
 %%==============================================================================
 %% Application Callbacks
 %%==============================================================================
 -spec start(normal, any()) -> {ok, pid()}.
 start(_StartType, _StartArgs) ->
-  els_dap_sup:start_link().
+    els_dap_sup:start_link().
 
 -spec stop(any()) -> ok.
 stop(_State) ->
-  ok.
+    ok.
