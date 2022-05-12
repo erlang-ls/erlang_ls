@@ -7,24 +7,25 @@
 
 -spec parse_after(binary(), integer()) -> [poi()].
 parse_after(Text, Line) ->
-  {_, AfterText} = els_text:split_at_line(Text, Line),
-  {ok, POIs} = els_parser:parse(AfterText),
-  POIs.
+    {_, AfterText} = els_text:split_at_line(Text, Line),
+    {ok, POIs} = els_parser:parse(AfterText),
+    POIs.
 
 -spec parse_line(binary(), integer()) -> [poi()].
 parse_line(Text, Line) ->
-  LineText0 = string:trim(els_text:line(Text, Line), trailing, ",;"),
-  case els_parser:parse(LineText0) of
-    {ok, []} ->
-      LineStr = els_utils:to_list(LineText0),
-      case lists:reverse(LineStr) of
-        "fo " ++ _ -> %% Kludge to parse "case foo() of"
-          LineText1 = <<LineText0/binary, " _ -> _ end">>,
-          {ok, POIs} = els_parser:parse(LineText1),
-          POIs;
-        _ ->
-          []
-      end;
-    {ok, POIs} ->
-      POIs
-  end.
+    LineText0 = string:trim(els_text:line(Text, Line), trailing, ",;"),
+    case els_parser:parse(LineText0) of
+        {ok, []} ->
+            LineStr = els_utils:to_list(LineText0),
+            case lists:reverse(LineStr) of
+                %% Kludge to parse "case foo() of"
+                "fo " ++ _ ->
+                    LineText1 = <<LineText0/binary, " _ -> _ end">>,
+                    {ok, POIs} = els_parser:parse(LineText1),
+                    POIs;
+                _ ->
+                    []
+            end;
+        {ok, POIs} ->
+            POIs
+    end.

@@ -49,6 +49,8 @@ jobs:
       with:
         name: els_dap
         path: _build/dap/bin/els_dap
+    - name: Check formatting
+      run: rebar3 fmt -c
     - name: Lint
       run: rebar3 lint
     - name: Generate Dialyzer PLT for usage in CT Tests

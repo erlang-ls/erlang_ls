@@ -41,7 +41,6 @@
 %% //stdlib/epp} before the parser sees them), an extended syntax tree
 %% is created, using the {@link erl_syntax} module.</p>
 
-
 %% NOTES:
 %%
 %% * It's OK if the result does not parse - then at least nothing
@@ -77,12 +76,24 @@
 
 -module(els_dodger).
 
--export([parse_file/1, quick_parse_file/1, parse_file/2,
-         quick_parse_file/2, parse/1, quick_parse/1, parse/2,
-         quick_parse/2, parse/3, parse/4, quick_parse/3, parse_form/2,
-         parse_form/3, quick_parse_form/2, quick_parse_form/3,
-         format_error/1, tokens_to_string/1, normal_parser/2]).
-
+-export([
+    parse_file/1,
+    quick_parse_file/1,
+    parse_file/2,
+    quick_parse_file/2,
+    parse/1,
+    quick_parse/1,
+    parse/2,
+    quick_parse/2,
+    parse/3, parse/4,
+    quick_parse/3,
+    parse_form/2,
+    parse_form/3,
+    quick_parse_form/2, quick_parse_form/3,
+    format_error/1,
+    tokens_to_string/1,
+    normal_parser/2
+]).
 
 %% The following should be: 1) pseudo-uniquely identifiable, and 2)
 %% cause nice looking error messages when the parser has to give up.
@@ -91,7 +102,6 @@
 -define(atom_prefix, "? ").
 -define(var_prefix, "?,").
 -define(pp_form, '?preprocessor declaration?').
-
 
 %% @type errorinfo() = {ErrorLine::integer(),
 %%                      Module::atom(),
@@ -114,10 +124,10 @@
 %% @equiv parse_file(File, [])
 
 -spec parse_file(file:filename()) ->
-        {'ok', erl_syntax:forms()} | {'error', errorinfo()}.
+    {'ok', erl_syntax:forms()} | {'error', errorinfo()}.
 
 parse_file(File) ->
-  parse_file(File, []).
+    parse_file(File, []).
 
 %% @spec parse_file(File, Options) -> {ok, Forms} | {error, errorinfo()}
 %%       File = file:filename()
@@ -154,10 +164,10 @@ parse_file(File) ->
 %% @see erl_syntax:is_form/1
 
 -spec parse_file(file:filename(), [option()]) ->
-        {'ok', erl_syntax:forms()} | {'error', errorinfo()}.
+    {'ok', erl_syntax:forms()} | {'error', errorinfo()}.
 
 parse_file(File, Options) ->
-  parse_file(File, fun parse/3, Options).
+    parse_file(File, fun parse/3, Options).
 
 %% @spec quick_parse_file(File) -> {ok, Forms} | {error, errorinfo()}
 %%       File = file:filename()
@@ -166,10 +176,10 @@ parse_file(File, Options) ->
 %% @equiv quick_parse_file(File, [])
 
 -spec quick_parse_file(file:filename()) ->
-        {'ok', erl_syntax:forms()} | {'error', errorinfo()}.
+    {'ok', erl_syntax:forms()} | {'error', errorinfo()}.
 
 quick_parse_file(File) ->
-  quick_parse_file(File, []).
+    quick_parse_file(File, []).
 
 %% @spec quick_parse_file(File, Options) ->
 %%           {ok, Forms} | {error, errorinfo()}
@@ -192,52 +202,56 @@ quick_parse_file(File) ->
 %% @see parse_file/2
 
 -spec quick_parse_file(file:filename(), [option()]) ->
-        {'ok', erl_syntax:forms()} | {'error', errorinfo()}.
+    {'ok', erl_syntax:forms()} | {'error', errorinfo()}.
 
 quick_parse_file(File, Options) ->
-  parse_file(File, fun quick_parse/3, Options ++ [no_fail]).
+    parse_file(File, fun quick_parse/3, Options ++ [no_fail]).
 
 -spec parse_file(file:filename(), function(), [option()]) -> any().
 parse_file(File, Parser, Options) ->
-  case do_parse_file(utf8, File, Parser, Options) of
-    {ok, Forms}=Ret ->
-      case find_invalid_unicode(Forms) of
-        none ->
-          Ret;
-        invalid_unicode ->
-          case epp:read_encoding(File) of
-            utf8 ->
-              Ret;
-            _ ->
-              do_parse_file(latin1, File, Parser, Options)
-          end
-      end;
-    Else ->
-      Else
-  end.
+    case do_parse_file(utf8, File, Parser, Options) of
+        {ok, Forms} = Ret ->
+            case find_invalid_unicode(Forms) of
+                none ->
+                    Ret;
+                invalid_unicode ->
+                    case epp:read_encoding(File) of
+                        utf8 ->
+                            Ret;
+                        _ ->
+                            do_parse_file(latin1, File, Parser, Options)
+                    end
+            end;
+        Else ->
+            Else
+    end.
 
 -spec do_parse_file(utf8 | latin1, file:filename(), function(), [option()]) ->
-        any().
+    any().
 do_parse_file(DefEncoding, File, Parser, Options) ->
-  case file:open(File, [read]) of
-    {ok, Dev} ->
-      _ = epp:set_encoding(Dev, DefEncoding),
-      try Parser(Dev, 1, Options)
-      after ok = file:close(Dev)
-      end;
-    {error, Error} ->
-      {error, {0, file, Error}}  % defer to file:format_error/1
-  end.
+    case file:open(File, [read]) of
+        {ok, Dev} ->
+            _ = epp:set_encoding(Dev, DefEncoding),
+            try
+                Parser(Dev, 1, Options)
+            after
+                ok = file:close(Dev)
+            end;
+        {error, Error} ->
+            % defer to file:format_error/1
+            {error, {0, file, Error}}
+    end.
 
 -spec find_invalid_unicode([any()]) -> invalid_unicode | none.
-find_invalid_unicode([H|T]) ->
-  case H of
-    {error, {_Line, file_io_server, invalid_unicode}} ->
-      invalid_unicode;
-    _Other ->
-      find_invalid_unicode(T)
-  end;
-find_invalid_unicode([]) -> none.
+find_invalid_unicode([H | T]) ->
+    case H of
+        {error, {_Line, file_io_server, invalid_unicode}} ->
+            invalid_unicode;
+        _Other ->
+            find_invalid_unicode(T)
+    end;
+find_invalid_unicode([]) ->
+    none.
 
 %% =====================================================================
 %% @spec parse(IODevice) -> {ok, Forms} | {error, errorinfo()}
@@ -246,7 +260,7 @@ find_invalid_unicode([]) -> none.
 -spec parse(file:io_device()) -> {'ok', erl_syntax:forms()}.
 
 parse(Dev) ->
-  parse(Dev, 1).
+    parse(Dev, 1).
 
 %% @spec parse(IODevice, StartLoc) -> {ok, Forms} | {error, errorinfo()}
 %%       IODevice = pid()
@@ -257,10 +271,10 @@ parse(Dev) ->
 %% @see parse/1
 
 -spec parse(file:io_device(), location()) ->
-        {'ok', erl_syntax:forms()}.
+    {'ok', erl_syntax:forms()}.
 
 parse(Dev, Loc) ->
-  parse(Dev, Loc, []).
+    parse(Dev, Loc, []).
 
 %% @spec parse(IODevice, StartLoc, Options) ->
 %%           {ok, Forms} | {error, errorinfo()}
@@ -280,19 +294,19 @@ parse(Dev, Loc) ->
 %% @see quick_parse/3
 
 -spec parse(file:io_device(), location(), [option()]) ->
-        {'ok', erl_syntax:forms()}.
+    {'ok', erl_syntax:forms()}.
 
 parse(Dev, Loc0, Options) ->
-  parse(Dev, Loc0, fun parse_form/3, Options).
+    parse(Dev, Loc0, fun parse_form/3, Options).
 
 %% @spec quick_parse(IODevice) -> {ok, Forms} | {error, errorinfo()}
 %% @equiv quick_parse(IODevice, 1)
 
 -spec quick_parse(file:io_device()) ->
-        {'ok', erl_syntax:forms()}.
+    {'ok', erl_syntax:forms()}.
 
 quick_parse(Dev) ->
-  quick_parse(Dev, 1).
+    quick_parse(Dev, 1).
 
 %% @spec quick_parse(IODevice, StartLoc) ->
 %%           {ok, Forms} | {error, errorinfo()}
@@ -304,10 +318,10 @@ quick_parse(Dev) ->
 %% @see quick_parse/1
 
 -spec quick_parse(file:io_device(), erl_anno:location()) ->
-        {'ok', erl_syntax:forms()}.
+    {'ok', erl_syntax:forms()}.
 
 quick_parse(Dev, Loc) ->
-  quick_parse(Dev, Loc, []).
+    quick_parse(Dev, Loc, []).
 
 %% @spec (IODevice, StartLoc, Options) ->
 %%           {ok, Forms} | {error, errorinfo()}
@@ -325,32 +339,36 @@ quick_parse(Dev, Loc) ->
 %% @see parse/3
 
 -spec quick_parse(file:io_device(), integer(), [option()]) ->
-        {'ok', erl_syntax:forms()}.
+    {'ok', erl_syntax:forms()}.
 
 quick_parse(Dev, L0, Options) ->
-  parse(Dev, L0, fun quick_parse_form/3, Options).
+    parse(Dev, L0, fun quick_parse_form/3, Options).
 
 -spec parse(file:io_device(), location(), function(), [option()]) ->
-        {'ok', erl_syntax:forms()}.
+    {'ok', erl_syntax:forms()}.
 
 parse(Dev, L0, Parser, Options) ->
-  parse(Dev, L0, [], Parser, Options).
+    parse(Dev, L0, [], Parser, Options).
 
--spec parse(file:io_device(), location(),
-            erl_syntax:forms(), function(), [option()]) ->
-        {'ok', erl_syntax:forms()}.
+-spec parse(
+    file:io_device(),
+    location(),
+    erl_syntax:forms(),
+    function(),
+    [option()]
+) ->
+    {'ok', erl_syntax:forms()}.
 parse(Dev, L0, Fs, Parser, Options) ->
-  case Parser(Dev, L0, Options) of
-    {ok, none, L1} ->
-      parse(Dev, L1, Fs, Parser, Options);
-    {ok, F, L1} ->
-      parse(Dev, L1, [F | Fs], Parser, Options);
-    {error, IoErr, L1} ->
-      parse(Dev, L1, [{error, IoErr} | Fs], Parser, Options);
-    {eof, _L1} ->
-      {ok, lists:reverse(Fs)}
-  end.
-
+    case Parser(Dev, L0, Options) of
+        {ok, none, L1} ->
+            parse(Dev, L1, Fs, Parser, Options);
+        {ok, F, L1} ->
+            parse(Dev, L1, [F | Fs], Parser, Options);
+        {error, IoErr, L1} ->
+            parse(Dev, L1, [{error, IoErr} | Fs], Parser, Options);
+        {eof, _L1} ->
+            {ok, lists:reverse(Fs)}
+    end.
 
 %% =====================================================================
 %% @spec parse_form(IODevice, StartLoc) -> {ok, Form, LineNo}
@@ -366,11 +384,12 @@ parse(Dev, L0, Fs, Parser, Options) ->
 %% @see quick_parse_form/2
 
 -spec parse_form(file:io_device(), erl_anno:location()) ->
-        {'ok', erl_syntax:forms(), integer()}
-          | {'eof', integer()} | {'error', errorinfo(), integer()}.
+    {'ok', erl_syntax:forms(), integer()}
+    | {'eof', integer()}
+    | {'error', errorinfo(), integer()}.
 
 parse_form(Dev, Loc0) ->
-  parse_form(Dev, Loc0, []).
+    parse_form(Dev, Loc0, []).
 
 %% @spec parse_form(IODevice, StartLoc, Options) ->
 %%           {ok, Form, LineNo}
@@ -396,11 +415,12 @@ parse_form(Dev, Loc0) ->
 %% @see quick_parse_form/3
 
 -spec parse_form(file:io_device(), integer(), [option()]) ->
-        {'ok', erl_syntax:forms(), integer()}
-          | {'eof', integer()} | {'error', errorinfo(), integer()}.
+    {'ok', erl_syntax:forms(), integer()}
+    | {'eof', integer()}
+    | {'error', errorinfo(), integer()}.
 
 parse_form(Dev, L0, Options) ->
-  parse_form(Dev, L0, fun normal_parser/2, Options).
+    parse_form(Dev, L0, fun normal_parser/2, Options).
 
 %% @spec quick_parse_form(IODevice, StartLine) ->
 %%           {ok, Form, LineNo}
@@ -416,11 +436,12 @@ parse_form(Dev, L0, Options) ->
 %% @see parse_form/2
 
 -spec quick_parse_form(file:io_device(), integer()) ->
-        {'ok', erl_syntax:forms(), integer()}
-          | {'eof', integer()} | {'error', errorinfo(), integer()}.
+    {'ok', erl_syntax:forms(), integer()}
+    | {'eof', integer()}
+    | {'error', errorinfo(), integer()}.
 
 quick_parse_form(Dev, L0) ->
-  quick_parse_form(Dev, L0, []).
+    quick_parse_form(Dev, L0, []).
 
 %% @spec quick_parse_form(IODevice, StartLine, Options) ->
 %%           {ok, Form, LineNo}
@@ -441,420 +462,552 @@ quick_parse_form(Dev, L0) ->
 %% @see parse_form/3
 
 -spec quick_parse_form(file:io_device(), integer(), [option()]) ->
-        {'ok', erl_syntax:forms() | none, integer()}
-          | {'eof', integer()} | {'error', errorinfo(), integer()}.
+    {'ok', erl_syntax:forms() | none, integer()}
+    | {'eof', integer()}
+    | {'error', errorinfo(), integer()}.
 
 quick_parse_form(Dev, L0, Options) ->
-  parse_form(Dev, L0, fun quick_parser/2, Options).
+    parse_form(Dev, L0, fun quick_parser/2, Options).
 
 -record(opt, {clever = false :: boolean()}).
 
 -type opt() :: #opt{}.
 
 -spec parse_form(file:io_device(), location(), function(), [option()]) ->
-        {'ok', erl_syntax:forms() | none, integer()}
-          | {'eof', integer()} | {'error', errorinfo(), integer()}.
+    {'ok', erl_syntax:forms() | none, integer()}
+    | {'eof', integer()}
+    | {'error', errorinfo(), integer()}.
 
 parse_form(Dev, L0, Parser, Options) ->
-  NoFail = proplists:get_bool(no_fail, Options),
-  Opt = #opt{clever = proplists:get_bool(clever, Options)},
-  case io:scan_erl_form(Dev, "", L0) of
-    {ok, Ts, L1} ->
-      case catch {ok, Parser(Ts, Opt)} of
-        {'EXIT', Term} ->
-          {error, io_error(L1, {unknown, Term}), L1};
-        {error, Term} ->
-          IoErr = io_error(L1, Term),
-          {error, IoErr, L1};
-        {parse_error, _IoErr} when NoFail ->
-          {ok, erl_syntax:set_pos(
-                 erl_syntax:text(tokens_to_string(Ts)),
-                 start_pos(Ts, L1)),
-           L1};
-        {parse_error, IoErr} ->
-          {error, IoErr, L1};
-        {ok, F} ->
-          {ok, F, L1}
-      end;
-    {error, _IoErr, _L1} = Err -> Err;
-    {error, _Reason} -> {eof, L0}; % This is probably encoding problem
-    {eof, _L1} = Eof -> Eof
-  end.
+    NoFail = proplists:get_bool(no_fail, Options),
+    Opt = #opt{clever = proplists:get_bool(clever, Options)},
+    case io:scan_erl_form(Dev, "", L0) of
+        {ok, Ts, L1} ->
+            case catch {ok, Parser(Ts, Opt)} of
+                {'EXIT', Term} ->
+                    {error, io_error(L1, {unknown, Term}), L1};
+                {error, Term} ->
+                    IoErr = io_error(L1, Term),
+                    {error, IoErr, L1};
+                {parse_error, _IoErr} when NoFail ->
+                    {ok,
+                        erl_syntax:set_pos(
+                            erl_syntax:text(tokens_to_string(Ts)),
+                            start_pos(Ts, L1)
+                        ),
+                        L1};
+                {parse_error, IoErr} ->
+                    {error, IoErr, L1};
+                {ok, F} ->
+                    {ok, F, L1}
+            end;
+        {error, _IoErr, _L1} = Err ->
+            Err;
+        % This is probably encoding problem
+        {error, _Reason} ->
+            {eof, L0};
+        {eof, _L1} = Eof ->
+            Eof
+    end.
 
 -spec io_error(location(), any()) -> {location(), module(), any()}.
 io_error(L, Desc) ->
-  {L, ?MODULE, Desc}.
+    {L, ?MODULE, Desc}.
 
 -spec start_pos([erl_scan:token()], location()) -> location().
 start_pos([T | _Ts], _L) ->
-  erl_anno:line(element(2, T));
+    erl_anno:line(element(2, T));
 start_pos([], L) ->
-  L.
+    L.
 
 %% Exception-throwing wrapper for the standard Erlang parser stage
 -spec parse_tokens([erl_scan:token()]) -> erl_syntax:syntaxTree().
 parse_tokens(Ts) ->
-  parse_tokens(Ts, fun fix_form/1).
+    parse_tokens(Ts, fun fix_form/1).
 
 -spec parse_tokens([erl_scan:token()], function()) -> erl_syntax:syntaxTree().
 parse_tokens(Ts, Fix) ->
-  case erl_parse:parse_form(Ts) of
-    {ok, Form} ->
-      Form;
-    {error, IoErr} ->
-      case Fix(Ts) of
-        {form, Form} ->
-          Form;
-        {retry, Ts1, Fix1} ->
-          parse_tokens(Ts1, Fix1);
-        error ->
-          throw({parse_error, IoErr})
-      end
-  end.
+    case erl_parse:parse_form(Ts) of
+        {ok, Form} ->
+            Form;
+        {error, IoErr} ->
+            case Fix(Ts) of
+                {form, Form} ->
+                    Form;
+                {retry, Ts1, Fix1} ->
+                    parse_tokens(Ts1, Fix1);
+                error ->
+                    throw({parse_error, IoErr})
+            end
+    end.
 
 %% ---------------------------------------------------------------------
 %% Quick scanning/parsing - deletes macro definitions and other
 %% preprocessor directives, and replaces all macro calls with atoms.
 
 -spec quick_parser([erl_scan:token()], [option()]) ->
-        erl_syntax:syntaxTree() | none.
+    erl_syntax:syntaxTree() | none.
 quick_parser(Ts, _Opt) ->
-  filter_form(parse_tokens(quickscan_form(Ts))).
+    filter_form(parse_tokens(quickscan_form(Ts))).
 
 -spec quickscan_form([erl_scan:token()]) -> [erl_scan:token()].
 quickscan_form([{'-', _L}, {atom, La, define} | _Ts]) ->
-  kill_form(La);
+    kill_form(La);
 quickscan_form([{'-', _L}, {atom, La, undef} | _Ts]) ->
-  kill_form(La);
+    kill_form(La);
 quickscan_form([{'-', _L}, {atom, La, include} | _Ts]) ->
-  kill_form(La);
+    kill_form(La);
 quickscan_form([{'-', _L}, {atom, La, include_lib} | _Ts]) ->
-  kill_form(La);
+    kill_form(La);
 quickscan_form([{'-', _L}, {atom, La, ifdef} | _Ts]) ->
-  kill_form(La);
+    kill_form(La);
 quickscan_form([{'-', _L}, {atom, La, ifndef} | _Ts]) ->
-  kill_form(La);
+    kill_form(La);
 quickscan_form([{'-', _L}, {'if', La} | _Ts]) ->
-  kill_form(La);
+    kill_form(La);
 quickscan_form([{'-', _L}, {atom, La, elif} | _Ts]) ->
-  kill_form(La);
+    kill_form(La);
 quickscan_form([{'-', _L}, {atom, La, else} | _Ts]) ->
-  kill_form(La);
+    kill_form(La);
 quickscan_form([{'-', _L}, {atom, La, endif} | _Ts]) ->
-  kill_form(La);
-quickscan_form([{'-', L}, {'?', _}, {Type, _, _}=N | [{'(', _} | _]=Ts])
-  when Type =:= atom; Type =:= var ->
-  %% minus, macro and open parenthesis at start of form - assume that
-  %% the macro takes no arguments; e.g. `-?foo(...).'
-  quickscan_macros_1(N, Ts, [{'-', L}]);
-quickscan_form([{'?', _L}, {Type, _, _}=N | [{'(', _} | _]=Ts])
-  when Type =:= atom; Type =:= var ->
-  %% macro and open parenthesis at start of form - assume that the
-  %% macro takes no arguments (see scan_macros for details)
-  quickscan_macros_1(N, Ts, []);
+    kill_form(La);
+quickscan_form([{'-', L}, {'?', _}, {Type, _, _} = N | [{'(', _} | _] = Ts]) when
+    Type =:= atom; Type =:= var
+->
+    %% minus, macro and open parenthesis at start of form - assume that
+    %% the macro takes no arguments; e.g. `-?foo(...).'
+    quickscan_macros_1(N, Ts, [{'-', L}]);
+quickscan_form([{'?', _L}, {Type, _, _} = N | [{'(', _} | _] = Ts]) when
+    Type =:= atom; Type =:= var
+->
+    %% macro and open parenthesis at start of form - assume that the
+    %% macro takes no arguments (see scan_macros for details)
+    quickscan_macros_1(N, Ts, []);
 quickscan_form(Ts) ->
-  quickscan_macros(Ts).
+    quickscan_macros(Ts).
 
 -spec kill_form(location()) -> [erl_scan:token()].
 kill_form(L) ->
-  [{atom, L, ?pp_form}, {'(', L}, {')', L}, {'->', L}, {atom, L, kill},
-   {dot, L}].
+    [
+        {atom, L, ?pp_form},
+        {'(', L},
+        {')', L},
+        {'->', L},
+        {atom, L, kill},
+        {dot, L}
+    ].
 
 -spec quickscan_macros([erl_scan:token()]) -> [erl_scan:token()].
 quickscan_macros(Ts) ->
-  quickscan_macros(Ts, []).
+    quickscan_macros(Ts, []).
 
 -spec quickscan_macros([erl_scan:token()], [erl_scan:token()]) ->
-        [erl_scan:token()].
-quickscan_macros([{'?', _}, {Type, _, A} | Ts], [{string, L, S} | As])
-  when Type =:= atom; Type =:= var ->
-  %% macro after a string literal: change to a single string
-  {_, Ts1} = skip_macro_args(Ts),
-  S1 = S ++ quick_macro_string(A),
-  quickscan_macros(Ts1, [{string, L, S1} | As]);
-quickscan_macros([{'?', _}, {Type, _, _}=N | [{'(', _}|_]=Ts],
-                 [{':', _}|_]=As)
-  when Type =:= atom; Type =:= var ->
-  %% macro and open parenthesis after colon - check the token
-  %% following the arguments (see scan_macros for details)
-  Ts1 = case skip_macro_args(Ts) of
-          {_, [{'->', _} | _] = Ts2} -> Ts2;
-          {_, [{'when', _} | _] = Ts2} -> Ts2;
-          _ -> Ts    %% assume macro without arguments
+    [erl_scan:token()].
+quickscan_macros([{'?', _}, {Type, _, A} | Ts], [{string, L, S} | As]) when
+    Type =:= atom; Type =:= var
+->
+    %% macro after a string literal: change to a single string
+    {_, Ts1} = skip_macro_args(Ts),
+    S1 = S ++ quick_macro_string(A),
+    quickscan_macros(Ts1, [{string, L, S1} | As]);
+quickscan_macros(
+    [{'?', _}, {Type, _, _} = N | [{'(', _} | _] = Ts],
+    [{':', _} | _] = As
+) when
+    Type =:= atom; Type =:= var
+->
+    %% macro and open parenthesis after colon - check the token
+    %% following the arguments (see scan_macros for details)
+    Ts1 =
+        case skip_macro_args(Ts) of
+            {_, [{'->', _} | _] = Ts2} -> Ts2;
+            {_, [{'when', _} | _] = Ts2} -> Ts2;
+            %% assume macro without arguments
+            _ -> Ts
         end,
-  quickscan_macros_1(N, Ts1, As);
-quickscan_macros([{'?', _}, {Type, _, _}=N | Ts], As)
-  when Type =:= atom; Type =:= var ->
-  %% macro with or without arguments
-  {_, Ts1} = skip_macro_args(Ts),
-  quickscan_macros_1(N, Ts1, As);
+    quickscan_macros_1(N, Ts1, As);
+quickscan_macros([{'?', _}, {Type, _, _} = N | Ts], As) when
+    Type =:= atom; Type =:= var
+->
+    %% macro with or without arguments
+    {_, Ts1} = skip_macro_args(Ts),
+    quickscan_macros_1(N, Ts1, As);
 quickscan_macros([T | Ts], As) ->
-  quickscan_macros(Ts, [T | As]);
+    quickscan_macros(Ts, [T | As]);
 quickscan_macros([], As) ->
-  lists:reverse(As).
+    lists:reverse(As).
 
 -spec quickscan_macros_1(tuple(), [erl_scan:token()], [erl_scan:token()]) ->
-        [erl_scan:token()].
+    [erl_scan:token()].
 %% (after a macro has been found and the arglist skipped, if any)
 quickscan_macros_1({_Type, _, A}, [{string, L, S} | Ts], As) ->
-  %% string literal following macro: change to single string
-  S1 = quick_macro_string(A) ++ S,
-  quickscan_macros(Ts, [{string, L, S1} | As]);
+    %% string literal following macro: change to single string
+    S1 = quick_macro_string(A) ++ S,
+    quickscan_macros(Ts, [{string, L, S1} | As]);
 quickscan_macros_1({_Type, L, A}, Ts, As) ->
-  %% normal case - just replace the macro with an atom
-  quickscan_macros(Ts, [{atom, L, quick_macro_atom(A)} | As]).
+    %% normal case - just replace the macro with an atom
+    quickscan_macros(Ts, [{atom, L, quick_macro_atom(A)} | As]).
 
 -spec quick_macro_atom(atom()) -> atom().
 quick_macro_atom(A) ->
-  list_to_atom("?" ++ atom_to_list(A)).
+    list_to_atom("?" ++ atom_to_list(A)).
 
 -spec quick_macro_string(atom()) -> string().
 quick_macro_string(A) ->
-  "(?" ++ atom_to_list(A) ++ ")".
+    "(?" ++ atom_to_list(A) ++ ")".
 
 %% Skipping to the end of a macro call, tracking open/close constructs.
 %% @spec (Tokens) -> {Skipped, Rest}
 
 -spec skip_macro_args([erl_scan:token()]) ->
-        {[erl_scan:token()], [erl_scan:token()]}.
-skip_macro_args([{'(', _}=T | Ts]) ->
-  skip_macro_args(Ts, [')'], [T]);
+    {[erl_scan:token()], [erl_scan:token()]}.
+skip_macro_args([{'(', _} = T | Ts]) ->
+    skip_macro_args(Ts, [')'], [T]);
 skip_macro_args(Ts) ->
-  {[], Ts}.
+    {[], Ts}.
 
 -spec skip_macro_args([erl_scan:token()], [atom()], [erl_scan:token()]) ->
-        {[erl_scan:token()], [erl_scan:token()]}.
-skip_macro_args([{'(', _}=T | Ts], Es, As) ->
-  skip_macro_args(Ts, [')' | Es], [T | As]);
-skip_macro_args([{'{', _}=T | Ts], Es, As) ->
-  skip_macro_args(Ts, ['}' | Es], [T | As]);
-skip_macro_args([{'[', _}=T | Ts], Es, As) ->
-  skip_macro_args(Ts, [']' | Es], [T | As]);
-skip_macro_args([{'<<', _}=T | Ts], Es, As) ->
-  skip_macro_args(Ts, ['>>' | Es], [T | As]);
-skip_macro_args([{'begin', _}=T | Ts], Es, As) ->
-  skip_macro_args(Ts, ['end' | Es], [T | As]);
-skip_macro_args([{'if', _}=T | Ts], Es, As) ->
-  skip_macro_args(Ts, ['end' | Es], [T | As]);
-skip_macro_args([{'case', _}=T | Ts], Es, As) ->
-  skip_macro_args(Ts, ['end' | Es], [T | As]);
-skip_macro_args([{'receive', _}=T | Ts], Es, As) ->
-  skip_macro_args(Ts, ['end' | Es], [T | As]);
-skip_macro_args([{'try', _}=T | Ts], Es, As) ->
-  skip_macro_args(Ts, ['end' | Es], [T | As]);
-skip_macro_args([{'cond', _}=T | Ts], Es, As) ->
-  skip_macro_args(Ts, ['end' | Es], [T | As]);
-skip_macro_args([{E, _}=T | Ts], [E], As) ->      %final close
-  {lists:reverse([T | As]), Ts};
-skip_macro_args([{E, _}=T | Ts], [E | Es], As) -> %matching close
-  skip_macro_args(Ts, Es, [T | As]);
+    {[erl_scan:token()], [erl_scan:token()]}.
+skip_macro_args([{'(', _} = T | Ts], Es, As) ->
+    skip_macro_args(Ts, [')' | Es], [T | As]);
+skip_macro_args([{'{', _} = T | Ts], Es, As) ->
+    skip_macro_args(Ts, ['}' | Es], [T | As]);
+skip_macro_args([{'[', _} = T | Ts], Es, As) ->
+    skip_macro_args(Ts, [']' | Es], [T | As]);
+skip_macro_args([{'<<', _} = T | Ts], Es, As) ->
+    skip_macro_args(Ts, ['>>' | Es], [T | As]);
+skip_macro_args([{'begin', _} = T | Ts], Es, As) ->
+    skip_macro_args(Ts, ['end' | Es], [T | As]);
+skip_macro_args([{'if', _} = T | Ts], Es, As) ->
+    skip_macro_args(Ts, ['end' | Es], [T | As]);
+skip_macro_args([{'case', _} = T | Ts], Es, As) ->
+    skip_macro_args(Ts, ['end' | Es], [T | As]);
+skip_macro_args([{'receive', _} = T | Ts], Es, As) ->
+    skip_macro_args(Ts, ['end' | Es], [T | As]);
+skip_macro_args([{'try', _} = T | Ts], Es, As) ->
+    skip_macro_args(Ts, ['end' | Es], [T | As]);
+skip_macro_args([{'cond', _} = T | Ts], Es, As) ->
+    skip_macro_args(Ts, ['end' | Es], [T | As]);
+%final close
+skip_macro_args([{E, _} = T | Ts], [E], As) ->
+    {lists:reverse([T | As]), Ts};
+%matching close
+skip_macro_args([{E, _} = T | Ts], [E | Es], As) ->
+    skip_macro_args(Ts, Es, [T | As]);
 skip_macro_args([T | Ts], Es, As) ->
-  skip_macro_args(Ts, Es, [T | As]);
+    skip_macro_args(Ts, Es, [T | As]);
 skip_macro_args([], _Es, _As) ->
-  throw({error, macro_args}).
+    throw({error, macro_args}).
 
 -spec filter_form(erl_syntax:syntaxTree()) -> erl_syntax:syntaxTree() | none.
-filter_form({function, _, ?pp_form, _,
-             [{clause, _, [], [], [{atom, _, kill}]}]}) ->
-  none;
+filter_form({function, _, ?pp_form, _, [{clause, _, [], [], [{atom, _, kill}]}]}) ->
+    none;
 filter_form(T) ->
-  T.
-
+    T.
 
 %% ---------------------------------------------------------------------
 %% Normal parsing - try to preserve all information
 
 -spec normal_parser([erl_scan:token()], opt()) -> erl_syntax:syntaxTree().
 normal_parser(Ts0, Opt) ->
-  case scan_form(Ts0, Opt) of
-    Ts when is_list(Ts) ->
-      rewrite_form(parse_tokens(Ts));
-    Node ->
-      Node
-  end.
+    case scan_form(Ts0, Opt) of
+        Ts when is_list(Ts) ->
+            rewrite_form(parse_tokens(Ts));
+        Node ->
+            Node
+    end.
 
 -spec scan_form([erl_scan:token()], opt()) ->
-  [erl_scan:token()] | erl_syntax:syntaxTree().
+    [erl_scan:token()] | erl_syntax:syntaxTree().
 scan_form([{'-', _L}, {atom, La, define} | Ts], Opt) ->
-  [{atom, La, ?pp_form}, {'(', La}, {')', La}, {'->', La},
-   {atom, La, define} | scan_macros(Ts, Opt)];
+    [
+        {atom, La, ?pp_form},
+        {'(', La},
+        {')', La},
+        {'->', La},
+        {atom, La, define}
+        | scan_macros(Ts, Opt)
+    ];
 scan_form([{'-', _L}, {atom, La, undef} | Ts], Opt) ->
-  [{atom, La, ?pp_form}, {'(', La}, {')', La}, {'->', La},
-   {atom, La, undef} | scan_macros(Ts, Opt)];
+    [
+        {atom, La, ?pp_form},
+        {'(', La},
+        {')', La},
+        {'->', La},
+        {atom, La, undef}
+        | scan_macros(Ts, Opt)
+    ];
 scan_form([{'-', _L}, {atom, La, include} | Ts], Opt) ->
-  [{atom, La, ?pp_form}, {'(', La}, {')', La}, {'->', La},
-   {atom, La, include} | scan_macros(Ts, Opt)];
+    [
+        {atom, La, ?pp_form},
+        {'(', La},
+        {')', La},
+        {'->', La},
+        {atom, La, include}
+        | scan_macros(Ts, Opt)
+    ];
 scan_form([{'-', _L}, {atom, La, include_lib} | Ts], Opt) ->
-  [{atom, La, ?pp_form}, {'(', La}, {')', La}, {'->', La},
-   {atom, La, include_lib} | scan_macros(Ts, Opt)];
+    [
+        {atom, La, ?pp_form},
+        {'(', La},
+        {')', La},
+        {'->', La},
+        {atom, La, include_lib}
+        | scan_macros(Ts, Opt)
+    ];
 scan_form([{'-', _L}, {atom, La, ifdef} | Ts], Opt) ->
-  [{atom, La, ?pp_form}, {'(', La}, {')', La}, {'->', La},
-   {atom, La, ifdef} | scan_macros(Ts, Opt)];
+    [
+        {atom, La, ?pp_form},
+        {'(', La},
+        {')', La},
+        {'->', La},
+        {atom, La, ifdef}
+        | scan_macros(Ts, Opt)
+    ];
 scan_form([{'-', _L}, {atom, La, ifndef} | Ts], Opt) ->
-  [{atom, La, ?pp_form}, {'(', La}, {')', La}, {'->', La},
-   {atom, La, ifndef} | scan_macros(Ts, Opt)];
+    [
+        {atom, La, ?pp_form},
+        {'(', La},
+        {')', La},
+        {'->', La},
+        {atom, La, ifndef}
+        | scan_macros(Ts, Opt)
+    ];
 scan_form([{'-', _L}, {'if', La} | Ts], Opt) ->
-  [{atom, La, ?pp_form}, {'(', La}, {')', La}, {'->', La},
-   {atom, La, 'if'} | scan_macros(Ts, Opt)];
+    [
+        {atom, La, ?pp_form},
+        {'(', La},
+        {')', La},
+        {'->', La},
+        {atom, La, 'if'}
+        | scan_macros(Ts, Opt)
+    ];
 scan_form([{'-', _L}, {atom, La, elif} | Ts], Opt) ->
-  [{atom, La, ?pp_form}, {'(', La}, {')', La}, {'->', La},
-   {atom, La, 'elif'} | scan_macros(Ts, Opt)];
+    [
+        {atom, La, ?pp_form},
+        {'(', La},
+        {')', La},
+        {'->', La},
+        {atom, La, 'elif'}
+        | scan_macros(Ts, Opt)
+    ];
 scan_form([{'-', _L}, {atom, La, else} | Ts], Opt) ->
-  [{atom, La, ?pp_form}, {'(', La}, {')', La}, {'->', La},
-   {atom, La, else} | scan_macros(Ts, Opt)];
+    [
+        {atom, La, ?pp_form},
+        {'(', La},
+        {')', La},
+        {'->', La},
+        {atom, La, else}
+        | scan_macros(Ts, Opt)
+    ];
 scan_form([{'-', _L}, {atom, La, endif} | Ts], Opt) ->
-  [{atom, La, ?pp_form}, {'(', La}, {')', La}, {'->', La},
-   {atom, La, endif} | scan_macros(Ts, Opt)];
+    [
+        {atom, La, ?pp_form},
+        {'(', La},
+        {')', La},
+        {'->', La},
+        {atom, La, endif}
+        | scan_macros(Ts, Opt)
+    ];
 scan_form([{'-', _L}, {atom, La, error} | Ts], _Opt) ->
-  Desc = build_info_string("-error", Ts),
-  ErrorInfo = {La, ?MODULE, {error, Desc}},
-  erl_syntax:error_marker(ErrorInfo);
+    Desc = build_info_string("-error", Ts),
+    ErrorInfo = {La, ?MODULE, {error, Desc}},
+    erl_syntax:error_marker(ErrorInfo);
 scan_form([{'-', _L}, {atom, La, warning} | Ts], _Opt) ->
-  Desc = build_info_string("-warning", Ts),
-  ErrorInfo = {La, ?MODULE, {warning, Desc}},
-  erl_syntax:error_marker(ErrorInfo);
-scan_form([{'-', L}, {'?', L1}, {Type, _, _}=N | [{'(', _} | _]=Ts], Opt)
-  when Type =:= atom; Type =:= var ->
-  %% minus, macro and open parenthesis at start of form - assume that
-  %% the macro takes no arguments; e.g. `-?foo(...).'
-  macro(L1, N, Ts, [{'-', L}], Opt);
-scan_form([{'?', L}, {Type, _, _}=N | [{'(', _} | _]=Ts], Opt)
-  when Type =:= atom; Type =:= var ->
-  %% macro and open parenthesis at start of form - assume that the
-  %% macro takes no arguments; probably a function declaration on the
-  %% form `?m(...) -> ...', which will not parse if it is rewritten as
-  %% `(?m(...)) -> ...', so it must be handled as `(?m)(...) -> ...'
-  macro(L, N, Ts, [], Opt);
+    Desc = build_info_string("-warning", Ts),
+    ErrorInfo = {La, ?MODULE, {warning, Desc}},
+    erl_syntax:error_marker(ErrorInfo);
+scan_form([{'-', L}, {'?', L1}, {Type, _, _} = N | [{'(', _} | _] = Ts], Opt) when
+    Type =:= atom; Type =:= var
+->
+    %% minus, macro and open parenthesis at start of form - assume that
+    %% the macro takes no arguments; e.g. `-?foo(...).'
+    macro(L1, N, Ts, [{'-', L}], Opt);
+scan_form([{'?', L}, {Type, _, _} = N | [{'(', _} | _] = Ts], Opt) when
+    Type =:= atom; Type =:= var
+->
+    %% macro and open parenthesis at start of form - assume that the
+    %% macro takes no arguments; probably a function declaration on the
+    %% form `?m(...) -> ...', which will not parse if it is rewritten as
+    %% `(?m(...)) -> ...', so it must be handled as `(?m)(...) -> ...'
+    macro(L, N, Ts, [], Opt);
 scan_form(Ts, Opt) ->
-  scan_macros(Ts, Opt).
+    scan_macros(Ts, Opt).
 
 -spec build_info_string(string(), [erl_scan:token()]) -> string().
 build_info_string(Prefix, Ts0) ->
-  Ts = lists:droplast(Ts0),
-  String = lists:droplast(tokens_to_string(Ts)),
-  Prefix ++ " " ++ String ++ ".".
+    Ts = lists:droplast(Ts0),
+    String = lists:droplast(tokens_to_string(Ts)),
+    Prefix ++ " " ++ String ++ ".".
 
 -spec scan_macros([erl_scan:token()], opt()) -> [erl_scan:token()].
 scan_macros(Ts, Opt) ->
-  scan_macros(Ts, [], Opt).
+    scan_macros(Ts, [], Opt).
 
 -spec scan_macros([erl_scan:token()], [erl_scan:token()], opt()) ->
-        [erl_scan:token()].
-scan_macros([{'?', _}=M, {Type, _, _}=N | Ts], [{string, L, _}=S | As],
-            #opt{clever = true}=Opt)
-  when Type =:= atom; Type =:= var ->
-  %% macro after a string literal: be clever and insert ++
-  scan_macros([M, N | Ts], [{'++', L}, S | As], Opt);
-scan_macros([{'?', L}, {Type, _, _}=N | [{'(', _}|_]=Ts],
-            [{':', _}|_]=As, Opt)
-  when Type =:= atom; Type =:= var ->
-  %% macro and open parentheses after colon - probably a call
-  %% `m:?F(...)' so the argument list might belong to the call, not
-  %% the macro - but it could also be a try-clause pattern
-  %% `...:?T(...) ->' - we need to check the token following the
-  %% arguments to decide
-  {Args, Rest} = skip_macro_args(Ts),
-  case Rest of
-    [{'->', _} | _] ->
-      macro_call(Args, L, N, Rest, As, Opt);
-    [{'when', _} | _] ->
-      macro_call(Args, L, N, Rest, As, Opt);
-    _ ->
-      macro(L, N, Ts, As, Opt)
-  end;
-scan_macros([{'?', L}, {Type, _, _}=N | [{'(', _}|_]=Ts], As, Opt)
-  when Type =:= atom; Type =:= var ->
-  %% macro with arguments
-  {Args, Rest} = skip_macro_args(Ts),
-  macro_call(Args, L, N, Rest, As, Opt);
-scan_macros([{'?', L }, {Type, _, _}=N | Ts], As, Opt)
-  when Type =:= atom; Type =:= var ->
-  %% macro without arguments
-  macro(L, N, Ts, As, Opt);
+    [erl_scan:token()].
+scan_macros(
+    [{'?', _} = M, {Type, _, _} = N | Ts],
+    [{string, L, _} = S | As],
+    #opt{clever = true} = Opt
+) when
+    Type =:= atom; Type =:= var
+->
+    %% macro after a string literal: be clever and insert ++
+    scan_macros([M, N | Ts], [{'++', L}, S | As], Opt);
+scan_macros(
+    [{'?', L}, {Type, _, _} = N | [{'(', _} | _] = Ts],
+    [{':', _} | _] = As,
+    Opt
+) when
+    Type =:= atom; Type =:= var
+->
+    %% macro and open parentheses after colon - probably a call
+    %% `m:?F(...)' so the argument list might belong to the call, not
+    %% the macro - but it could also be a try-clause pattern
+    %% `...:?T(...) ->' - we need to check the token following the
+    %% arguments to decide
+    {Args, Rest} = skip_macro_args(Ts),
+    case Rest of
+        [{'->', _} | _] ->
+            macro_call(Args, L, N, Rest, As, Opt);
+        [{'when', _} | _] ->
+            macro_call(Args, L, N, Rest, As, Opt);
+        _ ->
+            macro(L, N, Ts, As, Opt)
+    end;
+scan_macros([{'?', L}, {Type, _, _} = N | [{'(', _} | _] = Ts], As, Opt) when
+    Type =:= atom; Type =:= var
+->
+    %% macro with arguments
+    {Args, Rest} = skip_macro_args(Ts),
+    macro_call(Args, L, N, Rest, As, Opt);
+scan_macros([{'?', L}, {Type, _, _} = N | Ts], As, Opt) when
+    Type =:= atom; Type =:= var
+->
+    %% macro without arguments
+    macro(L, N, Ts, As, Opt);
 scan_macros([T | Ts], As, Opt) ->
-  scan_macros(Ts, [T | As], Opt);
+    scan_macros(Ts, [T | As], Opt);
 scan_macros([], As, _Opt) ->
-  lists:reverse(As).
+    lists:reverse(As).
 
 %% Rewriting to a call which will be recognized by the post-parse pass
 %% (we insert parentheses to preserve the precedences when parsing).
 
--spec macro(location(), tuple(), [erl_scan:token()],
-            [erl_scan:token()], opt()) ->
-        [erl_scan:token()].
+-spec macro(
+    location(),
+    tuple(),
+    [erl_scan:token()],
+    [erl_scan:token()],
+    opt()
+) ->
+    [erl_scan:token()].
 macro(L, {Type, _, A}, Rest, As, Opt) ->
-  scan_macros_1([], Rest, [{atom, L, macro_atom(Type, A)} | As], Opt).
+    scan_macros_1([], Rest, [{atom, L, macro_atom(Type, A)} | As], Opt).
 
--spec macro_call([erl_scan:token()], location(), tuple(),
-                 [erl_scan:token()], [erl_scan:token()], opt()) ->
-        [erl_scan:token()].
+-spec macro_call(
+    [erl_scan:token()],
+    location(),
+    tuple(),
+    [erl_scan:token()],
+    [erl_scan:token()],
+    opt()
+) ->
+    [erl_scan:token()].
 macro_call([{'(', _}, {')', _}], L, {_, Ln, _} = N, Rest, As, Opt) ->
-  {Open, Close} = parentheses(As),
-  scan_macros_1([], Rest,
-                %% {'?macro_call', N }
-                lists:reverse(Open ++ [{'{', L},
-                                       {atom, L, ?macro_call},
-                                       {',', L},
-                                       N,
-                                       {'}', Ln}] ++ Close,
-                              As), Opt);
-macro_call([{'(', _} | Args], L, {_, Ln, _}=N, Rest, As, Opt) ->
-  {Open, Close} = parentheses(As),
-  %% drop closing parenthesis
-  {')', _} = lists:last(Args), %% assert
-  Args1 = lists:droplast(Args),
-  %% note that we must scan the argument list; it may not be skipped
-  scan_macros_1(Args1 ++ [{'}', Ln} | Close],
-                Rest,
-                %% {'?macro_call', N, Arg1, ... }
-                lists:reverse(Open ++ [{'{', L},
-                                       {atom, L, ?macro_call},
-                                       {',', L},
-                                       N,
-                                       {',', Ln}],
-                              As), Opt).
+    {Open, Close} = parentheses(As),
+    scan_macros_1(
+        [],
+        Rest,
+        %% {'?macro_call', N }
+        lists:reverse(
+            Open ++
+                [
+                    {'{', L},
+                    {atom, L, ?macro_call},
+                    {',', L},
+                    N,
+                    {'}', Ln}
+                ] ++ Close,
+            As
+        ),
+        Opt
+    );
+macro_call([{'(', _} | Args], L, {_, Ln, _} = N, Rest, As, Opt) ->
+    {Open, Close} = parentheses(As),
+    %% drop closing parenthesis
+
+    %% assert
+    {')', _} = lists:last(Args),
+    Args1 = lists:droplast(Args),
+    %% note that we must scan the argument list; it may not be skipped
+    scan_macros_1(
+        Args1 ++ [{'}', Ln} | Close],
+        Rest,
+        %% {'?macro_call', N, Arg1, ... }
+        lists:reverse(
+            Open ++
+                [
+                    {'{', L},
+                    {atom, L, ?macro_call},
+                    {',', L},
+                    N,
+                    {',', Ln}
+                ],
+            As
+        ),
+        Opt
+    ).
 
 -spec macro_atom(atom | var, atom()) -> atom().
 macro_atom(atom, A) ->
-  list_to_atom(?atom_prefix ++ atom_to_list(A));
+    list_to_atom(?atom_prefix ++ atom_to_list(A));
 macro_atom(var, A) ->
-  list_to_atom(?var_prefix ++ atom_to_list(A)).
+    list_to_atom(?var_prefix ++ atom_to_list(A)).
 
 -spec parentheses([erl_scan:token()]) -> {[erl_scan:token()], [erl_scan:token()]}.
 %% don't insert parentheses after a string token, to avoid turning
 %% `"string" ?macro' into a "function application" `"string"(...)'
 %% (see note at top of file)
 parentheses([{string, _, _} | _]) ->
-  {[], []};
+    {[], []};
 parentheses(_) ->
-  {[{'(', 0}], [{')', 0}]}.
+    {[{'(', 0}], [{')', 0}]}.
 
--spec scan_macros_1([erl_scan:token()], [erl_scan:token()],
-                    [erl_scan:token()], opt()) ->
-        [erl_scan:token()].
+-spec scan_macros_1(
+    [erl_scan:token()],
+    [erl_scan:token()],
+    [erl_scan:token()],
+    opt()
+) ->
+    [erl_scan:token()].
 %% (after a macro has been found and the arglist skipped, if any)
-scan_macros_1(Args, [{string, L, _} | _]=Rest, As,
-              #opt{clever = true}=Opt) ->
-  %% string literal following macro: be clever and insert ++
-  scan_macros(Args ++ [{'++', L} | Rest],  As, Opt);
+scan_macros_1(
+    Args,
+    [{string, L, _} | _] = Rest,
+    As,
+    #opt{clever = true} = Opt
+) ->
+    %% string literal following macro: be clever and insert ++
+    scan_macros(Args ++ [{'++', L} | Rest], As, Opt);
 scan_macros_1(Args, Rest, As, Opt) ->
-  %% normal case - continue scanning
-  scan_macros(Args ++ Rest, As, Opt).
+    %% normal case - continue scanning
+    scan_macros(Args ++ Rest, As, Opt).
 
 -spec rewrite_form(erl_syntax:syntaxTree()) -> erl_syntax:syntaxTree().
-rewrite_form({function, L, ?pp_form, _,
-              [{clause, _, [], [], [{call, _, A, As}]}]}) ->
-  erl_syntax:set_pos(erl_syntax:attribute(A, rewrite_list(As)), L);
+rewrite_form({function, L, ?pp_form, _, [{clause, _, [], [], [{call, _, A, As}]}]}) ->
+    erl_syntax:set_pos(erl_syntax:attribute(A, rewrite_list(As)), L);
 rewrite_form({function, L, ?pp_form, _, [{clause, _, [], [], [A]}]}) ->
-  erl_syntax:set_pos(erl_syntax:attribute(A), L);
+    erl_syntax:set_pos(erl_syntax:attribute(A), L);
 rewrite_form(T) ->
-  rewrite(T).
+    rewrite(T).
 
 -spec rewrite_list([erl_syntax:syntaxTree()]) -> [erl_syntax:syntaxTree()].
 rewrite_list([T | Ts]) ->
-  [rewrite(T) | rewrite_list(Ts)];
+    [rewrite(T) | rewrite_list(Ts)];
 rewrite_list([]) ->
-  [].
+    [].
 
 %% Note: as soon as we start using erl_syntax:subtrees/1 and similar
 %% functions, we cannot assume that we know the exact representation of
@@ -863,60 +1016,66 @@ rewrite_list([]) ->
 
 -spec rewrite(erl_syntax:syntaxTree()) -> erl_syntax:syntaxTree().
 rewrite(Node) ->
-  case erl_syntax:type(Node) of
-    atom ->
-      case atom_to_list(erl_syntax:atom_value(Node)) of
-        ?atom_prefix ++ As ->
-          A1 = list_to_atom(As),
-          N = erl_syntax:copy_pos(Node, erl_syntax:atom(A1)),
-          erl_syntax:copy_pos(Node, erl_syntax:macro(N));
-        ?var_prefix ++ As ->
-          A1 = list_to_atom(As),
-          N = erl_syntax:copy_pos(Node, erl_syntax:variable(A1)),
-          erl_syntax:copy_pos(Node, erl_syntax:macro(N));
-        _ ->
-          Node
-      end;
-    Type when Type =:= tuple;
-              Type =:= tuple_type ->
-      case tuple_elements(Node, Type) of
-        [MagicWord, A | As] ->
-          case erl_syntax:type(MagicWord) of
-            atom ->
-              case erl_syntax:atom_value(MagicWord) of
-                ?macro_call ->
-                  M = erl_syntax:macro(A, rewrite_list(As)),
-                  erl_syntax:copy_pos(Node, M);
+    case erl_syntax:type(Node) of
+        atom ->
+            case atom_to_list(erl_syntax:atom_value(Node)) of
+                ?atom_prefix ++ As ->
+                    A1 = list_to_atom(As),
+                    N = erl_syntax:copy_pos(Node, erl_syntax:atom(A1)),
+                    erl_syntax:copy_pos(Node, erl_syntax:macro(N));
+                ?var_prefix ++ As ->
+                    A1 = list_to_atom(As),
+                    N = erl_syntax:copy_pos(Node, erl_syntax:variable(A1)),
+                    erl_syntax:copy_pos(Node, erl_syntax:macro(N));
                 _ ->
-                  rewrite_1(Node)
-              end;
-            _ ->
-              rewrite_1(Node)
-          end;
+                    Node
+            end;
+        Type when
+            Type =:= tuple;
+            Type =:= tuple_type
+        ->
+            case tuple_elements(Node, Type) of
+                [MagicWord, A | As] ->
+                    case erl_syntax:type(MagicWord) of
+                        atom ->
+                            case erl_syntax:atom_value(MagicWord) of
+                                ?macro_call ->
+                                    M = erl_syntax:macro(A, rewrite_list(As)),
+                                    erl_syntax:copy_pos(Node, M);
+                                _ ->
+                                    rewrite_1(Node)
+                            end;
+                        _ ->
+                            rewrite_1(Node)
+                    end;
+                _ ->
+                    rewrite_1(Node)
+            end;
         _ ->
-          rewrite_1(Node)
-      end;
-    _ ->
-      rewrite_1(Node)
-  end.
+            rewrite_1(Node)
+    end.
 
 -spec tuple_elements(erl_syntax:syntaxTree(), atom()) -> [erl_syntax:syntaxTree()].
 tuple_elements(Node, tuple) ->
-  erl_syntax:tuple_elements(Node);
+    erl_syntax:tuple_elements(Node);
 tuple_elements(Node, tuple_type) ->
-  erl_syntax:tuple_type_elements(Node).
+    erl_syntax:tuple_type_elements(Node).
 
 -spec rewrite_1(erl_syntax:syntaxTree()) -> erl_syntax:syntaxTree().
 rewrite_1(Node) ->
-  case subtrees(Node) of
-    [] ->
-      Node;
-    Gs ->
-      Node1 = erl_syntax:make_tree(erl_syntax:type(Node),
-                                   [[rewrite(T) || T <- Ts]
-                                    || Ts <- Gs]),
-      erl_syntax:copy_pos(Node, Node1)
-  end.
+    case subtrees(Node) of
+        [] ->
+            Node;
+        Gs ->
+            Node1 = erl_syntax:make_tree(
+                erl_syntax:type(Node),
+                [
+                    [rewrite(T) || T <- Ts]
+                 || Ts <- Gs
+                ]
+            ),
+            erl_syntax:copy_pos(Node, Node1)
+    end.
 
 %% @doc Return the list of all subtrees of a syntax tree with special handling
 %% for type attributes.
@@ -932,83 +1091,113 @@ rewrite_1(Node) ->
 %% special expressions representing macros.
 -spec subtrees(erl_syntax:syntaxTree()) -> [[erl_syntax:syntaxTree()]].
 subtrees(Node) ->
-  case is_type_attribute(Node) of
-    {true, AttrName} ->
-      [[erl_syntax:attribute_name(Node)],
-       type_attribute_arguments(Node, AttrName)];
-    false ->
-      erl_syntax:subtrees(Node)
-  end.
+    case is_type_attribute(Node) of
+        {true, AttrName} ->
+            [
+                [erl_syntax:attribute_name(Node)],
+                type_attribute_arguments(Node, AttrName)
+            ];
+        false ->
+            erl_syntax:subtrees(Node)
+    end.
 
 -spec is_type_attribute(erl_syntax:syntaxTree()) -> {true, atom()} | false.
 is_type_attribute(Node) ->
-  case erl_syntax:type(Node) of
-    attribute ->
-      NameNode = erl_syntax:attribute_name(Node),
-      case erl_syntax:type(NameNode) of
-        atom ->
-          AttrName = erl_syntax:atom_value(NameNode),
-          case lists:member(AttrName, [callback, spec, type, opaque]) of
-            true ->
-              {true, AttrName};
-            false ->
-              false
-          end;
+    case erl_syntax:type(Node) of
+        attribute ->
+            NameNode = erl_syntax:attribute_name(Node),
+            case erl_syntax:type(NameNode) of
+                atom ->
+                    AttrName = erl_syntax:atom_value(NameNode),
+                    case lists:member(AttrName, [callback, spec, type, opaque]) of
+                        true ->
+                            {true, AttrName};
+                        false ->
+                            false
+                    end;
+                _ ->
+                    false
+            end;
         _ ->
-          false
-      end;
-    _ ->
-      false
-  end.
+            false
+    end.
 
--spec type_attribute_arguments(erl_syntax:syntaxTree(), atom())
-                              -> [erl_syntax:syntaxTree()].
-type_attribute_arguments(Node, AttrName) when AttrName =:= callback;
-                                              AttrName =:= spec ->
-  [Arg] = erl_syntax:attribute_arguments(Node),
-  {FA, DefinitionClauses} = erl_syntax:concrete(Arg),
-  [erl_syntax:tuple([erl_syntax:abstract(FA),
-                     erl_syntax:list(DefinitionClauses)])];
-type_attribute_arguments(Node, AttrName) when AttrName =:= opaque;
-                                              AttrName =:= type ->
-  [Arg] = erl_syntax:attribute_arguments(Node),
-  {TypeName, Definition, TypeArgs} = erl_syntax:concrete(Arg),
-  [erl_syntax:tuple([erl_syntax:abstract(TypeName),
-                     Definition,
-                     erl_syntax:list(TypeArgs)])].
-
-
+-spec type_attribute_arguments(erl_syntax:syntaxTree(), atom()) ->
+    [erl_syntax:syntaxTree()].
+type_attribute_arguments(Node, AttrName) when
+    AttrName =:= callback;
+    AttrName =:= spec
+->
+    [Arg] = erl_syntax:attribute_arguments(Node),
+    {FA, DefinitionClauses} = erl_syntax:concrete(Arg),
+    [
+        erl_syntax:tuple([
+            erl_syntax:abstract(FA),
+            erl_syntax:list(DefinitionClauses)
+        ])
+    ];
+type_attribute_arguments(Node, AttrName) when
+    AttrName =:= opaque;
+    AttrName =:= type
+->
+    [Arg] = erl_syntax:attribute_arguments(Node),
+    {TypeName, Definition, TypeArgs} = erl_syntax:concrete(Arg),
+    [
+        erl_syntax:tuple([
+            erl_syntax:abstract(TypeName),
+            Definition,
+            erl_syntax:list(TypeArgs)
+        ])
+    ].
 
 %% attempting a rescue operation on a token sequence for a single form
 %% if it could not be parsed after the normal treatment
 
 -spec fix_form([erl_scan:token()]) ->
-        error | {retry, [erl_scan:token()], function()}.
-fix_form([{atom, _, ?pp_form}, {'(', _}, {')', _}, {'->', _},
-          {atom, _, define}, {'(', _} | _]=Ts) ->
-  case lists:reverse(Ts) of
-    [{dot, _}, {')', _} | _] ->
-      {retry, Ts, fun fix_define/1};
-    [{dot, L} | Ts1] ->
-      Ts2 = lists:reverse([{dot, L}, {')', L} | Ts1]),
-      {retry, Ts2, fun fix_define/1};
-    _ ->
-      error
-  end;
+    error | {retry, [erl_scan:token()], function()}.
+fix_form(
+    [
+        {atom, _, ?pp_form},
+        {'(', _},
+        {')', _},
+        {'->', _},
+        {atom, _, define},
+        {'(', _}
+        | _
+    ] = Ts
+) ->
+    case lists:reverse(Ts) of
+        [{dot, _}, {')', _} | _] ->
+            {retry, Ts, fun fix_define/1};
+        [{dot, L} | Ts1] ->
+            Ts2 = lists:reverse([{dot, L}, {')', L} | Ts1]),
+            {retry, Ts2, fun fix_define/1};
+        _ ->
+            error
+    end;
 fix_form(_Ts) ->
-  error.
+    error.
 
 -spec fix_define([erl_scan:token()]) ->
-        error | {form, erl_syntax:syntaxTree()}.
-fix_define([{atom, L, ?pp_form}, {'(', _}, {')', _}, {'->', _},
-            {atom, La, define}, {'(', _}, N, {',', _} | Ts]) ->
-  [{dot, _}, {')', _} | Ts1] = lists:reverse(Ts),
-  S = tokens_to_string(lists:reverse(Ts1)),
-  A = erl_syntax:set_pos(erl_syntax:atom(define), La),
-  Txt = erl_syntax:set_pos(erl_syntax:text(S), La),
-  {form, erl_syntax:set_pos(erl_syntax:attribute(A, [N, Txt]), L)};
+    error | {form, erl_syntax:syntaxTree()}.
+fix_define([
+    {atom, L, ?pp_form},
+    {'(', _},
+    {')', _},
+    {'->', _},
+    {atom, La, define},
+    {'(', _},
+    N,
+    {',', _}
+    | Ts
+]) ->
+    [{dot, _}, {')', _} | Ts1] = lists:reverse(Ts),
+    S = tokens_to_string(lists:reverse(Ts1)),
+    A = erl_syntax:set_pos(erl_syntax:atom(define), La),
+    Txt = erl_syntax:set_pos(erl_syntax:text(S), La),
+    {form, erl_syntax:set_pos(erl_syntax:attribute(A, [N, Txt]), L)};
 fix_define(_Ts) ->
-  error.
+    error.
 
 %% @spec tokens_to_string(Tokens::[term()]) -> string()
 %%
@@ -1018,24 +1207,23 @@ fix_define(_Ts) ->
 -spec tokens_to_string([term()]) -> string().
 
 tokens_to_string([{atom, _, A} | Ts]) ->
-  io_lib:write_atom(A) ++ " " ++ tokens_to_string(Ts);
+    io_lib:write_atom(A) ++ " " ++ tokens_to_string(Ts);
 tokens_to_string([{string, _, S} | Ts]) ->
-  io_lib:write_string(S) ++ " " ++ tokens_to_string(Ts);
+    io_lib:write_string(S) ++ " " ++ tokens_to_string(Ts);
 tokens_to_string([{char, _, C} | Ts]) ->
-  io_lib:write_char(C) ++ " " ++ tokens_to_string(Ts);
+    io_lib:write_char(C) ++ " " ++ tokens_to_string(Ts);
 tokens_to_string([{float, _, F} | Ts]) ->
-  float_to_list(F) ++ " " ++ tokens_to_string(Ts);
+    float_to_list(F) ++ " " ++ tokens_to_string(Ts);
 tokens_to_string([{integer, _, N} | Ts]) ->
-  integer_to_list(N) ++ " " ++ tokens_to_string(Ts);
+    integer_to_list(N) ++ " " ++ tokens_to_string(Ts);
 tokens_to_string([{var, _, A} | Ts]) ->
-  atom_to_list(A) ++ " " ++ tokens_to_string(Ts);
+    atom_to_list(A) ++ " " ++ tokens_to_string(Ts);
 tokens_to_string([{dot, _} | Ts]) ->
-  ".\n" ++ tokens_to_string(Ts);
+    ".\n" ++ tokens_to_string(Ts);
 tokens_to_string([{A, _} | Ts]) ->
-  atom_to_list(A) ++ " " ++ tokens_to_string(Ts);
+    atom_to_list(A) ++ " " ++ tokens_to_string(Ts);
 tokens_to_string([]) ->
-  "".
-
+    "".
 
 %% @spec format_error(Descriptor::term()) -> string()
 %% @hidden
@@ -1045,17 +1233,16 @@ tokens_to_string([]) ->
 -spec format_error(term()) -> string().
 
 format_error(macro_args) ->
-  errormsg("macro call missing end parenthesis");
+    errormsg("macro call missing end parenthesis");
 format_error({error, Error}) ->
-  Error;
+    Error;
 format_error({warning, Error}) ->
-  Error;
+    Error;
 format_error({unknown, Reason}) ->
-  errormsg(io_lib:format("unknown error: ~tP", [Reason, 15])).
+    errormsg(io_lib:format("unknown error: ~tP", [Reason, 15])).
 
 -spec errormsg(string()) -> string().
 errormsg(String) ->
-  io_lib:format("~s: ~ts", [?MODULE, String]).
-
+    io_lib:format("~s: ~ts", [?MODULE, String]).
 
 %% =====================================================================

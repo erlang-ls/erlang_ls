@@ -38,16 +38,18 @@
 -module(edoc_report).
 
 -compile({no_auto_import, [error/1, error/2, error/3]}).
--export([error/1,
-         error/2,
-         error/3,
-         report/2,
-         report/3,
-         report/4,
-         warning/1,
-         warning/2,
-         warning/3,
-         warning/4]).
+-export([
+    error/1,
+    error/2,
+    error/3,
+    report/2,
+    report/3,
+    report/4,
+    warning/1,
+    warning/2,
+    warning/3,
+    warning/4
+]).
 
 -type where() :: any().
 -type what() :: any().
@@ -59,72 +61,74 @@
 
 -spec error(what()) -> ok.
 error(What) ->
-  error([], What).
+    error([], What).
 
 -spec error(where(), what()) -> ok.
 error(Where, What) ->
-  error(0, Where, What).
+    error(0, Where, What).
 
 -spec error(line(), where(), any()) -> ok.
 error(Line, Where, S) when is_list(S) ->
-  report(Line, Where, S, [], error);
+    report(Line, Where, S, [], error);
 error(Line, Where, {S, D}) when is_list(S) ->
-  report(Line, Where, S, D, error);
+    report(Line, Where, S, D, error);
 error(Line, Where, {format_error, M, D}) ->
-  report(Line, Where, M:format_error(D), [], error).
+    report(Line, Where, M:format_error(D), [], error).
 
 -spec warning(string()) -> ok.
 warning(S) ->
-  warning(S, []).
+    warning(S, []).
 
 -spec warning(string(), [any()]) -> ok.
 warning(S, Vs) ->
-  warning([], S, Vs).
+    warning([], S, Vs).
 
 -spec warning(where(), string(), [any()]) -> ok.
 warning(Where, S, Vs) ->
-  warning(0, Where, S, Vs).
+    warning(0, Where, S, Vs).
 
 -spec warning(line(), where(), string(), [any()]) -> ok.
 warning(L, Where, "tag @~s not recognized." = S, [Tag] = Vs) ->
-  CustomTags = els_config:get(edoc_custom_tags),
-  case lists:member(atom_to_list(Tag), CustomTags) of
-    true ->
-      ok;
-    false ->
-      report(L, Where, S, Vs, warning)
-  end;
+    CustomTags = els_config:get(edoc_custom_tags),
+    case lists:member(atom_to_list(Tag), CustomTags) of
+        true ->
+            ok;
+        false ->
+            report(L, Where, S, Vs, warning)
+    end;
 warning(L, Where, S, Vs) ->
-  report(L, Where, S, Vs, warning).
+    report(L, Where, S, Vs, warning).
 
 -spec report(string(), [any()]) -> ok.
 report(S, Vs) ->
-  report([], S, Vs).
+    report([], S, Vs).
 
 -spec report(where(), string(), [any()]) -> ok.
 report(Where, S, Vs) ->
-  report(0, Where, S, Vs).
+    report(0, Where, S, Vs).
 
 -spec report(line(), where(), string(), [any()]) -> ok.
 report(L, Where, S, Vs) ->
-  report(L, Where, S, Vs, error).
+    report(L, Where, S, Vs, error).
 
 -spec report(line(), where(), string(), [any()], severity()) -> ok.
 report(L, Where, S, Vs, Severity) ->
-  put(?DICT_KEY, [{L, where(Where), S, Vs, Severity}|get(?DICT_KEY)]).
+    put(?DICT_KEY, [{L, where(Where), S, Vs, Severity} | get(?DICT_KEY)]).
 
--spec where([any()] |
-            {string(), module | footer | header | {atom(), non_neg_integer()}})
-           -> string().
+-spec where(
+    [any()]
+    | {string(), module | footer | header | {atom(), non_neg_integer()}}
+) ->
+    string().
 where({File, module}) ->
-  io_lib:fwrite("~ts, in module header: ", [File]);
+    io_lib:fwrite("~ts, in module header: ", [File]);
 where({File, footer}) ->
-  io_lib:fwrite("~ts, in module footer: ", [File]);
+    io_lib:fwrite("~ts, in module footer: ", [File]);
 where({File, header}) ->
-  io_lib:fwrite("~ts, in header file: ", [File]);
+    io_lib:fwrite("~ts, in header file: ", [File]);
 where({File, {F, A}}) ->
-  io_lib:fwrite("~ts, function ~ts/~w: ", [File, F, A]);
+    io_lib:fwrite("~ts, function ~ts/~w: ", [File, F, A]);
 where([]) ->
-  io_lib:fwrite("~s: ", [?APPLICATION]);
+    io_lib:fwrite("~s: ", [?APPLICATION]);
 where(File) when is_list(File) ->
-  File ++ ": ".
+    File ++ ": ".
