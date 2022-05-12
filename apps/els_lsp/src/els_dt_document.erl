@@ -27,6 +27,7 @@
 
 -export([
     new/3,
+    new/4,
     pois/1,
     pois/2,
     get_element_at_pos/3,
@@ -168,9 +169,12 @@ delete(Uri) ->
 
 -spec new(uri(), binary(), source()) -> item().
 new(Uri, Text, Source) ->
+    new(Uri, Text, Source, _Version = null).
+
+-spec new(uri(), binary(), source(), version()) -> item().
+new(Uri, Text, Source, Version) ->
     Extension = filename:extension(Uri),
     Id = binary_to_atom(filename:basename(Uri, Extension), utf8),
-    Version = null,
     case Extension of
         <<".erl">> ->
             new(Uri, Text, Id, module, Source, Version);

@@ -53,10 +53,9 @@ did_open(Params) ->
             <<"version">> := Version
         }
     } = Params,
-    {ok, Document} = els_utils:lookup_document(Uri),
-    NewDocument = Document#{text => Text, version => Version},
-    els_dt_document:insert(NewDocument),
-    els_indexing:deep_index(NewDocument),
+    Document = els_dt_document:new(Uri, Text, _Source = app, Version),
+    els_dt_document:insert(Document),
+    els_indexing:deep_index(Document),
     ok.
 
 -spec did_save(map()) -> ok.
