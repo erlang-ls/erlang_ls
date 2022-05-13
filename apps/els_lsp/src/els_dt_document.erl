@@ -31,6 +31,7 @@
     pois/1,
     pois/2,
     get_element_at_pos/3,
+    get_pois_at_pos/3,
     uri/1,
     functions_at_pos/3,
     applications_at_pos/3,
@@ -301,3 +302,21 @@ get_words(Text) ->
         {error, ErrorInfo, _ErrorLocation} ->
             ?LOG_DEBUG("Errors while get_words ~p", [ErrorInfo])
     end.
+
+%% ---------------------------------------------------------------------
+
+-spec get_pois_at_pos(item(), non_neg_integer(), non_neg_integer()) ->
+  [poi()].
+get_pois_at_pos(Item, Line, Character) ->
+  Method = <<"elp/getPoisAtPos">>,
+  Uri = uri(Item),
+  Params =
+    #{ <<"position">>   => #{ <<"line">>      => Line
+                            , <<"character">> => Character
+                            }
+     , <<"textDocument">> => #{<<"uri">> => Uri}
+     },
+  ?LOG_WARNING("get_pois_at_pos ""[uri=~p, line=~p, character=~p]"
+            , [Uri, Line, Character]
+            ),
+  els_server:send_request(Method, Params).

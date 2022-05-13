@@ -29,18 +29,19 @@ is_enabled() -> true.
 
 -spec handle_request(any(), any()) -> {response, any()}.
 handle_request({rename, Params}, _State) ->
-    #{
-        <<"textDocument">> := #{<<"uri">> := Uri},
-        <<"position">> := #{
-            <<"line">> := Line,
-            <<"character">> := Character
-        },
-        <<"newName">> := NewName
-    } = Params,
-    {ok, Document} = els_utils:lookup_document(Uri),
-    Elem = els_dt_document:get_element_at_pos(Document, Line + 1, Character + 1),
-    WorkspaceEdits = workspace_edits(Uri, Elem, NewName),
-    {response, WorkspaceEdits}.
+  #{ <<"textDocument">> := #{<<"uri">> := Uri}
+   , <<"position">> := #{ <<"line">>      := Line
+                        , <<"character">> := Character
+                        }
+   , <<"newName">> := NewName
+   } = Params,
+  {ok, Document} = els_utils:lookup_document(Uri),
+  Elem0 = els_dt_document:get_element_at_pos(Document, Line + 1, Character + 1),
+  ?LOG_WARNING("handle_request rename ""[elem0=~p]" , [Elem0]),
+  Elem = els_dt_document:get_pois_at_pos(Document, Line + 1, Character + 1),
+  ?LOG_WARNING("handle_request rename ""[elem=~p]" , [Elem0]),
+  WorkspaceEdits = workspace_edits(Uri, Elem, NewName),
+  {response, WorkspaceEdits}.
 
 %%==============================================================================
 %% Internal functions
