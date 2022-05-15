@@ -42,9 +42,9 @@ symbols(Uri) ->
 
 -spec poi_to_symbol(uri(), els_poi:poi()) -> symbol_information().
 poi_to_symbol(Uri, POI) ->
-    #{range := Range, kind := Kind, id := Id} = POI,
+    #{range := Range, kind := Kind} = POI,
     #{
-        name => symbol_name(Kind, Id),
+        name => els_poi:label(POI),
         kind => symbol_kind(Kind),
         location => #{
             uri => Uri,
@@ -57,15 +57,3 @@ symbol_kind(function) -> ?SYMBOLKIND_FUNCTION;
 symbol_kind(define) -> ?SYMBOLKIND_CONSTANT;
 symbol_kind(record) -> ?SYMBOLKIND_STRUCT;
 symbol_kind(type_definition) -> ?SYMBOLKIND_TYPE_PARAMETER.
-
--spec symbol_name(els_poi:poi_kind(), any()) -> binary().
-symbol_name(function, {F, A}) ->
-    els_utils:to_binary(io_lib:format("~s/~p", [F, A]));
-symbol_name(define, {Name, Arity}) ->
-    els_utils:to_binary(io_lib:format("~s/~p", [Name, Arity]));
-symbol_name(define, Name) when is_atom(Name) ->
-    atom_to_binary(Name, utf8);
-symbol_name(record, Name) when is_atom(Name) ->
-    atom_to_binary(Name, utf8);
-symbol_name(type_definition, {Name, Arity}) ->
-    els_utils:to_binary(io_lib:format("~s/~p", [Name, Arity])).
