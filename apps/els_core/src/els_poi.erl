@@ -14,7 +14,8 @@
     sort/1,
     label/1,
     symbol_kind/1,
-    to_symbol/2
+    to_symbol/2,
+    folding_range/1
 ]).
 
 %%==============================================================================
@@ -75,6 +76,7 @@
 %% Behaviour Definition
 %%==============================================================================
 -callback label(poi()) -> binary().
+-callback symbol_kind() -> symbol_kind().
 
 %%==============================================================================
 %% API
@@ -134,6 +136,10 @@ to_symbol(Uri, POI) ->
             range => els_protocol:range(Range)
         }
     }.
+
+-spec folding_range(els_poi:poi()) -> poi_range().
+folding_range(#{data := #{folding_range := Range}}) ->
+    Range.
 
 %%==============================================================================
 %% Internal Functions
