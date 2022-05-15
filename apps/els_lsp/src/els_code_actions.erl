@@ -12,27 +12,39 @@
 -include("els_lsp.hrl").
 
 -spec create_function(uri(), range(), binary(), [binary()]) -> [map()].
-create_function(Uri, _Range, _Data, [UndefinedFun]) ->
+create_function(Uri, Range0, _Data, [UndefinedFun]) ->
     {ok, Document} = els_utils:lookup_document(Uri),
-    case els_poi:sort(els_dt_document:pois(Document)) of
-        [] ->
-            [];
-        POIs ->
-            #{range := #{to := {Line, _Col}}} = lists:last(POIs),
-            [FunctionName, _Arity] = string:split(UndefinedFun, "/"),
+    Range = els_range:to_poi_range(Range0),
+    FunPOIs = els_dt_document:pois(Document, [function]),
+    %% Figure out which function the error was found in, as we want to
+    %% create the function right after the current function.
+    %% (Where the wrapping_range ends)
+    case
+        [
+            R
+         || #{data := #{wrapping_range := R}} <- FunPOIs,
+            els_range:in(Range, R)
+        ]
+    of
+        [#{to := {Line, _}} | _] ->
+            [Name, ArityBin] = string:split(UndefinedFun, "/"),
+            Arity = binary_to_integer(ArityBin),
+            Args = string:join(lists:duplicate(Arity, "_"), ", "),
+            SpecAndFun = io_lib:format("~s(~s) ->\n  ok.\n\n", [Name, Args]),
             [
                 make_edit_action(
                     Uri,
-                    <<"Add the undefined function ", UndefinedFun/binary>>,
+                    <<"Create function ", UndefinedFun/binary>>,
                     ?CODE_ACTION_KIND_QUICKFIX,
-                    <<"-spec ", FunctionName/binary, "() -> ok. \n ", FunctionName/binary,
-                        "() -> \n \t ok.">>,
+                    iolist_to_binary(SpecAndFun),
                     els_protocol:range(#{
                         from => {Line + 1, 1},
-                        to => {Line + 2, 1}
+                        to => {Line + 1, 1}
                     })
                 )
-            ]
+            ];
+        _ ->
+            []
     end.
 
 -spec export_function(uri(), range(), binary(), [binary()]) -> [map()].
