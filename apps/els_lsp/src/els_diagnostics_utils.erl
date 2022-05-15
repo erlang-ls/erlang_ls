@@ -45,7 +45,7 @@ find_included_document(Uri) ->
 -spec range(
     els_dt_document:item() | undefined,
     erl_anno:anno() | none
-) -> poi_range().
+) -> els_poi:poi_range().
 range(Document, none) ->
     range(Document, erl_anno:new(1));
 range(Document, Anno) ->
@@ -153,7 +153,7 @@ pt_deps(Module) ->
             []
     end.
 
--spec applications_to_uris([poi()]) -> [uri()].
+-spec applications_to_uris([els_poi:poi()]) -> [uri()].
 applications_to_uris(Applications) ->
     Modules = [M || #{id := {M, _F, _A}} <- Applications],
     Fun = fun(M, Acc) ->

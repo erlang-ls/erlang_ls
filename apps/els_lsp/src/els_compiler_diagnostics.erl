@@ -186,7 +186,7 @@ diagnostics(Path, List, Severity) ->
 -spec diagnostic(
     string(),
     string(),
-    poi_range(),
+    els_poi:poi_range(),
     els_dt_document:item(),
     module(),
     string(),
@@ -206,7 +206,7 @@ diagnostic(_Path, MessagePath, Range, Document, Module, Desc0, Severity) ->
     Desc = io_lib:format("Issue in included file (~p): ~s", [Line, Desc1]),
     diagnostic(InclusionRange, ?MODULE, Desc, Severity).
 
--spec diagnostic(poi_range(), module(), string(), integer()) ->
+-spec diagnostic(els_poi:poi_range(), module(), string(), integer()) ->
     els_diagnostics:diagnostic().
 diagnostic(Range, Module, Desc, Severity) ->
     Message0 = lists:flatten(Module:format_error(Desc)),
@@ -648,7 +648,7 @@ make_code(Module, _Reason) ->
 -spec range(
     els_dt_document:item() | undefined,
     erl_anno:anno() | none
-) -> poi_range().
+) -> els_poi:poi_range().
 range(Document, Anno) ->
     els_diagnostics_utils:range(Document, Anno).
 
@@ -656,7 +656,7 @@ range(Document, Anno) ->
 %%
 %%      Given the path of e .hrl path, find its inclusion range within
 %%      a given document.
--spec inclusion_range(string(), els_dt_document:item()) -> poi_range().
+-spec inclusion_range(string(), els_dt_document:item()) -> els_poi:poi_range().
 inclusion_range(IncludePath, Document) ->
     case
         inclusion_range(IncludePath, Document, include) ++
@@ -673,7 +673,7 @@ inclusion_range(IncludePath, Document) ->
     els_dt_document:item(),
     include | include_lib | behaviour | parse_transform
 ) ->
-    [poi_range()].
+    [els_poi:poi_range()].
 inclusion_range(IncludePath, Document, include) ->
     POIs = els_dt_document:pois(Document, [include]),
     IncludeId = els_utils:include_id(IncludePath),

@@ -40,7 +40,7 @@ symbols(Uri) ->
     ]),
     lists:reverse([poi_to_symbol(Uri, POI) || POI <- POIs]).
 
--spec poi_to_symbol(uri(), poi()) -> symbol_information().
+-spec poi_to_symbol(uri(), els_poi:poi()) -> symbol_information().
 poi_to_symbol(Uri, POI) ->
     #{range := Range, kind := Kind, id := Id} = POI,
     #{
@@ -52,13 +52,13 @@ poi_to_symbol(Uri, POI) ->
         }
     }.
 
--spec symbol_kind(poi_kind()) -> symbol_kind().
+-spec symbol_kind(els_poi:poi_kind()) -> symbol_kind().
 symbol_kind(function) -> ?SYMBOLKIND_FUNCTION;
 symbol_kind(define) -> ?SYMBOLKIND_CONSTANT;
 symbol_kind(record) -> ?SYMBOLKIND_STRUCT;
 symbol_kind(type_definition) -> ?SYMBOLKIND_TYPE_PARAMETER.
 
--spec symbol_name(poi_kind(), any()) -> binary().
+-spec symbol_name(els_poi:poi_kind(), any()) -> binary().
 symbol_name(function, {F, A}) ->
     els_utils:to_binary(io_lib:format("~s/~p", [F, A]));
 symbol_name(define, {Name, Arity}) ->

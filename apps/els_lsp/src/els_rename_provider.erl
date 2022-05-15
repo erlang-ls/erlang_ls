@@ -45,7 +45,7 @@ handle_request({rename, Params}, _State) ->
 %%==============================================================================
 %% Internal functions
 %%==============================================================================
--spec workspace_edits(uri(), [poi()], binary()) -> null | [any()].
+-spec workspace_edits(uri(), [els_poi:poi()], binary()) -> null | [any()].
 workspace_edits(_Uri, [], _NewName) ->
     null;
 workspace_edits(OldUri, [#{kind := module} = POI | _], NewName) ->
@@ -172,11 +172,11 @@ workspace_edits(Uri, [#{kind := 'callback'} = POI | _], NewName) ->
 workspace_edits(_Uri, _POIs, _NewName) ->
     null.
 
--spec editable_range(poi()) -> range().
+-spec editable_range(els_poi:poi()) -> range().
 editable_range(POI) ->
     editable_range(POI, function).
 
--spec editable_range(poi(), function | module) -> range().
+-spec editable_range(els_poi:poi(), function | module) -> range().
 editable_range(#{kind := Kind, data := #{mod_range := Range}}, module) when
     Kind =:= application;
     Kind =:= implicit_fun;
@@ -203,7 +203,7 @@ editable_range(#{kind := Kind, data := #{name_range := Range}}, function) when
 editable_range(#{kind := _Kind, range := Range}, _) ->
     els_protocol:range(Range).
 
--spec changes(uri(), poi(), binary()) -> #{uri() => [text_edit()]} | null.
+-spec changes(uri(), els_poi:poi(), binary()) -> #{uri() => [text_edit()]} | null.
 changes(Uri, #{kind := module} = Mod, NewName) ->
     #{Uri => [#{range => editable_range(Mod), newText => NewName}]};
 changes(Uri, #{kind := variable} = Var, NewName) ->
@@ -309,7 +309,7 @@ changes(Uri, #{kind := DefKind} = DefPoi, NewName) when
 changes(_Uri, _POI, _NewName) ->
     null.
 
--spec new_name(poi(), binary()) -> binary().
+-spec new_name(els_poi:poi(), binary()) -> binary().
 new_name(#{kind := macro}, NewName) ->
     <<"?", NewName/binary>>;
 new_name(#{kind := record_expr}, NewName) ->
@@ -317,8 +317,8 @@ new_name(#{kind := record_expr}, NewName) ->
 new_name(_, NewName) ->
     NewName.
 
--spec convert_references_to_pois([els_dt_references:item()], [poi_kind()]) ->
-    [{uri(), poi()}].
+-spec convert_references_to_pois([els_dt_references:item()], [els_poi:poi_kind()]) ->
+    [{uri(), els_poi:poi()}].
 convert_references_to_pois(Refs, Kinds) ->
     UriPOIs = lists:foldl(
         fun
@@ -346,7 +346,7 @@ convert_references_to_pois(Refs, Kinds) ->
     ).
 
 %% @doc Find all uses of imported function in Uri
--spec import_changes(uri(), poi(), binary()) -> [text_edit()].
+-spec import_changes(uri(), els_poi:poi(), binary()) -> [text_edit()].
 import_changes(Uri, #{kind := import_entry, id := {_M, F, A}}, NewName) ->
     case els_utils:lookup_document(Uri) of
         {ok, Doc} ->
@@ -364,6 +364,6 @@ import_changes(Uri, #{kind := import_entry, id := {_M, F, A}}, NewName) ->
 import_changes(_Uri, _POI, _NewName) ->
     [].
 
--spec change(poi(), binary()) -> text_edit().
+-spec change(els_poi:poi(), binary()) -> text_edit().
 change(POI, NewName) ->
     #{range => editable_range(POI), newText => NewName}.

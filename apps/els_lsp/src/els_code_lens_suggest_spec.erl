@@ -14,7 +14,6 @@
 %%==============================================================================
 %% Includes
 %%==============================================================================
--include("els_lsp.hrl").
 -include_lib("kernel/include/logger.hrl").
 
 %%==============================================================================
@@ -41,7 +40,7 @@ init(#{uri := Uri} = _Document) ->
             'no_info'
     end.
 
--spec command(els_dt_document:item(), poi(), state()) -> els_command:command().
+-spec command(els_dt_document:item(), els_poi:poi(), state()) -> els_command:command().
 command(_Document, _POI, 'no_info') ->
     CommandId = <<"suggest-spec">>,
     Title = <<"Cannot extract specs (check logs for details)">>,
@@ -64,7 +63,7 @@ command(Document, #{range := #{from := {Line, _}}} = POI, Info) ->
 is_default() ->
     true.
 
--spec pois(els_dt_document:item()) -> [poi()].
+-spec pois(els_dt_document:item()) -> [els_poi:poi()].
 pois(Document) ->
     Functions = els_dt_document:pois(Document, [function]),
     Specs = els_dt_document:pois(Document, [spec]),
@@ -74,7 +73,7 @@ pois(Document) ->
 %%==============================================================================
 %% Internal functions
 %%==============================================================================
--spec get_type_spec(poi(), els_typer:info()) -> binary().
+-spec get_type_spec(els_poi:poi(), els_typer:info()) -> binary().
 get_type_spec(POI, Info) ->
     #{id := {Function, Arity}} = POI,
     Spec = els_typer:get_type_spec(Function, Arity, Info),

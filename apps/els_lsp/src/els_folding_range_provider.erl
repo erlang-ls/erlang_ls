@@ -41,7 +41,7 @@ handle_request({document_foldingrange, Params}, _State) ->
 %% Internal functions
 %%==============================================================================
 
--spec folding_range(poi_range()) -> folding_range().
+-spec folding_range(els_poi:poi_range()) -> folding_range().
 folding_range(#{from := {FromLine, FromCol}, to := {ToLine, ToCol}}) ->
     #{
         startLine => FromLine - 1,

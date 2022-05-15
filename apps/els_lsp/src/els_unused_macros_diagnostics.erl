@@ -52,14 +52,14 @@ source() ->
 %%==============================================================================
 %% Internal Functions
 %%==============================================================================
--spec find_unused_macros(els_dt_document:item()) -> [poi()].
+-spec find_unused_macros(els_dt_document:item()) -> [els_poi:poi()].
 find_unused_macros(Document) ->
     Defines = els_dt_document:pois(Document, [define]),
     Macros = els_dt_document:pois(Document, [macro]),
     MacroIds = [Id || #{id := Id} <- Macros],
     [POI || #{id := Id} = POI <- Defines, not lists:member(Id, MacroIds)].
 
--spec make_diagnostic(poi()) -> els_diagnostics:diagnostic().
+-spec make_diagnostic(els_poi:poi()) -> els_diagnostics:diagnostic().
 make_diagnostic(#{id := POIId, range := POIRange}) ->
     Range = els_protocol:range(POIRange),
     MacroName =

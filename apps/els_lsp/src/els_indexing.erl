@@ -97,13 +97,13 @@ deep_index(Document0) ->
     end,
     Document.
 
--spec index_signatures(atom(), uri(), binary(), [poi()], version()) -> ok.
+-spec index_signatures(atom(), uri(), binary(), [els_poi:poi()], version()) -> ok.
 index_signatures(Id, Uri, Text, POIs, Version) ->
     ok = els_dt_signatures:versioned_delete_by_uri(Uri, Version),
     [index_signature(Id, Text, POI, Version) || #{kind := spec} = POI <- POIs],
     ok.
 
--spec index_signature(atom(), binary(), poi(), version()) -> ok.
+-spec index_signature(atom(), binary(), els_poi:poi(), version()) -> ok.
 index_signature(_M, _Text, #{id := undefined}, _Version) ->
     ok;
 index_signature(M, Text, #{id := {F, A}, range := Range}, Version) ->
@@ -115,7 +115,7 @@ index_signature(M, Text, #{id := {F, A}, range := Range}, Version) ->
         version => Version
     }).
 
--spec index_references(atom(), uri(), [poi()], version()) -> ok.
+-spec index_references(atom(), uri(), [els_poi:poi()], version()) -> ok.
 index_references(Id, Uri, POIs, Version) ->
     ok = els_dt_references:versioned_delete_by_uri(Uri, Version),
     %% Function
@@ -138,7 +138,7 @@ index_references(Id, Uri, POIs, Version) ->
     ],
     ok.
 
--spec index_reference(atom(), uri(), poi(), version()) -> ok.
+-spec index_reference(atom(), uri(), els_poi:poi(), version()) -> ok.
 index_reference(M, Uri, #{id := {F, A}} = POI, Version) ->
     index_reference(M, Uri, POI#{id => {M, F, A}}, Version);
 index_reference(_M, Uri, #{kind := Kind, id := Id, range := Range}, Version) ->

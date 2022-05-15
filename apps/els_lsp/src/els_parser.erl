@@ -29,7 +29,7 @@
 %%==============================================================================
 %% API
 %%==============================================================================
--spec parse(binary()) -> {ok, [poi()]}.
+-spec parse(binary()) -> {ok, [els_poi:poi()]}.
 parse(Text) ->
     String = els_utils:to_list(Text),
     case erlfmt:read_nodes_string("nofile", String) of
@@ -72,7 +72,7 @@ parse_incomplete_text(Text, {_Line, _Col} = StartLoc) ->
 %% Internal Functions
 %%==============================================================================
 
--spec parse_forms([erlfmt_parse:abstract_node()]) -> deep_list(poi()).
+-spec parse_forms([erlfmt_parse:abstract_node()]) -> deep_list(els_poi:poi()).
 parse_forms(Forms) ->
     [
         try
@@ -88,7 +88,7 @@ parse_forms(Forms) ->
      || Form <- Forms
     ].
 
--spec parse_form(erlfmt_parse:abstract_node()) -> deep_list(poi()).
+-spec parse_form(erlfmt_parse:abstract_node()) -> deep_list(els_poi:poi()).
 parse_form({raw_string, Anno, Text}) ->
     StartLoc = erlfmt_scan:get_anno(location, Anno),
     RangeTokens = scan_text(Text, StartLoc),
@@ -172,7 +172,7 @@ ensure_dot(Tokens) ->
 %% completion items. Using the tokens provides accurate position for the
 %% beginning and end for this sections, and can also handle the situations when
 %% the code is not parsable.
--spec find_attribute_tokens([erlfmt_scan:token()]) -> [poi()].
+-spec find_attribute_tokens([erlfmt_scan:token()]) -> [els_poi:poi()].
 find_attribute_tokens([{'-', Anno}, {atom, _, Name} | [_ | _] = Rest]) when
     Name =:= export;
     Name =:= export_type
@@ -187,13 +187,13 @@ find_attribute_tokens([{'-', Anno}, {atom, _, spec} | [_ | _] = Rest]) ->
 find_attribute_tokens(_) ->
     [].
 
--spec points_of_interest(tree()) -> [[poi()]].
+-spec points_of_interest(tree()) -> [[els_poi:poi()]].
 points_of_interest(Tree) ->
     FoldFun = fun(T, Acc) -> [do_points_of_interest(T) | Acc] end,
     fold(FoldFun, [], Tree).
 
 %% @doc Return the list of points of interest for a given `Tree'.
--spec do_points_of_interest(tree()) -> [poi()].
+-spec do_points_of_interest(tree()) -> [els_poi:poi()].
 do_points_of_interest(Tree) ->
     try
         case erl_syntax:type(Tree) of
@@ -229,7 +229,7 @@ do_points_of_interest(Tree) ->
         throw:syntax_error -> []
     end.
 
--spec application(tree()) -> [poi()].
+-spec application(tree()) -> [els_poi:poi()].
 application(Tree) ->
     case application_mfa(Tree) of
         undefined ->
@@ -296,7 +296,7 @@ application_with_variable(Operator, A) ->
             undefined
     end.
 
--spec attribute(tree()) -> [poi()].
+-spec attribute(tree()) -> [els_poi:poi()].
 attribute(Tree) ->
     Pos = erl_syntax:get_pos(Tree),
     try {attribute_name_atom(Tree), erl_syntax:attribute_arguments(Tree)} of
@@ -436,7 +436,7 @@ attribute(Tree) ->
             []
     end.
 
--spec record_attribute_pois(tree(), tree(), atom(), tree()) -> [poi()].
+-spec record_attribute_pois(tree(), tree(), atom(), tree()) -> [els_poi:poi()].
 record_attribute_pois(Tree, Record, RecordName, Fields) ->
     FieldList = record_def_field_name_list(Fields),
     {StartLine, StartColumn} = get_start_location(Tree),
@@ -456,7 +456,7 @@ record_attribute_pois(Tree, Record, RecordName, Fields) ->
         | record_def_fields(Fields, RecordName)
     ].
 
--spec find_compile_options_pois(tree()) -> [poi()].
+-spec find_compile_options_pois(tree()) -> [els_poi:poi()].
 find_compile_options_pois(Arg) ->
     case erl_syntax:type(Arg) of
         list ->
@@ -481,7 +481,7 @@ find_compile_options_pois(Arg) ->
             []
     end.
 
--spec find_export_pois(tree(), export | export_type, tree()) -> [poi()].
+-spec find_export_pois(tree(), export | export_type, tree()) -> [els_poi:poi()].
 find_export_pois(Tree, AttrName, Arg) ->
     Exports = erl_syntax:list_elements(Arg),
     EntryPoiKind =
@@ -496,7 +496,7 @@ find_export_pois(Tree, AttrName, Arg) ->
     ].
 
 -spec find_export_entry_pois(export_entry | export_type_entry, [tree()]) ->
-    [poi()].
+    [els_poi:poi()].
 find_export_entry_pois(EntryPoiKind, Exports) ->
     lists:flatten(
         [
@@ -516,7 +516,7 @@ find_export_entry_pois(EntryPoiKind, Exports) ->
         ]
     ).
 
--spec find_import_entry_pois(tree(), [tree()]) -> [poi()].
+-spec find_import_entry_pois(tree(), [tree()]) -> [els_poi:poi()].
 find_import_entry_pois(ModTree, Imports) ->
     M = erl_syntax:atom_value(ModTree),
     lists:flatten(
@@ -557,7 +557,7 @@ type_args(Args) ->
      || {N, T} <- lists:zip(lists:seq(1, length(Args)), Args)
     ].
 
--spec function(tree()) -> [poi()].
+-spec function(tree()) -> [els_poi:poi()].
 function(Tree) ->
     FunName = erl_syntax:function_name(Tree),
     Clauses = erl_syntax:function_clauses(Tree),
@@ -633,7 +633,7 @@ args_from_subtrees(Trees) ->
      || {N, T} <- lists:zip(lists:seq(1, Arity), Trees)
     ].
 
--spec implicit_fun(tree()) -> [poi()].
+-spec implicit_fun(tree()) -> [els_poi:poi()].
 implicit_fun(Tree) ->
     FunSpec =
         try erl_syntax_lib:analyze_implicit_fun(Tree) of
@@ -666,7 +666,7 @@ implicit_fun(Tree) ->
             [poi(erl_syntax:get_pos(Tree), implicit_fun, FunSpec, Data)]
     end.
 
--spec macro(tree()) -> [poi()].
+-spec macro(tree()) -> [els_poi:poi()].
 macro(Tree) ->
     Anno = macro_location(Tree),
     [poi(Anno, macro, macro_name(Tree))].
@@ -712,7 +712,7 @@ record_def_field_name_list(Fields) ->
         undefined
     ).
 
--spec record_def_fields(tree(), atom()) -> [poi()].
+-spec record_def_fields(tree(), atom()) -> [els_poi:poi()].
 record_def_fields(Fields, RecordName) ->
     map_record_def_fields(
         fun(F, R) ->
@@ -722,7 +722,7 @@ record_def_fields(Fields, RecordName) ->
         RecordName
     ).
 
--spec record_access(tree()) -> [poi()].
+-spec record_access(tree()) -> [els_poi:poi()].
 record_access(Tree) ->
     RecordNode = erl_syntax:record_access_type(Tree),
     case is_record_name(RecordNode) of
@@ -732,7 +732,7 @@ record_access(Tree) ->
             []
     end.
 
--spec record_access_pois(tree(), atom()) -> [poi()].
+-spec record_access_pois(tree(), atom()) -> [els_poi:poi()].
 record_access_pois(Tree, Record) ->
     FieldNode = erl_syntax:record_access_field(Tree),
     FieldPoi =
@@ -748,7 +748,7 @@ record_access_pois(Tree, Record) ->
         | FieldPoi
     ].
 
--spec record_expr(tree()) -> [poi()].
+-spec record_expr(tree()) -> [els_poi:poi()].
 record_expr(Tree) ->
     RecordNode = erl_syntax:record_expr_type(Tree),
     case is_record_name(RecordNode) of
@@ -758,7 +758,7 @@ record_expr(Tree) ->
             []
     end.
 
--spec record_expr_pois(tree(), tree(), atom()) -> [poi()].
+-spec record_expr_pois(tree(), tree(), atom()) -> [els_poi:poi()].
 record_expr_pois(Tree, RecordNode, Record) ->
     FieldPois = lists:append(
         [
@@ -772,7 +772,7 @@ record_expr_pois(Tree, RecordNode, Record) ->
         | FieldPois
     ].
 
--spec record_type(tree()) -> [poi()].
+-spec record_type(tree()) -> [els_poi:poi()].
 record_type(Tree) ->
     RecordNode = erl_syntax:record_type_name(Tree),
     case is_record_name(RecordNode) of
@@ -782,7 +782,7 @@ record_type(Tree) ->
             []
     end.
 
--spec record_type_pois(tree(), tree(), atom()) -> [poi()].
+-spec record_type_pois(tree(), tree(), atom()) -> [els_poi:poi()].
 record_type_pois(Tree, RecordNode, Record) ->
     FieldPois = lists:append(
         [
@@ -796,7 +796,7 @@ record_type_pois(Tree, RecordNode, Record) ->
         | FieldPois
     ].
 
--spec record_field_name(tree(), atom(), poi_kind()) -> [poi()].
+-spec record_field_name(tree(), atom(), els_poi:poi_kind()) -> [els_poi:poi()].
 record_field_name(FieldNode, Record, Kind) ->
     NameNode =
         case erl_syntax:type(FieldNode) of
@@ -831,7 +831,7 @@ is_record_name(RecordNameNode) ->
             false
     end.
 
--spec type_application(tree()) -> [poi()].
+-spec type_application(tree()) -> [els_poi:poi()].
 type_application(Tree) ->
     Type = erl_syntax:type(Tree),
     case erl_syntax_lib:analyze_type_application(Tree) of
@@ -859,7 +859,7 @@ type_application(Tree) ->
             [poi(Pos, type_application, Id)]
     end.
 
--spec variable(tree()) -> [poi()].
+-spec variable(tree()) -> [els_poi:poi()].
 variable(Tree) ->
     Pos = erl_syntax:get_pos(Tree),
     case Pos of
@@ -867,7 +867,7 @@ variable(Tree) ->
         _ -> [poi(Pos, variable, node_name(Tree))]
     end.
 
--spec atom(tree()) -> [poi()].
+-spec atom(tree()) -> [els_poi:poi()].
 atom(Tree) ->
     Pos = erl_syntax:get_pos(Tree),
     case Pos of
@@ -951,12 +951,13 @@ get_name_arity(Tree) ->
             false
     end.
 
--spec poi(pos() | {pos(), pos()} | erl_anno:anno(), poi_kind(), any()) -> poi().
+-spec poi(pos() | {pos(), pos()} | erl_anno:anno(), els_poi:poi_kind(), any()) ->
+    els_poi:poi().
 poi(Pos, Kind, Id) ->
     poi(Pos, Kind, Id, undefined).
 
--spec poi(pos() | {pos(), pos()} | erl_anno:anno(), poi_kind(), any(), any()) ->
-    poi().
+-spec poi(pos() | {pos(), pos()} | erl_anno:anno(), els_poi:poi_kind(), any(), any()) ->
+    els_poi:poi().
 poi(Pos, Kind, Id, Data) ->
     Range = els_range:range(Pos, Kind, Id, Data),
     els_poi:new(Range, Kind, Id, Data).
@@ -1173,7 +1174,7 @@ skip_function_entries(FunList) ->
 
 %% Helpers for determining valid Folding Ranges
 -spec exceeds_one_line(erl_anno:line(), erl_anno:line()) ->
-    poi_range() | oneliner.
+    els_poi:poi_range() | oneliner.
 exceeds_one_line(StartLine, EndLine) when EndLine > StartLine ->
     #{
         from => {StartLine, ?END_OF_LINE},

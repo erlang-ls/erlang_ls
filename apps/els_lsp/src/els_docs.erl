@@ -44,7 +44,7 @@
 %%==============================================================================
 %% API
 %%==============================================================================
--spec docs(uri(), poi()) -> [els_markup_content:doc_entry()].
+-spec docs(uri(), els_poi:poi()) -> [els_markup_content:doc_entry()].
 docs(_Uri, #{kind := Kind, id := {M, F, A}}) when
     Kind =:= application;
     Kind =:= implicit_fun
@@ -421,7 +421,7 @@ format_edoc(Desc) when is_map(Desc) ->
     FormattedDoc = els_utils:to_list(docsh_edoc:format_edoc(Doc, #{})),
     [{text, FormattedDoc}].
 
--spec macro_signature(poi_id(), [{integer(), string()}]) -> unicode:charlist().
+-spec macro_signature(els_poi:poi_id(), [{integer(), string()}]) -> unicode:charlist().
 macro_signature({Name, _Arity}, Args) ->
     [atom_to_list(Name), "(", lists:join(", ", [A || {_N, A} <- Args]), ")"];
 macro_signature(Name, none) ->

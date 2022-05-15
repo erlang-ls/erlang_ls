@@ -52,14 +52,14 @@ source() ->
 %%==============================================================================
 %% Internal Functions
 %%==============================================================================
--spec find_unused_record_fields(els_dt_document:item()) -> [poi()].
+-spec find_unused_record_fields(els_dt_document:item()) -> [els_poi:poi()].
 find_unused_record_fields(Document) ->
     Definitions = els_dt_document:pois(Document, [record_def_field]),
     Usages = els_dt_document:pois(Document, [record_field]),
     UsagesIds = lists:usort([Id || #{id := Id} <- Usages]),
     [POI || #{id := Id} = POI <- Definitions, not lists:member(Id, UsagesIds)].
 
--spec make_diagnostic(poi()) -> els_diagnostics:diagnostic().
+-spec make_diagnostic(els_poi:poi()) -> els_diagnostics:diagnostic().
 make_diagnostic(#{id := {RecName, RecField}, range := POIRange}) ->
     Range = els_protocol:range(POIRange),
     FullName = els_utils:to_binary(io_lib:format("#~p.~p", [RecName, RecField])),

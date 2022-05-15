@@ -10,8 +10,8 @@
 -include("els_lsp.hrl").
 
 %% @doc Return POIs of the provided `Kinds' in the document and included files
--spec local_and_included_pois(els_dt_document:item(), poi_kind() | [poi_kind()]) ->
-    [poi()].
+-spec local_and_included_pois(els_dt_document:item(), els_poi:poi_kind() | [els_poi:poi_kind()]) ->
+    [els_poi:poi()].
 local_and_included_pois(Document, Kind) when is_atom(Kind) ->
     local_and_included_pois(Document, [Kind]);
 local_and_included_pois(Document, Kinds) ->
@@ -21,7 +21,7 @@ local_and_included_pois(Document, Kinds) ->
     ]).
 
 %% @doc Return POIs of the provided `Kinds' in included files from `Document'
--spec included_pois(els_dt_document:item(), [poi_kind()]) -> [poi()].
+-spec included_pois(els_dt_document:item(), [els_poi:poi_kind()]) -> [els_poi:poi()].
 included_pois(Document, Kinds) ->
     els_diagnostics_utils:traverse_include_graph(
         fun(IncludedDocument, _Includer, Acc) ->
@@ -33,15 +33,15 @@ included_pois(Document, Kinds) ->
 
 %% @doc Return POIs of the provided `Kinds' in the local document and files that
 %% (maybe recursively) include it
--spec local_and_includer_pois(uri(), [poi_kind()]) ->
-    [{uri(), [poi()]}].
+-spec local_and_includer_pois(uri(), [els_poi:poi_kind()]) ->
+    [{uri(), [els_poi:poi()]}].
 local_and_includer_pois(LocalUri, Kinds) ->
     [
         {Uri, find_pois_by_uri(Uri, Kinds)}
      || Uri <- local_and_includers(LocalUri)
     ].
 
--spec find_pois_by_uri(uri(), [poi_kind()]) -> [poi()].
+-spec find_pois_by_uri(uri(), [els_poi:poi_kind()]) -> [els_poi:poi()].
 find_pois_by_uri(Uri, Kinds) ->
     {ok, Document} = els_utils:lookup_document(Uri),
     els_dt_document:pois(Document, Kinds).
@@ -72,7 +72,7 @@ find_includers(Uri) ->
             find_includers(include_lib, IncludeLibId)
     ).
 
--spec find_includers(poi_kind(), string()) -> [uri()].
+-spec find_includers(els_poi:poi_kind(), string()) -> [uri()].
 find_includers(Kind, Id) ->
     {ok, Items} = els_dt_references:find_by_id(Kind, Id),
     [Uri || #{uri := Uri} <- Items].
@@ -80,7 +80,7 @@ find_includers(Kind, Id) ->
 %% @doc Find the rough scope of a variable, this is based on heuristics and
 %%      won't always be correct.
 %%      `VarRange' is expected to be the range of the variable.
--spec variable_scope_range(poi_range(), els_dt_document:item()) -> poi_range().
+-spec variable_scope_range(els_poi:poi_range(), els_dt_document:item()) -> els_poi:poi_range().
 variable_scope_range(VarRange, Document) ->
     Attributes = [spec, callback, define, record, type_definition],
     AttrPOIs = els_dt_document:pois(Document, Attributes),
@@ -147,20 +147,20 @@ variable_scope_range(VarRange, Document) ->
             #{from => From, to => To}
     end.
 
--spec pois_before([poi()], poi_range()) -> [poi()].
+-spec pois_before([els_poi:poi()], els_poi:poi_range()) -> [els_poi:poi()].
 pois_before(POIs, VarRange) ->
     %% Reverse since we are typically interested in the last POI
     lists:reverse([POI || POI <- POIs, els_range:compare(range(POI), VarRange)]).
 
--spec pois_after([poi()], poi_range()) -> [poi()].
+-spec pois_after([els_poi:poi()], els_poi:poi_range()) -> [els_poi:poi()].
 pois_after(POIs, VarRange) ->
     [POI || POI <- POIs, els_range:compare(VarRange, range(POI))].
 
--spec pois_match([poi()], poi_range()) -> [poi()].
+-spec pois_match([els_poi:poi()], els_poi:poi_range()) -> [els_poi:poi()].
 pois_match(POIs, Range) ->
     [POI || POI <- POIs, els_range:in(Range, range(POI))].
 
--spec range(poi()) -> poi_range().
+-spec range(els_poi:poi()) -> els_poi:poi_range().
 range(#{kind := function, data := #{wrapping_range := Range}}) ->
     Range;
 range(#{range := Range}) ->

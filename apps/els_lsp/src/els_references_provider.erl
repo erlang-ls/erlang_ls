@@ -53,7 +53,7 @@ handle_request({references, Params}, _State) ->
 %% Internal functions
 %%==============================================================================
 
--spec find_references(uri(), poi()) -> [location()].
+-spec find_references(uri(), els_poi:poi()) -> [location()].
 find_references(Uri, #{
     kind := Kind,
     id := Id
@@ -127,7 +127,7 @@ find_references(_Uri, #{kind := Kind, id := Name}) when
 find_references(_Uri, _POI) ->
     [].
 
--spec find_scoped_references_for_def(uri(), poi()) -> [{uri(), poi()}].
+-spec find_scoped_references_for_def(uri(), els_poi:poi()) -> [{uri(), els_poi:poi()}].
 find_scoped_references_for_def(Uri, #{kind := Kind, id := Name}) ->
     Kinds = kind_to_ref_kinds(Kind),
     Refs = els_scope:local_and_includer_pois(Uri, Kinds),
@@ -138,7 +138,7 @@ find_scoped_references_for_def(Uri, #{kind := Kind, id := Name}) ->
         N =:= Name
     ].
 
--spec kind_to_ref_kinds(poi_kind()) -> [poi_kind()].
+-spec kind_to_ref_kinds(els_poi:poi_kind()) -> [els_poi:poi_kind()].
 kind_to_ref_kinds(define) ->
     [macro];
 kind_to_ref_kinds(record) ->
@@ -176,16 +176,16 @@ find_references_to_module(Uri) ->
     ExcludeLocalRefs = fun(Loc) -> maps:get(uri, Loc) =/= Uri end,
     lists:filter(ExcludeLocalRefs, ExportRefs ++ ExportTypeRefs ++ BehaviourRefs).
 
--spec find_references_for_id(poi_kind(), any()) -> [location()].
+-spec find_references_for_id(els_poi:poi_kind(), any()) -> [location()].
 find_references_for_id(Kind, Id) ->
     {ok, Refs} = els_dt_references:find_by_id(Kind, Id),
     [location(U, R) || #{uri := U, range := R} <- Refs].
 
--spec uri_pois_to_locations([{uri(), poi()}]) -> [location()].
+-spec uri_pois_to_locations([{uri(), els_poi:poi()}]) -> [location()].
 uri_pois_to_locations(Refs) ->
     [location(U, R) || {U, #{range := R}} <- Refs].
 
--spec location(uri(), poi_range()) -> location().
+-spec location(uri(), els_poi:poi_range()) -> location().
 location(Uri, Range) ->
     #{
         uri => Uri,

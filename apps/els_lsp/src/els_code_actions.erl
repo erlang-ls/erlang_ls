@@ -165,7 +165,8 @@ remove_unused(Uri, _Range0, Data, [Import]) ->
             []
     end.
 
--spec ensure_range(poi_range(), binary(), [poi()]) -> {ok, poi_range()} | error.
+-spec ensure_range(els_poi:poi_range(), binary(), [els_poi:poi()]) ->
+    {ok, els_poi:poi_range()} | error.
 ensure_range(#{from := {Line, _}}, SubjectId, POIs) ->
     SubjectAtom = binary_to_atom(SubjectId, utf8),
     Ranges = [

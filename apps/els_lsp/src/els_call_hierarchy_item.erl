@@ -35,11 +35,11 @@
 ]).
 
 %% @doc Extract and decode the POI from the data
--spec poi(item()) -> poi().
+-spec poi(item()) -> els_poi:poi().
 poi(#{<<"data">> := Data}) ->
     maps:get(poi, els_utils:base64_decode_term(Data)).
 
--spec new(binary(), uri(), poi_range(), poi_range(), data()) -> item().
+-spec new(binary(), uri(), els_poi:poi_range(), els_poi:poi_range(), data()) -> item().
 new(Name, Uri, Range, SelectionRange, Data) ->
     #{from := {StartLine, _}} = Range,
     Detail = <<

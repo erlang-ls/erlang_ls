@@ -23,8 +23,8 @@
 %% API
 %%==============================================================================
 
--spec goto_definition(uri(), poi()) ->
-    {ok, uri(), poi()} | {error, any()}.
+-spec goto_definition(uri(), els_poi:poi()) ->
+    {ok, uri(), els_poi:poi()} | {error, any()}.
 goto_definition(
     Uri,
     Var = #{kind := variable}
@@ -142,13 +142,13 @@ is_imported_bif(_Uri, F, A) ->
             true
     end.
 
--spec find(uri() | [uri()], poi_kind(), any()) ->
-    {ok, uri(), poi()} | {error, not_found}.
+-spec find(uri() | [uri()], els_poi:poi_kind(), any()) ->
+    {ok, uri(), els_poi:poi()} | {error, not_found}.
 find(UriOrUris, Kind, Data) ->
     find(UriOrUris, Kind, Data, sets:new()).
 
--spec find(uri() | [uri()], poi_kind(), any(), sets:set(binary())) ->
-    {ok, uri(), poi()} | {error, not_found}.
+-spec find(uri() | [uri()], els_poi:poi_kind(), any(), sets:set(binary())) ->
+    {ok, uri(), els_poi:poi()} | {error, not_found}.
 find([], _Kind, _Data, _AlreadyVisited) ->
     {error, not_found};
 find([Uri | Uris0], Kind, Data, AlreadyVisited) ->
@@ -170,11 +170,11 @@ find(Uri, Kind, Data, AlreadyVisited) ->
 -spec find_in_document(
     uri() | [uri()],
     els_dt_document:item(),
-    poi_kind(),
+    els_poi:poi_kind(),
     any(),
     sets:set(binary())
 ) ->
-    {ok, uri(), poi()} | {error, any()}.
+    {ok, uri(), els_poi:poi()} | {error, any()}.
 find_in_document([Uri | Uris0], Document, Kind, Data, AlreadyVisited) ->
     POIs = els_dt_document:pois(Document, [Kind]),
     case [POI || #{id := Id} = POI <- POIs, Id =:= Data] of
@@ -199,7 +199,7 @@ include_uris(Document) ->
     POIs = els_dt_document:pois(Document, [include, include_lib]),
     lists:foldl(fun add_include_uri/2, [], POIs).
 
--spec add_include_uri(poi(), [uri()]) -> [uri()].
+-spec add_include_uri(els_poi:poi(), [uri()]) -> [uri()].
 add_include_uri(#{id := Id}, Acc) ->
     case els_utils:find_header(els_utils:filename_to_atom(Id)) of
         {ok, Uri} -> [Uri | Acc];
@@ -211,8 +211,8 @@ beginning() ->
     #{range => #{from => {1, 1}, to => {1, 1}}}.
 
 %% @doc check for a match in any of the module imported functions.
--spec maybe_imported(els_dt_document:item(), poi_kind(), any()) ->
-    {ok, uri(), poi()} | {error, not_found}.
+-spec maybe_imported(els_dt_document:item(), els_poi:poi_kind(), any()) ->
+    {ok, uri(), els_poi:poi()} | {error, not_found}.
 maybe_imported(Document, function, {F, A}) ->
     POIs = els_dt_document:pois(Document, [import_entry]),
     case [{M, F, A} || #{id := {M, FP, AP}} <- POIs, FP =:= F, AP =:= A] of
@@ -227,7 +227,7 @@ maybe_imported(Document, function, {F, A}) ->
 maybe_imported(_Document, _Kind, _Data) ->
     {error, not_found}.
 
--spec find_in_scope(uri(), poi()) -> [poi()].
+-spec find_in_scope(uri(), els_poi:poi()) -> [els_poi:poi()].
 find_in_scope(Uri, #{kind := variable, id := VarId, range := VarRange}) ->
     {ok, Document} = els_utils:lookup_document(Uri),
     VarPOIs = els_poi:sort(els_dt_document:pois(Document, [variable])),

@@ -14,7 +14,7 @@
 
 -include("els_lsp.hrl").
 
--spec command(els_dt_document:item(), poi(), els_code_lens:state()) ->
+-spec command(els_dt_document:item(), els_poi:poi(), els_code_lens:state()) ->
     els_command:command().
 command(#{uri := Uri} = _Document, POI, _State) ->
     #{id := {F, A}, range := #{from := {Line, _}}} = POI,
@@ -35,7 +35,7 @@ command(#{uri := Uri} = _Document, POI, _State) ->
 is_default() ->
     false.
 
--spec pois(els_dt_document:item()) -> [poi()].
+-spec pois(els_dt_document:item()) -> [els_poi:poi()].
 pois(Document) ->
     Functions = els_dt_document:pois(Document, [function]),
     [POI || #{id := {F, 1}} = POI <- Functions, not is_blacklisted(F)].
