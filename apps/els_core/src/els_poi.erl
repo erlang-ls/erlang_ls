@@ -36,7 +36,6 @@
     | export_entry
     | export_type
     | export_type_entry
-    | folding_range
     | function
     | function_clause
     | implicit_fun

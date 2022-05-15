@@ -55,10 +55,7 @@ range(Document, Anno) ->
         Col when Document =:= undefined; Col =:= undefined ->
             #{from => {Line, 1}, to => {Line + 1, 1}};
         Col ->
-            POIs0 = els_dt_document:get_element_at_pos(Document, Line, Col),
-
-            %% Exclude folding range since line is more exact anyway
-            POIs = [POI || #{kind := Kind} = POI <- POIs0, Kind =/= folding_range],
+            POIs = els_dt_document:get_element_at_pos(Document, Line, Col),
 
             %% * If we find no pois that we just return the original line
             %% * If we find a poi that start on the line and col as the anno

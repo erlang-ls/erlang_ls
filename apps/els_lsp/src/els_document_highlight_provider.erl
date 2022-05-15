@@ -59,9 +59,8 @@ find_highlights(Document, #{id := Id, kind := Kind}) ->
     POIs = els_dt_document:pois(Document, find_similar_kinds(Kind)),
     Highlights = [
         document_highlight(R)
-     || #{id := I, kind := K, range := R} <- POIs,
-        I =:= Id,
-        K =/= 'folding_range'
+     || #{id := I, range := R} <- POIs,
+        I =:= Id
     ],
     normalize_result(Highlights).
 
