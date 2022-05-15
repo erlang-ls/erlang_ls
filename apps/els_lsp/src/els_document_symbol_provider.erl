@@ -38,22 +38,4 @@ symbols(Uri) ->
         record,
         type_definition
     ]),
-    lists:reverse([poi_to_symbol(Uri, POI) || POI <- POIs]).
-
--spec poi_to_symbol(uri(), els_poi:poi()) -> symbol_information().
-poi_to_symbol(Uri, POI) ->
-    #{range := Range, kind := Kind} = POI,
-    #{
-        name => els_poi:label(POI),
-        kind => symbol_kind(Kind),
-        location => #{
-            uri => Uri,
-            range => els_protocol:range(Range)
-        }
-    }.
-
--spec symbol_kind(els_poi:poi_kind()) -> symbol_kind().
-symbol_kind(function) -> ?SYMBOLKIND_FUNCTION;
-symbol_kind(define) -> ?SYMBOLKIND_CONSTANT;
-symbol_kind(record) -> ?SYMBOLKIND_STRUCT;
-symbol_kind(type_definition) -> ?SYMBOLKIND_TYPE_PARAMETER.
+    lists:reverse([els_poi:to_symbol(Uri, POI) || POI <- POIs]).

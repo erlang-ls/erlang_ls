@@ -12,7 +12,9 @@
 -export([
     match_pos/2,
     sort/1,
-    label/1
+    label/1,
+    symbol_kind/1,
+    to_symbol/2
 ]).
 
 %%==============================================================================
@@ -116,6 +118,22 @@ sort(POIs) ->
 -spec label(els_poi:poi()) -> binary().
 label(#{kind := Kind} = POI) ->
     (callback_module(Kind)):label(POI).
+
+-spec symbol_kind(els_poi:poi()) -> symbol_kind().
+symbol_kind(#{kind := Kind}) ->
+    (callback_module(Kind)):symbol_kind().
+
+-spec to_symbol(uri(), els_poi:poi()) -> symbol_information().
+to_symbol(Uri, POI) ->
+    #{range := Range} = POI,
+    #{
+        name => label(POI),
+        kind => symbol_kind(POI),
+        location => #{
+            uri => Uri,
+            range => els_protocol:range(Range)
+        }
+    }.
 
 %%==============================================================================
 %% Internal Functions
