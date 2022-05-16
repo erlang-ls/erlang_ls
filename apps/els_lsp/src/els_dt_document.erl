@@ -202,6 +202,7 @@ new(Uri, Text, Id, Kind, Source, Version) ->
 -spec pois(item()) -> [poi()].
 pois(#{uri := Uri, pois := ondemand}) ->
     #{pois := POIs} = els_indexing:ensure_deeply_indexed(Uri),
+    dump_if_requested(Uri, POIs),
     POIs;
 pois(#{pois := POIs}) ->
     POIs.
@@ -306,17 +307,73 @@ get_words(Text) ->
 %% ---------------------------------------------------------------------
 
 -spec get_pois_at_pos(item(), non_neg_integer(), non_neg_integer()) ->
-  [poi()].
+    [poi()].
 get_pois_at_pos(Item, Line, Character) ->
-  Method = <<"elp/getPoisAtPos">>,
-  Uri = uri(Item),
-  Params =
-    #{ <<"position">>   => #{ <<"line">>      => Line
-                            , <<"character">> => Character
-                            }
-     , <<"textDocument">> => #{<<"uri">> => Uri}
-     },
-  ?LOG_WARNING("get_pois_at_pos ""[uri=~p, line=~p, character=~p]"
-            , [Uri, Line, Character]
+    Method = <<"elp/getPoisAtPos">>,
+    Uri = uri(Item),
+    Params =
+        #{
+            <<"position">> => #{
+                <<"line">> => Line,
+                <<"character">> => Character
+            },
+            <<"textDocument">> => #{<<"uri">> => Uri}
+        },
+    ?LOG_WARNING(
+        "get_pois_at_pos " "[uri=~p, line=~p, character=~p]",
+        [Uri, Line, Character]
+    ),
+    els_server:send_request(Method, Params).
+
+-spec dump_if_requested(uri(), [poi()]) -> ok.
+dump_if_requested(Uri, POIs) ->
+    ?LOG_WARNING("dump_if_requested " "[Uri=~p]", [Uri]),
+    case application:get_env(els_core, dump_pois) of
+        {ok, true} ->
+            %% Path = els_uri:path(Uri),
+            Module = atom_to_binary(els_uri:module(Uri)),
+            Dir = erlang_ls:cache_root(),
+            Filename = filename:join(Dir, <<Module/binary, ".pois">>),
+            ?LOG_WARNING(
+                "dump_if_requested:true"
+                "[Module=~p, Filename=~p]",
+                [Module, Filename]
             ),
-  els_server:send_request(Method, Params).
+            POIs2 = [
+                #{kind => Kind, id => lsp_poi_id(Id), data => none, range => lsp_range(Range)}
+             || #{kind := Kind, id := Id, range := Range} <- POIs
+            ],
+            ok = file:write_file(Filename, jsx:encode(POIs2)),
+            %% Dump Erlang terms for reference
+            Filename2 = filename:join(Dir, <<Module/binary, ".pois_raw">>),
+            ok = file:write_file(Filename2, io_lib:format("~p.", [POIs])),
+            ok;
+        _ ->
+            ok
+    end,
+    ok.
+
+-spec lsp_range(poi_range()) -> range().
+lsp_range(#{from := From, to := To}) ->
+    #{
+        <<"start">> => lsp_position(From),
+        <<"end">> => lsp_position(To)
+    }.
+
+-spec lsp_position(term()) -> position().
+lsp_position({Line, Col}) ->
+  #{
+            <<"line">> => Line,
+            <<"character">> => Col
+   };
+lsp_position(X) -> X.
+
+-spec lsp_poi_id(poi_id()) -> term().
+lsp_poi_id({F, S}) ->
+  #{ <<"f">> => F,
+     <<"s">> => S};
+lsp_poi_id({M, F, A}) ->
+  #{ <<"m">> => M,
+   <<"f">> => F,
+     <<"a">> => A};
+lsp_poi_id(X) -> X.

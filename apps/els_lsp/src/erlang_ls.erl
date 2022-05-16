@@ -1,12 +1,7 @@
 -module(erlang_ls).
 
 -export([main/1]).
-
--export([
-    parse_args/1,
-    log_root/0,
-    cache_root/0
-]).
+-export([parse_args/1, log_root/0, cache_root/0]).
 
 %%==============================================================================
 %% Includes
@@ -29,7 +24,8 @@ main(Args) ->
     configure_client_logging(),
     ?LOG_INFO("Started erlang_ls server", []),
     receive
-        _ -> ok
+        _ ->
+            ok
     end.
 
 -spec print_version() -> ok.
@@ -64,7 +60,10 @@ opt_spec_list() ->
         {log_dir, $d, "log-dir", {string, filename:basedir(user_log, "erlang_ls")},
             "Directory where logs will be written."},
         {log_level, $l, "log-level", {string, ?DEFAULT_LOGGING_LEVEL},
-            "The log level that should be used."}
+            "The log level that should be used."},
+        %% {dump_pois, $p, "dump-pois", {boolean, false},
+        {dump_pois, $p, "dump-pois", {boolean, true},
+            "Dump a JSON file with the indexed POIs for a module"}
     ].
 
 -spec set_args([] | [getopt:compound_option()]) -> ok.
@@ -84,6 +83,8 @@ set(log_dir, Dir) ->
     application:set_env(els_core, log_dir, Dir);
 set(log_level, Level) ->
     application:set_env(els_core, log_level, list_to_atom(Level));
+set(dump_pois, Flag) ->
+    application:set_env(els_core, dump_pois, Flag);
 set(port_old, Port) ->
     application:set_env(els_core, port, Port).
 
@@ -97,16 +98,18 @@ configure_logging() ->
     {ok, LoggingLevel} = application:get_env(els_core, log_level),
     ok = filelib:ensure_dir(LogFile),
     [logger:remove_handler(H) || H <- logger:get_handler_ids()],
-    Handler = #{
-        config => #{file => LogFile},
-        level => LoggingLevel,
-        formatter => {logger_formatter, #{template => ?LSP_LOG_FORMAT}}
-    },
-    StdErrHandler = #{
-        config => #{type => standard_error},
-        level => error,
-        formatter => {logger_formatter, #{template => ?LSP_LOG_FORMAT}}
-    },
+    Handler =
+        #{
+            config => #{file => LogFile},
+            level => LoggingLevel,
+            formatter => {logger_formatter, #{template => ?LSP_LOG_FORMAT}}
+        },
+    StdErrHandler =
+        #{
+            config => #{type => standard_error},
+            level => error,
+            formatter => {logger_formatter, #{template => ?LSP_LOG_FORMAT}}
+        },
     logger:add_handler(els_core_handler, logger_std_h, Handler),
     logger:add_handler(els_stderr_handler, logger_std_h, StdErrHandler),
     logger:set_primary_config(level, LoggingLevel),
@@ -129,13 +132,12 @@ log_root() ->
 cache_root() ->
     {ok, CurrentDir} = file:get_cwd(),
     Dirname = filename:basename(CurrentDir),
-    filename:join(filename:basedir(user_cache, "erlang_ls"), Dirname).
+    filename:join(
+        filename:basedir(user_cache, "erlang_ls"), Dirname
+    ).
 
 -spec configure_client_logging() -> ok.
 configure_client_logging() ->
     LoggingLevel = application:get_env(els_core, log_level, notice),
-    ok = logger:add_handler(
-        els_log_notification,
-        els_log_notification,
-        #{level => LoggingLevel}
-    ).
+    ok =
+        logger:add_handler(els_log_notification, els_log_notification, #{level => LoggingLevel}).
