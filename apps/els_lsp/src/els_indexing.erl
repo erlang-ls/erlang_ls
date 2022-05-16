@@ -80,6 +80,7 @@ deep_index(Document0) ->
         version := Version
     } = Document0,
     {ok, POIs} = els_parser:parse(Text),
+    els_dt_document:dump_if_requested(Uri, POIs),
     Words = els_dt_document:get_words(Text),
     Document = Document0#{pois => POIs, words => Words},
     case els_dt_document:versioned_insert(Document) of

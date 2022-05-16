@@ -22,7 +22,8 @@
     insert/1,
     versioned_insert/1,
     lookup/1,
-    delete/1
+    delete/1,
+    dump_if_requested/2
 ]).
 
 -export([
@@ -202,7 +203,7 @@ new(Uri, Text, Id, Kind, Source, Version) ->
 -spec pois(item()) -> [poi()].
 pois(#{uri := Uri, pois := ondemand}) ->
     #{pois := POIs} = els_indexing:ensure_deeply_indexed(Uri),
-    dump_if_requested(Uri, POIs),
+    %% dump_if_requested(Uri, POIs),
     POIs;
 pois(#{pois := POIs}) ->
     POIs.
@@ -339,14 +340,17 @@ dump_if_requested(Uri, POIs) ->
                 "[Module=~p, Filename=~p]",
                 [Module, Filename]
             ),
+            ok = filelib:ensure_dir(Filename),
+
+            %% Dump Erlang terms for reference, first, in case jsx encoding fails
+            Filename2 = filename:join(Dir, <<Module/binary, ".pois_raw">>),
+            ok = file:write_file(Filename2, io_lib:format("~p.", [POIs])),
+
             POIs2 = [
                 #{kind => Kind, id => lsp_poi_id(Id), data => none, range => lsp_range(Range)}
              || #{kind := Kind, id := Id, range := Range} <- POIs
             ],
             ok = file:write_file(Filename, jsx:encode(POIs2)),
-            %% Dump Erlang terms for reference
-            Filename2 = filename:join(Dir, <<Module/binary, ".pois_raw">>),
-            ok = file:write_file(Filename2, io_lib:format("~p.", [POIs])),
             ok;
         _ ->
             ok
