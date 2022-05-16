@@ -149,5 +149,11 @@ compare(#{range := A}, #{range := B}) ->
     els_range:compare(A, B).
 
 -spec callback_module(poi_kind()) -> atom().
+callback_module(define) ->
+    els_poi_define;
 callback_module(function) ->
-    els_poi_function.
+    els_poi_function;
+callback_module(record) ->
+    els_poi_record;
+callback_module(type_definition) ->
+    els_poi_type_definition.
