@@ -26,7 +26,12 @@ handle_request({document_foldingrange, Params}, _State) ->
     {ok, Document} = els_utils:lookup_document(Uri),
     POIs = els_dt_document:pois(Document, [function, record]),
     Response =
-        case [poi_range_to_folding_range(els_poi:folding_range(POI)) || POI <- POIs] of
+        case
+            [
+                poi_range_to_folding_range(els_poi:folding_range(POI))
+             || POI <- POIs, els_poi:folding_range(POI) =/= oneliner
+            ]
+        of
             [] -> null;
             Ranges -> Ranges
         end,
