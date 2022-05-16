@@ -65,6 +65,7 @@
 -spec available_diagnostics() -> [diagnostic_id()].
 available_diagnostics() ->
     [
+        <<"atom_typo">>,
         <<"bound_var_in_pattern">>,
         <<"compiler">>,
         <<"crossref">>,

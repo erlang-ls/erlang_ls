@@ -51,7 +51,8 @@ make_code_actions(
                 fun els_code_actions:fix_module_name/4},
             {"Unused macro: (.*)", fun els_code_actions:remove_macro/4},
             {"function (.*) undefined", fun els_code_actions:create_function/4},
-            {"Unused file: (.*)", fun els_code_actions:remove_unused/4}
+            {"Unused file: (.*)", fun els_code_actions:remove_unused/4},
+            {"Atom typo\\? Did you mean: (.*)", fun els_code_actions:fix_atom_typo/4}
         ],
         Uri,
         Range,
