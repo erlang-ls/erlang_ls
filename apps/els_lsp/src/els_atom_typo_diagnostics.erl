@@ -33,19 +33,20 @@ is_default() ->
 
 -spec run(uri()) -> [els_diagnostics:diagnostic()].
 run(Uri) ->
-  case els_utils:lookup_document(Uri) of
-    {error, _Error} ->
-      [];
-    {ok, Document} ->
-      Atoms = [<<"false">>, <<"true">>, <<"undefined">>, <<"error">>],
-      POIs = els_dt_document:pois(Document, [atom]),
-      [make_diagnostic(POI, Atom) ||
-        #{id := Id} = POI <- POIs,
-        Atom <- Atoms,
-        atom_to_binary(Id, utf8) =/= Atom,
-        els_utils:jaro_distance(atom_to_binary(Id, utf8), Atom) > 0.9
-      ]
-  end.
+    case els_utils:lookup_document(Uri) of
+        {error, _Error} ->
+            [];
+        {ok, Document} ->
+            Atoms = [<<"false">>, <<"true">>, <<"undefined">>, <<"error">>],
+            POIs = els_dt_document:pois(Document, [atom]),
+            [
+                make_diagnostic(POI, Atom)
+             || #{id := Id} = POI <- POIs,
+                Atom <- Atoms,
+                atom_to_binary(Id, utf8) =/= Atom,
+                els_utils:jaro_distance(atom_to_binary(Id, utf8), Atom) > 0.9
+            ]
+    end.
 
 -spec source() -> binary().
 source() ->
