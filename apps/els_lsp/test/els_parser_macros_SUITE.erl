@@ -232,12 +232,12 @@ other_macro_as_record_name(_Config) ->
 %%==============================================================================
 %% Helper functions
 %%==============================================================================
--spec parse_find_pois(string(), poi_kind()) -> [poi()].
+-spec parse_find_pois(string(), els_poi:poi_kind()) -> [els_poi:poi()].
 parse_find_pois(Text, Kind) ->
     {ok, POIs} = els_parser:parse(Text),
     SortedPOIs = els_poi:sort(POIs),
     [POI || #{kind := Kind1} = POI <- SortedPOIs, Kind1 =:= Kind].
 
--spec parse_find_pois(string(), poi_kind(), poi_id()) -> [poi()].
+-spec parse_find_pois(string(), els_poi:poi_kind(), els_poi:poi_id()) -> [els_poi:poi()].
 parse_find_pois(Text, Kind, Id) ->
     [POI || #{id := Id1} = POI <- parse_find_pois(Text, Kind), Id1 =:= Id].
