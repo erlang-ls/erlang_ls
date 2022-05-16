@@ -143,7 +143,7 @@ find_completions(
     ?COMPLETION_TRIGGER_KIND_CHARACTER,
     #{trigger := <<"?">>, document := Document}
 ) ->
-    definitions(Document, define);
+    bifs(define, _ExportFormat = false) ++ definitions(Document, define);
 find_completions(
     _Prefix,
     ?COMPLETION_TRIGGER_KIND_CHARACTER,
@@ -205,10 +205,10 @@ find_completions(
             exported_definitions(Module, TypeOrFun, ExportFormat);
         %% Check for "[...] ?"
         [{'?', _} | _] ->
-            definitions(Document, define);
+            bifs(define, _ExportFormat = false) ++ definitions(Document, define);
         %% Check for "[...] ?anything"
         [_, {'?', _} | _] ->
-            definitions(Document, define);
+            bifs(define, _ExportFormat = false) ++ definitions(Document, define);
         %% Check for "[...] #anything."
         [{'.', _}, {atom, _, RecordName}, {'#', _} | _] ->
             record_fields(Document, RecordName);
@@ -800,6 +800,28 @@ bifs(type_definition, false = ExportFormat) ->
             data => #{args => generate_arguments("Type", A)}
         }
      || {_, A} = X <- Types
+    ],
+    [completion_item(X, ExportFormat) || X <- POIs];
+bifs(define, ExportFormat) ->
+    Macros = [
+        'MODULE',
+        'MODULE_STRING',
+        'FILE',
+        'LINE',
+        'MACHINE',
+        'FUNCTION_NAME',
+        'FUNCTION_ARITY',
+        'OTP_RELEASE'
+    ],
+    Range = #{from => {0, 0}, to => {0, 0}},
+    POIs = [
+        #{
+            kind => define,
+            id => Id,
+            range => Range,
+            data => #{args => none}
+        }
+     || Id <- Macros
     ],
     [completion_item(X, ExportFormat) || X <- POIs].
 
