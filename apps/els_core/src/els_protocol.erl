@@ -78,7 +78,7 @@ error(RequestId, Error) ->
 %%==============================================================================
 %% Data Structures
 %%==============================================================================
--spec range(poi_range()) -> range().
+-spec range(els_poi:poi_range()) -> range().
 range(#{from := {FromL, FromC}, to := {ToL, ToC}}) ->
     #{
         start => #{line => FromL - 1, character => FromC - 1},

@@ -9,10 +9,10 @@
 %%==============================================================================
 
 -callback init(els_dt_document:item()) -> state().
--callback command(els_dt_document:item(), poi(), state()) ->
+-callback command(els_dt_document:item(), els_poi:poi(), state()) ->
     els_command:command().
 -callback is_default() -> boolean().
--callback pois(els_dt_document:item()) -> [poi()].
+-callback pois(els_dt_document:item()) -> [els_poi:poi()].
 -callback precondition(els_dt_document:item()) -> boolean().
 -optional_callbacks([
     init/1,
@@ -104,7 +104,7 @@ lenses(Id, Document) ->
 %% Constructors
 %%==============================================================================
 
--spec make_lens(atom(), els_dt_document:item(), poi(), state()) -> lens().
+-spec make_lens(atom(), els_dt_document:item(), els_poi:poi(), state()) -> lens().
 make_lens(CbModule, Document, #{range := Range} = POI, State) ->
     #{
         range => els_protocol:range(Range),

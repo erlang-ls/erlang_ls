@@ -39,14 +39,14 @@ handle_request({implementation, Params}, _State) ->
     els_dt_document:item(),
     non_neg_integer(),
     non_neg_integer()
-) -> [{uri(), poi()}].
+) -> [{uri(), els_poi:poi()}].
 find_implementation(Document, Line, Character) ->
     case els_dt_document:get_element_at_pos(Document, Line + 1, Character + 1) of
         [POI | _] -> implementation(Document, POI);
         [] -> []
     end.
 
--spec implementation(els_dt_document:item(), poi()) -> [{uri(), poi()}].
+-spec implementation(els_dt_document:item(), els_poi:poi()) -> [{uri(), els_poi:poi()}].
 implementation(Document, #{kind := application, id := MFA}) ->
     #{uri := Uri} = Document,
     case callback(MFA) of

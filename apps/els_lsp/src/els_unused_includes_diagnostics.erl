@@ -93,7 +93,7 @@ find_unused_includes(#{uri := Uri} = Document) ->
     digraph:delete(Graph),
     UnusedIncludes.
 
--spec update_unused(digraph:graph(), uri(), poi(), [uri()]) -> [uri()].
+-spec update_unused(digraph:graph(), uri(), els_poi:poi(), [uri()]) -> [uri()].
 update_unused(Graph, Uri, POI, Acc) ->
     case els_code_navigation:goto_definition(Uri, POI) of
         {ok, Uri, _DefinitionPOI} ->
@@ -120,7 +120,7 @@ expand_includes(Document) ->
     end,
     els_diagnostics_utils:traverse_include_graph(AccFun, DG, Document).
 
--spec inclusion_range(uri(), els_dt_document:item()) -> poi_range().
+-spec inclusion_range(uri(), els_dt_document:item()) -> els_poi:poi_range().
 inclusion_range(Uri, Document) ->
     case els_range:inclusion_range(Uri, Document) of
         {ok, Range} ->
@@ -153,6 +153,6 @@ filter_includes_with_compiler_attributes(Uris) ->
 contains_compiler_attributes(Document) ->
     compiler_attributes(Document) =/= [].
 
--spec compiler_attributes(els_dt_document:item()) -> [poi()].
+-spec compiler_attributes(els_dt_document:item()) -> [els_poi:poi()].
 compiler_attributes(Document) ->
     els_dt_document:pois(Document, [compile]).

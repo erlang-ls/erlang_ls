@@ -63,7 +63,7 @@
     id :: id() | '_',
     kind :: kind() | '_',
     text :: binary() | '_',
-    pois :: [poi()] | '_' | ondemand,
+    pois :: [els_poi:poi()] | '_' | ondemand,
     source :: source() | '$2',
     words :: sets:set() | '_' | '$3',
     version :: version() | '_'
@@ -75,7 +75,7 @@
     id := id(),
     kind := kind(),
     text := binary(),
-    pois => [poi()] | ondemand,
+    pois => [els_poi:poi()] | ondemand,
     source => source(),
     words => sets:set(),
     version => version()
@@ -198,7 +198,7 @@ new(Uri, Text, Id, Kind, Source, Version) ->
     }.
 
 %% @doc Returns the list of POIs for the current document
--spec pois(item()) -> [poi()].
+-spec pois(item()) -> [els_poi:poi()].
 pois(#{uri := Uri, pois := ondemand}) ->
     #{pois := POIs} = els_indexing:ensure_deeply_indexed(Uri),
     POIs;
@@ -207,12 +207,12 @@ pois(#{pois := POIs}) ->
 
 %% @doc Returns the list of POIs of the given types for the current
 %%      document
--spec pois(item(), [poi_kind()]) -> [poi()].
+-spec pois(item(), [els_poi:poi_kind()]) -> [els_poi:poi()].
 pois(Item, Kinds) ->
     [POI || #{kind := K} = POI <- pois(Item), lists:member(K, Kinds)].
 
 -spec get_element_at_pos(item(), non_neg_integer(), non_neg_integer()) ->
-    [poi()].
+    [els_poi:poi()].
 get_element_at_pos(Item, Line, Column) ->
     POIs = pois(Item),
     MatchedPOIs = els_poi:match_pos(POIs, {Line, Column}),
@@ -223,19 +223,19 @@ get_element_at_pos(Item, Line, Column) ->
 uri(#{uri := Uri}) ->
     Uri.
 
--spec functions_at_pos(item(), non_neg_integer(), non_neg_integer()) -> [poi()].
+-spec functions_at_pos(item(), non_neg_integer(), non_neg_integer()) -> [els_poi:poi()].
 functions_at_pos(Item, Line, Column) ->
     POIs = get_element_at_pos(Item, Line, Column),
     [POI || #{kind := 'function'} = POI <- POIs].
 
 -spec applications_at_pos(item(), non_neg_integer(), non_neg_integer()) ->
-    [poi()].
+    [els_poi:poi()].
 applications_at_pos(Item, Line, Column) ->
     POIs = get_element_at_pos(Item, Line, Column),
     [POI || #{kind := 'application'} = POI <- POIs].
 
 -spec wrapping_functions(item(), non_neg_integer(), non_neg_integer()) ->
-    [poi()].
+    [els_poi:poi()].
 wrapping_functions(Document, Line, Column) ->
     Range = #{from => {Line, Column}, to => {Line, Column}},
     Functions = pois(Document, ['function']),
@@ -245,7 +245,7 @@ wrapping_functions(Document, Line, Column) ->
         els_range:in(Range, WR)
     ].
 
--spec wrapping_functions(item(), range()) -> [poi()].
+-spec wrapping_functions(item(), range()) -> [els_poi:poi()].
 wrapping_functions(Document, Range) ->
     #{start := #{character := Character, line := Line}} = Range,
     wrapping_functions(Document, Line, Character).

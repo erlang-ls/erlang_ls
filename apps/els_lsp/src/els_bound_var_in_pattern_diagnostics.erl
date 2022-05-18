@@ -50,13 +50,13 @@ source() ->
 %% Internal Functions
 %%==============================================================================
 
--spec find_vars(uri()) -> [poi()].
+-spec find_vars(uri()) -> [els_poi:poi()].
 find_vars(Uri) ->
     {ok, #{text := Text}} = els_utils:lookup_document(Uri),
     {ok, Forms} = els_parser:parse_text(Text),
     lists:flatmap(fun find_vars_in_form/1, Forms).
 
--spec find_vars_in_form(erl_syntax:forms()) -> [poi()].
+-spec find_vars_in_form(erl_syntax:forms()) -> [els_poi:poi()].
 find_vars_in_form(Form) ->
     case erl_syntax:type(Form) of
         function ->
@@ -83,11 +83,11 @@ find_vars_in_form(Form) ->
             []
     end.
 
--spec fold_subtrees([[tree()]], [poi()]) -> [poi()].
+-spec fold_subtrees([[tree()]], [els_poi:poi()]) -> [els_poi:poi()].
 fold_subtrees(Subtrees, Acc) ->
     erl_syntax_lib:foldl_listlist(fun find_vars_in_tree/2, Acc, Subtrees).
 
--spec find_vars_in_tree(tree(), [poi()]) -> [poi()].
+-spec find_vars_in_tree(tree(), [els_poi:poi()]) -> [els_poi:poi()].
 find_vars_in_tree(Tree, Acc) ->
     case erl_syntax:type(Tree) of
         Type when
@@ -118,15 +118,15 @@ find_vars_in_tree(Tree, Acc) ->
             fold_subtrees(erl_syntax:subtrees(Tree), Acc)
     end.
 
--spec fold_pattern(tree(), [poi()]) -> [poi()].
+-spec fold_pattern(tree(), [els_poi:poi()]) -> [els_poi:poi()].
 fold_pattern(Pattern, Acc) ->
     erl_syntax_lib:fold(fun find_vars_in_pattern/2, Acc, Pattern).
 
--spec fold_pattern_list([tree()], [poi()]) -> [poi()].
+-spec fold_pattern_list([tree()], [els_poi:poi()]) -> [els_poi:poi()].
 fold_pattern_list(Patterns, Acc) ->
     lists:foldl(fun fold_pattern/2, Acc, Patterns).
 
--spec find_vars_in_pattern(tree(), [poi()]) -> [poi()].
+-spec find_vars_in_pattern(tree(), [els_poi:poi()]) -> [els_poi:poi()].
 find_vars_in_pattern(Tree, Acc) ->
     case erl_syntax:type(Tree) of
         variable ->
@@ -143,14 +143,14 @@ find_vars_in_pattern(Tree, Acc) ->
             Acc
     end.
 
--spec variable(tree()) -> poi().
+-spec variable(tree()) -> els_poi:poi().
 variable(Tree) ->
     Id = erl_syntax:variable_name(Tree),
     Pos = erl_syntax:get_pos(Tree),
     Range = els_range:range(Pos, variable, Id, undefined),
     els_poi:new(Range, variable, Id, undefined).
 
--spec make_diagnostic(poi()) -> els_diagnostics:diagnostic().
+-spec make_diagnostic(els_poi:poi()) -> els_diagnostics:diagnostic().
 make_diagnostic(#{id := Id, range := POIRange}) ->
     Range = els_protocol:range(POIRange),
     VariableName = atom_to_binary(Id, utf8),

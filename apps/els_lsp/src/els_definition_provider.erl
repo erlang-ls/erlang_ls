@@ -42,7 +42,7 @@ handle_request({definition, Params}, State) ->
             {response, GoTo}
     end.
 
--spec goto_definition(uri(), [poi()]) -> map() | null.
+-spec goto_definition(uri(), [els_poi:poi()]) -> map() | null.
 goto_definition(_Uri, []) ->
     null;
 goto_definition(Uri, [POI | Rest]) ->
@@ -53,34 +53,34 @@ goto_definition(Uri, [POI | Rest]) ->
             goto_definition(Uri, Rest)
     end.
 
--spec match_incomplete(binary(), pos()) -> [poi()].
+-spec match_incomplete(binary(), pos()) -> [els_poi:poi()].
 match_incomplete(Text, Pos) ->
     %% Try parsing subsets of text to find a matching POI at Pos
     match_after(Text, Pos) ++ match_line(Text, Pos).
 
--spec match_after(binary(), pos()) -> [poi()].
+-spec match_after(binary(), pos()) -> [els_poi:poi()].
 match_after(Text, {Line, Character}) ->
     %% Try to parse current line and the lines after it
     POIs = els_incomplete_parser:parse_after(Text, Line),
     MatchingPOIs = match_pois(POIs, {1, Character + 1}),
     fix_line_offsets(MatchingPOIs, Line).
 
--spec match_line(binary(), pos()) -> [poi()].
+-spec match_line(binary(), pos()) -> [els_poi:poi()].
 match_line(Text, {Line, Character}) ->
     %% Try to parse only current line
     POIs = els_incomplete_parser:parse_line(Text, Line),
     MatchingPOIs = match_pois(POIs, {1, Character + 1}),
     fix_line_offsets(MatchingPOIs, Line).
 
--spec match_pois([poi()], pos()) -> [poi()].
+-spec match_pois([els_poi:poi()], pos()) -> [els_poi:poi()].
 match_pois(POIs, Pos) ->
     els_poi:sort(els_poi:match_pos(POIs, Pos)).
 
--spec fix_line_offsets([poi()], integer()) -> [poi()].
+-spec fix_line_offsets([els_poi:poi()], integer()) -> [els_poi:poi()].
 fix_line_offsets(POIs, Offset) ->
     [fix_line_offset(POI, Offset) || POI <- POIs].
 
--spec fix_line_offset(poi(), integer()) -> poi().
+-spec fix_line_offset(els_poi:poi(), integer()) -> els_poi:poi().
 fix_line_offset(
     #{
         range := #{

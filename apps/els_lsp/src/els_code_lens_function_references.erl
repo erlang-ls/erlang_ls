@@ -7,17 +7,15 @@
     command/3
 ]).
 
--include("els_lsp.hrl").
-
 -spec is_default() -> boolean().
 is_default() ->
     true.
 
--spec pois(els_dt_document:item()) -> [poi()].
+-spec pois(els_dt_document:item()) -> [els_poi:poi()].
 pois(Document) ->
     els_dt_document:pois(Document, [function]).
 
--spec command(els_dt_document:item(), poi(), els_code_lens:state()) ->
+-spec command(els_dt_document:item(), els_poi:poi(), els_code_lens:state()) ->
     els_command:command().
 command(Document, POI, _State) ->
     Title = title(Document, POI),
@@ -25,7 +23,7 @@ command(Document, POI, _State) ->
     CommandArgs = [],
     els_command:make_command(Title, CommandId, CommandArgs).
 
--spec title(els_dt_document:item(), poi()) -> binary().
+-spec title(els_dt_document:item(), els_poi:poi()) -> binary().
 title(Document, POI) ->
     #{uri := Uri} = Document,
     M = els_uri:module(Uri),

@@ -11,9 +11,7 @@
     pois/1
 ]).
 
--include("els_lsp.hrl").
-
--spec command(els_dt_document:item(), poi(), els_code_lens:state()) ->
+-spec command(els_dt_document:item(), els_poi:poi(), els_code_lens:state()) ->
     els_command:command().
 command(_Document, _POI, _State) ->
     Title = title(),
@@ -25,7 +23,7 @@ command(_Document, _POI, _State) ->
 is_default() ->
     false.
 
--spec pois(els_dt_document:item()) -> [poi()].
+-spec pois(els_dt_document:item()) -> [els_poi:poi()].
 pois(_Document) ->
     %% Return a dummy POI on the first line
     [els_poi:new(#{from => {1, 1}, to => {2, 1}}, dummy, dummy)].

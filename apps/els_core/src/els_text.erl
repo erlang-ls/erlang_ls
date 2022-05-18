@@ -15,9 +15,7 @@
 
 -export_type([edit/0]).
 
--include("els_core.hrl").
-
--type edit() :: {poi_range(), string()}.
+-type edit() :: {els_poi:poi_range(), string()}.
 -type lines() :: [string() | binary()].
 -type text() :: binary().
 -type line_num() :: non_neg_integer().

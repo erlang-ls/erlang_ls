@@ -76,7 +76,7 @@ incoming_calls(Items) ->
 outgoing_calls(Items) ->
     [#{to => Item, fromRanges => [Range]} || #{range := Range} = Item <- Items].
 
--spec function_to_item(uri(), poi()) -> els_call_hierarchy_item:item().
+-spec function_to_item(uri(), els_poi:poi()) -> els_call_hierarchy_item:item().
 function_to_item(Uri, Function) ->
     #{id := Id, range := Range} = Function,
     Name = els_utils:function_signature(Id),
@@ -93,7 +93,7 @@ reference_to_item(Reference) ->
     Data = #{poi => WrappingPOI},
     els_call_hierarchy_item:new(Name, RefUri, POIRange, POIRange, Data).
 
--spec application_to_item(uri(), poi()) ->
+-spec application_to_item(uri(), els_poi:poi()) ->
     {ok, els_call_hierarchy_item:item()} | {error, not_found}.
 application_to_item(Uri, Application) ->
     #{id := Id} = Application,
@@ -107,8 +107,8 @@ application_to_item(Uri, Application) ->
             {error, Reason}
     end.
 
--spec applications_in_function_range(uri(), poi()) ->
-    [poi()].
+-spec applications_in_function_range(uri(), els_poi:poi()) ->
+    [els_poi:poi()].
 applications_in_function_range(Uri, Function) ->
     {ok, Document} = els_utils:lookup_document(Uri),
     #{data := #{wrapping_range := WrappingRange}} = Function,

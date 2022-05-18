@@ -12,9 +12,7 @@
     precondition/1
 ]).
 
--include("els_lsp.hrl").
-
--spec command(els_dt_document:item(), poi(), els_code_lens:state()) ->
+-spec command(els_dt_document:item(), els_poi:poi(), els_code_lens:state()) ->
     els_command:command().
 command(_Document, POI, _State) ->
     Title = title(POI),
@@ -33,11 +31,11 @@ precondition(Document) ->
     Callbacks = els_dt_document:pois(Document, [callback]),
     length(Callbacks) > 0.
 
--spec pois(els_dt_document:item()) -> [poi()].
+-spec pois(els_dt_document:item()) -> [els_poi:poi()].
 pois(Document) ->
     els_dt_document:pois(Document, [module]).
 
--spec title(poi()) -> binary().
+-spec title(els_poi:poi()) -> binary().
 title(#{id := Id} = _POI) ->
     {ok, Refs} = els_dt_references:find_by_id(behaviour, Id),
     Count = length(Refs),

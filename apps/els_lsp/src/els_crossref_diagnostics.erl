@@ -54,7 +54,7 @@ source() ->
 %%==============================================================================
 %% Internal Functions
 %%==============================================================================
--spec make_diagnostic(poi()) -> els_diagnostics:diagnostic().
+-spec make_diagnostic(els_poi:poi()) -> els_diagnostics:diagnostic().
 make_diagnostic(#{range := Range, id := Id}) ->
     Function =
         case Id of
@@ -75,7 +75,7 @@ make_diagnostic(#{range := Range, id := Id}) ->
         source()
     ).
 
--spec has_definition(poi(), els_dt_document:item()) -> boolean().
+-spec has_definition(els_poi:poi(), els_dt_document:item()) -> boolean().
 has_definition(
     #{
         kind := application,

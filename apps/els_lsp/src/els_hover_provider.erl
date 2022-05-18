@@ -65,7 +65,7 @@ get_docs({Uri, Line, Character}, _) ->
     POIs = els_dt_document:get_element_at_pos(Doc, Line + 1, Character + 1),
     do_get_docs(Uri, POIs).
 
--spec do_get_docs(uri(), [poi()]) -> map() | null.
+-spec do_get_docs(uri(), [els_poi:poi()]) -> map() | null.
 do_get_docs(_Uri, []) ->
     null;
 do_get_docs(Uri, [POI | Rest]) ->

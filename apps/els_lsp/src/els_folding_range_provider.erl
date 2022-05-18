@@ -28,8 +28,8 @@ handle_request({document_foldingrange, Params}, _State) ->
     Response =
         case
             [
-                folding_range(Range)
-             || #{data := #{folding_range := Range = #{}}} <- POIs
+                poi_range_to_folding_range(els_poi:folding_range(POI))
+             || POI <- POIs, els_poi:folding_range(POI) =/= oneliner
             ]
         of
             [] -> null;
@@ -41,8 +41,8 @@ handle_request({document_foldingrange, Params}, _State) ->
 %% Internal functions
 %%==============================================================================
 
--spec folding_range(poi_range()) -> folding_range().
-folding_range(#{from := {FromLine, FromCol}, to := {ToLine, ToCol}}) ->
+-spec poi_range_to_folding_range(els_poi:poi_range()) -> folding_range().
+poi_range_to_folding_range(#{from := {FromLine, FromCol}, to := {ToLine, ToCol}}) ->
     #{
         startLine => FromLine - 1,
         startCharacter => FromCol,
