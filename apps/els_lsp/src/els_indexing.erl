@@ -201,6 +201,7 @@ start(Group, Skip, SkipTag, Entries, Source) ->
         {Su, Sk, Fa} = index_dir(Dir, Skip, SkipTag, Source),
         {Succeeded0 + Su, Skipped0 + Sk, Failed0 + Fa}
     end,
+    Start = erlang:monotonic_time(millisecond),
     Config = #{
         task => Task,
         entries => Entries,
@@ -208,11 +209,22 @@ start(Group, Skip, SkipTag, Entries, Source) ->
         initial_state => {0, 0, 0},
         on_complete =>
             fun({Succeeded, Skipped, Failed}) ->
+                End = erlang:monotonic_time(millisecond),
+                Duration = End - Start,
+                Event = #{
+                    group => Group,
+                    duration_ms => Duration,
+                    succeeded => Succeeded,
+                    skipped => Skipped,
+                    failed => Failed,
+                    type => <<"indexing">>
+                },
                 ?LOG_INFO(
                     "Completed indexing for ~s "
                     "(succeeded: ~p, skipped: ~p, failed: ~p)",
                     [Group, Succeeded, Skipped, Failed]
-                )
+                ),
+                els_telemetry:send_notification(Event)
             end
     },
     {ok, _Pid} = els_background_job:new(Config),

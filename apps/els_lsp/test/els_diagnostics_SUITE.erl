@@ -988,7 +988,7 @@ mock_compiler_telemetry_enabled() ->
 -spec wait_for_compiler_telemetry() -> {uri(), [els_diagnostics:diagnostic()]}.
 wait_for_compiler_telemetry() ->
     receive
-        {on_complete_telemetry, Params} ->
+        {on_complete_telemetry, #{type := <<"erlang-diagnostic-codes">>} = Params} ->
             Params
     end.
 
