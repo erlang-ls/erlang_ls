@@ -18,7 +18,8 @@
     fix_module_name/1,
     remove_unused_macro/1,
     remove_unused_import/1,
-    create_undefined_function/1
+    create_undefined_function/1,
+    create_undefined_function_arity/1
 ]).
 
 %%==============================================================================
@@ -311,22 +312,14 @@ remove_unused_import(Config) ->
 create_undefined_function(Config) ->
     Uri = ?config(code_action_uri, Config),
     Range = els_protocol:range(#{
-        from => {?COMMENTS_LINES + 23, 9},
-        to => {?COMMENTS_LINES + 23, 39}
+        from => {23, 2},
+        to => {23, 8}
     }),
-    LineRange = els_range:line(#{
-        from => {?COMMENTS_LINES + 23, 9},
-        to => {?COMMENTS_LINES + 23, 39}
-    }),
-    {ok, FileName} = els_utils:find_header(
-        els_utils:filename_to_atom("stdlib/include/assert.hrl")
-    ),
     Diag = #{
-        message => <<"function e/0 undefined">>,
+        message => <<"function foobar/0 undefined">>,
         range => Range,
         severity => 2,
-        source => <<"">>,
-        data => FileName
+        source => <<"">>
     },
     #{result := Result} = els_client:document_codeaction(Uri, Range, [Diag]),
     Expected =
@@ -338,15 +331,60 @@ create_undefined_function(Config) ->
                             binary_to_atom(Uri, utf8) =>
                                 [
                                     #{
-                                        range => els_protocol:range(LineRange),
+                                        range =>
+                                            els_protocol:range(#{
+                                                from => {27, 1},
+                                                to => {27, 1}
+                                            }),
                                         newText =>
-                                            <<"-spec e() -> ok. \n e() -> \n \t ok.">>
+                                            <<"foobar() ->\n  ok.\n\n">>
                                     }
                                 ]
                         }
                 },
                 kind => <<"quickfix">>,
-                title => <<"Add the undefined function e/0">>
+                title => <<"Create function foobar/0">>
+            }
+        ],
+    ?assertEqual(Expected, Result),
+    ok.
+
+-spec create_undefined_function_arity((config())) -> ok.
+create_undefined_function_arity(Config) ->
+    Uri = ?config(code_action_uri, Config),
+    Range = els_protocol:range(#{
+        from => {24, 2},
+        to => {24, 8}
+    }),
+    Diag = #{
+        message => <<"function foobar/3 undefined">>,
+        range => Range,
+        severity => 2,
+        source => <<"">>
+    },
+    #{result := Result} = els_client:document_codeaction(Uri, Range, [Diag]),
+    Expected =
+        [
+            #{
+                edit => #{
+                    changes =>
+                        #{
+                            binary_to_atom(Uri, utf8) =>
+                                [
+                                    #{
+                                        range =>
+                                            els_protocol:range(#{
+                                                from => {27, 1},
+                                                to => {27, 1}
+                                            }),
+                                        newText =>
+                                            <<"foobar(_, _, _) ->\n  ok.\n\n">>
+                                    }
+                                ]
+                        }
+                },
+                kind => <<"quickfix">>,
+                title => <<"Create function foobar/3">>
             }
         ],
     ?assertEqual(Expected, Result),

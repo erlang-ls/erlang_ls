@@ -20,5 +20,6 @@ function_c() ->
 
 -include_lib("stdlib/include/assert.hrl").
 function_d() ->
-  e(),
+  foobar(),
+  foobar(x,y,z),
   ok.
