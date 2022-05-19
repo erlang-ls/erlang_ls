@@ -125,6 +125,7 @@ run_diagnostic(Uri, Id) ->
     Source = CbModule:source(),
     Module = atom_to_binary(els_uri:module(Uri), utf8),
     Title = <<Source/binary, " (", Module/binary, ")">>,
+    Start = erlang:monotonic_time(millisecond),
     Config = #{
         task => fun(U, _) -> CbModule:run(U) end,
         entries => [Uri],
@@ -137,7 +138,18 @@ run_diagnostic(Uri, Id) ->
                     false ->
                         ok
                 end,
-                els_diagnostics_provider:notify(Diagnostics, self())
+                els_diagnostics_provider:notify(Diagnostics, self()),
+                End = erlang:monotonic_time(millisecond),
+                Duration = End - Start,
+                Event = #{
+                    uri => Uri,
+                    source => Source,
+                    duration_ms => Duration,
+                    number_of_diagnostics => length(Diagnostics),
+                    type => <<"diagnostics">>
+                },
+                ?LOG_DEBUG("Diagnostics completed. [event=~p]", [Event]),
+                els_telemetry:send_notification(Event)
             end
     },
     {ok, Pid} = els_background_job:new(Config),
