@@ -134,6 +134,24 @@ extract(
 
 -spec get_type_info(analysis()) -> analysis().
 
+-if(?OTP_RELEASE >= 25).
+get_type_info(
+    #analysis{
+        callgraph = CallGraph,
+        trust_plt = TrustPLT,
+        codeserver = CodeServer
+    } = Analysis
+) ->
+    StrippedCallGraph = remove_external(CallGraph, TrustPLT),
+    NewPlt = dialyzer_succ_typings:analyze_callgraph(
+        StrippedCallGraph,
+        TrustPLT,
+        CodeServer,
+        none,
+        []
+    ),
+    Analysis#analysis{callgraph = StrippedCallGraph, trust_plt = NewPlt}.
+-else.
 get_type_info(
     #analysis{
         callgraph = CallGraph,
@@ -148,6 +166,7 @@ get_type_info(
         CodeServer
     ),
     Analysis#analysis{callgraph = StrippedCallGraph, trust_plt = NewPlt}.
+-endif.
 
 -spec remove_external(callgraph(), plt()) -> callgraph().
 
