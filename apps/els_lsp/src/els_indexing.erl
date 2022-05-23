@@ -10,6 +10,7 @@
     maybe_start/0,
     ensure_deeply_indexed/1,
     shallow_index/2,
+    shallow_index/3,
     deep_index/1,
     remove/1
 ]).

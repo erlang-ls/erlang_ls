@@ -99,9 +99,26 @@ handle_file_change(Uri, Type) when Type =:= ?FILE_CHANGE_TYPE_DELETED ->
 
 -spec reload_from_disk(uri()) -> ok.
 reload_from_disk(Uri) ->
-    {ok, Text} = file:read_file(els_uri:path(Uri)),
-    {ok, Document} = els_utils:lookup_document(Uri),
-    els_indexing:deep_index(Document#{text => Text}),
+    Path = els_uri:path(Uri),
+    case file:read_file(Path) of
+        {ok, Text} ->
+            els_indexing:shallow_index(Uri, Text, app);
+        {error, Error} ->
+            %% File is not accessible. This can happen, for example,
+            %% during a rebase operation, when the file "appears and
+            %% disappears" multiple times in a very short
+            %% timeframe. Just log the fact as a warning, but keep
+            %% going. It should be possible to buffer
+            %% 'didChangeWatchedFiles' requests, but it's not a big
+            %% deal.
+            ?LOG_WARNING(
+                "Error while reloading from disk. Ignoring. "
+                "[uri=~p] [error=~p]",
+                [
+                    Uri, Error
+                ]
+            )
+    end,
     ok.
 
 -spec background_index(els_dt_document:item()) -> {ok, pid()}.
