@@ -28,6 +28,8 @@ find_candidate_uris(Id) ->
     atom() | binary().
 extract_pattern({function, {_M, F, _A}}) ->
     F;
+extract_pattern({type, {F, _A}}) ->
+    F;
 extract_pattern({type, {_M, F, _A}}) ->
     F;
 extract_pattern({macro, {Name, _Arity}}) ->
@@ -39,6 +41,11 @@ extract_pattern({include, Id}) ->
 extract_pattern({include_lib, Id}) ->
     include_id(Id);
 extract_pattern({behaviour, Name}) ->
+    Name;
+extract_pattern({record, {_Record, Name}}) ->
+    %% Record fields
+    Name;
+extract_pattern({record, Name}) ->
     Name.
 
 -spec include_id(string()) -> string().
