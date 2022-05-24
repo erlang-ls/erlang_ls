@@ -298,6 +298,9 @@ get_words(Text) ->
                     Words
             end,
             lists:foldl(Fun, sets:new(), Tokens);
-        {error, ErrorInfo, _ErrorLocation} ->
-            ?LOG_DEBUG("Errors while get_words ~p", [ErrorInfo])
+        {error, ErrorInfo, ErrorLocation} ->
+            ?LOG_WARNING("Errors while get_words [info=~p] [location=~p]", [
+                ErrorInfo, ErrorLocation
+            ]),
+            sets:new()
     end.
