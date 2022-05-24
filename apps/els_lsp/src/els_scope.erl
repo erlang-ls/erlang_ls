@@ -65,12 +65,18 @@ find_includers_loop(Uri, Acc0) ->
 
 -spec find_includers(uri()) -> [uri()].
 find_includers(Uri) ->
-    IncludeId = els_utils:include_id(els_uri:path(Uri)),
-    IncludeLibId = els_utils:include_lib_id(els_uri:path(Uri)),
-    lists:usort(
-        find_includers(include, IncludeId) ++
-            find_includers(include_lib, IncludeLibId)
-    ).
+    Path = els_uri:path(Uri),
+    case filename:extension(Path) of
+        <<".hrl">> ->
+            IncludeId = els_utils:include_id(Path),
+            IncludeLibId = els_utils:include_lib_id(Path),
+            lists:usort(
+                find_includers(include, IncludeId) ++
+                    find_includers(include_lib, IncludeLibId)
+            );
+        _ ->
+            []
+    end.
 
 -spec find_includers(els_poi:poi_kind(), string()) -> [uri()].
 find_includers(Kind, Id) ->
