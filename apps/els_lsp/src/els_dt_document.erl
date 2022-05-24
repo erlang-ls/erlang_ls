@@ -283,24 +283,28 @@ find_candidates(Pattern) ->
 get_words(Text) ->
     case erl_scan:string(els_utils:to_list(Text)) of
         {ok, Tokens, _EndLocation} ->
-            Fun = fun
-                ({atom, _Location, Atom}, Words) ->
-                    sets:add_element(Atom, Words);
-                ({string, _Location, String}, Words) ->
-                    case filename:extension(String) of
-                        ".hrl" ->
-                            Id = filename:rootname(filename:basename(String)),
-                            sets:add_element(Id, Words);
-                        _ ->
-                            Words
-                    end;
-                (_, Words) ->
-                    Words
-            end,
-            lists:foldl(Fun, sets:new(), Tokens);
+            tokens_to_words(Tokens, sets:new());
         {error, ErrorInfo, ErrorLocation} ->
             ?LOG_WARNING("Errors while get_words [info=~p] [location=~p]", [
                 ErrorInfo, ErrorLocation
             ]),
             sets:new()
     end.
+
+-spec tokens_to_words([erl_scan:token()], sets:set()) -> sets:set().
+tokens_to_words([{atom, _Location, Atom} | Tokens], Words) ->
+    tokens_to_words(Tokens, sets:add_element(Atom, Words));
+tokens_to_words([{string, _Location, String} | Tokens], Words) ->
+    case filename:extension(String) of
+        ".hrl" ->
+            Id = filename:rootname(filename:basename(String)),
+            tokens_to_words(Tokens, sets:add_element(Id, Words));
+        _ ->
+            tokens_to_words(Tokens, Words)
+    end;
+tokens_to_words([{'?', _}, {var, _, Macro} | Tokens], Words) ->
+    tokens_to_words(Tokens, sets:add_element(Macro, Words));
+tokens_to_words([_ | Tokens], Words) ->
+    tokens_to_words(Tokens, Words);
+tokens_to_words([], Words) ->
+    Words.

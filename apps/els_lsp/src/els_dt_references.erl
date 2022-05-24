@@ -181,6 +181,11 @@ kind_to_category(Kind) when
     Kind =:= record
 ->
     record;
+kind_to_category(Kind) when
+    Kind =:= record_field;
+    Kind =:= record_def_field
+->
+    record;
 kind_to_category(Kind) when Kind =:= include ->
     include;
 kind_to_category(Kind) when Kind =:= include_lib ->
