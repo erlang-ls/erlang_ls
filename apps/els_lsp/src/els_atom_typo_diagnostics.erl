@@ -55,7 +55,7 @@ source() ->
 %%==============================================================================
 %% Internal Functions
 %%==============================================================================
--spec make_diagnostic(poi(), binary()) -> els_diagnostics:diagnostic().
+-spec make_diagnostic(els_poi:poi(), binary()) -> els_diagnostics:diagnostic().
 make_diagnostic(#{range := Range}, Atom) ->
     Message = els_utils:to_binary(
         io_lib:format(
