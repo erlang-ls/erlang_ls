@@ -12,6 +12,7 @@
 
 %% Test cases
 -export([
+    atom_typo/1,
     bound_var_in_pattern/1,
     compiler/1,
     compiler_with_behaviour/1,
@@ -218,6 +219,40 @@ end_per_testcase(TestCase, Config) ->
 %%==============================================================================
 %% Testcases
 %%==============================================================================
+-spec atom_typo(config()) -> ok.
+atom_typo(_Config) ->
+    Path = src_path("atom_typo.erl"),
+    Source = <<"AtomTypo">>,
+    Errors = [],
+    Warnings = [
+        #{
+            message => <<"Atom typo? Did you mean: true">>,
+            range => {{5, 2}, {5, 6}}
+        },
+        #{
+            message => <<"Atom typo? Did you mean: false">>,
+            range => {{6, 2}, {6, 8}}
+        },
+        #{
+            message => <<"Atom typo? Did you mean: false">>,
+            range => {{7, 2}, {7, 7}}
+        },
+        #{
+            message => <<"Atom typo? Did you mean: undefined">>,
+            range => {{8, 2}, {8, 11}}
+        },
+        #{
+            message => <<"Atom typo? Did you mean: undefined">>,
+            range => {{9, 2}, {9, 10}}
+        },
+        #{
+            message => <<"Atom typo? Did you mean: error">>,
+            range => {{10, 2}, {10, 8}}
+        }
+    ],
+    Hints = [],
+    els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
+
 -spec bound_var_in_pattern(config()) -> ok.
 bound_var_in_pattern(_Config) ->
     Path = src_path("diagnostics_bound_var_in_pattern.erl"),
