@@ -92,6 +92,13 @@ init_per_testcase(TestCase, Config) when
     mock_code_reload_enabled(),
     els_test_utils:init_per_testcase(TestCase, Config);
 init_per_testcase(TestCase, Config) when
+    TestCase =:= atom_typo
+->
+    meck:new(els_atom_typo_diagnostics, [passthrough, no_link]),
+    meck:expect(els_atom_typo_diagnostics, is_default, 0, true),
+    els_mock_diagnostics:setup(),
+    els_test_utils:init_per_testcase(TestCase, Config);
+init_per_testcase(TestCase, Config) when
     TestCase =:= crossref orelse
         TestCase =:= crossref_pseudo_functions orelse
         TestCase =:= crossref_autoimport orelse
@@ -153,6 +160,13 @@ init_per_testcase(TestCase, Config) ->
     els_test_utils:init_per_testcase(TestCase, Config).
 
 -spec end_per_testcase(atom(), config()) -> ok.
+end_per_testcase(TestCase, Config) when
+    TestCase =:= atom_typo
+->
+    meck:unload(els_atom_typo_diagnostics),
+    els_test_utils:end_per_testcase(TestCase, Config),
+    els_mock_diagnostics:teardown(),
+    ok;
 end_per_testcase(TestCase, Config) when
     TestCase =:= code_reload orelse
         TestCase =:= code_reload_sticky_mod
