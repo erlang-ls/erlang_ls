@@ -121,6 +121,12 @@ attributes(Config) ->
             label => <<"-export_type().">>
         },
         #{
+            insertText => <<"feature(${1:Feature}, ${2:enable}).">>,
+            insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
+            kind => ?COMPLETION_ITEM_KIND_SNIPPET,
+            label => <<"-feature().">>
+        },
+        #{
             insertText => <<"if(${1:Pred}).\n${2:}\n-endif.">>,
             insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
             kind => ?COMPLETION_ITEM_KIND_SNIPPET,

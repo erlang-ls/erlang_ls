@@ -233,6 +233,15 @@ find_completions(
         %% Check for "-export_type(["
         [{'[', _}, {'(', _}, {atom, _, export_type}, {'-', _}] ->
             unexported_definitions(Document, type_definition);
+        %% Check for "-feature("
+        [{'(', _}, {atom, _, feature}, {'-', _}] ->
+            features();
+        %% Check for "?FEATURE_ENABLED("
+        [{'(', _}, {var, _, 'FEATURE_ENABLED'}, {'?', _} | _] ->
+            features();
+        %% Check for "?FEATURE_AVAILABLE("
+        [{'(', _}, {var, _, 'FEATURE_AVAILABLE'}, {'?', _} | _] ->
+            features();
         %% Check for "-behaviour(anything"
         [{atom, _, _}, {'(', _}, {atom, _, Attribute}, {'-', _}] when
             Attribute =:= behaviour; Attribute =:= behavior
@@ -287,6 +296,7 @@ attributes() ->
         snippet(attribute_dialyzer),
         snippet(attribute_export),
         snippet(attribute_export_type),
+        snippet(attribute_feature),
         snippet(attribute_if),
         snippet(attribute_ifdef),
         snippet(attribute_ifndef),
@@ -416,6 +426,8 @@ snippet(attribute_on_load) ->
     );
 snippet(attribute_export_type) ->
     snippet(<<"-export_type().">>, <<"export_type([${1:}]).">>);
+snippet(attribute_feature) ->
+    snippet(<<"-feature().">>, <<"feature(${1:Feature}, ${2:enable}).">>);
 snippet(attribute_include) ->
     snippet(<<"-include().">>, <<"include(${1:}).">>);
 snippet(attribute_include_lib) ->
@@ -804,14 +816,16 @@ bifs(type_definition, false = ExportFormat) ->
     [completion_item(X, ExportFormat) || X <- POIs];
 bifs(define, ExportFormat) ->
     Macros = [
-        'MODULE',
-        'MODULE_STRING',
-        'FILE',
-        'LINE',
-        'MACHINE',
-        'FUNCTION_NAME',
-        'FUNCTION_ARITY',
-        'OTP_RELEASE'
+        {'MODULE', none},
+        {'MODULE_STRING', none},
+        {'FILE', none},
+        {'LINE', none},
+        {'MACHINE', none},
+        {'FUNCTION_NAME', none},
+        {'FUNCTION_ARITY', none},
+        {'OTP_RELEASE', none},
+        {{'FEATURE_AVAILABLE', 1}, [{1, "Feature"}]},
+        {{'FEATURE_ENABLED', 1}, [{1, "Feature"}]}
     ],
     Range = #{from => {0, 0}, to => {0, 0}},
     POIs = [
@@ -819,9 +833,9 @@ bifs(define, ExportFormat) ->
             kind => define,
             id => Id,
             range => Range,
-            data => #{args => none}
+            data => #{args => Args}
         }
-     || Id <- Macros
+     || {Id, Args} <- Macros
     ],
     [completion_item(X, ExportFormat) || X <- POIs].
 
@@ -904,6 +918,21 @@ completion_item(#{kind := Kind = define, id := Name, data := Info}, Data, _) ->
         insertTextFormat => Format,
         data => Data
     }.
+
+-spec features() -> items().
+features() ->
+    %% Hardcoded for now. Could use erl_features:all() in the future.
+    Features = [maybe_expr],
+    [
+        #{
+            label => atom_to_binary(Feature, utf8),
+            kind => ?COMPLETION_ITEM_KIND_CONSTANT,
+            insertText => atom_to_binary(Feature, utf8),
+            insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT,
+            data => #{}
+        }
+     || Feature <- Features
+    ].
 
 -spec macro_label(atom() | {atom(), non_neg_integer()}) -> binary().
 macro_label({Name, Arity}) ->
