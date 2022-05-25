@@ -191,7 +191,7 @@ fix_atom_typo(Uri, Range, _Data, [Atom]) ->
     ].
 
 -spec ensure_range(els_poi:poi_range(), binary(), [els_poi:poi()]) ->
-          {ok, els_poi:poi_range()} | error.
+    {ok, els_poi:poi_range()} | error.
 ensure_range(#{from := {Line, _}}, SubjectId, POIs) ->
     SubjectAtom = binary_to_atom(SubjectId, utf8),
     Ranges = [
