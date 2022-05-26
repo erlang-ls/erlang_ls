@@ -15,6 +15,8 @@
 -include_lib("els_lsp/include/els_lsp.hrl").
 
 -define(DEFAULT_LOGGING_LEVEL, "info").
+-define(LOG_MAX_NO_BYTES, 10 * 1000 * 1000).
+-define(LOG_MAX_NO_FILES, 5).
 
 -spec main([any()]) -> ok.
 main(Args) ->
@@ -98,7 +100,9 @@ configure_logging() ->
     ok = filelib:ensure_dir(LogFile),
     [logger:remove_handler(H) || H <- logger:get_handler_ids()],
     Handler = #{
-        config => #{file => LogFile},
+        config => #{
+            file => LogFile, max_no_bytes => ?LOG_MAX_NO_BYTES, max_no_files => ?LOG_MAX_NO_FILES
+        },
         level => LoggingLevel,
         formatter => {logger_formatter, #{template => ?LSP_LOG_FORMAT}}
     },
