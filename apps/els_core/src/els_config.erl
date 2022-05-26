@@ -159,7 +159,7 @@ do_initialize(RootUri, Capabilities, InitOptions, {ConfigPath, Config}) ->
       end,
       case application:load(wrangler) of
         ok ->
-          case api_wrangler:start(#{wls_server => true}) of
+          case api_wrangler:start() of
             ok ->
               ?LOG_INFO("Wrangler started successfully");
             {error, Reason} ->
