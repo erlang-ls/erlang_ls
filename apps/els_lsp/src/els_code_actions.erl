@@ -6,7 +6,8 @@
     ignore_variable/4,
     remove_macro/4,
     remove_unused/4,
-    suggest_variable/4
+    suggest_variable/4,
+    fix_atom_typo/4
 ]).
 
 -include("els_lsp.hrl").
@@ -176,6 +177,18 @@ remove_unused(Uri, _Range0, Data, [Import]) ->
         error ->
             []
     end.
+
+-spec fix_atom_typo(uri(), range(), binary(), [binary()]) -> [map()].
+fix_atom_typo(Uri, Range, _Data, [Atom]) ->
+    [
+        make_edit_action(
+            Uri,
+            <<"Fix typo: ", Atom/binary>>,
+            ?CODE_ACTION_KIND_QUICKFIX,
+            Atom,
+            Range
+        )
+    ].
 
 -spec ensure_range(els_poi:poi_range(), binary(), [els_poi:poi()]) ->
     {ok, els_poi:poi_range()} | error.

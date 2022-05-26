@@ -12,6 +12,7 @@
 
 %% Test cases
 -export([
+    atom_typo/1,
     bound_var_in_pattern/1,
     compiler/1,
     compiler_with_behaviour/1,
@@ -91,6 +92,13 @@ init_per_testcase(TestCase, Config) when
     mock_code_reload_enabled(),
     els_test_utils:init_per_testcase(TestCase, Config);
 init_per_testcase(TestCase, Config) when
+    TestCase =:= atom_typo
+->
+    meck:new(els_atom_typo_diagnostics, [passthrough, no_link]),
+    meck:expect(els_atom_typo_diagnostics, is_default, 0, true),
+    els_mock_diagnostics:setup(),
+    els_test_utils:init_per_testcase(TestCase, Config);
+init_per_testcase(TestCase, Config) when
     TestCase =:= crossref orelse
         TestCase =:= crossref_pseudo_functions orelse
         TestCase =:= crossref_autoimport orelse
@@ -152,6 +160,13 @@ init_per_testcase(TestCase, Config) ->
     els_test_utils:init_per_testcase(TestCase, Config).
 
 -spec end_per_testcase(atom(), config()) -> ok.
+end_per_testcase(TestCase, Config) when
+    TestCase =:= atom_typo
+->
+    meck:unload(els_atom_typo_diagnostics),
+    els_test_utils:end_per_testcase(TestCase, Config),
+    els_mock_diagnostics:teardown(),
+    ok;
 end_per_testcase(TestCase, Config) when
     TestCase =:= code_reload orelse
         TestCase =:= code_reload_sticky_mod
@@ -218,6 +233,40 @@ end_per_testcase(TestCase, Config) ->
 %%==============================================================================
 %% Testcases
 %%==============================================================================
+-spec atom_typo(config()) -> ok.
+atom_typo(_Config) ->
+    Path = src_path("atom_typo.erl"),
+    Source = <<"AtomTypo">>,
+    Errors = [],
+    Warnings = [
+        #{
+            message => <<"Atom typo? Did you mean: true">>,
+            range => {{5, 2}, {5, 6}}
+        },
+        #{
+            message => <<"Atom typo? Did you mean: false">>,
+            range => {{6, 2}, {6, 8}}
+        },
+        #{
+            message => <<"Atom typo? Did you mean: false">>,
+            range => {{7, 2}, {7, 7}}
+        },
+        #{
+            message => <<"Atom typo? Did you mean: undefined">>,
+            range => {{8, 2}, {8, 11}}
+        },
+        #{
+            message => <<"Atom typo? Did you mean: undefined">>,
+            range => {{9, 2}, {9, 10}}
+        },
+        #{
+            message => <<"Atom typo? Did you mean: error">>,
+            range => {{10, 2}, {10, 8}}
+        }
+    ],
+    Hints = [],
+    els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
+
 -spec bound_var_in_pattern(config()) -> ok.
 bound_var_in_pattern(_Config) ->
     Path = src_path("diagnostics_bound_var_in_pattern.erl"),
