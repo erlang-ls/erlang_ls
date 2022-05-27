@@ -36,6 +36,7 @@
 ]).
 -define(SERVER, ?MODULE).
 
+%% TODO: Refine names to avoid confusion
 -type key() ::
     apps_dirs
     | apps_paths
