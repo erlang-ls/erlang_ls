@@ -14,10 +14,10 @@
 %%==============================================================================
 
 %% API
--export([ start_link/0 ]).
+-export([start_link/0]).
 
 %% Supervisor Callbacks
--export([ init/1 ]).
+-export([init/1]).
 
 %%==============================================================================
 %% Includes
@@ -34,32 +34,37 @@
 %%==============================================================================
 -spec start_link() -> {ok, pid()}.
 start_link() ->
-  supervisor:start_link({local, ?SERVER}, ?MODULE, []).
+    supervisor:start_link({local, ?SERVER}, ?MODULE, []).
 
 %%==============================================================================
 %% supervisors callbacks
 %%==============================================================================
 -spec init([]) -> {ok, {supervisor:sup_flags(), [supervisor:child_spec()]}}.
 init([]) ->
-  SupFlags = #{ strategy  => rest_for_one
-              , intensity => 5
-              , period    => 60
-              },
-  {ok, Vsn} = application:get_key(vsn),
-  ?LOG_INFO("Starting session (version ~p)", [Vsn]),
-  restrict_stdio_access(),
-  ChildSpecs = [ #{ id       => els_config
-                  , start    => {els_config, start_link, []}
-                  , shutdown => brutal_kill
-                  }
-               , #{ id    => els_dap_provider
-                  , start => {els_dap_provider, start_link, []}
-                  }
-               , #{ id       => els_dap_server
-                  , start    => {els_dap_server, start_link, []}
-                  }
-               ],
-  {ok, {SupFlags, ChildSpecs}}.
+    SupFlags = #{
+        strategy => rest_for_one,
+        intensity => 5,
+        period => 60
+    },
+    {ok, Vsn} = application:get_key(vsn),
+    ?LOG_INFO("Starting session (version ~p)", [Vsn]),
+    restrict_stdio_access(),
+    ChildSpecs = [
+        #{
+            id => els_config,
+            start => {els_config, start_link, []},
+            shutdown => brutal_kill
+        },
+        #{
+            id => els_dap_provider,
+            start => {els_dap_provider, start_link, []}
+        },
+        #{
+            id => els_dap_server,
+            start => {els_dap_server, start_link, []}
+        }
+    ],
+    {ok, {SupFlags, ChildSpecs}}.
 
 %% @doc Restrict access to standard I/O
 %%
@@ -74,31 +79,32 @@ init([]) ->
 %% which can print warnings to standard output.
 -spec restrict_stdio_access() -> ok.
 restrict_stdio_access() ->
-  ?LOG_INFO("Use group leader as io_device"),
-  case application:get_env(els_core, io_device, standard_io) of
-    standard_io ->
-      application:set_env(els_core, io_device, erlang:group_leader());
-    _ -> ok
-  end,
+    ?LOG_INFO("Use group leader as io_device"),
+    case application:get_env(els_core, io_device, standard_io) of
+        standard_io ->
+            application:set_env(els_core, io_device, erlang:group_leader());
+        _ ->
+            ok
+    end,
 
-  ?LOG_INFO("Replace group leader to avoid unwanted output to stdout"),
-  Pid = erlang:spawn(fun noop_group_leader/0),
-  erlang:group_leader(Pid, self()),
-  ok.
+    ?LOG_INFO("Replace group leader to avoid unwanted output to stdout"),
+    Pid = erlang:spawn(fun noop_group_leader/0),
+    erlang:group_leader(Pid, self()),
+    ok.
 
 %% @doc Simulate a group leader but do nothing
 -spec noop_group_leader() -> no_return().
 noop_group_leader() ->
-  receive
-    Message ->
-      ?LOG_INFO("noop_group_leader got [message=~p]", [Message]),
-      case Message of
-        {io_request, From, ReplyAs, getopts} ->
-          From ! {io_reply, ReplyAs, []};
-        {io_request, From, ReplyAs, _} ->
-          From ! {io_reply, ReplyAs, ok};
-        _ ->
-          ok
-      end,
-      noop_group_leader()
-  end.
+    receive
+        Message ->
+            ?LOG_INFO("noop_group_leader got [message=~p]", [Message]),
+            case Message of
+                {io_request, From, ReplyAs, getopts} ->
+                    From ! {io_reply, ReplyAs, []};
+                {io_request, From, ReplyAs, _} ->
+                    From ! {io_reply, ReplyAs, ok};
+                _ ->
+                    ok
+            end,
+            noop_group_leader()
+    end.

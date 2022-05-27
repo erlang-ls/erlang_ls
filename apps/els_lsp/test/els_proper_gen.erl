@@ -17,34 +17,36 @@
 %% Generators
 %%==============================================================================
 uri() ->
-  ?LET( B
-      , document()
-      , els_uri:uri(filename:join([system_tmp_dir(), B ++ ".erl"]))
-      ).
+    ?LET(
+        B,
+        document(),
+        els_uri:uri(filename:join([system_tmp_dir(), B ++ ".erl"]))
+    ).
 
 root_uri() ->
-  els_uri:uri(system_tmp_dir()).
+    els_uri:uri(system_tmp_dir()).
 
 init_options() ->
-  #{<<"indexingEnabled">> => false}.
+    #{<<"indexingEnabled">> => false}.
 
 document() ->
-  elements(["a", "b", "c"]).
+    elements(["a", "b", "c"]).
 
 tokens() ->
-  ?LET( Tokens
-      , vector(10, token())
-      , begin
-          Concatenated = [string:join(Tokens, ","), "."],
-          els_utils:to_binary(Concatenated)
+    ?LET(
+        Tokens,
+        vector(10, token()),
+        begin
+            Concatenated = [string:join(Tokens, ","), "."],
+            els_utils:to_binary(Concatenated)
         end
-      ).
+    ).
 
 token() ->
-  elements(["foo", "Bar", "\"baz\""]).
+    elements(["foo", "Bar", "\"baz\""]).
 
 %%==============================================================================
 %% Internal Functions
 %%==============================================================================
 system_tmp_dir() ->
-  els_utils:to_binary(els_utils:system_tmp_dir()).
+    els_utils:to_binary(els_utils:system_tmp_dir()).

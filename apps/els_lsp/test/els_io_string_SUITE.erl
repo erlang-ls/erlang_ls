@@ -1,16 +1,16 @@
 -module(els_io_string_SUITE).
 
 %% CT Callbacks
--export([ init_per_suite/1
-        , end_per_suite/1
-        , init_per_testcase/2
-        , end_per_testcase/2
-        , all/0
-        ]).
+-export([
+    init_per_suite/1,
+    end_per_suite/1,
+    init_per_testcase/2,
+    end_per_testcase/2,
+    all/0
+]).
 
 %% Test cases
--export([ scan_forms/1
-        ]).
+-export([scan_forms/1]).
 
 %%==============================================================================
 %% Includes
@@ -31,11 +31,11 @@ all() -> els_test_utils:all(?MODULE).
 
 -spec init_per_suite(config()) -> config().
 init_per_suite(Config) ->
-  els_test_utils:init_per_suite(Config).
+    els_test_utils:init_per_suite(Config).
 
 -spec end_per_suite(config()) -> ok.
 end_per_suite(Config) ->
-  els_test_utils:end_per_suite(Config).
+    els_test_utils:end_per_suite(Config).
 
 -spec init_per_testcase(atom(), config()) -> config().
 init_per_testcase(_TestCase, Config) -> Config.
@@ -49,19 +49,19 @@ end_per_testcase(_TestCase, _Config) -> ok.
 
 -spec scan_forms(config()) -> ok.
 scan_forms(_Config) ->
-  Path         = path(),
-  {ok, IoFile} = file:open(Path, [read]),
-  Expected     = scan_all_forms(IoFile, []),
-  ok           = file:close(IoFile),
+    Path = path(),
+    {ok, IoFile} = file:open(Path, [read]),
+    Expected = scan_all_forms(IoFile, []),
+    ok = file:close(IoFile),
 
-  {ok, Text} = file:read_file(Path),
-  IoString   = els_io_string:new(Text),
-  Result     = scan_all_forms(IoString, []),
-  ok         = file:close(IoString),
+    {ok, Text} = file:read_file(Path),
+    IoString = els_io_string:new(Text),
+    Result = scan_all_forms(IoString, []),
+    ok = file:close(IoString),
 
-  ?assertEqual(Expected, Result),
+    ?assertEqual(Expected, Result),
 
-  ok.
+    ok.
 
 %%==============================================================================
 %% Helper functions
@@ -69,14 +69,14 @@ scan_forms(_Config) ->
 
 -spec scan_all_forms(file:io_device(), [any()]) -> [any()].
 scan_all_forms(IoDevice, Acc) ->
-  case io:scan_erl_form(IoDevice, "") of
-    {ok, Tokens, _} ->
-      scan_all_forms(IoDevice, [Tokens | Acc]);
-    {eof, _} ->
-      Acc
-  end.
+    case io:scan_erl_form(IoDevice, "") of
+        {ok, Tokens, _} ->
+            scan_all_forms(IoDevice, [Tokens | Acc]);
+        {eof, _} ->
+            Acc
+    end.
 
 -spec path() -> string().
 path() ->
-  RootPath = els_test_utils:root_path(),
-  filename:join([RootPath, "src", "code_navigation.erl"]).
+    RootPath = els_test_utils:root_path(),
+    filename:join([RootPath, "src", "code_navigation.erl"]).
