@@ -440,8 +440,14 @@ method_lookup(document_codelens) -> <<"textDocument/codeLens">>;
 method_lookup(document_formatting) -> <<"textDocument/formatting">>;
 method_lookup(document_rangeformatting) -> <<"textDocument/rangeFormatting">>;
 method_lookup(document_ontypeormatting) -> <<"textDocument/onTypeFormatting">>;
+method_lookup(rename) -> <<"textDocument/rename">>;
+method_lookup(did_open) -> <<"textDocument/didOpen">>;
+method_lookup(did_save) -> <<"textDocument/didSave">>;
+method_lookup(did_close) -> <<"textDocument/didClose">>;
+method_lookup(hover) -> <<"textDocument/hover">>;
+method_lookup(implementation) -> <<"textDocument/implementation">>;
+method_lookup(folding_range) -> <<"textDocument/foldingRange">>;
 method_lookup(semantic_tokens) -> <<"textDocument/semanticTokens/full">>;
-
 method_lookup(preparecallhierarchy) -> <<"textDocument/prepareCallHierarchy">>;
 method_lookup(callhierarchy_incomingcalls) -> <<"callHierarchy/incomingCalls">>;
 method_lookup(callhierarchy_outgoingcalls) -> <<"callHierarchy/outgoingCalls">>;

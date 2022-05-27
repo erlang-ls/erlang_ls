@@ -129,8 +129,8 @@ method_to_function_name(<<"$/", Method/binary>>) ->
     method_to_function_name(<<"$_", Method/binary>>);
 method_to_function_name(Method) ->
     Replaced = string:replace(Method, <<"/">>, <<"_">>, all),
-    Lower    = string:lowercase(Replaced),
-    Binary   = els_utils:to_binary(Lower),
+    Lower = string:lowercase(Replaced),
+    Binary = els_utils:to_binary(Lower),
     binary_to_atom(Binary, utf8).
 
 %%==============================================================================
@@ -419,10 +419,10 @@ textdocument_rename(Params, State) ->
 
 -spec textdocument_semantictokens_full(params(), state()) -> result().
 textdocument_semantictokens_full(Params, State) ->
-  Provider = els_semantic_token_provider,
-  {response, Response} =
-    els_provider:handle_request(Provider, {semantic_tokens, Params}),
-  {response, Response, State}.
+    Provider = els_semantic_token_provider,
+    {response, Response} =
+        els_provider:handle_request(Provider, {semantic_tokens, Params}),
+    {response, Response, State}.
 
 %%==============================================================================
 %% textDocument/preparePreparecallhierarchy
