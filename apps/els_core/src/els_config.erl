@@ -152,32 +152,39 @@ do_initialize(RootUri, Capabilities, InitOptions, {ConfigPath, Config}) ->
 
     %% Initialize and start Wrangler
     case maps:get("wrangler", Config, notconfigured) of
-        notconfigured -> ok = set(wrangler, notconfigured);
+        notconfigured ->
+            ok = set(wrangler, notconfigured);
         Wrangler ->
-        ok = set(wrangler, Wrangler),
-        case maps:get("path", Wrangler, notconfigured) of
-            notconfigured ->
-            ?LOG_INFO("Wrangler path is not configured,
-                assuming it is installed system-wide.");
-            Path ->
-            case code:add_path(Path) of
-                true -> ok;
-                {error, bad_directory} ->
-                ?LOG_INFO("Wrangler path is configured but
-                    not a valid ebin directory: ~p", [Path])
-            end
-        end,
-        case application:load(wrangler) of
-            ok ->
-            case api_wrangler:start() of
+            ok = set(wrangler, Wrangler),
+            case maps:get("path", Wrangler, notconfigured) of
+                notconfigured ->
+                    ?LOG_INFO(
+                        "Wrangler path is not configured,\n"
+                        "                assuming it is installed system-wide."
+                    );
+                Path ->
+                    case code:add_path(Path) of
+                        true ->
+                            ok;
+                        {error, bad_directory} ->
+                            ?LOG_INFO(
+                                "Wrangler path is configured but\n"
+                                "                    not a valid ebin directory: ~p",
+                                [Path]
+                            )
+                    end
+            end,
+            case application:load(wrangler) of
                 ok ->
-                ?LOG_INFO("Wrangler started successfully");
+                    case api_wrangler:start() of
+                        ok ->
+                            ?LOG_INFO("Wrangler started successfully");
+                        {error, Reason} ->
+                            ?LOG_INFO("Wrangler could not be started: ~p", [Reason])
+                    end;
                 {error, Reason} ->
-                ?LOG_INFO("Wrangler could not be started: ~p", [Reason])
-            end;
-            {error, Reason} ->
-            ?LOG_INFO("Wrangler could not be loaded: ~p", [Reason])
-        end
+                    ?LOG_INFO("Wrangler could not be loaded: ~p", [Reason])
+            end
     end,
 
     %% Passed by the LSP client

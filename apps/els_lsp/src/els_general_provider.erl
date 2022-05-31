@@ -163,7 +163,7 @@ server_capabilities() ->
                                 tokenModifiers => wrangler_handler:semantic_token_modifiers()
                             },
                         range => false,
-                        full  => true
+                        full => true
                     }
             },
         serverInfo =>

@@ -5,16 +5,17 @@
 
 -module(wrangler_handler).
 -export([
-        is_enabled/0,
-        wrangler_config/0,
-        get_code_actions/2,
-        get_code_lenses/1,
-        enabled_commands/0,
-        execute_command/2,
-        get_highlights/3,
-        semantic_token_types/0,
-        semantic_token_modifiers/0,
-        get_semantic_tokens/1]).
+    is_enabled/0,
+    wrangler_config/0,
+    get_code_actions/2,
+    get_code_lenses/1,
+    enabled_commands/0,
+    execute_command/2,
+    get_highlights/3,
+    semantic_token_types/0,
+    semantic_token_modifiers/0,
+    get_semantic_tokens/1
+]).
 
 -include("els_lsp.hrl").
 -include_lib("kernel/include/logger.hrl").
@@ -28,8 +29,7 @@
 is_enabled() ->
     case els_config:get(wrangler) of
         notconfigured -> false;
-        Config ->
-            maps:get("enabled", Config, false)
+        Config -> maps:get("enabled", Config, false)
     end.
 
 %% Returns Wrangler`s config from the config file.
@@ -65,7 +65,8 @@ enabled_commands() ->
             Commands = wls_execute_command_provider:enabled_commands(),
             ?LOG_INFO("Wrangler Enabled Commands: ~p", [Commands]),
             Commands;
-        false -> []
+        false ->
+            []
     end.
 
 %%==============================================================================
@@ -77,27 +78,34 @@ get_code_actions(Uri, Range) ->
     case is_enabled() of
         true ->
             case wls_code_actions:get_actions(Uri, Range) of
-                [] -> [];
+                [] ->
+                    [];
                 Actions ->
                     ?LOG_INFO("Wrangler Code Actions: ~p", [Actions]),
                     Actions
             end;
-        false -> []
+        false ->
+            []
     end.
 
 -spec get_code_lenses(els_dt_document:item()) -> [els_code_lens:lens()].
 get_code_lenses(Document) ->
     case is_enabled() of
         true ->
-            case lists:flatten([wls_code_lens:lenses(Id, Document)
-                                    || Id <- wls_code_lens:enabled_lenses()])
+            case
+                lists:flatten([
+                    wls_code_lens:lenses(Id, Document)
+                 || Id <- wls_code_lens:enabled_lenses()
+                ])
             of
-                [] -> [];
+                [] ->
+                    [];
                 Lenses ->
                     ?LOG_INFO("Wrangler Code Lenses: ~p", [Lenses]),
                     Lenses
             end;
-        false -> []
+        false ->
+            []
     end.
 
 -spec get_highlights(uri(), integer(), integer()) -> 'null' | [map()].
@@ -105,12 +113,14 @@ get_highlights(Uri, Line, Character) ->
     case is_enabled() of
         true ->
             case wls_highlight:get_highlights(Uri, {Line, Character}) of
-                null -> null;
+                null ->
+                    null;
                 Highlights ->
                     ?LOG_INFO("Wrangler Highlights: ~p", [Highlights]),
                     Highlights
             end;
-        false -> null
+        false ->
+            null
     end.
 
 -spec get_semantic_tokens(uri()) -> [integer()].
@@ -118,12 +128,14 @@ get_semantic_tokens(Uri) ->
     case is_enabled() of
         true ->
             case wls_semantic_tokens:semantic_tokens(Uri) of
-                [] -> [];
+                [] ->
+                    [];
                 SemanticTokens ->
                     ?LOG_INFO("Wrangler Semantic Tokens: ~p", [SemanticTokens]),
                     SemanticTokens
             end;
-        false -> []
+        false ->
+            []
     end.
 
 %%==============================================================================
@@ -134,13 +146,18 @@ get_semantic_tokens(Uri) ->
 execute_command(Command, Arguments) ->
     case is_enabled() of
         true ->
-            case lists:member(Command,
-                wls_execute_command_provider:enabled_commands())
+            case
+                lists:member(
+                    Command,
+                    wls_execute_command_provider:enabled_commands()
+                )
             of
                 true ->
                     wls_execute_command_provider:execute_command(Command, Arguments),
                     true;
-                false -> false
+                false ->
+                    false
             end;
-        false -> false
+        false ->
+            false
     end.

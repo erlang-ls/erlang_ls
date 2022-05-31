@@ -40,8 +40,8 @@ run_lenses_job(Uri) ->
                     [
                         els_code_lens:lenses(Id, Doc)
                      || Id <- els_code_lens:enabled_lenses()
-                    ]
-                    ++ wrangler_handler:get_code_lenses(Doc)
+                    ] ++
+                        wrangler_handler:get_code_lenses(Doc)
                 )
             end,
         entries => [Document],

@@ -34,8 +34,8 @@ handle_request({document_codeaction, Params}, _State) ->
 %% @doc Result: `(Command | CodeAction)[] | null'
 -spec code_actions(uri(), range(), code_action_context()) -> [map()].
 code_actions(Uri, Range, #{<<"diagnostics">> := Diagnostics}) ->
-    lists:flatten([make_code_actions(Uri, D) || D <- Diagnostics])
-        ++ wrangler_handler:get_code_actions(Uri, Range).
+    lists:flatten([make_code_actions(Uri, D) || D <- Diagnostics]) ++
+        wrangler_handler:get_code_actions(Uri, Range).
 
 -spec make_code_actions(uri(), map()) -> [map()].
 make_code_actions(
