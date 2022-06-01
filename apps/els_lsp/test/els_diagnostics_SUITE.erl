@@ -41,6 +41,7 @@
     crossref_pseudo_functions/1,
     unused_includes/1,
     unused_includes_compiler_attribute/1,
+    unused_includes_broken/1,
     exclude_unused_includes/1,
     unused_macros/1,
     unused_macros_refactorerl/1,
@@ -820,6 +821,15 @@ unused_includes_compiler_attribute(_Config) ->
             data => FileName
         }
     ],
+    Hints = [],
+    els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
+
+-spec unused_includes_broken(config()) -> ok.
+unused_includes_broken(_Config) ->
+    Path = src_path("diagnostics_unused_includes_broken.erl"),
+    Source = <<"UnusedIncludes">>,
+    Errors = [],
+    Warnings = [],
     Hints = [],
     els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
 

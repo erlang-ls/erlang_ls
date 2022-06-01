@@ -363,10 +363,10 @@ attribute(Tree) ->
             Args = define_args(Define),
             Data = #{value_range => ValueRange, args => Args},
             [poi(DefinePos, define, define_name(Define), Data)];
-        {include, [String]} ->
-            [poi(Pos, include, erl_syntax:string_value(String))];
-        {include_lib, [String]} ->
-            [poi(Pos, include_lib, erl_syntax:string_value(String))];
+        {include, [Node]} ->
+            include_pois(Pos, include, Node);
+        {include_lib, [Node]} ->
+            include_pois(Pos, include_lib, Node);
         {record, [Record, Fields]} ->
             case is_record_name(Record) of
                 {true, RecordName} ->
@@ -1292,3 +1292,10 @@ get_end_location(Tree) ->
     %% erl_anno:end_location(erl_syntax:get_pos(Tree)).
     Anno = erl_syntax:get_pos(Tree),
     proplists:get_value(end_location, erl_anno:to_term(Anno)).
+
+-spec include_pois(pos(), include | include_lib, tree()) -> [els_poi:poi()].
+include_pois(Pos, Type, Node) ->
+    case erl_syntax:type(Node) of
+        string -> [poi(Pos, Type, erl_syntax:string_value(Node))];
+        _ -> []
+    end.
