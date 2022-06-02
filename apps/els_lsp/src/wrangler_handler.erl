@@ -1,6 +1,8 @@
 %%==============================================================================
 %% A module to call Wrangler functions.
 %% If wrangler is not configured, neutral elements will be returned.
+%%
+%% Using apply to circumvent tests resulting in 'unknown function' errors.
 %%==============================================================================
 
 -module(wrangler_handler).
@@ -43,7 +45,7 @@ wrangler_config() ->
 -spec semantic_token_types() -> any().
 semantic_token_types() ->
     case is_enabled() of
-        true -> wls_semantic_tokens:token_types();
+        true -> apply(wls_semantic_tokens, token_types, []);
         false -> []
     end.
 
@@ -52,7 +54,7 @@ semantic_token_types() ->
 -spec semantic_token_modifiers() -> any().
 semantic_token_modifiers() ->
     case is_enabled() of
-        true -> wls_semantic_tokens:token_modifiers();
+        true -> apply(wls_semantic_tokens, token_modifiers, []);
         false -> []
     end.
 
@@ -62,7 +64,7 @@ semantic_token_modifiers() ->
 enabled_commands() ->
     case is_enabled() of
         true ->
-            Commands = wls_execute_command_provider:enabled_commands(),
+            Commands = apply(wls_execute_command_provider, enabled_commands, []),
             ?LOG_INFO("Wrangler Enabled Commands: ~p", [Commands]),
             Commands;
         false ->
@@ -77,7 +79,7 @@ enabled_commands() ->
 get_code_actions(Uri, Range) ->
     case is_enabled() of
         true ->
-            case wls_code_actions:get_actions(Uri, Range) of
+            case apply(wls_code_actions, get_actions, [Uri, Range]) of
                 [] ->
                     [];
                 Actions ->
@@ -94,8 +96,8 @@ get_code_lenses(Document) ->
         true ->
             case
                 lists:flatten([
-                    wls_code_lens:lenses(Id, Document)
-                 || Id <- wls_code_lens:enabled_lenses()
+                    apply(wls_code_lens, lenses, [Id, Document])
+                 || Id <- apply(wls_code_lens, enabled_lenses, [])
                 ])
             of
                 [] ->
@@ -112,7 +114,7 @@ get_code_lenses(Document) ->
 get_highlights(Uri, Line, Character) ->
     case is_enabled() of
         true ->
-            case wls_highlight:get_highlights(Uri, {Line, Character}) of
+            case apply(wls_highlight, get_highlights, [Uri, {Line, Character}]) of
                 null ->
                     null;
                 Highlights ->
@@ -127,7 +129,7 @@ get_highlights(Uri, Line, Character) ->
 get_semantic_tokens(Uri) ->
     case is_enabled() of
         true ->
-            case wls_semantic_tokens:semantic_tokens(Uri) of
+            case apply(wls_semantic_tokens, semantic_tokens, [Uri]) of
                 [] ->
                     [];
                 SemanticTokens ->
@@ -149,11 +151,11 @@ execute_command(Command, Arguments) ->
             case
                 lists:member(
                     Command,
-                    wls_execute_command_provider:enabled_commands()
+                    apply(wls_execute_command_provider, enabled_commands, [])
                 )
             of
                 true ->
-                    wls_execute_command_provider:execute_command(Command, Arguments),
+                    apply(wls_execute_command_provider, execute_command, [Command, Arguments]),
                     true;
                 false ->
                     false

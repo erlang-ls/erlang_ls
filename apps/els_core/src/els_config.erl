@@ -176,7 +176,9 @@ do_initialize(RootUri, Capabilities, InitOptions, {ConfigPath, Config}) ->
             end,
             case application:load(wrangler) of
                 ok ->
-                    case api_wrangler:start() of
+                    case apply(api_wrangler, start, []) of
+                        % Function defined in Wrangler.
+                        % Using apply to circumvent tests resulting in 'unknown function'.
                         ok ->
                             ?LOG_INFO("Wrangler started successfully");
                         {error, Reason} ->
