@@ -181,13 +181,16 @@ find_completions(
     end;
 find_completions(
     Prefix,
-    ?COMPLETION_TRIGGER_KIND_INVOKED,
+    TriggerKind,
     #{
         document := Document,
         line := Line,
         column := Column
     }
-) ->
+) when
+    TriggerKind =:= ?COMPLETION_TRIGGER_KIND_INVOKED;
+    TriggerKind =:= ?COMPLETION_TRIGGER_KIND_FOR_INCOMPLETE_COMPLETIONS
+->
     case lists:reverse(els_text:tokens(Prefix)) of
         %% Check for "[...] fun atom:"
         [{':', _}, {atom, _, Module}, {'fun', _} | _] ->
