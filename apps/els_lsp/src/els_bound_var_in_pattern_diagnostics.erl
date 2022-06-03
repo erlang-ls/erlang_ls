@@ -53,8 +53,13 @@ source() ->
 -spec find_vars(uri()) -> [els_poi:poi()].
 find_vars(Uri) ->
     {ok, #{text := Text}} = els_utils:lookup_document(Uri),
-    {ok, Forms} = els_parser:parse_text(Text),
-    lists:flatmap(fun find_vars_in_form/1, Forms).
+    case els_parser:parse_text(Text) of
+        {ok, Forms} ->
+            lists:flatmap(fun find_vars_in_form/1, Forms);
+        {error, Error} ->
+            ?LOG_DEBUG("Cannot parse text [text=~p] [error=~p]", [Text, Error]),
+            []
+    end.
 
 -spec find_vars_in_form(erl_syntax:forms()) -> [els_poi:poi()].
 find_vars_in_form(Form) ->

@@ -14,6 +14,7 @@
 -export([
     atom_typo/1,
     bound_var_in_pattern/1,
+    bound_var_in_pattern_cannot_parse/1,
     compiler/1,
     compiler_with_behaviour/1,
     compiler_with_broken_behaviour/1,
@@ -40,6 +41,7 @@
     crossref_pseudo_functions/1,
     unused_includes/1,
     unused_includes_compiler_attribute/1,
+    unused_includes_broken/1,
     exclude_unused_includes/1,
     unused_macros/1,
     unused_macros_refactorerl/1,
@@ -301,6 +303,15 @@ bound_var_in_pattern(_Config) ->
         %% , #{ message => <<"Bound variable in pattern: F">>
         %%    , range => {{29, 6}, {29, 9}}}
     ],
+    els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
+
+-spec bound_var_in_pattern_cannot_parse(config()) -> ok.
+bound_var_in_pattern_cannot_parse(_Config) ->
+    Path = src_path("diagnostics_bound_var_in_pattern_cannot_parse.erl"),
+    Source = <<"BoundVarInPattern">>,
+    Errors = [],
+    Warnings = [],
+    Hints = [],
     els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
 
 -spec compiler(config()) -> ok.
@@ -810,6 +821,15 @@ unused_includes_compiler_attribute(_Config) ->
             data => FileName
         }
     ],
+    Hints = [],
+    els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
+
+-spec unused_includes_broken(config()) -> ok.
+unused_includes_broken(_Config) ->
+    Path = src_path("diagnostics_unused_includes_broken.erl"),
+    Source = <<"UnusedIncludes">>,
+    Errors = [],
+    Warnings = [],
     Hints = [],
     els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
 
