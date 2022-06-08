@@ -86,28 +86,31 @@ find_unused_includes(#{uri := Uri} = Document) ->
             els_config:get(exclude_unused_includes)
         ),
     IncludedUris = IncludedUris1 -- ExcludeUnusedIncludes,
-    Fun = fun(POI, Acc) ->
-        update_unused(Graph, Uri, POI, Acc)
-    end,
-    UnusedIncludes = lists:foldl(Fun, IncludedUris, POIs),
+    UnusedIncludes = update_unused(IncludedUris, Graph, Uri, POIs),
     digraph:delete(Graph),
     UnusedIncludes.
 
--spec update_unused(digraph:graph(), uri(), els_poi:poi(), [uri()]) -> [uri()].
-update_unused(Graph, Uri, POI, Acc) ->
-    case els_code_navigation:goto_definition(Uri, POI) of
-        {ok, Uri, _DefinitionPOI} ->
-            Acc;
-        {ok, DefinitionUri, _DefinitionPOI} ->
-            case digraph:get_path(Graph, DefinitionUri, Uri) of
-                false ->
-                    Acc;
-                Path ->
-                    Acc -- Path
-            end;
-        {error, _Reason} ->
-            Acc
-    end.
+-spec update_unused([uri()], digraph:graph(), uri(), [els_poi:poi()]) -> [uri()].
+update_unused(Acc = [], _Graph, _Uri, _POIs) ->
+    Acc;
+update_unused(Acc, _Graph, _Uri, _POIs = []) ->
+    Acc;
+update_unused(Acc, Graph, Uri, [POI | POIs]) ->
+    NewAcc =
+        case els_code_navigation:goto_definition(Uri, POI) of
+            {ok, DefinitionUri, _DefinitionPOI} when DefinitionUri =:= Uri ->
+                Acc;
+            {ok, DefinitionUri, _DefinitionPOI} ->
+                case digraph:get_path(Graph, DefinitionUri, Uri) of
+                    false ->
+                        Acc;
+                    Path ->
+                        Acc -- Path
+                end;
+            {error, _Reason} ->
+                Acc
+        end,
+    update_unused(NewAcc, Graph, Uri, POIs).
 
 -spec expand_includes(els_dt_document:item()) -> digraph:graph().
 expand_includes(Document) ->
