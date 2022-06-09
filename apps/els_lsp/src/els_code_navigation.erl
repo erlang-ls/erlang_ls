@@ -78,6 +78,7 @@ goto_definition(
     Kind =:= behaviour;
     Kind =:= module
 ->
+    erlang:apply(foo, bar, []),
     case els_utils:find_module(Module) of
         {ok, Uri} -> find(Uri, module, Module);
         {error, Error} -> {error, Error}

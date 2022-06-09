@@ -4,7 +4,6 @@
 -export([
     handle_request/2,
     start_link/0,
-    available_providers/0,
     cancel_request/1,
     cancel_request_by_uri/1
 ]).
@@ -22,8 +21,9 @@
 %% Includes
 %%==============================================================================
 -include_lib("kernel/include/logger.hrl").
+-include("els_core.hrl").
 
--callback handle_request(request(), any()) ->
+-callback handle_request(provider_request(), any()) ->
     {async, uri(), pid()}
     | {response, any()}
     | {diagnostics, uri(), [pid()]}
@@ -49,7 +49,7 @@
     | els_execute_command_provider
     | els_rename_provider
     | els_text_synchronization_provider.
--type request() :: {atom() | binary(), map()}.
+-type provider_request() :: {atom() | binary(), map()}.
 -type state() :: #{
     in_progress := [progress_entry()],
     in_progress_diagnostics := [diagnostic_entry()],
@@ -63,12 +63,10 @@
     diagnostics := [els_diagnostics:diagnostic()]
 }.
 -type job() :: pid().
-%% TODO: Redefining uri() due to a type conflict with request()
--type uri() :: binary().
 -export_type([
     config/0,
     provider/0,
-    request/0,
+    provider_request/0,
     state/0
 ]).
 
@@ -85,7 +83,7 @@
 start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, unused, []).
 
--spec handle_request(provider(), request()) -> any().
+-spec handle_request(provider(), provider_request()) -> any().
 handle_request(Provider, Request) ->
     gen_server:call(?SERVER, {handle_request, Provider, Request}, infinity).
 
@@ -117,7 +115,7 @@ init(unused) ->
 handle_call({handle_request, Provider, Request}, _From, State) ->
     #{in_progress := InProgress, in_progress_diagnostics := InProgressDiagnostics} =
         State,
-    case Provider:handle_request(Request, State) of
+    try Provider:handle_request(Request, State) of
         {async, Uri, Job} ->
             {reply, {async, Job}, State#{in_progress => [{Uri, Job} | InProgress]}};
         {response, Response} ->
@@ -129,6 +127,15 @@ handle_call({handle_request, Provider, Request}, _From, State) ->
             {reply, noresponse, NewState};
         noresponse ->
             {reply, noresponse, State}
+    catch
+        Class:Reason:Stack ->
+            ErrorMsg = els_utils:to_binary(lists:flatten(io_lib:format("~p:~p:~p", [Class, Reason, Stack]))),
+            RequestB = els_utils:to_binary(lists:flatten(io_lib:format("~p", [Request]))),
+            Error = #{
+                code => -32603, %% TODO: ?ERR_INTERNAL_ERROR,
+                message => <<"Internal error ", RequestB/binary, ErrorMsg/binary>>
+            },
+            {reply, {error, Error}, State}
     end.
 
 -spec handle_cast(any(), state()) -> {noreply, state()}.
@@ -206,29 +213,6 @@ handle_info(_Request, State) ->
 terminate(_Reason, #{in_progress := InProgress}) ->
     [els_background_job:stop(Job) || {_Uri, Job} <- InProgress],
     ok.
-
--spec available_providers() -> [provider()].
-available_providers() ->
-    [
-        els_completion_provider,
-        els_definition_provider,
-        els_document_symbol_provider,
-        els_hover_provider,
-        els_references_provider,
-        els_formatting_provider,
-        els_document_highlight_provider,
-        els_workspace_symbol_provider,
-        els_folding_range_provider,
-        els_implementation_provider,
-        els_code_action_provider,
-        els_general_provider,
-        els_code_lens_provider,
-        els_execute_command_provider,
-        els_diagnostics_provider,
-        els_rename_provider,
-        els_call_hierarchy_provider,
-        els_text_synchronization_provider
-    ].
 
 %%==============================================================================
 %% Internal Functions
