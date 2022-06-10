@@ -3,7 +3,7 @@
 -behaviour(els_provider).
 -export([
     is_enabled/0,
-    handle_request/2
+    handle_request/1
 ]).
 
 -export([server_capabilities/0]).
@@ -44,7 +44,6 @@
 -type exit_request() :: {exit, exit_params()}.
 -type exit_params() :: #{status => atom()}.
 -type exit_result() :: null.
--type state() :: any().
 
 %%==============================================================================
 %% els_provider functions
@@ -56,15 +55,14 @@ is_enabled() -> true.
     initialize_request()
     | initialized_request()
     | shutdown_request()
-    | exit_request(),
-    state()
+    | exit_request()
 ) ->
     {response,
         initialize_result()
         | initialized_result()
         | shutdown_result()
         | exit_result()}.
-handle_request({initialize, Params}, _State) ->
+handle_request({initialize, Params}) ->
     #{
         <<"rootUri">> := RootUri0,
         <<"capabilities">> := Capabilities
@@ -86,7 +84,7 @@ handle_request({initialize, Params}, _State) ->
         end,
     ok = els_config:initialize(RootUri, Capabilities, InitOptions, true),
     {response, server_capabilities()};
-handle_request({initialized, _Params}, _State) ->
+handle_request({initialized, _Params}) ->
     RootUri = els_config:get(root_uri),
     NodeName = els_distribution_server:node_name(
         <<"erlang_ls">>,
@@ -96,9 +94,9 @@ handle_request({initialized, _Params}, _State) ->
     ?LOG_INFO("Started distribution for: [~p]", [NodeName]),
     els_indexing:maybe_start(),
     {response, null};
-handle_request({shutdown, _Params}, _State) ->
+handle_request({shutdown, _Params}) ->
     {response, null};
-handle_request({exit, #{status := Status}}, _State) ->
+handle_request({exit, #{status := Status}}) ->
     ?LOG_INFO("Language server stopping..."),
     ExitCode =
         case Status of

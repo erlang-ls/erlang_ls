@@ -43,20 +43,21 @@
 -include_lib("kernel/include/logger.hrl").
 
 -type method_name() :: binary().
--type state() :: map().
 -type params() :: map().
 -type result() ::
-    {response, params() | null, state()}
-    | {error, params(), state()}
-    | {noresponse, state()}
-    | {noresponse, pid(), state()}
-    | {notification, binary(), params(), state()}.
+    {response, params() | null, els_server:state()}
+    | {error, params(), els_server:state()}
+    | {noresponse, els_server:state()}
+    | {noresponse, uri(), pid(), els_server:state()}
+    | {notification, binary(), params(), els_server:state()}
+    | {diagnostics, uri(), [pid()], els_server:state()}
+    | {async, uri(), pid(), els_server:state()}.
 -type request_type() :: notification | request.
 
 %%==============================================================================
 %% @doc Dispatch the handling of the method to els_method
 %%==============================================================================
--spec dispatch(method_name(), params(), request_type(), state()) -> result().
+-spec dispatch(method_name(), params(), request_type(), els_server:state()) -> result().
 dispatch(<<"$/", Method/binary>>, Params, notification, State) ->
     Msg = "Ignoring $/ notification [method=~p] [params=~p]",
     Fmt = [Method, Params],
@@ -81,17 +82,25 @@ dispatch(Method, Params, _Type, State) ->
             not_implemented_method(Method, State);
         Type:Reason:Stack ->
             ?LOG_ERROR(
-                "Unexpected error [type=~p] [error=~p] [stack=~p]",
+                "Internal [type=~p] [error=~p] [stack=~p]",
                 [Type, Reason, Stack]
             ),
             Error = #{
-                code => ?ERR_UNKNOWN_ERROR_CODE,
-                message => <<"Unexpected error while ", Method/binary>>
+                type => Type,
+                reason => Reason,
+                stack => Stack,
+                method => Method,
+                params => Params
             },
-            {error, Error, State}
+            ErrorMsg = els_utils:to_binary(lists:flatten(io_lib:format("~p", [Error]))),
+            ErrorResponse = #{
+                code => ?ERR_INTERNAL_ERROR,
+                message => <<"Internal Error: ", ErrorMsg/binary>>
+            },
+            {error, ErrorResponse, State}
     end.
 
--spec do_dispatch(atom(), params(), state()) -> result().
+-spec do_dispatch(atom(), params(), els_server:state()) -> result().
 do_dispatch(exit, Params, State) ->
     els_methods:exit(Params, State);
 do_dispatch(_Function, _Params, #{status := shutdown} = State) ->
@@ -113,7 +122,7 @@ do_dispatch(_Function, _Params, State) ->
     },
     {error, Result, State}.
 
--spec not_implemented_method(method_name(), state()) -> result().
+-spec not_implemented_method(method_name(), els_server:state()) -> result().
 not_implemented_method(Method, State) ->
     ?LOG_WARNING("[Method not implemented] [method=~s]", [Method]),
     Message = <<"Method not implemented: ", Method/binary>>,
@@ -137,7 +146,7 @@ method_to_function_name(Method) ->
 %% Initialize
 %%==============================================================================
 
--spec initialize(params(), state()) -> result().
+-spec initialize(params(), els_server:state()) -> result().
 initialize(Params, State) ->
     Provider = els_general_provider,
     Request = {initialize, Params},
@@ -148,7 +157,7 @@ initialize(Params, State) ->
 %% Initialized
 %%==============================================================================
 
--spec initialized(params(), state()) -> result().
+-spec initialized(params(), els_server:state()) -> result().
 initialized(Params, State) ->
     Provider = els_general_provider,
     Request = {initialized, Params},
@@ -173,7 +182,7 @@ initialized(Params, State) ->
 %% shutdown
 %%==============================================================================
 
--spec shutdown(params(), state()) -> result().
+-spec shutdown(params(), els_server:state()) -> result().
 shutdown(Params, State) ->
     Provider = els_general_provider,
     Request = {shutdown, Params},
@@ -184,54 +193,56 @@ shutdown(Params, State) ->
 %% exit
 %%==============================================================================
 
--spec exit(params(), state()) -> no_return().
+-spec exit(params(), els_server:state()) -> no_return().
 exit(_Params, State) ->
     Provider = els_general_provider,
-    Request = {exit, #{status => maps:get(status, State, undefined)}},
+    Request = {exit, #{status => maps:get(status, State)}},
     {response, _Response} = els_provider:handle_request(Provider, Request),
-    {noresponse, #{}}.
+    %% Only reached by property-based test (where halt/1 is mocked for
+    %% faster iteration
+    {noresponse, State#{status => exiting}}.
 
 %%==============================================================================
 %% textDocument/didopen
 %%==============================================================================
 
--spec textdocument_didopen(params(), state()) -> result().
+-spec textdocument_didopen(params(), els_server:state()) -> result().
 textdocument_didopen(Params, #{open_buffers := OpenBuffers} = State) ->
     #{<<"textDocument">> := #{<<"uri">> := Uri}} = Params,
     Provider = els_text_synchronization_provider,
     Request = {did_open, Params},
-    noresponse = els_provider:handle_request(Provider, Request),
-    {noresponse, State#{open_buffers => sets:add_element(Uri, OpenBuffers)}}.
+    {diagnostics, Uri, Jobs} = els_provider:handle_request(Provider, Request),
+    {diagnostics, Uri, Jobs, State#{open_buffers => sets:add_element(Uri, OpenBuffers)}}.
 
 %%==============================================================================
 %% textDocument/didchange
 %%==============================================================================
 
--spec textdocument_didchange(params(), state()) -> result().
-textdocument_didchange(Params, State) ->
+-spec textdocument_didchange(params(), els_server:state()) -> result().
+textdocument_didchange(Params, State0) ->
     #{<<"textDocument">> := #{<<"uri">> := Uri}} = Params,
-    els_provider:cancel_request_by_uri(Uri),
+    State = cancel_request_by_uri(Uri, State0),
     Provider = els_text_synchronization_provider,
     Request = {did_change, Params},
-    els_provider:handle_request(Provider, Request),
+    _ = els_provider:handle_request(Provider, Request),
     {noresponse, State}.
 
 %%==============================================================================
 %% textDocument/didsave
 %%==============================================================================
 
--spec textdocument_didsave(params(), state()) -> result().
+-spec textdocument_didsave(params(), els_server:state()) -> result().
 textdocument_didsave(Params, State) ->
     Provider = els_text_synchronization_provider,
     Request = {did_save, Params},
-    noresponse = els_provider:handle_request(Provider, Request),
-    {noresponse, State}.
+    {diagnostics, Uri, Jobs} = els_provider:handle_request(Provider, Request),
+    {diagnostics, Uri, Jobs, State}.
 
 %%==============================================================================
 %% textDocument/didclose
 %%==============================================================================
 
--spec textdocument_didclose(params(), state()) -> result().
+-spec textdocument_didclose(params(), els_server:state()) -> result().
 textdocument_didclose(Params, #{open_buffers := OpenBuffers} = State) ->
     #{<<"textDocument">> := #{<<"uri">> := Uri}} = Params,
     Provider = els_text_synchronization_provider,
@@ -243,7 +254,7 @@ textdocument_didclose(Params, #{open_buffers := OpenBuffers} = State) ->
 %% textdocument/documentSymbol
 %%==============================================================================
 
--spec textdocument_documentsymbol(params(), state()) -> result().
+-spec textdocument_documentsymbol(params(), els_server:state()) -> result().
 textdocument_documentsymbol(Params, State) ->
     Provider = els_document_symbol_provider,
     Request = {document_symbol, Params},
@@ -254,17 +265,17 @@ textdocument_documentsymbol(Params, State) ->
 %% textDocument/hover
 %%==============================================================================
 
--spec textdocument_hover(params(), state()) -> result().
+-spec textdocument_hover(params(), els_server:state()) -> result().
 textdocument_hover(Params, State) ->
     Provider = els_hover_provider,
-    {async, Job} = els_provider:handle_request(Provider, {hover, Params}),
-    {noresponse, Job, State}.
+    {async, Uri, Job} = els_provider:handle_request(Provider, {hover, Params}),
+    {async, Uri, Job, State}.
 
 %%==============================================================================
 %% textDocument/completion
 %%==============================================================================
 
--spec textdocument_completion(params(), state()) -> result().
+-spec textdocument_completion(params(), els_server:state()) -> result().
 textdocument_completion(Params, State) ->
     Provider = els_completion_provider,
     {response, Response} =
@@ -275,7 +286,7 @@ textdocument_completion(Params, State) ->
 %% completionItem/resolve
 %%==============================================================================
 
--spec completionitem_resolve(params(), state()) -> result().
+-spec completionitem_resolve(params(), els_server:state()) -> result().
 completionitem_resolve(Params, State) ->
     Provider = els_completion_provider,
     {response, Response} =
@@ -286,7 +297,7 @@ completionitem_resolve(Params, State) ->
 %% textDocument/definition
 %%==============================================================================
 
--spec textdocument_definition(params(), state()) -> result().
+-spec textdocument_definition(params(), els_server:state()) -> result().
 textdocument_definition(Params, State) ->
     Provider = els_definition_provider,
     {response, Response} =
@@ -297,7 +308,7 @@ textdocument_definition(Params, State) ->
 %% textDocument/references
 %%==============================================================================
 
--spec textdocument_references(params(), state()) -> result().
+-spec textdocument_references(params(), els_server:state()) -> result().
 textdocument_references(Params, State) ->
     Provider = els_references_provider,
     {response, Response} =
@@ -308,7 +319,7 @@ textdocument_references(Params, State) ->
 %% textDocument/documentHightlight
 %%==============================================================================
 
--spec textdocument_documenthighlight(params(), state()) -> result().
+-spec textdocument_documenthighlight(params(), els_server:state()) -> result().
 textdocument_documenthighlight(Params, State) ->
     Provider = els_document_highlight_provider,
     {response, Response} =
@@ -319,7 +330,7 @@ textdocument_documenthighlight(Params, State) ->
 %% textDocument/formatting
 %%==============================================================================
 
--spec textdocument_formatting(params(), state()) -> result().
+-spec textdocument_formatting(params(), els_server:state()) -> result().
 textdocument_formatting(Params, State) ->
     Provider = els_formatting_provider,
     {response, Response} =
@@ -330,7 +341,7 @@ textdocument_formatting(Params, State) ->
 %% textDocument/rangeFormatting
 %%==============================================================================
 
--spec textdocument_rangeformatting(params(), state()) -> result().
+-spec textdocument_rangeformatting(params(), els_server:state()) -> result().
 textdocument_rangeformatting(Params, State) ->
     Provider = els_formatting_provider,
     {response, Response} =
@@ -341,7 +352,7 @@ textdocument_rangeformatting(Params, State) ->
 %% textDocument/onTypeFormatting
 %%==============================================================================
 
--spec textdocument_ontypeformatting(params(), state()) -> result().
+-spec textdocument_ontypeformatting(params(), els_server:state()) -> result().
 textdocument_ontypeformatting(Params, State) ->
     Provider = els_formatting_provider,
     {response, Response} =
@@ -352,7 +363,7 @@ textdocument_ontypeformatting(Params, State) ->
 %% textDocument/foldingRange
 %%==============================================================================
 
--spec textdocument_foldingrange(params(), state()) -> result().
+-spec textdocument_foldingrange(params(), els_server:state()) -> result().
 textdocument_foldingrange(Params, State) ->
     Provider = els_folding_range_provider,
     {response, Response} =
@@ -363,7 +374,7 @@ textdocument_foldingrange(Params, State) ->
 %% textDocument/implementation
 %%==============================================================================
 
--spec textdocument_implementation(params(), state()) -> result().
+-spec textdocument_implementation(params(), els_server:state()) -> result().
 textdocument_implementation(Params, State) ->
     Provider = els_implementation_provider,
     {response, Response} =
@@ -374,7 +385,7 @@ textdocument_implementation(Params, State) ->
 %% workspace/didChangeConfiguration
 %%==============================================================================
 
--spec workspace_didchangeconfiguration(params(), state()) -> result().
+-spec workspace_didchangeconfiguration(params(), els_server:state()) -> result().
 workspace_didchangeconfiguration(_Params, State) ->
     %% Some clients send this notification on startup, even though we
     %% have no server-side config.  So swallow it without complaining.
@@ -384,7 +395,7 @@ workspace_didchangeconfiguration(_Params, State) ->
 %% textDocument/codeAction
 %%==============================================================================
 
--spec textdocument_codeaction(params(), state()) -> result().
+-spec textdocument_codeaction(params(), els_server:state()) -> result().
 textdocument_codeaction(Params, State) ->
     Provider = els_code_action_provider,
     {response, Response} =
@@ -395,18 +406,18 @@ textdocument_codeaction(Params, State) ->
 %% textDocument/codeLens
 %%==============================================================================
 
--spec textdocument_codelens(params(), state()) -> result().
+-spec textdocument_codelens(params(), els_server:state()) -> result().
 textdocument_codelens(Params, State) ->
     Provider = els_code_lens_provider,
-    {async, Job} =
+    {async, Uri, Job} =
         els_provider:handle_request(Provider, {document_codelens, Params}),
-    {noresponse, Job, State}.
+    {async, Uri, Job, State}.
 
 %%==============================================================================
 %% textDocument/rename
 %%==============================================================================
 
--spec textdocument_rename(params(), state()) -> result().
+-spec textdocument_rename(params(), els_server:state()) -> result().
 textdocument_rename(Params, State) ->
     Provider = els_rename_provider,
     {response, Response} =
@@ -417,7 +428,7 @@ textdocument_rename(Params, State) ->
 %% textDocument/preparePreparecallhierarchy
 %%==============================================================================
 
--spec textdocument_preparecallhierarchy(params(), state()) -> result().
+-spec textdocument_preparecallhierarchy(params(), els_server:state()) -> result().
 textdocument_preparecallhierarchy(Params, State) ->
     Provider = els_call_hierarchy_provider,
     {response, Response} =
@@ -428,7 +439,7 @@ textdocument_preparecallhierarchy(Params, State) ->
 %% textDocument/signatureHelp
 %%==============================================================================
 
--spec textdocument_signaturehelp(params(), state()) -> result().
+-spec textdocument_signaturehelp(params(), els_server:state()) -> result().
 textdocument_signaturehelp(Params, State) ->
     Provider = els_signature_help_provider,
     {response, Response} =
@@ -439,7 +450,7 @@ textdocument_signaturehelp(Params, State) ->
 %% callHierarchy/incomingCalls
 %%==============================================================================
 
--spec callhierarchy_incomingcalls(params(), state()) -> result().
+-spec callhierarchy_incomingcalls(params(), els_server:state()) -> result().
 callhierarchy_incomingcalls(Params, State) ->
     Provider = els_call_hierarchy_provider,
     {response, Response} =
@@ -450,7 +461,7 @@ callhierarchy_incomingcalls(Params, State) ->
 %% callHierarchy/outgoingCalls
 %%==============================================================================
 
--spec callhierarchy_outgoingcalls(params(), state()) -> result().
+-spec callhierarchy_outgoingcalls(params(), els_server:state()) -> result().
 callhierarchy_outgoingcalls(Params, State) ->
     Provider = els_call_hierarchy_provider,
     {response, Response} =
@@ -461,7 +472,7 @@ callhierarchy_outgoingcalls(Params, State) ->
 %% workspace/executeCommand
 %%==============================================================================
 
--spec workspace_executecommand(params(), state()) -> result().
+-spec workspace_executecommand(params(), els_server:state()) -> result().
 workspace_executecommand(Params, State) ->
     Provider = els_execute_command_provider,
     {response, Response} =
@@ -472,7 +483,7 @@ workspace_executecommand(Params, State) ->
 %% workspace/didChangeWatchedFiles
 %%==============================================================================
 
--spec workspace_didchangewatchedfiles(map(), state()) -> result().
+-spec workspace_didchangewatchedfiles(map(), els_server:state()) -> result().
 workspace_didchangewatchedfiles(Params0, State) ->
     #{open_buffers := OpenBuffers} = State,
     #{<<"changes">> := Changes0} = Params0,
@@ -491,9 +502,28 @@ workspace_didchangewatchedfiles(Params0, State) ->
 %% workspace/symbol
 %%==============================================================================
 
--spec workspace_symbol(map(), state()) -> result().
+-spec workspace_symbol(map(), els_server:state()) -> result().
 workspace_symbol(Params, State) ->
     Provider = els_workspace_symbol_provider,
     {response, Response} =
         els_provider:handle_request(Provider, {symbol, Params}),
     {response, Response, State}.
+
+%%==============================================================================
+%% Internal Functions
+%%==============================================================================
+-spec cancel_request_by_uri(uri(), els_server:state()) -> els_server:state().
+cancel_request_by_uri(Uri, State) ->
+    #{in_progress := InProgress0} = State,
+    Fun = fun({U, Job}) ->
+        case U =:= Uri of
+            true ->
+                els_background_job:stop(Job),
+                false;
+            false ->
+                true
+        end
+    end,
+    InProgress = lists:filtermap(Fun, InProgress0),
+    ?LOG_DEBUG("Cancelling requests by Uri [uri=~p]", [Uri]),
+    State#{in_progress => InProgress}.

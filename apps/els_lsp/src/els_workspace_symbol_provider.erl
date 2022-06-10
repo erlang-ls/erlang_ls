@@ -4,14 +4,12 @@
 
 -export([
     is_enabled/0,
-    handle_request/2
+    handle_request/1
 ]).
 
 -include("els_lsp.hrl").
 
 -define(LIMIT, 100).
-
--type state() :: any().
 
 %%==============================================================================
 %% els_provider functions
@@ -19,8 +17,8 @@
 -spec is_enabled() -> boolean().
 is_enabled() -> true.
 
--spec handle_request(any(), state()) -> {response, any()}.
-handle_request({symbol, Params}, _State) ->
+-spec handle_request(any()) -> {response, any()}.
+handle_request({symbol, Params}) ->
     %% TODO: Version 3.15 of the protocol introduces a much nicer way of
     %%       specifying queries, allowing clients to send the symbol kind.
     #{<<"query">> := Query} = Params,

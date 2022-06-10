@@ -4,7 +4,7 @@
 
 -export([
     is_enabled/0,
-    handle_request/2
+    handle_request/1
 ]).
 
 %% For use in other providers
@@ -29,8 +29,8 @@
 -spec is_enabled() -> boolean().
 is_enabled() -> true.
 
--spec handle_request(any(), any()) -> {response, [location()] | null}.
-handle_request({references, Params}, _State) ->
+-spec handle_request(any()) -> {response, [location()] | null}.
+handle_request({references, Params}) ->
     #{
         <<"position">> := #{
             <<"line">> := Line,

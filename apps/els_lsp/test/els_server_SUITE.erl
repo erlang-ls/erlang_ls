@@ -108,6 +108,6 @@ wait_until_no_lens_jobs() ->
 
 -spec get_current_lens_jobs() -> [pid()].
 get_current_lens_jobs() ->
-    State = sys:get_state(els_provider, 30 * 1000),
+    State = sys:get_state(els_server, 30 * 1000),
     #{in_progress := InProgress} = State,
     [Job || {_Uri, Job} <- InProgress].

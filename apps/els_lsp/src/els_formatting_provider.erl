@@ -3,8 +3,7 @@
 -behaviour(els_provider).
 
 -export([
-    init/0,
-    handle_request/2,
+    handle_request/1,
     is_enabled/0,
     is_enabled_document/0,
     is_enabled_range/0,
@@ -15,13 +14,6 @@
 %% Includes
 %%==============================================================================
 -include("els_lsp.hrl").
--include_lib("kernel/include/logger.hrl").
-
-%%==============================================================================
-%% Types
-%%==============================================================================
--type formatter() :: fun((string(), string(), formatting_options()) -> boolean()).
--type state() :: [formatter()].
 
 %%==============================================================================
 %% Macro Definitions
@@ -31,10 +23,6 @@
 %%==============================================================================
 %% els_provider functions
 %%==============================================================================
--spec init() -> state().
-init() ->
-    [fun format_document_local/3].
-
 %% Keep the behaviour happy
 -spec is_enabled() -> boolean().
 is_enabled() -> is_enabled_document().
@@ -52,8 +40,8 @@ is_enabled_range() ->
 -spec is_enabled_on_type() -> document_ontypeformatting_options().
 is_enabled_on_type() -> false.
 
--spec handle_request(any(), state()) -> {response, any()}.
-handle_request({document_formatting, Params}, _State) ->
+-spec handle_request(any()) -> {response, any()}.
+handle_request({document_formatting, Params}) ->
     #{
         <<"options">> := Options,
         <<"textDocument">> := #{<<"uri">> := Uri}
@@ -65,7 +53,7 @@ handle_request({document_formatting, Params}, _State) ->
         RelativePath ->
             format_document(Path, RelativePath, Options)
     end;
-handle_request({document_rangeformatting, Params}, _State) ->
+handle_request({document_rangeformatting, Params}) ->
     #{
         <<"range">> := #{
             <<"start">> := StartPos,
@@ -78,7 +66,7 @@ handle_request({document_rangeformatting, Params}, _State) ->
     {ok, Document} = els_utils:lookup_document(Uri),
     {ok, TextEdit} = rangeformat_document(Uri, Document, Range, Options),
     {response, TextEdit};
-handle_request({document_ontypeformatting, Params}, _State) ->
+handle_request({document_ontypeformatting, Params}) ->
     #{
         <<"position">> := #{
             <<"line">> := Line,

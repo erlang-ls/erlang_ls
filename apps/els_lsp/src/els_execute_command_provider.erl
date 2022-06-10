@@ -5,7 +5,7 @@
 -export([
     is_enabled/0,
     options/0,
-    handle_request/2
+    handle_request/1
 ]).
 
 %%==============================================================================
@@ -13,8 +13,6 @@
 %%==============================================================================
 -include("els_lsp.hrl").
 -include_lib("kernel/include/logger.hrl").
-
--type state() :: any().
 
 %%==============================================================================
 %% els_provider functions
@@ -34,8 +32,8 @@ options() ->
         ]
     }.
 
--spec handle_request(any(), state()) -> {response, any()}.
-handle_request({workspace_executecommand, Params}, _State) ->
+-spec handle_request(any()) -> {response, any()}.
+handle_request({workspace_executecommand, Params}) ->
     #{<<"command">> := PrefixedCommand} = Params,
     Arguments = maps:get(<<"arguments">>, Params, []),
     Result = execute_command(

@@ -4,12 +4,10 @@
 
 -export([
     is_enabled/0,
-    handle_request/2
+    handle_request/1
 ]).
 
 -include("els_lsp.hrl").
-
--type state() :: any().
 
 %%==============================================================================
 %% els_provider functions
@@ -17,8 +15,8 @@
 -spec is_enabled() -> boolean().
 is_enabled() -> true.
 
--spec handle_request(any(), state()) -> {response, any()}.
-handle_request({definition, Params}, State) ->
+-spec handle_request(any()) -> {response, any()}.
+handle_request({definition, Params}) ->
     #{
         <<"position">> := #{
             <<"line">> := Line,
@@ -34,7 +32,7 @@ handle_request({definition, Params}, State) ->
             IncompletePOIs = match_incomplete(Text, {Line, Character}),
             case goto_definition(Uri, IncompletePOIs) of
                 null ->
-                    els_references_provider:handle_request({references, Params}, State);
+                    els_references_provider:handle_request({references, Params});
                 GoTo ->
                     {response, GoTo}
             end;
