@@ -16,6 +16,9 @@
     parse_incomplete_type/1,
     parse_no_tokens/1,
     define/1,
+    ifdef/1,
+    ifndef/1,
+    undef/1,
     underscore_macro/1,
     specs_with_record/1,
     types_with_record/1,
@@ -202,6 +205,23 @@ define(_Config) ->
         ]},
         els_parser:parse("-define(MACRO(A, B), A:B()).")
     ).
+
+-spec ifdef(config()) -> ok.
+ifdef(_Config) ->
+    Text = "-ifdef(FOO).",
+    ?assertMatch([#{id := 'FOO'}], parse_find_pois(Text, macro)),
+    Text2 = "-ifdef(foo).",
+    ?assertMatch([#{id := 'foo'}], parse_find_pois(Text2, macro)).
+
+-spec ifndef(config()) -> ok.
+ifndef(_Config) ->
+    Text = "-ifndef(FOO).",
+    ?assertMatch([#{id := 'FOO'}], parse_find_pois(Text, macro)).
+
+-spec undef(config()) -> ok.
+undef(_Config) ->
+    Text = "-undef(FOO).",
+    ?assertMatch([#{id := 'FOO'}], parse_find_pois(Text, macro)).
 
 -spec underscore_macro(config()) -> ok.
 underscore_macro(_Config) ->

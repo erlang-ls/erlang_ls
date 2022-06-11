@@ -429,6 +429,14 @@ attribute(Tree) ->
                 undefined ->
                     [poi(Pos, spec, undefined)]
             end;
+        {Attribute, [{Type, Anno, Name}]} when
+            (Attribute =:= ifdef orelse
+                Attribute =:= ifndef orelse
+                Attribute =:= undef),
+            (Type =:= var orelse
+                Type =:= atom)
+        ->
+            poi(Anno, macro, Name);
         _ ->
             []
     catch
