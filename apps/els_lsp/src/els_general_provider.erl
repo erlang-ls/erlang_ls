@@ -90,6 +90,7 @@ handle_request({initialized, _Params}) ->
         <<"erlang_ls">>,
         filename:basename(RootUri)
     ),
+    register_capabilities(),
     els_distribution_server:start_distribution(NodeName),
     ?LOG_INFO("Started distribution for: [~p]", [NodeName]),
     els_indexing:maybe_start(),
@@ -176,3 +177,35 @@ server_capabilities() ->
                 version => els_utils:to_binary(Version)
             }
     }.
+
+-spec register_capabilities() -> ok.
+register_capabilities() ->
+    ClientCapabilities = els_config:get(capabilities),
+    Enabled = maps:get(
+        <<"dynamicRegistration">>,
+        maps:get(
+            <<"didChangeWatchedFiles">>,
+            maps:get(<<"workspace">>, ClientCapabilities, #{}),
+            #{}
+        ),
+        #{}
+    ),
+    RootPath = els_uri:path(els_config:get(root_uri)),
+    case Enabled of
+        true ->
+            GlobPattern = filename:join([<<RootPath/binary>>, "**", "*.{e,h}rl"]),
+            Params = #{
+                registrations => [
+                    #{
+                        id => <<"workspace/didChangeWatchedFiles">>,
+                        method => <<"workspace/didChangeWatchedFiles">>,
+                        registerOptions => #{
+                            watchers => [#{globPattern => GlobPattern}]
+                        }
+                    }
+                ]
+            },
+            els_server:send_request(<<"client/registerCapability">>, Params);
+        false ->
+            ?LOG_INFO("Dynamic registration for didChangeWatchedFiles disabled")
+    end.
