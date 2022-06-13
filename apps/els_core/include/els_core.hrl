@@ -540,17 +540,17 @@
 %%------------------------------------------------------------------------------
 -type parameter_information() :: #{
     label := binary(),
-    documentation => binary()
+    documentation => markup_content()
 }.
 -type signature_information() :: #{
     label := binary(),
-    documentation => binary(),
+    documentation => markup_content(),
     parameters => [parameter_information()]
 }.
 -type signature_help() :: #{
     signatures := [signature_information()],
-    active_signature => number(),
-    active_parameters => number()
+    activeSignature => non_neg_integer(),
+    activeParameter => non_neg_integer()
 }.
 
 %%------------------------------------------------------------------------------

@@ -28,6 +28,7 @@
     textdocument_codelens/2,
     textdocument_rename/2,
     textdocument_preparecallhierarchy/2,
+    textdocument_signaturehelp/2,
     callhierarchy_incomingcalls/2,
     callhierarchy_outgoingcalls/2,
     workspace_executecommand/2,
@@ -421,6 +422,17 @@ textdocument_preparecallhierarchy(Params, State) ->
     Provider = els_call_hierarchy_provider,
     {response, Response} =
         els_provider:handle_request(Provider, {prepare, Params}),
+    {response, Response, State}.
+
+%%==============================================================================
+%% textDocument/signatureHelp
+%%==============================================================================
+
+-spec textdocument_signaturehelp(params(), state()) -> result().
+textdocument_signaturehelp(Params, State) ->
+    Provider = els_signature_help_provider,
+    {response, Response} =
+        els_provider:handle_request(Provider, {signature_help, Params}),
     {response, Response, State}.
 
 %%==============================================================================

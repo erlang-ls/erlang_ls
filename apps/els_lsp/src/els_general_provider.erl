@@ -115,47 +115,63 @@ handle_request({exit, #{status := Status}}, _State) ->
 -spec server_capabilities() -> server_capabilities().
 server_capabilities() ->
     {ok, Version} = application:get_key(?APP, vsn),
+    Capabilities =
+        #{
+            textDocumentSync =>
+                els_text_synchronization_provider:options(),
+            hoverProvider => true,
+            completionProvider =>
+                #{
+                    resolveProvider => true,
+                    triggerCharacters =>
+                        els_completion_provider:trigger_characters()
+                },
+            signatureHelpProvider =>
+                #{
+                    triggerCharacters =>
+                        els_signature_help_provider:trigger_characters()
+                },
+            definitionProvider =>
+                els_definition_provider:is_enabled(),
+            referencesProvider =>
+                els_references_provider:is_enabled(),
+            documentHighlightProvider =>
+                els_document_highlight_provider:is_enabled(),
+            documentSymbolProvider =>
+                els_document_symbol_provider:is_enabled(),
+            workspaceSymbolProvider =>
+                els_workspace_symbol_provider:is_enabled(),
+            codeActionProvider =>
+                els_code_action_provider:is_enabled(),
+            documentFormattingProvider =>
+                els_formatting_provider:is_enabled_document(),
+            documentRangeFormattingProvider =>
+                els_formatting_provider:is_enabled_range(),
+            foldingRangeProvider =>
+                els_folding_range_provider:is_enabled(),
+            implementationProvider =>
+                els_implementation_provider:is_enabled(),
+            executeCommandProvider =>
+                els_execute_command_provider:options(),
+            codeLensProvider =>
+                els_code_lens_provider:options(),
+            renameProvider =>
+                els_rename_provider:is_enabled(),
+            callHierarchyProvider =>
+                els_call_hierarchy_provider:is_enabled()
+        },
+    ActiveCapabilities =
+        case els_signature_help_provider:is_enabled() of
+            %% This pattern can never match because is_enabled/0 is currently
+            %% hard-coded to `false'. When enabling signature help manually,
+            %% uncomment this branch.
+            %% true ->
+            %%     Capabilities;
+            false ->
+                maps:remove(signatureHelpProvider, Capabilities)
+        end,
     #{
-        capabilities =>
-            #{
-                textDocumentSync =>
-                    els_text_synchronization_provider:options(),
-                hoverProvider => true,
-                completionProvider =>
-                    #{
-                        resolveProvider => true,
-                        triggerCharacters =>
-                            els_completion_provider:trigger_characters()
-                    },
-                definitionProvider =>
-                    els_definition_provider:is_enabled(),
-                referencesProvider =>
-                    els_references_provider:is_enabled(),
-                documentHighlightProvider =>
-                    els_document_highlight_provider:is_enabled(),
-                documentSymbolProvider =>
-                    els_document_symbol_provider:is_enabled(),
-                workspaceSymbolProvider =>
-                    els_workspace_symbol_provider:is_enabled(),
-                codeActionProvider =>
-                    els_code_action_provider:is_enabled(),
-                documentFormattingProvider =>
-                    els_formatting_provider:is_enabled_document(),
-                documentRangeFormattingProvider =>
-                    els_formatting_provider:is_enabled_range(),
-                foldingRangeProvider =>
-                    els_folding_range_provider:is_enabled(),
-                implementationProvider =>
-                    els_implementation_provider:is_enabled(),
-                executeCommandProvider =>
-                    els_execute_command_provider:options(),
-                codeLensProvider =>
-                    els_code_lens_provider:options(),
-                renameProvider =>
-                    els_rename_provider:is_enabled(),
-                callHierarchyProvider =>
-                    els_call_hierarchy_provider:is_enabled()
-            },
+        capabilities => ActiveCapabilities,
         serverInfo =>
             #{
                 name => <<"Erlang LS">>,
