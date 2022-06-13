@@ -43,6 +43,16 @@ find_implementation(Document, Line, Character) ->
     end.
 
 -spec implementation(els_dt_document:item(), els_poi:poi()) -> [{uri(), els_poi:poi()}].
+implementation(
+    Document,
+    #{
+        kind := application,
+        id := {_M, F, A},
+        data := #{mod_is_variable := true}
+    } = POI
+) ->
+    %% Try to handle Mod:function() by assuming it is a behaviour callback.
+    implementation(Document, POI#{kind => callback, id => {F, A}});
 implementation(Document, #{kind := application, id := MFA}) ->
     #{uri := Uri} = Document,
     case callback(MFA) of

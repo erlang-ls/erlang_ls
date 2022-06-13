@@ -15,7 +15,8 @@
 %% Test cases
 -export([
     gen_server_call/1,
-    callback/1
+    callback/1,
+    dynamic_call/1
 ]).
 
 %%==============================================================================
@@ -81,6 +82,31 @@ gen_server_call(Config) ->
 callback(Config) ->
     Uri = ?config(implementation_uri, Config),
     #{result := Result} = els_client:implementation(Uri, 3, 20),
+    Expected = [
+        #{
+            range =>
+                #{
+                    'end' => #{character => 17, line => 6},
+                    start => #{character => 0, line => 6}
+                },
+            uri => ?config(implementation_a_uri, Config)
+        },
+        #{
+            range =>
+                #{
+                    'end' => #{character => 17, line => 6},
+                    start => #{character => 0, line => 6}
+                },
+            uri => ?config(implementation_b_uri, Config)
+        }
+    ],
+    ?assertEqual(Expected, Result),
+    ok.
+
+-spec dynamic_call(config()) -> ok.
+dynamic_call(Config) ->
+    Uri = ?config(implementation_uri, Config),
+    #{result := Result} = els_client:implementation(Uri, 6, 14),
     Expected = [
         #{
             range =>
