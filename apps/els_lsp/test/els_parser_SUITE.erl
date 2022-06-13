@@ -198,8 +198,9 @@ define(_Config) ->
     ?assertMatch(
         {ok, [
             #{id := {'MACRO', 2}, kind := define},
-            #{id := 'B', kind := variable},
+            #{id := {'A', 'B', 0}, kind := application},
             #{id := 'A', kind := variable},
+            #{id := 'B', kind := variable},
             #{id := 'B', kind := variable},
             #{id := 'A', kind := variable}
         ]},
@@ -361,9 +362,74 @@ assert_recursive_types(Text) ->
 var_in_application(_Config) ->
     Text1 = "f() -> Mod:f(42).",
     ?assertMatch([#{id := 'Mod'}], parse_find_pois(Text1, variable)),
+    ?assertMatch(
+        [
+            #{
+                id := {'Mod', f, 1},
+                data := #{
+                    mod_is_variable := true,
+                    fun_is_variable := false
+                }
+            }
+        ],
+        parse_find_pois(Text1, application)
+    ),
 
     Text2 = "f() -> mod:Fun(42).",
     ?assertMatch([#{id := 'Fun'}], parse_find_pois(Text2, variable)),
+    ?assertMatch(
+        [
+            #{
+                id := {mod, 'Fun', 1},
+                data := #{
+                    mod_is_variable := false,
+                    fun_is_variable := true
+                }
+            }
+        ],
+        parse_find_pois(Text2, application)
+    ),
+
+    Text3 = "f() -> Mod:Fun(42).",
+    ?assertMatch([#{id := 'Mod'}, #{id := 'Fun'}], parse_find_pois(Text3, variable)),
+    ?assertMatch(
+        [
+            #{
+                id := {'Mod', 'Fun', 1},
+                data := #{
+                    mod_is_variable := true,
+                    fun_is_variable := true
+                }
+            }
+        ],
+        parse_find_pois(Text3, application)
+    ),
+    Text4 = "f() -> Fun(42).",
+    ?assertMatch([#{id := 'Fun'}], parse_find_pois(Text4, variable)),
+    ?assertMatch(
+        [
+            #{
+                id := {'Fun', 1},
+                data := #{fun_is_variable := true}
+            }
+        ],
+        parse_find_pois(Text4, application)
+    ),
+
+    Text5 = "f() -> (Mod):(Fun)(42).",
+    ?assertMatch([#{id := 'Mod'}, #{id := 'Fun'}], parse_find_pois(Text5, variable)),
+    ?assertMatch(
+        [
+            #{
+                id := {'Mod', 'Fun', 1},
+                data := #{
+                    mod_is_variable := true,
+                    fun_is_variable := true
+                }
+            }
+        ],
+        parse_find_pois(Text5, application)
+    ),
     ok.
 
 -spec unicode_clause_pattern(config()) -> ok.

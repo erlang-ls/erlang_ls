@@ -234,6 +234,12 @@ application(Tree) ->
     case application_mfa(Tree) of
         undefined ->
             [];
+        {{variable, F}, A} ->
+            Pos = erl_syntax:get_pos(erl_syntax:application_operator(Tree)),
+            [
+                poi(Pos, application, {F, A}, #{fun_is_variable => true}),
+                poi(Pos, variable, F)
+            ];
         {F, A} ->
             Pos = erl_syntax:get_pos(erl_syntax:application_operator(Tree)),
             case erl_internal:bif(F, A) of
@@ -242,6 +248,22 @@ application(Tree) ->
                 %% Local call
                 false -> [poi(Pos, application, {F, A})]
             end;
+        {{ModType, M}, {FunType, F}, A} ->
+            ModFunTree = erl_syntax:application_operator(Tree),
+            Pos = erl_syntax:get_pos(ModFunTree),
+            FunTree = erl_syntax:module_qualifier_body(ModFunTree),
+            ModTree = erl_syntax:module_qualifier_argument(ModFunTree),
+            FunPos = erl_syntax:get_pos(FunTree),
+            ModPos = erl_syntax:get_pos(ModTree),
+            Data = #{
+                name_range => els_range:range(FunPos),
+                mod_range => els_range:range(ModPos),
+                fun_is_variable => FunType =:= variable,
+                mod_is_variable => ModType =:= variable
+            },
+            [poi(Pos, application, {M, F, A}, Data)] ++
+                [poi(ModPos, variable, M) || ModType =:= variable] ++
+                [poi(FunPos, variable, F) || FunType =:= variable];
         MFA ->
             ModFunTree = erl_syntax:application_operator(Tree),
             Pos = erl_syntax:get_pos(ModFunTree),
@@ -255,7 +277,11 @@ application(Tree) ->
     end.
 
 -spec application_mfa(tree()) ->
-    {module(), atom(), arity()} | {atom(), arity()} | undefined.
+    {module(), atom(), arity()}
+    | {atom(), arity()}
+    | {{atom(), atom()}, {atom(), atom()}, arity()}
+    | {{atom(), atom()}, arity()}
+    | undefined.
 application_mfa(Tree) ->
     case erl_syntax_lib:analyze_application(Tree) of
         %% Remote call
@@ -272,12 +298,15 @@ application_mfa(Tree) ->
             Operator = erl_syntax:application_operator(Tree),
             case erl_syntax:type(Operator) of
                 module_qualifier -> application_with_variable(Operator, A);
+                variable -> {{variable, node_name(Operator)}, A};
                 _ -> undefined
             end
     end.
 
 -spec application_with_variable(tree(), arity()) ->
-    {atom(), arity()} | undefined.
+    {{atom(), atom()}, {atom(), atom()}, arity()}
+    | {atom(), arity()}
+    | undefined.
 application_with_variable(Operator, A) ->
     Module = erl_syntax:module_qualifier_argument(Operator),
     Function = erl_syntax:module_qualifier_body(Operator),
@@ -292,6 +321,13 @@ application_with_variable(Operator, A) ->
                 {'MODULE', F} -> {F, A};
                 _ -> undefined
             end;
+        {ModType, FunType} when
+            ModType =:= variable orelse ModType =:= atom,
+            FunType =:= variable orelse FunType =:= atom
+        ->
+            ModuleName = node_name(Module),
+            FunctionName = node_name(Function),
+            {{ModType, ModuleName}, {FunType, FunctionName}, A};
         _ ->
             undefined
     end.
