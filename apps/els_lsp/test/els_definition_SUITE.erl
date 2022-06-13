@@ -165,7 +165,7 @@ behaviour(Config) ->
     ),
     ok.
 
-- spec testcase(config()) -> ok.
+-spec testcase(config()) -> ok.
 testcase(Config) ->
     Uri = ?config(sample_SUITE_uri, Config),
     Def = els_client:definition(Uri, 35, 6),
