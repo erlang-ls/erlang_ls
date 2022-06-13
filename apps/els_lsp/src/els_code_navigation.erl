@@ -71,10 +71,20 @@ goto_definition(
             Result
     end;
 goto_definition(
+    Uri,
+    #{kind := atom, id := Id} = POI
+) ->
+    %% Two interesting cases for atoms: testcases and modules.
+    %% Testcases are functions, so we first look for a function with the same name in the local scope
+    %% If we can't find it, we hope that the atom refers to a module.
+    case find(Uri, function, {Id, 1}) of
+        {error, _Error} -> goto_definition(Uri, POI#{kind := module});
+        Else -> Else
+    end;
+goto_definition(
     _Uri,
     #{kind := Kind, id := Module}
 ) when
-    Kind =:= atom;
     Kind =:= behaviour;
     Kind =:= module
 ->

@@ -44,6 +44,7 @@
     record_field/1,
     record_field_included/1,
     record_type_macro_name/1,
+    testcase/1,
     type_application_remote/1,
     type_application_undefined/1,
     type_application_user/1,
@@ -160,6 +161,18 @@ behaviour(Config) ->
     ?assertEqual(?config(behaviour_a_uri, Config), DefUri),
     ?assertEqual(
         els_protocol:range(#{from => {1, 9}, to => {1, 20}}),
+        Range
+    ),
+    ok.
+
+- spec testcase(config()) -> ok.
+testcase(Config) ->
+    Uri = ?config(sample_SUITE_uri, Config),
+    Def = els_client:definition(Uri, 35, 6),
+    #{result := #{range := Range, uri := DefUri}} = Def,
+    ?assertEqual(Uri, DefUri),
+    ?assertEqual(
+        els_protocol:range(#{from => {58, 1}, to => {58, 4}}),
         Range
     ),
     ok.
