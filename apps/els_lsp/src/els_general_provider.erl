@@ -182,32 +182,36 @@ server_capabilities() ->
 
 -spec register_capabilities() -> ok.
 register_capabilities() ->
+    Methods = [<<"didChangeWatchedFiles">>],
     ClientCapabilities = els_config:get(capabilities),
-    Enabled = maps:get(
-        <<"dynamicRegistration">>,
-        maps:get(
-            <<"didChangeWatchedFiles">>,
-            maps:get(<<"workspace">>, ClientCapabilities, #{}),
-            #{}
-        ),
-        #{}
-    ),
-    RootPath = els_uri:path(els_config:get(root_uri)),
-    case Enabled of
-        true ->
-            GlobPattern = filename:join([<<RootPath/binary>>, "**", "*.{e,h}rl"]),
-            Params = #{
-                registrations => [
-                    #{
-                        id => <<"workspace/didChangeWatchedFiles">>,
-                        method => <<"workspace/didChangeWatchedFiles">>,
-                        registerOptions => #{
-                            watchers => [#{globPattern => GlobPattern}]
-                        }
-                    }
-                ]
-            },
-            els_server:send_request(<<"client/registerCapability">>, Params);
-        false ->
-            ?LOG_INFO("Dynamic registration for didChangeWatchedFiles disabled")
+    Registrations = [
+        dynamic_registration_options(Method)
+     || Method <- Methods, is_dynamic_registration_enabled(Method, ClientCapabilities)
+    ],
+    case Registrations of
+        [] ->
+            ?LOG_INFO("Skipping dynamic capabilities registration");
+        _ ->
+            Params = #{registrations => Registrations},
+            els_server:send_request(<<"client/registerCapability">>, Params)
     end.
+
+-spec is_dynamic_registration_enabled(binary(), map()) -> boolean().
+is_dynamic_registration_enabled(Method, ClientCapabilities) ->
+    maps:get(
+        <<"dynamicRegistration">>,
+        maps:get(Method, maps:get(<<"workspace">>, ClientCapabilities, #{}), #{}),
+        false
+    ).
+
+-spec dynamic_registration_options(binary()) -> map().
+dynamic_registration_options(<<"didChangeWatchedFiles">>) ->
+    RootPath = els_uri:path(els_config:get(root_uri)),
+    GlobPattern = filename:join([<<RootPath/binary>>, "**", "*.{e,h}rl"]),
+    #{
+        id => <<"workspace/didChangeWatchedFiles">>,
+        method => <<"workspace/didChangeWatchedFiles">>,
+        registerOptions => #{
+            watchers => [#{globPattern => GlobPattern}]
+        }
+    }.
