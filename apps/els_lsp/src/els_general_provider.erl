@@ -207,7 +207,7 @@ is_dynamic_registration_enabled(Method, ClientCapabilities) ->
 -spec dynamic_registration_options(binary()) -> map().
 dynamic_registration_options(<<"didChangeWatchedFiles">>) ->
     RootPath = els_uri:path(els_config:get(root_uri)),
-    GlobPattern = filename:join([<<RootPath/binary>>, "**", "*.{e,h}rl"]),
+    GlobPattern = filename:join([RootPath, "**", "*.{e,h}rl"]),
     #{
         id => <<"workspace/didChangeWatchedFiles">>,
         method => <<"workspace/didChangeWatchedFiles">>,
