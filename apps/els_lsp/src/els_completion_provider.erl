@@ -6,7 +6,7 @@
 -include_lib("kernel/include/logger.hrl").
 
 -export([
-    handle_request/2,
+    handle_request/1,
     trigger_characters/0
 ]).
 
@@ -33,8 +33,8 @@
 trigger_characters() ->
     [<<":">>, <<"#">>, <<"?">>, <<".">>, <<"-">>, <<"\"">>].
 
--spec handle_request(els_provider:request(), any()) -> {response, any()}.
-handle_request({completion, Params}, _State) ->
+-spec handle_request(els_provider:provider_request()) -> {response, any()}.
+handle_request({completion, Params}) ->
     #{
         <<"position">> := #{
             <<"line">> := Line,
@@ -74,7 +74,7 @@ handle_request({completion, Params}, _State) ->
     },
     Completions = find_completions(Prefix, TriggerKind, Opts),
     {response, Completions};
-handle_request({resolve, CompletionItem}, _State) ->
+handle_request({resolve, CompletionItem}) ->
     {response, resolve(CompletionItem)}.
 
 %%==============================================================================

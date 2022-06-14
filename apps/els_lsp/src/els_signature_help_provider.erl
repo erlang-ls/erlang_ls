@@ -7,7 +7,7 @@
 
 -export([
     is_enabled/0,
-    handle_request/2,
+    handle_request/1,
     trigger_characters/0
 ]).
 
@@ -26,8 +26,9 @@ trigger_characters() ->
 is_enabled() ->
     false.
 
--spec handle_request(els_provider:request(), any()) -> {response, signature_help() | null}.
-handle_request({signature_help, Params}, _State) ->
+-spec handle_request(els_provider:provider_request()) ->
+    {response, signature_help() | null}.
+handle_request({signature_help, Params}) ->
     #{
         <<"position">> := #{
             <<"line">> := Line,

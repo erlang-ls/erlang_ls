@@ -5,7 +5,7 @@
 -export([
     is_enabled/0,
     options/0,
-    handle_request/2
+    handle_request/1
 ]).
 
 -export([
@@ -29,8 +29,8 @@ is_enabled() -> true.
 options() ->
     #{}.
 
--spec handle_request(any(), any()) -> {diagnostics, uri(), [pid()]}.
-handle_request({run_diagnostics, Params}, _State) ->
+-spec handle_request(any()) -> {diagnostics, uri(), [pid()]}.
+handle_request({run_diagnostics, Params}) ->
     #{<<"textDocument">> := #{<<"uri">> := Uri}} = Params,
     ?LOG_DEBUG("Starting diagnostics jobs [uri=~p]", [Uri]),
     Jobs = els_diagnostics:run_diagnostics(Uri),
@@ -41,7 +41,7 @@ handle_request({run_diagnostics, Params}, _State) ->
 %%==============================================================================
 -spec notify([els_diagnostics:diagnostic()], pid()) -> ok.
 notify(Diagnostics, Job) ->
-    els_provider ! {diagnostics, Diagnostics, Job},
+    els_server ! {diagnostics, Diagnostics, Job},
     ok.
 
 -spec publish(uri(), [els_diagnostics:diagnostic()]) -> ok.

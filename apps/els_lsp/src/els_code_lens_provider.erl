@@ -4,7 +4,7 @@
 -export([
     is_enabled/0,
     options/0,
-    handle_request/2
+    handle_request/1
 ]).
 
 -include("els_lsp.hrl").
@@ -20,8 +20,8 @@ is_enabled() -> true.
 options() ->
     #{resolveProvider => false}.
 
--spec handle_request(any(), any()) -> {async, uri(), pid()}.
-handle_request({document_codelens, Params}, _State) ->
+-spec handle_request(any()) -> {async, uri(), pid()}.
+handle_request({document_codelens, Params}) ->
     #{<<"textDocument">> := #{<<"uri">> := Uri}} = Params,
     ?LOG_DEBUG("Starting lenses job [uri=~p]", [Uri]),
     Job = run_lenses_job(Uri),
@@ -47,7 +47,7 @@ run_lenses_job(Uri) ->
         title => <<"Lenses">>,
         on_complete =>
             fun(Lenses) ->
-                els_provider ! {result, Lenses, self()},
+                els_server ! {result, Lenses, self()},
                 ok
             end
     },
