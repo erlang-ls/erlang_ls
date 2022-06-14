@@ -13,7 +13,7 @@
 -callback handle_request(provider_request()) -> provider_result().
 
 -type provider() :: module().
--type provider_request() :: {atom() | binary(), map()}.
+-type provider_request() :: {atom(), map()}.
 -type provider_result() ::
     {async, uri(), pid()}
     | {response, any()}
