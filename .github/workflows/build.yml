@@ -58,7 +58,7 @@ jobs:
     - name: Start epmd as daemon
       run: epmd -daemon
     - name: Run CT Tests
-      run: rebar3 ct
+      run: while rebar3 ct --suite apps/els_lsp/test/els_references_SUITE.erl --case ignore_open_watched_file_added; ; do :; done
     - name: Store CT Logs
       uses: actions/upload-artifact@v2
       with:
