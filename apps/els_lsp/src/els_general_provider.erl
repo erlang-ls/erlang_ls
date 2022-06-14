@@ -90,6 +90,7 @@ handle_request({initialized, _Params}) ->
         <<"erlang_ls">>,
         filename:basename(RootUri)
     ),
+    register_capabilities(),
     els_distribution_server:start_distribution(NodeName),
     ?LOG_INFO("Started distribution for: [~p]", [NodeName]),
     els_indexing:maybe_start(),
@@ -175,4 +176,40 @@ server_capabilities() ->
                 name => <<"Erlang LS">>,
                 version => els_utils:to_binary(Version)
             }
+    }.
+
+-spec register_capabilities() -> ok.
+register_capabilities() ->
+    Methods = [<<"didChangeWatchedFiles">>],
+    ClientCapabilities = els_config:get(capabilities),
+    Registrations = [
+        dynamic_registration_options(Method)
+     || Method <- Methods, is_dynamic_registration_enabled(Method, ClientCapabilities)
+    ],
+    case Registrations of
+        [] ->
+            ?LOG_INFO("Skipping dynamic capabilities registration");
+        _ ->
+            Params = #{registrations => Registrations},
+            els_server:send_request(<<"client/registerCapability">>, Params)
+    end.
+
+-spec is_dynamic_registration_enabled(binary(), map()) -> boolean().
+is_dynamic_registration_enabled(Method, ClientCapabilities) ->
+    maps:get(
+        <<"dynamicRegistration">>,
+        maps:get(Method, maps:get(<<"workspace">>, ClientCapabilities, #{}), #{}),
+        false
+    ).
+
+-spec dynamic_registration_options(binary()) -> map().
+dynamic_registration_options(<<"didChangeWatchedFiles">>) ->
+    RootPath = els_uri:path(els_config:get(root_uri)),
+    GlobPattern = filename:join([RootPath, "**", "*.{e,h}rl"]),
+    #{
+        id => <<"workspace/didChangeWatchedFiles">>,
+        method => <<"workspace/didChangeWatchedFiles">>,
+        registerOptions => #{
+            watchers => [#{globPattern => GlobPattern}]
+        }
     }.
