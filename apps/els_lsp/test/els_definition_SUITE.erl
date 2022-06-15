@@ -34,6 +34,7 @@
     macro_with_args/1,
     macro_with_args_included/1,
     macro_with_implicit_args/1,
+    multiple_atom_instances/1,
     parse_transform/1,
     record_access/1,
     record_access_included/1,
@@ -100,7 +101,7 @@ suite() ->
 application_local(Config) ->
     Uri = ?config(code_navigation_uri, Config),
     Def = els_client:definition(Uri, 22, 5),
-    #{result := #{range := Range, uri := DefUri}} = Def,
+    #{result := [#{range := Range, uri := DefUri}]} = Def,
     ?assertEqual(Uri, DefUri),
     ?assertEqual(
         els_protocol:range(#{from => {25, 1}, to => {25, 11}}),
@@ -112,7 +113,7 @@ application_local(Config) ->
 application_remote(Config) ->
     Uri = ?config(code_navigation_uri, Config),
     Def = els_client:definition(Uri, 32, 13),
-    #{result := #{range := Range, uri := DefUri}} = Def,
+    #{result := [#{range := Range, uri := DefUri}]} = Def,
     ?assertEqual(?config(code_navigation_extra_uri, Config), DefUri),
     ?assertEqual(
         els_protocol:range(#{from => {5, 1}, to => {5, 3}}),
@@ -127,10 +128,10 @@ atom(Config) ->
     Def1 = els_client:definition(Uri, 85, 20),
     Def2 = els_client:definition(Uri, 86, 20),
     Def3 = els_client:definition(Uri, 85, 27),
-    #{result := #{range := Range0, uri := DefUri0}} = Def0,
-    #{result := #{range := Range1, uri := DefUri1}} = Def1,
-    #{result := #{range := Range2, uri := DefUri2}} = Def2,
-    #{result := #{range := Range3, uri := DefUri3}} = Def3,
+    #{result := [#{range := Range0, uri := DefUri0}]} = Def0,
+    #{result := [#{range := Range1, uri := DefUri1}]} = Def1,
+    #{result := [#{range := Range2, uri := DefUri2}]} = Def2,
+    #{result := [#{range := Range3, uri := DefUri3}]} = Def3,
     ?assertEqual(?config(code_navigation_types_uri, Config), DefUri0),
     ?assertEqual(
         els_protocol:range(#{from => {1, 9}, to => {1, 30}}),
@@ -157,7 +158,7 @@ atom(Config) ->
 behaviour(Config) ->
     Uri = ?config(code_navigation_uri, Config),
     Def = els_client:definition(Uri, 3, 16),
-    #{result := #{range := Range, uri := DefUri}} = Def,
+    #{result := [#{range := Range, uri := DefUri}]} = Def,
     ?assertEqual(?config(behaviour_a_uri, Config), DefUri),
     ?assertEqual(
         els_protocol:range(#{from => {1, 9}, to => {1, 20}}),
@@ -169,7 +170,7 @@ behaviour(Config) ->
 testcase(Config) ->
     Uri = ?config(sample_SUITE_uri, Config),
     Def = els_client:definition(Uri, 35, 6),
-    #{result := #{range := Range, uri := DefUri}} = Def,
+    #{result := [#{range := Range, uri := DefUri}]} = Def,
     ?assertEqual(Uri, DefUri),
     ?assertEqual(
         els_protocol:range(#{from => {58, 1}, to => {58, 4}}),
@@ -177,13 +178,34 @@ testcase(Config) ->
     ),
     ok.
 
+-spec multiple_atom_instances(config()) -> ok.
+multiple_atom_instances(Config) ->
+    Uri = ?config(code_navigation_uri, Config),
+    Defs = els_client:definition(Uri, 130, 30),
+    #{result := Results} = Defs,
+    ?assertEqual(3, length(Results)),
+    ExpectedRanges = [
+        els_protocol:range(#{from => {1, 9}, to => {1, 24}}),
+        els_protocol:range(#{from => {126, 1}, to => {126, 16}}),
+        els_protocol:range(#{from => {128, 1}, to => {128, 16}})
+    ],
+    lists:foreach(
+        fun(Def) ->
+            #{range := Range, uri := DefUri} = Def,
+            ?assertEqual(Uri, DefUri),
+            ?assert(lists:member(Range, ExpectedRanges))
+        end,
+        Results),
+    ok.
+
+
 %% Issue #191: Definition not found after document is closed
 -spec definition_after_closing(config()) -> ok.
 definition_after_closing(Config) ->
     Uri = ?config(code_navigation_uri, Config),
     ExtraUri = ?config(code_navigation_extra_uri, Config),
     Def = els_client:definition(Uri, 32, 13),
-    #{result := #{range := Range, uri := DefUri}} = Def,
+    #{result := [#{range := Range, uri := DefUri}]} = Def,
     ?assertEqual(ExtraUri, DefUri),
     ?assertEqual(
         els_protocol:range(#{from => {5, 1}, to => {5, 3}}),
@@ -193,14 +215,14 @@ definition_after_closing(Config) ->
     %% Close file, get definition
     ok = els_client:did_close(ExtraUri),
     Def1 = els_client:definition(Uri, 32, 13),
-    #{result := #{range := Range, uri := DefUri}} = Def1,
+    #{result := [#{range := Range, uri := DefUri}]} = Def1,
     ok.
 
 -spec duplicate_definition(config()) -> ok.
 duplicate_definition(Config) ->
     Uri = ?config(code_navigation_uri, Config),
     Def = els_client:definition(Uri, 57, 5),
-    #{result := #{range := Range, uri := DefUri}} = Def,
+    #{result := [#{range := Range, uri := DefUri}]} = Def,
     ?assertEqual(Uri, DefUri),
     ?assertEqual(
         els_protocol:range(#{from => {60, 1}, to => {60, 11}}),
@@ -212,7 +234,7 @@ duplicate_definition(Config) ->
 export_entry(Config) ->
     Uri = ?config(code_navigation_uri, Config),
     Def = els_client:definition(Uri, 8, 15),
-    #{result := #{range := Range, uri := DefUri}} = Def,
+    #{result := [#{range := Range, uri := DefUri}]} = Def,
     ?assertEqual(Uri, DefUri),
     ?assertEqual(
         els_protocol:range(#{from => {28, 1}, to => {28, 11}}),
@@ -224,7 +246,7 @@ export_entry(Config) ->
 fun_local(Config) ->
     Uri = ?config(code_navigation_uri, Config),
     Def = els_client:definition(Uri, 51, 16),
-    #{result := #{range := Range, uri := DefUri}} = Def,
+    #{result := [#{range := Range, uri := DefUri}]} = Def,
     ?assertEqual(Uri, DefUri),
     ?assertEqual(
         els_protocol:range(#{from => {25, 1}, to => {25, 11}}),
@@ -236,7 +258,7 @@ fun_local(Config) ->
 fun_remote(Config) ->
     Uri = ?config(code_navigation_uri, Config),
     Def = els_client:definition(Uri, 52, 14),
-    #{result := #{range := Range, uri := DefUri}} = Def,
+    #{result := [#{range := Range, uri := DefUri}]} = Def,
     ?assertEqual(?config(code_navigation_extra_uri, Config), DefUri),
     ?assertEqual(
         els_protocol:range(#{from => {5, 1}, to => {5, 3}}),
@@ -248,7 +270,7 @@ fun_remote(Config) ->
 import_entry(Config) ->
     Uri = ?config(code_navigation_uri, Config),
     Def = els_client:definition(Uri, 10, 34),
-    #{result := #{range := Range, uri := DefUri}} = Def,
+    #{result := [#{range := Range, uri := DefUri}]} = Def,
     ?assertEqual(?config(code_navigation_extra_uri, Config), DefUri),
     ?assertEqual(
         els_protocol:range(#{from => {5, 1}, to => {5, 3}}),
@@ -260,7 +282,7 @@ import_entry(Config) ->
 module_import_entry(Config) ->
     Uri = ?config(code_navigation_uri, Config),
     Def = els_client:definition(Uri, 90, 3),
-    #{result := #{range := Range, uri := DefUri}} = Def,
+    #{result := [#{range := Range, uri := DefUri}]} = Def,
     ?assertEqual(?config(code_navigation_extra_uri, Config), DefUri),
     ?assertEqual(
         els_protocol:range(#{from => {5, 1}, to => {5, 3}}),
@@ -272,7 +294,7 @@ module_import_entry(Config) ->
 include(Config) ->
     Uri = ?config(code_navigation_uri, Config),
     Def = els_client:definition(Uri, 12, 20),
-    #{result := #{range := Range, uri := DefUri}} = Def,
+    #{result := [#{range := Range, uri := DefUri}]} = Def,
     ?assertEqual(?config(code_navigation_h_uri, Config), DefUri),
     ?assertEqual(
         els_protocol:range(#{from => {1, 1}, to => {1, 1}}),
@@ -284,7 +306,7 @@ include(Config) ->
 include_lib(Config) ->
     Uri = ?config(code_navigation_uri, Config),
     Def = els_client:definition(Uri, 13, 22),
-    #{result := #{range := Range, uri := DefUri}} = Def,
+    #{result := [#{range := Range, uri := DefUri}]} = Def,
     ?assertEqual(?config(code_navigation_h_uri, Config), DefUri),
     ?assertEqual(
         els_protocol:range(#{from => {1, 1}, to => {1, 1}}),
@@ -296,7 +318,7 @@ include_lib(Config) ->
 macro(Config) ->
     Uri = ?config(code_navigation_uri, Config),
     Def = els_client:definition(Uri, 26, 5),
-    #{result := #{range := Range, uri := DefUri}} = Def,
+    #{result := [#{range := Range, uri := DefUri}]} = Def,
     ?assertEqual(Uri, DefUri),
     ?assertEqual(
         els_protocol:range(#{from => {18, 9}, to => {18, 16}}),
@@ -308,7 +330,7 @@ macro(Config) ->
 macro_lowercase(Config) ->
     Uri = ?config(code_navigation_uri, Config),
     Def = els_client:definition(Uri, 48, 3),
-    #{result := #{range := Range, uri := DefUri}} = Def,
+    #{result := [#{range := Range, uri := DefUri}]} = Def,
     ?assertEqual(Uri, DefUri),
     ?assertEqual(
         els_protocol:range(#{from => {45, 9}, to => {45, 16}}),
@@ -320,14 +342,14 @@ macro_lowercase(Config) ->
 macro_included(Config) ->
     Uri = ?config(code_navigation_uri, Config),
     UriHeader = ?config(code_navigation_h_uri, Config),
-    #{result := #{range := Range1, uri := DefUri1}} =
+    #{result := [#{range := Range1, uri := DefUri1}]} =
         els_client:definition(Uri, 53, 19),
     ?assertEqual(UriHeader, DefUri1),
     ?assertEqual(
         els_protocol:range(#{from => {3, 9}, to => {3, 25}}),
         Range1
     ),
-    #{result := #{range := RangeQuoted, uri := DefUri2}} =
+    #{result := [#{range := RangeQuoted, uri := DefUri2}]} =
         els_client:definition(Uri, 52, 75),
     ?assertEqual(UriHeader, DefUri2),
     ?assertEqual(
@@ -340,7 +362,7 @@ macro_included(Config) ->
 macro_with_args(Config) ->
     Uri = ?config(code_navigation_uri, Config),
     Def = els_client:definition(Uri, 40, 9),
-    #{result := #{range := Range, uri := DefUri}} = Def,
+    #{result := [#{range := Range, uri := DefUri}]} = Def,
     ?assertEqual(Uri, DefUri),
     ?assertEqual(
         els_protocol:range(#{from => {19, 9}, to => {19, 16}}),
@@ -352,7 +374,7 @@ macro_with_args(Config) ->
 macro_with_args_included(Config) ->
     Uri = ?config(code_navigation_uri, Config),
     Def = els_client:definition(Uri, 43, 9),
-    #{result := #{uri := DefUri}} = Def,
+    #{result := [#{uri := DefUri}]} = Def,
     ?assertEqual(
         <<"assert.hrl">>,
         filename:basename(els_uri:path(DefUri))
@@ -364,7 +386,7 @@ macro_with_args_included(Config) ->
 macro_with_implicit_args(Config) ->
     Uri = ?config(code_navigation_uri, Config),
     Def = els_client:definition(Uri, 124, 5),
-    #{result := #{range := Range, uri := DefUri}} = Def,
+    #{result := [#{range := Range, uri := DefUri}]} = Def,
     ?assertEqual(Uri, DefUri),
     ?assertEqual(
         els_protocol:range(#{from => {118, 9}, to => {118, 16}}),
@@ -376,7 +398,7 @@ macro_with_implicit_args(Config) ->
 parse_transform(Config) ->
     Uri = ?config(diagnostics_parse_transform_usage_uri, Config),
     Def = els_client:definition(Uri, 5, 45),
-    #{result := #{range := Range, uri := DefUri}} = Def,
+    #{result := [#{range := Range, uri := DefUri}]} = Def,
     ?assertEqual(?config(diagnostics_parse_transform_uri, Config), DefUri),
     ?assertEqual(
         els_protocol:range(#{from => {1, 9}, to => {1, 36}}),
@@ -388,7 +410,7 @@ parse_transform(Config) ->
 record_access(Config) ->
     Uri = ?config(code_navigation_uri, Config),
     Def = els_client:definition(Uri, 34, 13),
-    #{result := #{range := Range, uri := DefUri}} = Def,
+    #{result := [#{range := Range, uri := DefUri}]} = Def,
     ?assertEqual(Uri, DefUri),
     ?assertEqual(
         els_protocol:range(#{from => {16, 9}, to => {16, 17}}),
@@ -400,7 +422,7 @@ record_access(Config) ->
 record_access_included(Config) ->
     Uri = ?config(code_navigation_uri, Config),
     Def = els_client:definition(Uri, 52, 43),
-    #{result := #{range := Range, uri := DefUri}} = Def,
+    #{result := [#{range := Range, uri := DefUri}]} = Def,
     ?assertEqual(?config(code_navigation_h_uri, Config), DefUri),
     ?assertEqual(
         els_protocol:range(#{from => {1, 9}, to => {1, 26}}),
@@ -412,7 +434,7 @@ record_access_included(Config) ->
 record_access_macro_name(Config) ->
     Uri = ?config(code_navigation_uri, Config),
     Def = els_client:definition(Uri, 116, 33),
-    #{result := #{range := Range, uri := DefUri}} = Def,
+    #{result := [#{range := Range, uri := DefUri}]} = Def,
     ?assertEqual(Uri, DefUri),
     ?assertEqual(
         els_protocol:range(#{from => {111, 9}, to => {111, 16}}),
@@ -426,7 +448,7 @@ record_access_macro_name(Config) ->
 record_expr(Config) ->
     Uri = ?config(code_navigation_uri, Config),
     Def = els_client:definition(Uri, 33, 11),
-    #{result := #{range := Range, uri := DefUri}} = Def,
+    #{result := [#{range := Range, uri := DefUri}]} = Def,
     ?assertEqual(Uri, DefUri),
     ?assertEqual(
         els_protocol:range(#{from => {16, 9}, to => {16, 17}}),
@@ -438,7 +460,7 @@ record_expr(Config) ->
 record_expr_included(Config) ->
     Uri = ?config(code_navigation_uri, Config),
     Def = els_client:definition(Uri, 53, 30),
-    #{result := #{range := Range, uri := DefUri}} = Def,
+    #{result := [#{range := Range, uri := DefUri}]} = Def,
     ?assertEqual(?config(code_navigation_h_uri, Config), DefUri),
     ?assertEqual(
         els_protocol:range(#{from => {1, 9}, to => {1, 26}}),
@@ -450,7 +472,7 @@ record_expr_included(Config) ->
 record_expr_macro_name(Config) ->
     Uri = ?config(code_navigation_uri, Config),
     Def = els_client:definition(Uri, 115, 11),
-    #{result := #{range := Range, uri := DefUri}} = Def,
+    #{result := [#{range := Range, uri := DefUri}]} = Def,
     ?assertEqual(Uri, DefUri),
     ?assertEqual(
         els_protocol:range(#{from => {111, 9}, to => {111, 16}}),
@@ -462,7 +484,7 @@ record_expr_macro_name(Config) ->
 record_field(Config) ->
     Uri = ?config(code_navigation_uri, Config),
     Def = els_client:definition(Uri, 33, 20),
-    #{result := #{range := Range, uri := DefUri}} = Def,
+    #{result := [#{range := Range, uri := DefUri}]} = Def,
     ?assertEqual(Uri, DefUri),
     ?assertEqual(
         els_protocol:range(#{from => {16, 20}, to => {16, 27}}),
@@ -474,7 +496,7 @@ record_field(Config) ->
 record_field_included(Config) ->
     Uri = ?config(code_navigation_uri, Config),
     Def = els_client:definition(Uri, 53, 45),
-    #{result := #{range := Range, uri := DefUri}} = Def,
+    #{result := [#{range := Range, uri := DefUri}]} = Def,
     ?assertEqual(?config(code_navigation_h_uri, Config), DefUri),
     ?assertEqual(
         els_protocol:range(#{from => {1, 29}, to => {1, 45}}),
@@ -486,7 +508,7 @@ record_field_included(Config) ->
 record_type_macro_name(Config) ->
     Uri = ?config(code_navigation_uri, Config),
     Def = els_client:definition(Uri, 113, 28),
-    #{result := #{range := Range, uri := DefUri}} = Def,
+    #{result := [#{range := Range, uri := DefUri}]} = Def,
     ?assertEqual(Uri, DefUri),
     ?assertEqual(
         els_protocol:range(#{from => {111, 9}, to => {111, 16}}),
@@ -499,7 +521,7 @@ type_application_remote(Config) ->
     ExtraUri = ?config(code_navigation_extra_uri, Config),
     TypesUri = ?config(code_navigation_types_uri, Config),
     Def = els_client:definition(ExtraUri, 11, 38),
-    #{result := #{range := Range, uri := DefUri}} = Def,
+    #{result := [#{range := Range, uri := DefUri}]} = Def,
     ?assertEqual(TypesUri, DefUri),
     ?assertEqual(
         els_protocol:range(#{from => {3, 1}, to => {3, 26}}),
@@ -528,7 +550,7 @@ type_application_undefined(Config) ->
 type_application_user(Config) ->
     Uri = ?config(code_navigation_uri, Config),
     Def = els_client:definition(Uri, 55, 25),
-    #{result := #{range := Range, uri := DefUri}} = Def,
+    #{result := [#{range := Range, uri := DefUri}]} = Def,
     ?assertEqual(Uri, DefUri),
     ?assertEqual(
         els_protocol:range(#{from => {37, 1}, to => {37, 25}}),
@@ -540,7 +562,7 @@ type_application_user(Config) ->
 type_export_entry(Config) ->
     Uri = ?config(code_navigation_uri, Config),
     Def = els_client:definition(Uri, 9, 17),
-    #{result := #{range := Range, uri := DefUri}} = Def,
+    #{result := [#{range := Range, uri := DefUri}]} = Def,
     ?assertEqual(Uri, DefUri),
     ?assertEqual(
         els_protocol:range(#{from => {37, 1}, to => {37, 25}}),
@@ -556,11 +578,11 @@ variable(Config) ->
     Def2 = els_client:definition(Uri, 107, 10),
     Def3 = els_client:definition(Uri, 108, 10),
     Def4 = els_client:definition(Uri, 19, 36),
-    #{result := #{range := Range0, uri := DefUri0}} = Def0,
-    #{result := #{range := Range1, uri := DefUri0}} = Def1,
-    #{result := #{range := Range2, uri := DefUri0}} = Def2,
-    #{result := #{range := Range3, uri := DefUri0}} = Def3,
-    #{result := #{range := Range4, uri := DefUri0}} = Def4,
+    #{result := [#{range := Range0, uri := DefUri0}]} = Def0,
+    #{result := [#{range := Range1, uri := DefUri0}]} = Def1,
+    #{result := [#{range := Range2, uri := DefUri0}]} = Def2,
+    #{result := [#{range := Range3, uri := DefUri0}]} = Def3,
+    #{result := [#{range := Range4, uri := DefUri0}]} = Def4,
 
     ?assertEqual(?config(code_navigation_uri, Config), DefUri0),
     ?assertEqual(
@@ -591,7 +613,7 @@ opaque_application_remote(Config) ->
     ExtraUri = ?config(code_navigation_extra_uri, Config),
     TypesUri = ?config(code_navigation_types_uri, Config),
     Def = els_client:definition(ExtraUri, 16, 61),
-    #{result := #{range := Range, uri := DefUri}} = Def,
+    #{result := [#{range := Range, uri := DefUri}]} = Def,
     ?assertEqual(TypesUri, DefUri),
     ?assertEqual(
         els_protocol:range(#{from => {7, 1}, to => {7, 35}}),
@@ -603,7 +625,7 @@ opaque_application_remote(Config) ->
 opaque_application_user(Config) ->
     ExtraUri = ?config(code_navigation_extra_uri, Config),
     Def = els_client:definition(ExtraUri, 16, 24),
-    #{result := #{range := Range, uri := DefUri}} = Def,
+    #{result := [#{range := Range, uri := DefUri}]} = Def,
     ?assertEqual(ExtraUri, DefUri),
     ?assertEqual(
         els_protocol:range(#{from => {20, 1}, to => {20, 34}}),
@@ -616,31 +638,31 @@ parse_incomplete(Config) ->
     Uri = ?config(code_navigation_broken_uri, Config),
     Range = els_protocol:range(#{from => {3, 1}, to => {3, 11}}),
     ?assertMatch(
-        #{result := #{range := Range, uri := Uri}},
+        #{result := [#{range := Range, uri := Uri}]},
         els_client:definition(Uri, 7, 3)
     ),
     ?assertMatch(
-        #{result := #{range := Range, uri := Uri}},
+        #{result := [#{range := Range, uri := Uri}]},
         els_client:definition(Uri, 8, 3)
     ),
     ?assertMatch(
-        #{result := #{range := Range, uri := Uri}},
+        #{result := [#{range := Range, uri := Uri}]},
         els_client:definition(Uri, 9, 8)
     ),
     ?assertMatch(
-        #{result := #{range := Range, uri := Uri}},
+        #{result := [#{range := Range, uri := Uri}]},
         els_client:definition(Uri, 11, 7)
     ),
     ?assertMatch(
-        #{result := #{range := Range, uri := Uri}},
+        #{result := [#{range := Range, uri := Uri}]},
         els_client:definition(Uri, 12, 12)
     ),
     ?assertMatch(
-        #{result := #{range := Range, uri := Uri}},
+        #{result := [#{range := Range, uri := Uri}]},
         els_client:definition(Uri, 17, 3)
     ),
     ?assertMatch(
-        #{result := #{range := Range, uri := Uri}},
+        #{result := [#{range := Range, uri := Uri}]},
         els_client:definition(Uri, 19, 3)
     ),
     ok.

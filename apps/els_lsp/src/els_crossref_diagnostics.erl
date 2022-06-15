@@ -142,7 +142,7 @@ has_definition(
     lager_definition(Level, Arity);
 has_definition(POI, #{uri := Uri}) ->
     case els_code_navigation:goto_definition(Uri, POI) of
-        {ok, _Uri, _POI} ->
+        {ok, _Defs} ->
             true;
         {error, _Error} ->
             false

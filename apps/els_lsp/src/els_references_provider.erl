@@ -109,9 +109,9 @@ find_references(Uri, Poi = #{kind := Kind}) when
     Kind =:= type_application
 ->
     case els_code_navigation:goto_definition(Uri, Poi) of
-        {ok, DefUri, DefPoi} ->
+        {ok, [{DefUri, DefPoi}]} ->
             find_references(DefUri, DefPoi);
-        {error, _} ->
+        _ ->
             %% look for references only in the current document
             uri_pois_to_locations(
                 find_scoped_references_for_def(Uri, Poi)

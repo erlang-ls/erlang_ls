@@ -122,3 +122,9 @@ macro_b(_X, _Y) ->
 
 function_mb() ->
   ?MACRO_B(m, b).
+
+code_navigation() -> code_navigation.
+
+code_navigation(X) -> X.
+
+multiple_instances() -> {code_navigation, [simple_list], "abc"}.

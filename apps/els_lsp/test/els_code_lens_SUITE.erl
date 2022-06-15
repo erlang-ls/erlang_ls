@@ -96,7 +96,7 @@ default_lenses(Config) ->
         ],
         lists:usort(Commands)
     ),
-    ?assertEqual(40, length(Commands)),
+    ?assertEqual(46, length(Commands)),
     ok.
 
 -spec server_info(config()) -> ok.
