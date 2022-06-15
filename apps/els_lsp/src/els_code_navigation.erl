@@ -77,13 +77,13 @@ goto_definition(
     %% Two interesting cases for atoms: functions and modules.
     %% If we can't find functions with any arity, we hope that the atom refers to a module.
     %% All definitions are returned to the user
-    case find(Uri, function, {Id, -1}) of
-        {error, _Error} -> goto_definition(Uri, POI#{kind := module});
+    case find(Uri, function, {Id, any_arity}) of
+        {error, _Error} ->
+            goto_definition(Uri, POI#{kind := module});
         {ok, DefsFun} ->
             case find(Uri, module, Id) of
                 {error, _Error} -> {ok, DefsFun};
-                {ok, DefsMod} ->
-                    {ok, DefsFun ++ DefsMod}
+                {ok, DefsMod} -> {ok, DefsFun ++ DefsMod}
             end
     end;
 goto_definition(
@@ -194,14 +194,17 @@ find_in_document([Uri | Uris0], Document, Kind, Data, AlreadyVisited) ->
     POIs = els_dt_document:pois(Document, [Kind]),
     Defs = [POI || #{id := Id} = POI <- POIs, Id =:= Data],
     {AllDefs, MultipleDefs} =
-    case Data of
-     {_, -1} when Kind =:= function ->
-        %% Including defs with any arity
-        AnyArity = [POI || #{id := {F, _}} = POI <- POIs, Kind =:= function, Data =:= {F, -1}],
-        {AnyArity, true};
-     _ ->
-        {Defs, false}
-    end,
+        case Data of
+            {_, any_arity} when Kind =:= function ->
+                %% Including defs with any arity
+                AnyArity = [
+                    POI
+                 || #{id := {F, _}} = POI <- POIs, Kind =:= function, Data =:= {F, any_arity}
+                ],
+                {AnyArity, true};
+            _ ->
+                {Defs, false}
+        end,
     case AllDefs of
         [] ->
             case maybe_imported(Document, Kind, Data) of

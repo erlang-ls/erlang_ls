@@ -195,9 +195,9 @@ multiple_atom_instances(Config) ->
             ?assertEqual(Uri, DefUri),
             ?assert(lists:member(Range, ExpectedRanges))
         end,
-        Results),
+        Results
+    ),
     ok.
-
 
 %% Issue #191: Definition not found after document is closed
 -spec definition_after_closing(config()) -> ok.
