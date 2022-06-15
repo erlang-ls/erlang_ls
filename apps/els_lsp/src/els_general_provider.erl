@@ -2,7 +2,6 @@
 
 -behaviour(els_provider).
 -export([
-    is_enabled/0,
     default_providers/0,
     enabled_providers/0,
     handle_request/1
@@ -51,9 +50,6 @@
 %%==============================================================================
 %% els_provider functions
 %%==============================================================================
--spec is_enabled() -> boolean().
-is_enabled() -> true.
-
 -spec handle_request(
     initialize_request()
     | initialized_request()
@@ -184,34 +180,22 @@ server_capabilities() ->
                     triggerCharacters =>
                         els_signature_help_provider:trigger_characters()
                 },
-            definitionProvider =>
-                els_definition_provider:is_enabled(),
-            referencesProvider =>
-                els_references_provider:is_enabled(),
-            documentHighlightProvider =>
-                els_document_highlight_provider:is_enabled(),
-            documentSymbolProvider =>
-                els_document_symbol_provider:is_enabled(),
-            workspaceSymbolProvider =>
-                els_workspace_symbol_provider:is_enabled(),
-            codeActionProvider =>
-                els_code_action_provider:is_enabled(),
-            documentFormattingProvider =>
-                els_formatting_provider:is_enabled_document(),
-            documentRangeFormattingProvider =>
-                els_formatting_provider:is_enabled_range(),
-            foldingRangeProvider =>
-                els_folding_range_provider:is_enabled(),
-            implementationProvider =>
-                els_implementation_provider:is_enabled(),
+            definitionProvider => true,
+            referencesProvider => true,
+            documentHighlightProvider => true,
+            documentSymbolProvider => true,
+            workspaceSymbolProvider => true,
+            codeActionProvider => true,
+            documentFormattingProvider => true,
+            documentRangeFormattingProvider => false,
+            foldingRangeProvider => true,
+            implementationProvider => true,
             executeCommandProvider =>
                 els_execute_command_provider:options(),
             codeLensProvider =>
                 els_code_lens_provider:options(),
-            renameProvider =>
-                els_rename_provider:is_enabled(),
-            callHierarchyProvider =>
-                els_call_hierarchy_provider:is_enabled(),
+            renameProvider => true,
+            callHierarchyProvider => true,
             semanticTokensProvider =>
                 #{
                     legend =>
@@ -220,7 +204,7 @@ server_capabilities() ->
                             tokenModifiers => wrangler_handler:semantic_token_modifiers()
                         },
                     range => false,
-                    full => els_semantic_token_provider:is_enabled()
+                    full => wrangler_handler:is_enabled()
                 }
         },
     EnabledProviders = enabled_providers(),

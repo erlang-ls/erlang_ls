@@ -3,16 +3,11 @@
 -behaviour(els_provider).
 
 -include("els_lsp.hrl").
--export([handle_request/1, is_enabled/0]).
+-export([handle_request/1]).
 
 %%==============================================================================
 %% els_provider functions
 %%==============================================================================
-
--spec is_enabled() -> boolean().
-is_enabled() ->
-    %% Currently this is used by Wrangler only.
-    wrangler_handler:is_enabled().
 
 -spec handle_request(any()) -> {response, any()}.
 handle_request({semantic_tokens, Params}) ->

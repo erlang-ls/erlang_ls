@@ -3,7 +3,6 @@
 -behaviour(els_provider).
 
 -export([
-    is_enabled/0,
     handle_request/1
 ]).
 
@@ -14,9 +13,6 @@
 %%==============================================================================
 %% els_provider functions
 %%==============================================================================
--spec is_enabled() -> boolean().
-is_enabled() -> true.
-
 -spec handle_request(any()) -> {response, any()}.
 handle_request({symbol, Params}) ->
     %% TODO: Version 3.15 of the protocol introduces a much nicer way of
