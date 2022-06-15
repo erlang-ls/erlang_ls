@@ -22,7 +22,10 @@
     initialize_diagnostics_invalid/1,
     initialize_lenses_default/1,
     initialize_lenses_custom/1,
-    initialize_lenses_invalid/1
+    initialize_lenses_invalid/1,
+    initialize_providers_default/1,
+    initialize_providers_custom/1,
+    initialize_providers_invalid/1
 ]).
 
 %%==============================================================================
@@ -209,4 +212,46 @@ initialize_lenses_invalid(Config) ->
         <<"suggest-spec">>
     ],
     ?assertEqual(Expected, Result),
+    ok.
+
+-spec initialize_providers_default(config()) -> ok.
+initialize_providers_default(Config) ->
+    RootUri = els_test_utils:root_uri(),
+    DataDir = ?config(data_dir, Config),
+    ConfigPath = filename:join(DataDir, "providers_default.config"),
+    InitOpts = #{<<"erlang">> => #{<<"config_path">> => ConfigPath}},
+    els_client:initialize(RootUri, InitOpts),
+    Result = els_general_provider:enabled_providers(),
+    Expected = lists:usort(els_general_provider:default_providers()),
+    ?assertEqual(Expected, Result),
+    #{capabilities := Capabilities} = els_general_provider:server_capabilities(),
+    ?assertEqual(true, maps:is_key(hoverProvider, Capabilities)),
+    ok.
+
+-spec initialize_providers_custom(config()) -> ok.
+initialize_providers_custom(Config) ->
+    RootUri = els_test_utils:root_uri(),
+    DataDir = ?config(data_dir, Config),
+    ConfigPath = filename:join(DataDir, "providers_custom.config"),
+    InitOpts = #{<<"erlang">> => #{<<"config_path">> => ConfigPath}},
+    els_client:initialize(RootUri, InitOpts),
+    EnabledProviders = els_general_provider:enabled_providers(),
+    ?assertEqual(false, lists:member("hover", EnabledProviders)),
+    ?assertEqual(true, lists:member("document-on-type-formatting", EnabledProviders)),
+    #{capabilities := Capabilities} = els_general_provider:server_capabilities(),
+    ?assertEqual(false, maps:is_key(hoverProvider, Capabilities)),
+    ok.
+
+-spec initialize_providers_invalid(config()) -> ok.
+initialize_providers_invalid(Config) ->
+    RootUri = els_test_utils:root_uri(),
+    DataDir = ?config(data_dir, Config),
+    ConfigPath = filename:join(DataDir, "providers_invalid.config"),
+    InitOpts = #{<<"erlang">> => #{<<"config_path">> => ConfigPath}},
+    els_client:initialize(RootUri, InitOpts),
+    Result = els_general_provider:enabled_providers(),
+    Expected = lists:usort(els_general_provider:default_providers()),
+    ?assertEqual(Expected, Result),
+    #{capabilities := Capabilities} = els_general_provider:server_capabilities(),
+    ?assertEqual(true, maps:is_key(hoverProvider, Capabilities)),
     ok.
