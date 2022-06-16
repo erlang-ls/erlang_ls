@@ -36,6 +36,9 @@
     workspace_symbol/2
 ]).
 
+%% LSP Extensions
+-export([ erlang_edoc/2 ]).
+
 %%==============================================================================
 %% Includes
 %%==============================================================================
@@ -507,6 +510,16 @@ workspace_symbol(Params, State) ->
     Provider = els_workspace_symbol_provider,
     {response, Response} =
         els_provider:handle_request(Provider, {symbol, Params}),
+    {response, Response, State}.
+
+%%==============================================================================
+%% LSP Extensions
+%%==============================================================================
+
+-spec erlang_edoc(map(), els_server:state()) -> result().
+erlang_edoc(Params, State) ->
+    Provider = els_erlang_provider,
+    {response, Response} = els_provider:handle_request(Provider, {edoc, Params}),
     {response, Response, State}.
 
 %%==============================================================================
