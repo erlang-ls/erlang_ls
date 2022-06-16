@@ -26,9 +26,8 @@ handle_request({edoc, Params}) ->
     %% TODO: Add module docs
     %% TODO: Only compute once
     %% TODO: Background job
-    Output = els_utils:to_binary(
-               lists:flatten(
-                 io_lib:format("~p", [[els_docs:edoc(M, F, A) || #{id := {F, A}} <- POIs]]))),
+    Entries = [els_docs:edoc(M, F, A) || #{id := {F, A}} <- POIs],
+    Output = els_markup_content:new(Entries),
     {response, #{name => Output}}.
 
 %%==============================================================================
