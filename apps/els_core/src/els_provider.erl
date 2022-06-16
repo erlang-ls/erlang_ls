@@ -32,4 +32,3 @@
 -spec handle_request(provider(), provider_request()) -> provider_result().
 handle_request(Provider, Request) ->
     Provider:handle_request(Request).
-
