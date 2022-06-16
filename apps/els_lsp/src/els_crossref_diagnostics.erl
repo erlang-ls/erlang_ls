@@ -119,6 +119,22 @@ has_definition(
 has_definition(
     #{
         kind := application,
+        data := #{mod_is_variable := true}
+    },
+    _
+) ->
+    true;
+has_definition(
+    #{
+        kind := application,
+        data := #{fun_is_variable := true}
+    },
+    _
+) ->
+    true;
+has_definition(
+    #{
+        kind := application,
         id := {lager, Level, Arity}
     },
     _

@@ -26,6 +26,7 @@
     '$_unexpectedrequest'/0,
     completion/5,
     completionitem_resolve/1,
+    signature_help/3,
     definition/3,
     did_open/4,
     did_save/1,
@@ -125,6 +126,10 @@ completion(Uri, Line, Char, TriggerKind, TriggerCharacter) ->
 -spec completionitem_resolve(completion_item()) -> ok.
 completionitem_resolve(CompletionItem) ->
     gen_server:call(?SERVER, {completionitem_resolve, CompletionItem}).
+
+-spec signature_help(uri(), non_neg_integer(), non_neg_integer()) -> ok.
+signature_help(Uri, Line, Char) ->
+    gen_server:call(?SERVER, {signature_help, {Uri, Line, Char}}).
 
 -spec definition(uri(), non_neg_integer(), non_neg_integer()) -> ok.
 definition(Uri, Line, Char) ->
@@ -431,6 +436,7 @@ do_handle_messages([Message | Messages], Pending, Notifications, Requests) ->
 -spec method_lookup(atom()) -> binary().
 method_lookup(completion) -> <<"textDocument/completion">>;
 method_lookup(completionitem_resolve) -> <<"completionItem/resolve">>;
+method_lookup(signature_help) -> <<"textDocument/signatureHelp">>;
 method_lookup(definition) -> <<"textDocument/definition">>;
 method_lookup(document_symbol) -> <<"textDocument/documentSymbol">>;
 method_lookup(references) -> <<"textDocument/references">>;
@@ -482,6 +488,14 @@ request_params({completion, {Uri, Line, Char, TriggerKind, TriggerCharacter}}) -
     };
 request_params({completionitem_resolve, CompletionItem}) ->
     CompletionItem;
+request_params({signature_help, {Uri, Line, Char}}) ->
+    #{
+        textDocument => #{uri => Uri},
+        position => #{
+            line => Line - 1,
+            character => Char - 1
+        }
+    };
 request_params({initialize, {RootUri, InitOptions}}) ->
     ContentFormat = [?MARKDOWN, ?PLAINTEXT],
     TextDocument = #{

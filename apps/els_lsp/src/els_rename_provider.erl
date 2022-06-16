@@ -3,7 +3,7 @@
 -behaviour(els_provider).
 
 -export([
-    handle_request/2,
+    handle_request/1,
     is_enabled/0
 ]).
 
@@ -27,8 +27,8 @@
 -spec is_enabled() -> boolean().
 is_enabled() -> true.
 
--spec handle_request(any(), any()) -> {response, any()}.
-handle_request({rename, Params}, _State) ->
+-spec handle_request(any()) -> {response, any()}.
+handle_request({rename, Params}) ->
     #{
         <<"textDocument">> := #{<<"uri">> := Uri},
         <<"position">> := #{

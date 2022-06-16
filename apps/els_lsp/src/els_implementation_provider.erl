@@ -6,7 +6,7 @@
 
 -export([
     is_enabled/0,
-    handle_request/2
+    handle_request/1
 ]).
 
 %%==============================================================================
@@ -15,8 +15,8 @@
 -spec is_enabled() -> boolean().
 is_enabled() -> true.
 
--spec handle_request(tuple(), els_provider:state()) -> {response, [location()]}.
-handle_request({implementation, Params}, _State) ->
+-spec handle_request(tuple()) -> {response, [location()]}.
+handle_request({implementation, Params}) ->
     #{
         <<"position">> := #{
             <<"line">> := Line,

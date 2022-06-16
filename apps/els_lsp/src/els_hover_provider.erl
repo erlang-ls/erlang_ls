@@ -7,7 +7,7 @@
 
 -export([
     is_enabled/0,
-    handle_request/2
+    handle_request/1
 ]).
 
 -include("els_lsp.hrl").
@@ -24,8 +24,8 @@
 is_enabled() ->
     true.
 
--spec handle_request(any(), any()) -> {async, uri(), pid()}.
-handle_request({hover, Params}, _State) ->
+-spec handle_request(any()) -> {async, uri(), pid()}.
+handle_request({hover, Params}) ->
     #{
         <<"position">> := #{
             <<"line">> := Line,
@@ -52,7 +52,7 @@ run_hover_job(Uri, Line, Character) ->
         title => <<"Hover">>,
         on_complete =>
             fun(HoverResp) ->
-                els_provider ! {result, HoverResp, self()},
+                els_server ! {result, HoverResp, self()},
                 ok
             end
     },
