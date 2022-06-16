@@ -172,7 +172,9 @@ functions() ->
         {<<"function_mb/0">>, {122, 0}, {122, 11}},
         {<<"code_navigation/0">>, {125, 0}, {125, 15}},
         {<<"code_navigation/1">>, {127, 0}, {127, 15}},
-        {<<"multiple_instances/0">>, {129, 0}, {129, 18}}
+        {<<"multiple_instances_same_file/0">>, {129, 0}, {129, 28}},
+        {<<"code_navigation_extra/3">>, {131, 0}, {131, 21}},
+        {<<"multiple_instances_diff_file/0">>, {133, 0}, {133, 28}}
     ].
 
 macros() ->

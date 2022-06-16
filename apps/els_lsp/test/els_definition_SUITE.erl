@@ -34,7 +34,8 @@
     macro_with_args/1,
     macro_with_args_included/1,
     macro_with_implicit_args/1,
-    multiple_atom_instances/1,
+    multiple_atom_instances_same_mod/1,
+    multiple_atom_instances_diff_mod/1,
     parse_transform/1,
     record_access/1,
     record_access_included/1,
@@ -129,22 +130,32 @@ atom(Config) ->
     Def2 = els_client:definition(Uri, 86, 20),
     Def3 = els_client:definition(Uri, 85, 27),
     #{result := [#{range := Range0, uri := DefUri0}]} = Def0,
-    #{result := [#{range := Range1, uri := DefUri1}]} = Def1,
-    #{result := [#{range := Range2, uri := DefUri2}]} = Def2,
+    #{result := [#{range := Range1, uri := DefUri1}, #{range := Range1_2, uri := DefUri1_2}]} = Def1,
+    #{result := [#{range := Range2, uri := DefUri2}, #{range := Range2_2, uri := DefUri2_2}]} = Def2,
     #{result := [#{range := Range3, uri := DefUri3}]} = Def3,
     ?assertEqual(?config(code_navigation_types_uri, Config), DefUri0),
     ?assertEqual(
         els_protocol:range(#{from => {1, 9}, to => {1, 30}}),
         Range0
     ),
-    ?assertEqual(?config(code_navigation_extra_uri, Config), DefUri1),
+    ?assertEqual(?config(code_navigation_extra_uri, Config), DefUri1_2),
     ?assertEqual(
         els_protocol:range(#{from => {1, 9}, to => {1, 30}}),
+        Range1_2
+    ),
+    ?assertEqual(Uri, DefUri1),
+    ?assertEqual(
+        els_protocol:range(#{from => {132, 1}, to => {132, 22}}),
         Range1
     ),
-    ?assertEqual(?config(code_navigation_extra_uri, Config), DefUri2),
+    ?assertEqual(?config(code_navigation_extra_uri, Config), DefUri2_2),
     ?assertEqual(
         els_protocol:range(#{from => {1, 9}, to => {1, 30}}),
+        Range2_2
+    ),
+    ?assertEqual(Uri, DefUri2),
+    ?assertEqual(
+        els_protocol:range(#{from => {132, 1}, to => {132, 22}}),
         Range2
     ),
     ?assertEqual(?config('Code.Navigation.Elixirish_uri', Config), DefUri3),
@@ -178,10 +189,10 @@ testcase(Config) ->
     ),
     ok.
 
--spec multiple_atom_instances(config()) -> ok.
-multiple_atom_instances(Config) ->
+-spec multiple_atom_instances_same_mod(config()) -> ok.
+multiple_atom_instances_same_mod(Config) ->
     Uri = ?config(code_navigation_uri, Config),
-    Defs = els_client:definition(Uri, 130, 30),
+    Defs = els_client:definition(Uri, 130, 36),
     #{result := Results} = Defs,
     ?assertEqual(3, length(Results)),
     ExpectedRanges = [
@@ -197,6 +208,27 @@ multiple_atom_instances(Config) ->
         end,
         Results
     ),
+    ok.
+
+-spec multiple_atom_instances_diff_mod(config()) -> ok.
+multiple_atom_instances_diff_mod(Config) ->
+    Uri = ?config(code_navigation_uri, Config),
+    Defs = els_client:definition(Uri, 134, 35),
+    #{result := Results} = Defs,
+    ?assertEqual(2, length(Results)),
+    RangeDef1 = els_protocol:range(#{from => {132, 1}, to => {132, 22}}),
+    RangeDef2 = els_protocol:range(#{from => {1, 9}, to => {1, 30}}),
+    Uri2 = ?config(code_navigation_extra_uri, Config),
+    ?assertMatch([
+        #{
+            range := RangeDef1,
+            uri := Uri
+        },
+        #{
+            range := RangeDef2,
+            uri := Uri2
+        }
+    ], Results),
     ok.
 
 %% Issue #191: Definition not found after document is closed

@@ -98,9 +98,9 @@ update_unused(Acc, _Graph, _Uri, _POIs = []) ->
 update_unused(Acc, Graph, Uri, [POI | POIs]) ->
     NewAcc =
         case els_code_navigation:goto_definition(Uri, POI) of
-            {ok, [{DefinitionUri, _DefinitionPOI}]} when DefinitionUri =:= Uri ->
+            {ok, [{DefinitionUri, _DefinitionPOI} | _ ]} when DefinitionUri =:= Uri ->
                 Acc;
-            {ok, [{DefinitionUri, _DefinitionPOI}]} ->
+            {ok, [{DefinitionUri, _DefinitionPOI} | _ ]} ->
                 case digraph:get_path(Graph, DefinitionUri, Uri) of
                     false ->
                         Acc;

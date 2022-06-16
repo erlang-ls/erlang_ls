@@ -668,7 +668,9 @@ functions_arity(Config) ->
         {<<"function_mb">>, 0},
         {<<"code_navigation">>, 0},
         {<<"code_navigation">>, 1},
-        {<<"multiple_instances">>, 0}
+        {<<"multiple_instances_same_file">>, 0},
+        {<<"code_navigation_extra">>, 3},
+        {<<"multiple_instances_diff_file">>, 0}
     ],
     ExpectedCompletion =
         [
