@@ -81,9 +81,13 @@ goto_definition(
         {error, _Error} ->
             goto_definition(Uri, POI#{kind := module});
         {ok, DefsFun} ->
-            case find(Uri, module, Id) of
-                {error, _Error} -> {ok, DefsFun};
-                {ok, DefsMod} -> {ok, DefsFun ++ DefsMod}
+            case els_utils:find_module(Id) of
+                {ok, ModUri} ->
+                    case find(ModUri, module, Id) of
+                        {error, _Error} -> {ok, DefsFun};
+                        {ok, DefsMod} -> {ok, DefsFun ++ DefsMod}
+                    end;
+                {error, _Error} -> {ok, DefsFun}
             end
     end;
 goto_definition(
