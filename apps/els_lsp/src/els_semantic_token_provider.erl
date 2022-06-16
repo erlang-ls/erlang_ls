@@ -3,21 +3,19 @@
 -behaviour(els_provider).
 
 -include("els_lsp.hrl").
--export([handle_request/2, is_enabled/0]).
+-export([handle_request/1, is_enabled/0]).
 
 %%==============================================================================
 %% els_provider functions
 %%==============================================================================
-
--type state() :: any().
 
 -spec is_enabled() -> boolean().
 is_enabled() ->
     %% Currently this is used by Wrangler only.
     wrangler_handler:is_enabled().
 
--spec handle_request(els_provider:request(), state()) -> {response, any()}.
-handle_request({semantic_tokens, Params}, _State) ->
+-spec handle_request(any()) -> {response, any()}.
+handle_request({semantic_tokens, Params}) ->
     #{<<"textDocument">> := #{<<"uri">> := Uri}} = Params,
     Result = #{<<"data">> => semantic_tokens(Uri)},
     {response, Result}.

@@ -1,3 +1,6 @@
+%! Wrangler refactor form.
+%! Choose some of the highlighted refactoring candidates then exit the form.
+%! Before exiting, do not edit the file manually.
 %%==============================================================================
 %% A module to call Wrangler functions.
 %% If wrangler is not configured, neutral elements will be returned.

@@ -429,7 +429,7 @@ textdocument_rename(Params, State) ->
 %% textDocument/semanticTokens/full
 %%==============================================================================
 
--spec textdocument_semantictokens_full(params(), state()) -> result().
+-spec textdocument_semantictokens_full(params(), els_server:state()) -> result().
 textdocument_semantictokens_full(Params, State) ->
     Provider = els_semantic_token_provider,
     {response, Response} =
