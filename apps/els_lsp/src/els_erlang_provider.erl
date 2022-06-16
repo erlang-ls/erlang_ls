@@ -26,9 +26,8 @@ handle_request({edoc, Params}) ->
     %% TODO: Add module docs
     %% TODO: Only compute once
     %% TODO: Background job
-    Entries = [els_docs:edoc(M, F, A) || #{id := {F, A}} <- POIs],
-    Output = els_markup_content:new(Entries),
-    {response, #{name => Output}}.
+    Output = [els_markup_content:new(els_docs:edoc(M, F, A)) || #{id := {F, A}} <- POIs],
+    {response, #{name => unicode:characters_to_binary(lists:join("\n\n", Output))}}.
 
 %%==============================================================================
 %% Internal Functions
