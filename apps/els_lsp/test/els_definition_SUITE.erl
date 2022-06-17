@@ -130,8 +130,10 @@ atom(Config) ->
     Def2 = els_client:definition(Uri, 86, 20),
     Def3 = els_client:definition(Uri, 85, 27),
     #{result := [#{range := Range0, uri := DefUri0}]} = Def0,
-    #{result := [#{range := Range1, uri := DefUri1}, #{range := Range1_2, uri := DefUri1_2}]} = Def1,
-    #{result := [#{range := Range2, uri := DefUri2}, #{range := Range2_2, uri := DefUri2_2}]} = Def2,
+    #{result := [#{range := Range1, uri := DefUri1}, #{range := Range1_2, uri := DefUri1_2}]} =
+        Def1,
+    #{result := [#{range := Range2, uri := DefUri2}, #{range := Range2_2, uri := DefUri2_2}]} =
+        Def2,
     #{result := [#{range := Range3, uri := DefUri3}]} = Def3,
     ?assertEqual(?config(code_navigation_types_uri, Config), DefUri0),
     ?assertEqual(
@@ -219,16 +221,19 @@ multiple_atom_instances_diff_mod(Config) ->
     RangeDef1 = els_protocol:range(#{from => {132, 1}, to => {132, 22}}),
     RangeDef2 = els_protocol:range(#{from => {1, 9}, to => {1, 30}}),
     Uri2 = ?config(code_navigation_extra_uri, Config),
-    ?assertMatch([
-        #{
-            range := RangeDef1,
-            uri := Uri
-        },
-        #{
-            range := RangeDef2,
-            uri := Uri2
-        }
-    ], Results),
+    ?assertMatch(
+        [
+            #{
+                range := RangeDef1,
+                uri := Uri
+            },
+            #{
+                range := RangeDef2,
+                uri := Uri2
+            }
+        ],
+        Results
+    ),
     ok.
 
 %% Issue #191: Definition not found after document is closed
