@@ -130,9 +130,9 @@ atom(Config) ->
     Def2 = els_client:definition(Uri, 86, 20),
     Def3 = els_client:definition(Uri, 85, 27),
     #{result := [#{range := Range0, uri := DefUri0}]} = Def0,
-    #{result := [#{range := Range1, uri := DefUri1}, #{range := Range1_2, uri := DefUri1_2}]} =
+    #{result := [#{range := Range1, uri := DefUri1}, #{range := Range12, uri := DefUri12}]} =
         Def1,
-    #{result := [#{range := Range2, uri := DefUri2}, #{range := Range2_2, uri := DefUri2_2}]} =
+    #{result := [#{range := Range2, uri := DefUri2}, #{range := Range22, uri := DefUri22}]} =
         Def2,
     #{result := [#{range := Range3, uri := DefUri3}]} = Def3,
     ?assertEqual(?config(code_navigation_types_uri, Config), DefUri0),
@@ -140,20 +140,20 @@ atom(Config) ->
         els_protocol:range(#{from => {1, 9}, to => {1, 30}}),
         Range0
     ),
-    ?assertEqual(?config(code_navigation_extra_uri, Config), DefUri1_2),
+    ?assertEqual(?config(code_navigation_extra_uri, Config), DefUri12),
     ?assertEqual(
         els_protocol:range(#{from => {1, 9}, to => {1, 30}}),
-        Range1_2
+        Range12
     ),
     ?assertEqual(Uri, DefUri1),
     ?assertEqual(
         els_protocol:range(#{from => {132, 1}, to => {132, 22}}),
         Range1
     ),
-    ?assertEqual(?config(code_navigation_extra_uri, Config), DefUri2_2),
+    ?assertEqual(?config(code_navigation_extra_uri, Config), DefUri22),
     ?assertEqual(
         els_protocol:range(#{from => {1, 9}, to => {1, 30}}),
-        Range2_2
+        Range22
     ),
     ?assertEqual(Uri, DefUri2),
     ?assertEqual(

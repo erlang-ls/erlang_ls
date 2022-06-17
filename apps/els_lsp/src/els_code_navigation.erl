@@ -219,11 +219,12 @@ find_in_document([Uri | Uris0], Document, Kind, Data, AlreadyVisited) ->
             end;
         Definitions ->
             SortedDefs = els_poi:sort(Definitions),
-            if
-                MultipleDefs ->
-                    %% This will be the case only when the user tries to navigate to the definition of an atom
-                    [{Uri, POI} || POI <- SortedDefs];
+            case MultipleDefs of
                 true ->
+                    %% This will be the case only when the user tries to
+                    %% navigate to the definition of an atom
+                    [{Uri, POI} || POI <- SortedDefs];
+                false ->
                     %% In the general case, we return only one def
                     [{Uri, hd(SortedDefs)}]
             end
