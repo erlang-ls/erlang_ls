@@ -169,7 +169,12 @@ functions() ->
         {<<"function_p/1">>, {102, 0}, {102, 10}},
         {<<"function_q/0">>, {113, 0}, {113, 10}},
         {<<"macro_b/2">>, {119, 0}, {119, 7}},
-        {<<"function_mb/0">>, {122, 0}, {122, 11}}
+        {<<"function_mb/0">>, {122, 0}, {122, 11}},
+        {<<"code_navigation/0">>, {125, 0}, {125, 15}},
+        {<<"code_navigation/1">>, {127, 0}, {127, 15}},
+        {<<"multiple_instances_same_file/0">>, {129, 0}, {129, 28}},
+        {<<"code_navigation_extra/3">>, {131, 0}, {131, 21}},
+        {<<"multiple_instances_diff_file/0">>, {133, 0}, {133, 28}}
     ].
 
 macros() ->

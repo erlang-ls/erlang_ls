@@ -87,7 +87,7 @@ code_navigation(Config) ->
     AppUri = ?config(app_uri, Config),
     SupUri = ?config(sup_uri, Config),
     #{result := Result} = els_client:definition(AppUri, 13, 12),
-    #{range := DefRange, uri := SupUri} = Result,
+    [#{range := DefRange, uri := SupUri}] = Result,
     ?assertEqual(
         els_protocol:range(#{from => {16, 1}, to => {16, 11}}),
         DefRange

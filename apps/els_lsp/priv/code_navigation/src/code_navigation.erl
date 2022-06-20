@@ -122,3 +122,13 @@ macro_b(_X, _Y) ->
 
 function_mb() ->
   ?MACRO_B(m, b).
+
+code_navigation() -> code_navigation.
+
+code_navigation(X) -> X.
+
+multiple_instances_same_file() -> {code_navigation, [simple_list], "abc"}.
+
+code_navigation_extra(X, Y, Z) -> [code_navigation_extra, X, Y, Z].
+
+multiple_instances_diff_file() -> code_navigation_extra.

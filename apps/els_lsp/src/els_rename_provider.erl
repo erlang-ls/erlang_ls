@@ -114,7 +114,7 @@ workspace_edits(Uri, [#{kind := Kind} = POI | _], NewName) when
     Kind =:= type_application
 ->
     case els_code_navigation:goto_definition(Uri, POI) of
-        {ok, DefUri, DefPOI} ->
+        {ok, [{DefUri, DefPOI}]} ->
             #{changes => changes(DefUri, DefPOI, NewName)};
         _ ->
             null
