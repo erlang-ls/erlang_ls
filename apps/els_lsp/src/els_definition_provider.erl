@@ -40,7 +40,7 @@ handle_request({definition, Params}) ->
             {response, GoTo}
     end.
 
--spec goto_definition(uri(), [els_poi:poi()]) -> map() | null.
+-spec goto_definition(uri(), [els_poi:poi()]) -> [map()] | null.
 goto_definition(_Uri, []) ->
     null;
 goto_definition(Uri, [POI | Rest]) ->
