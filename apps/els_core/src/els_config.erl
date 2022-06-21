@@ -58,6 +58,7 @@
     | indexing_enabled
     | compiler_telemetry_enabled
     | refactorerl
+    | wrangler
     | edoc_custom_tags.
 
 -type path() :: file:filename().
@@ -79,6 +80,7 @@
     code_reload => map() | 'disabled',
     indexing_enabled => boolean(),
     compiler_telemetry_enabled => boolean(),
+    wrangler => map() | 'notconfigured',
     refactorerl => map() | 'notconfigured'
 }.
 
@@ -147,6 +149,45 @@ do_initialize(RootUri, Capabilities, InitOptions, {ConfigPath, Config}) ->
     IndexingEnabled = maps:get(<<"indexingEnabled">>, InitOptions, true),
 
     RefactorErl = maps:get("refactorerl", Config, notconfigured),
+
+    %% Initialize and start Wrangler
+    case maps:get("wrangler", Config, notconfigured) of
+        notconfigured ->
+            ok = set(wrangler, notconfigured);
+        Wrangler ->
+            ok = set(wrangler, Wrangler),
+            case maps:get("path", Wrangler, notconfigured) of
+                notconfigured ->
+                    ?LOG_INFO(
+                        "Wrangler path is not configured,\n"
+                        "                assuming it is installed system-wide."
+                    );
+                Path ->
+                    case code:add_path(Path) of
+                        true ->
+                            ok;
+                        {error, bad_directory} ->
+                            ?LOG_INFO(
+                                "Wrangler path is configured but\n"
+                                "                    not a valid ebin directory: ~p",
+                                [Path]
+                            )
+                    end
+            end,
+            case application:load(wrangler) of
+                ok ->
+                    case apply(api_wrangler, start, []) of
+                        % Function defined in Wrangler.
+                        % Using apply to circumvent tests resulting in 'unknown function'.
+                        ok ->
+                            ?LOG_INFO("Wrangler started successfully");
+                        {error, Reason} ->
+                            ?LOG_INFO("Wrangler could not be started: ~p", [Reason])
+                    end;
+                {error, Reason} ->
+                    ?LOG_INFO("Wrangler could not be loaded: ~p", [Reason])
+            end
+    end,
 
     %% Passed by the LSP client
     ok = set(root_uri, RootUri),
