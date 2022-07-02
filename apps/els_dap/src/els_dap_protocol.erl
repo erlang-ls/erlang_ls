@@ -30,8 +30,16 @@
 %%==============================================================================
 %% Messaging API
 %%==============================================================================
--spec event(number(), binary(), any()) -> binary().
-%% TODO: Body is optional
+
+-spec event(number(), binary(), map()) -> binary().
+event(Seq, <<"initialized">> = EventType, _Body) ->
+    %% The initialized event has no body.
+    Message = #{
+        type => <<"event">>,
+        seq => Seq,
+        event => EventType
+    },
+    content(jsx:encode(Message));
 event(Seq, EventType, Body) ->
     Message = #{
         type => <<"event">>,
