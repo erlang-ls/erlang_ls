@@ -75,27 +75,44 @@ build_source_breakpoints(Params) ->
     }}.
 build_source_breakpoint(#{<<"line">> := Line} = Breakpoint) ->
     Cond =
-        case Breakpoint of
-            #{<<"condition">> := CondExpr} when CondExpr =/= <<>> ->
+        case find_non_null_key(<<"condition">>, Breakpoint) of
+            {ok, CondExpr} ->
                 #{condition => CondExpr};
-            _ ->
+            error ->
                 #{}
         end,
     Hit =
-        case Breakpoint of
-            #{<<"hitCondition">> := HitExpr} when HitExpr =/= <<>> ->
+        case find_non_null_key(<<"hitCondition">>, Breakpoint) of
+            {ok, HitExpr} ->
                 #{hitcond => HitExpr};
-            _ ->
+            error ->
                 #{}
         end,
     Log =
-        case Breakpoint of
-            #{<<"logMessage">> := LogExpr} when LogExpr =/= <<>> ->
+        case find_non_null_key(<<"logMessage">>, Breakpoint) of
+            {ok, LogExpr} ->
                 #{logexpr => LogExpr};
-            _ ->
+            error ->
                 #{}
         end,
     {Line, lists:foldl(fun maps:merge/2, #{}, [Cond, Hit, Log])}.
+
+%% @doc Finds the `Value' of `Key' in `Map' if it exists and is non-null and
+%% non-empty.
+%%
+%% @returns `{ok, Value}' when `Key' is present in `Map' and the corresponding
+%% `Value' is not `null' or the empty binary, `error' otherwise.
+-spec find_non_null_key(Key, Map) -> {ok, Value} | error when
+    Map :: map(),
+    Key :: term(),
+    Value :: term().
+find_non_null_key(Key, Map) ->
+    case maps:find(Key, Map) of
+        {ok, Value} when Value =/= <<>> andalso Value =/= null ->
+            {ok, Value};
+        _ ->
+            error
+    end.
 
 -spec get_function_breaks(module(), breakpoints()) -> [function_break()].
 get_function_breaks(Module, Breaks) ->
