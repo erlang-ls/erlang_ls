@@ -59,7 +59,8 @@
     | compiler_telemetry_enabled
     | refactorerl
     | wrangler
-    | edoc_custom_tags.
+    | edoc_custom_tags
+    | providers.
 
 -type path() :: file:filename().
 -type state() :: #{
@@ -81,7 +82,8 @@
     indexing_enabled => boolean(),
     compiler_telemetry_enabled => boolean(),
     wrangler => map() | 'notconfigured',
-    refactorerl => map() | 'notconfigured'
+    refactorerl => map() | 'notconfigured',
+    providers => map()
 }.
 
 %%==============================================================================
@@ -149,6 +151,7 @@ do_initialize(RootUri, Capabilities, InitOptions, {ConfigPath, Config}) ->
     IndexingEnabled = maps:get(<<"indexingEnabled">>, InitOptions, true),
 
     RefactorErl = maps:get("refactorerl", Config, notconfigured),
+    Providers = maps:get("providers", Config, #{}),
 
     %% Initialize and start Wrangler
     case maps:get("wrangler", Config, notconfigured) of
@@ -201,6 +204,7 @@ do_initialize(RootUri, Capabilities, InitOptions, {ConfigPath, Config}) ->
     ok = set(macros, Macros),
     ok = set(plt_path, DialyzerPltPath),
     ok = set(code_reload, CodeReload),
+    ok = set(providers, Providers),
     ?LOG_INFO("Config=~p", [Config]),
     ok = set(
         runtime,

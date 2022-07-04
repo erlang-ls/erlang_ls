@@ -3,11 +3,7 @@
 -behaviour(els_provider).
 
 -export([
-    handle_request/1,
-    is_enabled/0,
-    is_enabled_document/0,
-    is_enabled_range/0,
-    is_enabled_on_type/0
+    handle_request/1
 ]).
 
 %%==============================================================================
@@ -23,23 +19,6 @@
 %%==============================================================================
 %% els_provider functions
 %%==============================================================================
-%% Keep the behaviour happy
--spec is_enabled() -> boolean().
-is_enabled() -> is_enabled_document().
-
--spec is_enabled_document() -> boolean().
-is_enabled_document() -> true.
-
--spec is_enabled_range() -> boolean().
-is_enabled_range() ->
-    false.
-
-%% NOTE: because erlang_ls does not send incremental document changes
-%%       via `textDocument/didChange`, this kind of formatting does not
-%%       make sense.
--spec is_enabled_on_type() -> document_ontypeformatting_options().
-is_enabled_on_type() -> false.
-
 -spec handle_request(any()) -> {response, any()}.
 handle_request({document_formatting, Params}) ->
     #{
@@ -66,6 +45,9 @@ handle_request({document_rangeformatting, Params}) ->
     {ok, Document} = els_utils:lookup_document(Uri),
     {ok, TextEdit} = rangeformat_document(Uri, Document, Range, Options),
     {response, TextEdit};
+%% NOTE: because erlang_ls does not send incremental document changes
+%%       via `textDocument/didChange`, this kind of formatting does not
+%%       make sense.
 handle_request({document_ontypeformatting, Params}) ->
     #{
         <<"position">> := #{

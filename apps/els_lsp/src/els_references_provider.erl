@@ -3,7 +3,6 @@
 -behaviour(els_provider).
 
 -export([
-    is_enabled/0,
     handle_request/1
 ]).
 
@@ -26,9 +25,6 @@
 %%==============================================================================
 %% els_provider functions
 %%==============================================================================
--spec is_enabled() -> boolean().
-is_enabled() -> true.
-
 -spec handle_request(any()) -> {response, [location()] | null}.
 handle_request({references, Params}) ->
     #{

@@ -5,7 +5,6 @@
 -include("els_lsp.hrl").
 
 -export([
-    is_enabled/0,
     handle_request/1
 ]).
 
@@ -17,9 +16,6 @@
 %%==============================================================================
 %% els_provider functions
 %%==============================================================================
--spec is_enabled() -> boolean().
-is_enabled() -> true.
-
 -spec handle_request(tuple()) -> {response, folding_range_result()}.
 handle_request({document_foldingrange, Params}) ->
     #{<<"textDocument">> := #{<<"uri">> := Uri}} = Params,

@@ -2,7 +2,6 @@
 
 -behaviour(els_provider).
 -export([
-    is_enabled/0,
     options/0,
     handle_request/1
 ]).
@@ -13,9 +12,6 @@
 %%==============================================================================
 %% els_provider functions
 %%==============================================================================
--spec is_enabled() -> boolean().
-is_enabled() -> true.
-
 -spec options() -> map().
 options() ->
     #{resolveProvider => false}.

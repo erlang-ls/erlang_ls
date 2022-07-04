@@ -2,7 +2,8 @@
 
 -behaviour(els_provider).
 -export([
-    is_enabled/0,
+    default_providers/0,
+    enabled_providers/0,
     handle_request/1
 ]).
 
@@ -44,13 +45,11 @@
 -type exit_request() :: {exit, exit_params()}.
 -type exit_params() :: #{status => atom()}.
 -type exit_result() :: null.
+-type provider_id() :: string().
 
 %%==============================================================================
 %% els_provider functions
 %%==============================================================================
--spec is_enabled() -> boolean().
-is_enabled() -> true.
-
 -spec handle_request(
     initialize_request()
     | initialized_request()
@@ -111,10 +110,61 @@ handle_request({exit, #{status := Status}}) ->
 %% API
 %%==============================================================================
 
+%% @doc Give all available providers
+-spec available_providers() -> [provider_id()].
+available_providers() ->
+    [
+        "text-document-sync",
+        "hover",
+        "completion",
+        "signature-help",
+        "definition",
+        "references",
+        "document-highlight",
+        "document-symbol",
+        "workspace-symbol",
+        "code-action",
+        "document-formatting",
+        "document-range-formatting",
+        "document-on-type-formatting",
+        "folding-range",
+        "implementation",
+        "execute-command",
+        "code-lens",
+        "rename",
+        "call-hierarchy",
+        "semantic-tokens"
+    ].
+
+%% @doc Give the list of all providers enabled by default.
+-spec default_providers() -> [provider_id()].
+default_providers() ->
+    available_providers() --
+        [
+            "document-range-formatting",
+            %% NOTE: because erlang_ls does not send incremental document changes
+            %%       via `textDocument/didChange', this kind of formatting does not
+            %%       make sense.
+            "document-on-type-formatting",
+            %% Signature help is experimental.
+            "signature-help"
+        ].
+
+%% @doc Give the list of all providers enabled by the current configuration.
+-spec enabled_providers() -> [provider_id()].
+enabled_providers() ->
+    Config = els_config:get(providers),
+    Default = default_providers(),
+    Enabled = maps:get("enabled", Config, []),
+    Disabled = maps:get("disabled", Config, []),
+    lists:usort((Default ++ valid(Enabled)) -- valid(Disabled)).
+
+%% @doc Give the LSP server capabilities map for all capabilities enabled by
+%% the current configuration.
 -spec server_capabilities() -> server_capabilities().
 server_capabilities() ->
     {ok, Version} = application:get_key(?APP, vsn),
-    Capabilities =
+    AvailableCapabilities =
         #{
             textDocumentSync =>
                 els_text_synchronization_provider:options(),
@@ -130,34 +180,22 @@ server_capabilities() ->
                     triggerCharacters =>
                         els_signature_help_provider:trigger_characters()
                 },
-            definitionProvider =>
-                els_definition_provider:is_enabled(),
-            referencesProvider =>
-                els_references_provider:is_enabled(),
-            documentHighlightProvider =>
-                els_document_highlight_provider:is_enabled(),
-            documentSymbolProvider =>
-                els_document_symbol_provider:is_enabled(),
-            workspaceSymbolProvider =>
-                els_workspace_symbol_provider:is_enabled(),
-            codeActionProvider =>
-                els_code_action_provider:is_enabled(),
-            documentFormattingProvider =>
-                els_formatting_provider:is_enabled_document(),
-            documentRangeFormattingProvider =>
-                els_formatting_provider:is_enabled_range(),
-            foldingRangeProvider =>
-                els_folding_range_provider:is_enabled(),
-            implementationProvider =>
-                els_implementation_provider:is_enabled(),
+            definitionProvider => true,
+            referencesProvider => true,
+            documentHighlightProvider => true,
+            documentSymbolProvider => true,
+            workspaceSymbolProvider => true,
+            codeActionProvider => true,
+            documentFormattingProvider => true,
+            documentRangeFormattingProvider => false,
+            foldingRangeProvider => true,
+            implementationProvider => true,
             executeCommandProvider =>
                 els_execute_command_provider:options(),
             codeLensProvider =>
                 els_code_lens_provider:options(),
-            renameProvider =>
-                els_rename_provider:is_enabled(),
-            callHierarchyProvider =>
-                els_call_hierarchy_provider:is_enabled(),
+            renameProvider => true,
+            callHierarchyProvider => true,
             semanticTokensProvider =>
                 #{
                     legend =>
@@ -166,21 +204,19 @@ server_capabilities() ->
                             tokenModifiers => wrangler_handler:semantic_token_modifiers()
                         },
                     range => false,
-                    full => els_semantic_token_provider:is_enabled()
+                    full => wrangler_handler:is_enabled()
                 }
         },
-    ActiveCapabilities =
-        case els_signature_help_provider:is_enabled() of
-            %% This pattern can never match because is_enabled/0 is currently
-            %% hard-coded to `false'. When enabling signature help manually,
-            %% uncomment this branch.
-            %% true ->
-            %%     Capabilities;
-            false ->
-                maps:remove(signatureHelpProvider, Capabilities)
-        end,
+    EnabledProviders = enabled_providers(),
+    ConfiguredCapabilities =
+        maps:filter(
+            fun(Provider, _Config) ->
+                lists:member(provider_id(Provider), EnabledProviders)
+            end,
+            AvailableCapabilities
+        ),
     #{
-        capabilities => ActiveCapabilities,
+        capabilities => ConfiguredCapabilities,
         serverInfo =>
             #{
                 name => <<"Erlang LS">>,
@@ -223,3 +259,50 @@ dynamic_registration_options(<<"didChangeWatchedFiles">>) ->
             watchers => [#{globPattern => GlobPattern}]
         }
     }.
+
+-spec valid([any()]) -> [provider_id()].
+valid(ProviderIds) ->
+    {Valid, Invalid} = lists:partition(fun is_valid_provider_id/1, ProviderIds),
+    case Invalid of
+        [] ->
+            ok;
+        _ ->
+            Fmt = "Discarding invalid providers in config file: ~p",
+            Args = [Invalid],
+            Msg = lists:flatten(io_lib:format(Fmt, Args)),
+            ?LOG_WARNING(Msg),
+            els_server:send_notification(
+                <<"window/showMessage">>,
+                #{
+                    type => ?MESSAGE_TYPE_WARNING,
+                    message => els_utils:to_binary(Msg)
+                }
+            )
+    end,
+    Valid.
+
+-spec is_valid_provider_id(any()) -> boolean().
+is_valid_provider_id(ProviderId) ->
+    lists:member(ProviderId, available_providers()).
+
+-spec provider_id(atom()) -> provider_id().
+provider_id(textDocumentSync) -> "text-document-sync";
+provider_id(completionProvider) -> "completion";
+provider_id(hoverProvider) -> "hover";
+provider_id(signatureHelpProvider) -> "signature-help";
+provider_id(definitionProvider) -> "definition";
+provider_id(referencesProvider) -> "references";
+provider_id(documentHighlightProvider) -> "document-highlight";
+provider_id(documentSymbolProvider) -> "document-symbol";
+provider_id(workspaceSymbolProvider) -> "workspace-symbol";
+provider_id(codeActionProvider) -> "code-action";
+provider_id(documentFormattingProvider) -> "document-formatting";
+provider_id(documentRangeFormattingProvider) -> "document-range-formatting";
+provider_id(documentOnTypeFormattingProvider) -> "document-on-type-formatting";
+provider_id(foldingRangeProvider) -> "folding-range";
+provider_id(implementationProvider) -> "implementation";
+provider_id(executeCommandProvider) -> "execute-command";
+provider_id(codeLensProvider) -> "code-lens";
+provider_id(renameProvider) -> "rename";
+provider_id(callHierarchyProvider) -> "call-hierarchy";
+provider_id(semanticTokensProvider) -> "semantic-tokens".

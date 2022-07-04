@@ -6,7 +6,6 @@
 -include_lib("kernel/include/logger.hrl").
 
 -export([
-    is_enabled/0,
     handle_request/1,
     trigger_characters/0
 ]).
@@ -22,10 +21,6 @@ trigger_characters() ->
 %%==============================================================================
 %% els_provider functions
 %%==============================================================================
--spec is_enabled() -> boolean().
-is_enabled() ->
-    false.
-
 -spec handle_request(els_provider:provider_request()) ->
     {response, signature_help() | null}.
 handle_request({signature_help, Params}) ->
