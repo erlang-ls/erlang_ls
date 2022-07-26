@@ -27,7 +27,7 @@ handle_request({incoming_calls, Params}) ->
     #{<<"item">> := #{<<"uri">> := Uri} = Item} = Params,
     POI = els_call_hierarchy_item:poi(Item),
     References = els_references_provider:find_references(Uri, POI),
-    Items = [reference_to_item(Reference) || Reference <- References],
+    Items = lists:flatten([reference_to_item(Reference) || Reference <- References]),
     {response, incoming_calls(Items)};
 handle_request({outgoing_calls, Params}) ->
     #{<<"item">> := Item} = Params,
@@ -70,15 +70,20 @@ function_to_item(Uri, Function) ->
     Data = #{poi => Function},
     els_call_hierarchy_item:new(Name, Uri, Range, Range, Data).
 
--spec reference_to_item(location()) -> els_call_hierarchy_item:item().
+-spec reference_to_item(location()) -> [els_call_hierarchy_item:item()].
 reference_to_item(Reference) ->
     #{uri := RefUri, range := RefRange} = Reference,
     {ok, RefDoc} = els_utils:lookup_document(RefUri),
-    [WrappingPOI] = els_dt_document:wrapping_functions(RefDoc, RefRange),
-    Name = els_utils:function_signature(maps:get(id, WrappingPOI)),
-    POIRange = els_range:to_poi_range(RefRange),
-    Data = #{poi => WrappingPOI},
-    els_call_hierarchy_item:new(Name, RefUri, POIRange, POIRange, Data).
+    case els_dt_document:wrapping_functions(RefDoc, RefRange) of
+        [WrappingPOI] ->
+            els_dt_document:wrapping_functions(RefDoc, RefRange),
+            Name = els_utils:function_signature(maps:get(id, WrappingPOI)),
+            POIRange = els_range:to_poi_range(RefRange),
+            Data = #{poi => WrappingPOI},
+            [els_call_hierarchy_item:new(Name, RefUri, POIRange, POIRange, Data)];
+        _ ->
+            []
+    end.
 
 -spec application_to_item(uri(), els_poi:poi()) ->
     {ok, els_call_hierarchy_item:item()} | {error, not_found}.
