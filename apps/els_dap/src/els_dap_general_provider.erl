@@ -733,9 +733,10 @@ break_line(Pid, Node) ->
 
 -spec source(atom(), atom()) -> binary().
 source(Module, Node) ->
-    Source = els_dap_rpc:file(Node, Module),
+    Source0 = els_dap_rpc:file(Node, Module),
+    Source1 = filename:absname(Source0),
     els_dap_rpc:clear(Node),
-    unicode:characters_to_binary(Source).
+    unicode:characters_to_binary(Source1).
 
 -spec to_pid(pos_integer(), #{thread_id() => thread()}) -> pid().
 to_pid(ThreadId, Threads) ->
