@@ -62,7 +62,7 @@ text_edit_diff(Config) ->
     DiagnosticsPath = els_uri:path(DiagnosticsUri),
     DiagnosticsDiffPath = ?config('diagnostics.new_path', Config),
     Result = els_text_edit:diff_files(DiagnosticsPath, DiagnosticsDiffPath),
-    [Edit1, Edit2] = Result,
+    [Edit1, Edit2, Edit3, Edit4] = Result,
     ?assertEqual(
         #{
             newText =>
@@ -77,13 +77,37 @@ text_edit_diff(Config) ->
     ),
     ?assertEqual(
         #{
-            newText => <<"main(X) -> X + 1.\n">>,
+            newText =>
+                <<"%% Added utf-8: （・ω・）\n"/utf8>>,
             range =>
                 #{
-                    'end' => #{character => 0, line => 8},
-                    start => #{character => 0, line => 6}
+                    'end' => #{character => 0, line => 2},
+                    start => #{character => 0, line => 2}
                 }
         },
         Edit2
+    ),
+    ?assertEqual(
+        #{
+            newText =>
+                <<"%% Updated utf-8: （・ω・）\n"/utf8>>,
+            range =>
+                #{
+                    'end' => #{character => 0, line => 6},
+                    start => #{character => 0, line => 5}
+                }
+        },
+        Edit3
+    ),
+    ?assertEqual(
+        #{
+            newText => <<"main(X) -> X + 1.\n">>,
+            range =>
+                #{
+                    'end' => #{character => 0, line => 9},
+                    start => #{character => 0, line => 7}
+                }
+        },
+        Edit4
     ),
     ok.
