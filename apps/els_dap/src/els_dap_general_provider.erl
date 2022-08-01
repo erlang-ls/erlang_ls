@@ -351,7 +351,8 @@ handle_request(
                         #{
                             <<"name">> => <<"Locals">>,
                             <<"presentationHint">> => <<"locals">>,
-                            <<"variablesReference">> => Ref
+                            <<"variablesReference">> => Ref,
+                            <<"expensive">> => false
                         }
                     ]
                 },
