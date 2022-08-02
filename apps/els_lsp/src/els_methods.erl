@@ -73,7 +73,7 @@ dispatch(<<"$/", Method/binary>>, Params, request, State) ->
         message => <<"Method not found: ", Method/binary>>
     },
     {error, Error, State};
-dispatch(Method, Params, _Type, State) ->
+dispatch(Method, Params, MessageType, State) ->
     Function = method_to_function_name(Method),
     ?LOG_DEBUG("Dispatching request [method=~p] [params=~p]", [Method, Params]),
     try
@@ -86,19 +86,24 @@ dispatch(Method, Params, _Type, State) ->
                 "Internal [type=~p] [error=~p] [stack=~p]",
                 [Type, Reason, Stack]
             ),
-            Error = #{
-                type => Type,
-                reason => Reason,
-                stack => Stack,
-                method => Method,
-                params => Params
-            },
-            ErrorMsg = els_utils:to_binary(lists:flatten(io_lib:format("~p", [Error]))),
-            ErrorResponse = #{
-                code => ?ERR_INTERNAL_ERROR,
-                message => <<"Internal Error: ", ErrorMsg/binary>>
-            },
-            {error, ErrorResponse, State}
+            case MessageType of
+                request ->
+                    Error = #{
+                        type => Type,
+                        reason => Reason,
+                        stack => Stack,
+                        method => Method,
+                        params => Params
+                    },
+                    ErrorMsg = els_utils:to_binary(lists:flatten(io_lib:format("~p", [Error]))),
+                    ErrorResponse = #{
+                        code => ?ERR_INTERNAL_ERROR,
+                        message => <<"Internal Error: ", ErrorMsg/binary>>
+                    },
+                    {error, ErrorResponse, State};
+                notification ->
+                    {noresponse, State}
+            end
     end.
 
 -spec do_dispatch(atom(), params(), els_server:state()) -> result().
