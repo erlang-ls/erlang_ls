@@ -47,6 +47,7 @@
     unused_macros_refactorerl/1,
     unused_record_fields/1,
     gradualizer/1,
+    eqwalizer/1,
     module_name_check/1,
     module_name_check_whitespace/1,
     edoc_main/1,
@@ -142,6 +143,41 @@ init_per_testcase(TestCase, Config) when TestCase =:= gradualizer ->
     meck:expect(els_gradualizer_diagnostics, is_default, 0, true),
     els_mock_diagnostics:setup(),
     els_test_utils:init_per_testcase(TestCase, Config);
+init_per_testcase(TestCase, Config) when TestCase =:= eqwalizer ->
+    meck:new(els_eqwalizer_diagnostics, [passthrough, no_link]),
+    meck:expect(els_eqwalizer_diagnostics, is_default, 0, true),
+    Diagnostics = [
+        els_utils:to_list(
+            jsx:encode(#{
+                <<"diagnostic">> =>
+                    #{
+                        <<"code">> => <<"eqwalizer">>,
+                        <<"message">> =>
+                            <<"Expected: 'ok'\nGot     : 'not_ok'\n">>,
+                        <<"range">> =>
+                            #{
+                                <<"end">> =>
+                                    #{
+                                        <<"character">> => 10,
+                                        <<"line">> => 6
+                                    },
+                                <<"start">> =>
+                                    #{
+                                        <<"character">> => 4,
+                                        <<"line">> => 6
+                                    }
+                            },
+                        <<"severity">> => 2,
+                        <<"source">> => <<"elp">>
+                    },
+                <<"relative_path">> =>
+                    <<"src/diagnostics_eqwalizer.erl">>
+            })
+        )
+    ],
+    meck:expect(els_eqwalizer_diagnostics, eqwalize, 2, Diagnostics),
+    els_mock_diagnostics:setup(),
+    els_test_utils:init_per_testcase(TestCase, Config);
 init_per_testcase(TestCase, Config) when
     TestCase =:= edoc_main;
     TestCase =:= edoc_skip_app_src;
@@ -206,6 +242,11 @@ end_per_testcase(TestCase, Config) when TestCase =:= compiler_telemetry ->
     ok;
 end_per_testcase(TestCase, Config) when TestCase =:= gradualizer ->
     meck:unload(els_gradualizer_diagnostics),
+    els_test_utils:end_per_testcase(TestCase, Config),
+    els_mock_diagnostics:teardown(),
+    ok;
+end_per_testcase(TestCase, Config) when TestCase =:= eqwalizer ->
+    meck:unload(els_eqwalizer_diagnostics),
     els_test_utils:end_per_testcase(TestCase, Config),
     els_mock_diagnostics:teardown(),
     ok;
@@ -888,6 +929,20 @@ gradualizer(_Config) ->
                     "but it has type false | true\n"
                 >>,
             range => {{10, 0}, {11, 0}}
+        }
+    ],
+    Hints = [],
+    els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
+
+-spec eqwalizer(config()) -> ok.
+eqwalizer(_Config) ->
+    Path = src_path("diagnostics_eqwalizer.erl"),
+    Source = <<"EqWAlizer">>,
+    Errors = [],
+    Warnings = [
+        #{
+            message => <<"Expected: 'ok'\nGot     : 'not_ok'\n">>,
+            range => {{6, 4}, {6, 10}}
         }
     ],
     Hints = [],
