@@ -680,17 +680,22 @@ inclusion_range(IncludePath, Document, include) ->
     [Range || #{id := Id, range := Range} <- POIs, Id =:= IncludeId];
 inclusion_range(IncludePath, Document, include_lib) ->
     POIs = els_dt_document:pois(Document, [include_lib]),
-    IncludeId = els_utils:include_lib_id(IncludePath),
+    IncludeId = els_utils:include_lib_id(absolute_path(IncludePath)),
     [Range || #{id := Id, range := Range} <- POIs, Id =:= IncludeId];
 inclusion_range(IncludePath, Document, behaviour) ->
     POIs = els_dt_document:pois(Document, [behaviour]),
-    BehaviourId = els_uri:module(els_uri:uri(els_utils:to_binary(IncludePath))),
+    BehaviourId = els_uri:module(els_uri:uri(els_utils:to_binary(absolute_path(IncludePath)))),
     [Range || #{id := Id, range := Range} <- POIs, Id =:= BehaviourId];
 inclusion_range(IncludePath, Document, parse_transform) ->
     POIs = els_dt_document:pois(Document, [parse_transform]),
     ParseTransformId =
-        els_uri:module(els_uri:uri(els_utils:to_binary(IncludePath))),
+        els_uri:module(els_uri:uri(els_utils:to_binary(absolute_path(IncludePath)))),
     [Range || #{id := Id, range := Range} <- POIs, Id =:= ParseTransformId].
+
+-spec absolute_path(string()) -> string().
+absolute_path(Path) ->
+    {ok, Cwd} = file:get_cwd(),
+    filename:join(Cwd, Path).
 
 -spec macro_options() -> [macro_option()].
 macro_options() ->
