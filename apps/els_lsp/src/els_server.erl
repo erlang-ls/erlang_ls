@@ -230,6 +230,16 @@ handle_request(
         {RequestId, Job} when RequestId =:= Id ->
             ?LOG_DEBUG("[SERVER] Cancelling request [id=~p] [job=~p]", [Id, Job]),
             els_background_job:stop(Job),
+            Error = #{
+                code => ?ERR_REQUEST_CANCELLED,
+                message => <<"Request was cancelled">>
+            },
+            ErrorResponse = els_protocol:error(RequestId, Error),
+            ?LOG_DEBUG(
+                "[SERVER] Sending error response [response=~p]",
+                [ErrorResponse]
+            ),
+            send(ErrorResponse, State0),
             State0#{
                 pending => lists:keydelete(Id, 1, Pending),
                 in_progress => lists:keydelete(Job, 2, InProgress)
@@ -272,8 +282,8 @@ handle_request(
         {async, Uri, BackgroundJob, State} ->
             RequestId = maps:get(<<"id">>, Request),
             ?LOG_DEBUG(
-                "[SERVER] Suspending response [background_job=~p]",
-                [BackgroundJob]
+                "[SERVER] Suspending response [background_job=~p id=~p]",
+                [BackgroundJob, RequestId]
             ),
             NewPending = [{RequestId, BackgroundJob} | Pending],
             State#{

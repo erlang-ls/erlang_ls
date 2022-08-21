@@ -20,7 +20,8 @@
 %%==============================================================================
 -export([
     sample_job/1,
-    failing_job/1
+    failing_job/1,
+    stop_job/1
 ]).
 
 %%==============================================================================
@@ -63,6 +64,13 @@ init_per_testcase(sample_job = TestCase, Config) ->
 init_per_testcase(failing_job = TestCase, Config) ->
     Task = fun(_, _) -> exit(fail) end,
     setup_mocks(Task),
+    [{task, Task} | els_test_utils:init_per_testcase(TestCase, Config)];
+init_per_testcase(stop_job = TestCase, Config) ->
+    Task = fun(_, _) -> sample_job:task_called(), timer:sleep(timer:seconds(100)) end,
+    setup_mocks(Task),
+    %% Bit of a hack, because meck only count history after mocked function returns it seems,
+    %% and the above function will not return.
+    meck:expect(sample_job, task_called, fun() -> ok end),
     [{task, Task} | els_test_utils:init_per_testcase(TestCase, Config)].
 
 -spec end_per_testcase(atom(), config()) -> ok.
@@ -88,6 +96,17 @@ failing_job(_Config) ->
     {ok, Pid} = new_background_job(),
     wait_for_completion(Pid),
     ?assertEqual(1, meck:num_calls(sample_job, task, '_')),
+    ?assertEqual(0, meck:num_calls(sample_job, on_complete, '_')),
+    ?assertEqual(1, meck:num_calls(sample_job, on_error, '_')),
+    ok.
+
+-spec stop_job(config()) -> ok.
+stop_job(_Config) ->
+    {ok, Pid} = new_background_job(),
+    meck:wait(sample_job, task_called, '_', 5000),
+    els_background_job:stop(Pid),
+    wait_for_completion(Pid),
+    ?assertEqual(1, meck:num_calls(sample_job, task_called, '_')),
     ?assertEqual(0, meck:num_calls(sample_job, on_complete, '_')),
     ?assertEqual(1, meck:num_calls(sample_job, on_error, '_')),
     ok.
