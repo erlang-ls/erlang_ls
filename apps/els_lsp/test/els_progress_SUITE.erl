@@ -66,7 +66,10 @@ init_per_testcase(failing_job = TestCase, Config) ->
     setup_mocks(Task),
     [{task, Task} | els_test_utils:init_per_testcase(TestCase, Config)];
 init_per_testcase(stop_job = TestCase, Config) ->
-    Task = fun(_, _) -> sample_job:task_called(), timer:sleep(timer:seconds(100)) end,
+    Task = fun(_, _) ->
+        sample_job:task_called(),
+        timer:sleep(timer:seconds(100))
+    end,
     setup_mocks(Task),
     %% Bit of a hack, because meck only count history after mocked function returns it seems,
     %% and the above function will not return.
