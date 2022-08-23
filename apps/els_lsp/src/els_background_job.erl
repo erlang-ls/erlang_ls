@@ -155,6 +155,8 @@ handle_cast(_Request, State) ->
 
 -spec handle_info(any(), any()) ->
     {noreply, state()}.
+handle_info({exec, InternalState}, State) ->
+    handle_info(exec, State#{internal_state => InternalState});
 handle_info(exec, State) ->
     #{
         config := #{entries := Entries, task := Task} = Config,
@@ -171,22 +173,32 @@ handle_info(exec, State) ->
             notify_end(Token, Total, ProgressEnabled),
             {stop, normal, State};
         [Entry | Rest] ->
-            NewInternalState = Task(Entry, InternalState),
-            notify_report(
-                Token,
-                Current,
-                Step,
-                Total,
-                ProgressEnabled,
-                ShowPercentages
+            MainPid = self(),
+            %% Run the task in a separate process so main process
+            %% is not blocked from receiving messages, needed for stopping
+            %% job.
+            spawn_link(
+                fun() ->
+                    NewInternalState = Task(Entry, InternalState),
+                    notify_report(
+                        Token,
+                        Current,
+                        Step,
+                        Total,
+                        ProgressEnabled,
+                        ShowPercentages
+                    ),
+                    MainPid ! {exec, NewInternalState}
+                end
             ),
-            self() ! exec,
             {noreply, State#{
                 config => Config#{entries => Rest},
-                current => Current + 1,
-                internal_state => NewInternalState
+                current => Current + 1
             }}
     end;
+%% Allow the terminate function to be called if the spawned child processes dies
+handle_info({'EXIT', _Sender, Reason}, State) when Reason /= normal ->
+    {stop, Reason, State};
 handle_info(_Request, State) ->
     {noreply, State}.
 
