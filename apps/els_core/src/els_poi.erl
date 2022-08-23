@@ -15,7 +15,8 @@
     label/1,
     symbol_kind/1,
     to_symbol/2,
-    folding_range/1
+    folding_range/1,
+    symbol_range/1
 ]).
 
 %%==============================================================================
@@ -126,18 +127,23 @@ symbol_kind(#{kind := Kind}) ->
 
 -spec to_symbol(uri(), els_poi:poi()) -> symbol_information().
 to_symbol(Uri, POI) ->
-    #{range := Range} = POI,
     #{
         name => label(POI),
         kind => symbol_kind(POI),
         location => #{
             uri => Uri,
-            range => els_protocol:range(Range)
+            range => els_protocol:range(symbol_range(POI))
         }
     }.
 
 -spec folding_range(els_poi:poi()) -> poi_range().
 folding_range(#{data := #{folding_range := Range}}) ->
+    Range.
+
+-spec symbol_range(els_poi:poi()) -> poi_range().
+symbol_range(#{data := #{wrapping_range := WrappingRange}}) ->
+    WrappingRange;
+symbol_range(#{range := Range}) ->
     Range.
 
 %%==============================================================================
