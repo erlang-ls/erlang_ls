@@ -76,6 +76,7 @@ incoming_calls(Config) ->
                                 from => {7, 1},
                                 to => {17, 0}
                             },
+                            symbol_range => #{from => {7, 1}, to => {16, 19}},
                             folding_range => #{
                                 from => {7, ?END_OF_LINE},
                                 to => {16, ?END_OF_LINE}
@@ -126,6 +127,8 @@ incoming_calls(Config) ->
                                                         from => {7, 1},
                                                         to => {14, 0}
                                                     },
+
+                                                symbol_range => #{from => {7, 1}, to => {13, 19}},
                                                 folding_range =>
                                                     #{
                                                         from => {7, ?END_OF_LINE},
@@ -177,6 +180,7 @@ incoming_calls(Config) ->
                                                         from => {7, 1},
                                                         to => {17, 0}
                                                     },
+                                                symbol_range => #{from => {7, 1}, to => {16, 19}},
                                                 folding_range =>
                                                     #{
                                                         from => {7, ?END_OF_LINE},
@@ -246,6 +250,7 @@ outgoing_calls(Config) ->
                             from => {7, 1},
                             to => {17, 0}
                         },
+                        symbol_range => #{from => {7, 1}, to => {16, 19}},
                         folding_range => #{
                             from => {7, ?END_OF_LINE},
                             to => {16, ?END_OF_LINE}
@@ -292,6 +297,7 @@ outgoing_calls(Config) ->
                                     from => {7, 1},
                                     to => {17, 0}
                                 },
+                                symbol_range => #{from => {7, 1}, to => {16, 19}},
                                 folding_range => #{
                                     from => {7, ?END_OF_LINE},
                                     to => {16, ?END_OF_LINE}
@@ -315,6 +321,7 @@ outgoing_calls(Config) ->
                                     from => {18, 1},
                                     to => {20, 0}
                                 },
+                                symbol_range => #{from => {18, 1}, to => {19, 6}},
                                 folding_range => #{
                                     from => {18, ?END_OF_LINE},
                                     to => {19, ?END_OF_LINE}
@@ -338,6 +345,7 @@ outgoing_calls(Config) ->
                                     from => {7, 1},
                                     to => {14, 0}
                                 },
+                                symbol_range => #{from => {7, 1}, to => {13, 19}},
                                 folding_range => #{
                                     from => {7, ?END_OF_LINE},
                                     to => {13, ?END_OF_LINE}
@@ -361,6 +369,7 @@ outgoing_calls(Config) ->
                                     from => {18, 1},
                                     to => {20, 0}
                                 },
+                                symbol_range => #{from => {18, 1}, to => {19, 6}},
                                 folding_range => #{
                                     from => {18, ?END_OF_LINE},
                                     to => {19, ?END_OF_LINE}

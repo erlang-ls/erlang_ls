@@ -141,8 +141,8 @@ folding_range(#{data := #{folding_range := Range}}) ->
     Range.
 
 -spec symbol_range(els_poi:poi()) -> poi_range().
-symbol_range(#{data := #{wrapping_range := WrappingRange}}) ->
-    WrappingRange;
+symbol_range(#{data := #{symbol_range := SymbolRange}}) ->
+    SymbolRange;
 symbol_range(#{range := Range}) ->
     Range.
 
