@@ -621,7 +621,7 @@ function(Tree) ->
         erl_syntax:type(Clause) =:= clause
     ],
     {StartLine, StartColumn} = get_start_location(Tree),
-    {EndLine, _EndColumn} = get_end_location(Tree),
+    {EndLine, EndColumn} = get_end_location(Tree),
     FoldingRange = exceeds_one_line(StartLine, EndLine),
     FunctionPOI = poi(
         erl_syntax:get_pos(FunName),
@@ -632,6 +632,10 @@ function(Tree) ->
             wrapping_range => #{
                 from => {StartLine, StartColumn},
                 to => {EndLine + 1, 0}
+            },
+            symbol_range => #{
+                from => {StartLine, StartColumn},
+                to => {EndLine, EndColumn}
             },
             folding_range => FoldingRange
         }
