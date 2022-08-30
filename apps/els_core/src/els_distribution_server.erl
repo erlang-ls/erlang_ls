@@ -18,7 +18,6 @@
     rpc_call/3,
     rpc_call/4,
     node_name/2,
-    node_name/3,
     normalize_node_name/1
 ]).
 
@@ -223,15 +222,7 @@ node_name(Prefix, Name0) ->
     Name = normalize_node_name(Name0),
     Int = erlang:phash2(erlang:timestamp()),
     Id = lists:flatten(io_lib:format("~s_~s_~p", [Prefix, Name, Int])),
-    {ok, HostName} = inet:gethostname(),
-    node_name(Id, HostName, els_config_runtime:get_name_type()).
-
--spec node_name(string(), string(), 'longnames' | 'shortnames') -> atom().
-node_name(Id, HostName, shortnames) ->
-    list_to_atom(Id ++ "@" ++ HostName);
-node_name(Id, HostName, longnames) ->
-    Domain = proplists:get_value(domain, inet:get_rc(), ""),
-    list_to_atom(Id ++ "@" ++ HostName ++ "." ++ Domain).
+    els_utils:compose_node_name(Id, els_config_runtime:get_name_type()).
 
 -spec normalize_node_name(string() | binary()) -> string().
 normalize_node_name(Name) ->

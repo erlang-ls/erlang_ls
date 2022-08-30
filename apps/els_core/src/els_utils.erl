@@ -453,15 +453,18 @@ compose_node_name(Name, Type) ->
             true ->
                 Name;
             _ ->
-                {ok, HostName} = inet:gethostname(),
+                HostName = els_config_runtime:get_hostname(),
                 Name ++ [$@ | HostName]
         end,
     case Type of
         shortnames ->
             list_to_atom(NodeName);
         longnames ->
-            Domain = proplists:get_value(domain, inet:get_rc(), ""),
-            list_to_atom(NodeName ++ "." ++ Domain)
+            Domain = els_config_runtime:get_domain(),
+            case Domain of
+                "" -> list_to_atom(NodeName);
+                _ -> list_to_atom(NodeName ++ "." ++ Domain)
+            end
     end.
 
 %% @doc Given an MFA or a FA, return a printable version of the
