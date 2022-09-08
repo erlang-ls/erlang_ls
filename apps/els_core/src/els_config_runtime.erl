@@ -8,6 +8,8 @@
 %% Getters
 -export([
     get_node_name/0,
+    get_hostname/0,
+    get_domain/0,
     get_otp_path/0,
     get_start_cmd/0,
     get_start_args/0,
@@ -20,6 +22,8 @@
 -spec default_config() -> config().
 default_config() ->
     #{
+        "hostname" => default_hostname(),
+        "domain" => default_domain(),
         "node_name" => default_node_name(),
         "otp_path" => default_otp_path(),
         "start_cmd" => default_start_cmd(),
@@ -30,6 +34,17 @@ default_config() ->
 get_node_name() ->
     Value = maps:get("node_name", els_config:get(runtime), default_node_name()),
     els_utils:compose_node_name(Value, get_name_type()).
+
+-spec get_hostname() -> string().
+get_hostname() ->
+    case els_config:get(runtime) of
+        undefined -> default_hostname();
+        Runtime -> maps:get("hostname", Runtime, default_hostname())
+    end.
+
+-spec get_domain() -> string().
+get_domain() ->
+    maps:get("domain", els_config:get(runtime), default_domain()).
 
 -spec get_otp_path() -> string().
 get_otp_path() ->
@@ -65,11 +80,20 @@ get_cookie() ->
 -spec default_node_name() -> string().
 default_node_name() ->
     RootUri = els_config:get(root_uri),
-    {ok, Hostname} = inet:gethostname(),
+    Hostname = get_hostname(),
     NodeName = els_distribution_server:normalize_node_name(
         filename:basename(els_uri:path(RootUri))
     ),
     NodeName ++ "@" ++ Hostname.
+
+-spec default_hostname() -> string().
+default_hostname() ->
+    {ok, Hostname} = inet:gethostname(),
+    Hostname.
+
+-spec default_domain() -> string().
+default_domain() ->
+    proplists:get_value(domain, inet:get_rc(), "").
 
 -spec default_otp_path() -> string().
 default_otp_path() ->

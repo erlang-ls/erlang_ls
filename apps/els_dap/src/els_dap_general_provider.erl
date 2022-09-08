@@ -1023,22 +1023,6 @@ safe_eval(ProjectNode, Debugged, Expression, Update) ->
     end,
     Return.
 
--spec check_project_node_name(binary(), boolean()) -> atom().
-check_project_node_name(ProjectNode, false) ->
-    binary_to_atom(ProjectNode, utf8);
-check_project_node_name(ProjectNode, true) ->
-    case binary:match(ProjectNode, <<"@">>) of
-        nomatch ->
-            {ok, HostName} = inet:gethostname(),
-            BinHostName = list_to_binary(HostName),
-            DomainStr = proplists:get_value(domain, inet:get_rc(), ""),
-            Domain = list_to_binary(DomainStr),
-            BinName = <<ProjectNode/binary, "@", BinHostName/binary, ".", Domain/binary>>,
-            binary_to_atom(BinName, utf8);
-        _ ->
-            binary_to_atom(ProjectNode, utf8)
-    end.
-
 -spec start_distribution(map()) -> {ok, map()} | {error, any()}.
 start_distribution(Params) ->
     #{<<"cwd">> := Cwd} = Params,
@@ -1062,10 +1046,6 @@ start_distribution(Params) ->
         <<"cookie">> := ConfCookie,
         <<"use_long_names">> := UseLongNames
     } = Config,
-    ConfProjectNode = check_project_node_name(RawProjectNode, UseLongNames),
-    ?LOG_INFO("Configured Project Node Name: ~p", [ConfProjectNode]),
-    Cookie = binary_to_atom(ConfCookie, utf8),
-
     NameType =
         case UseLongNames of
             true ->
@@ -1073,12 +1053,14 @@ start_distribution(Params) ->
             false ->
                 shortnames
         end,
+
+    ConfProjectNode0 = binary_to_list(RawProjectNode),
+    ConfProjectNode = els_utils:compose_node_name(ConfProjectNode0, NameType),
+    ?LOG_INFO("Configured Project Node Name: ~p", [ConfProjectNode]),
+    Cookie = binary_to_atom(ConfCookie, utf8),
+
     %% start distribution
-    Prefix = <<"erlang_ls_dap">>,
-    Int = erlang:phash2(erlang:timestamp()),
-    Id = lists:flatten(io_lib:format("~s_~s_~p", [Prefix, Name, Int])),
-    {ok, HostName} = inet:gethostname(),
-    LocalNode = els_distribution_server:node_name(Id, HostName, NameType),
+    LocalNode = els_distribution_server:node_name(<<"erlang_ls_dap">>, Name),
     case
         els_distribution_server:start_distribution(
             LocalNode,

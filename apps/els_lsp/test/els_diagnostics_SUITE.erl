@@ -28,6 +28,8 @@
     compiler_telemetry/1,
     code_path_extra_dirs/1,
     use_long_names/1,
+    use_long_names_no_domain/1,
+    use_long_names_custom_hostname/1,
     epp_with_nonexistent_macro/1,
     code_reload/1,
     code_reload_sticky_mod/1,
@@ -120,15 +122,20 @@ init_per_testcase(code_path_extra_dirs, Config) ->
     els_mock_diagnostics:setup(),
     els_test_utils:init_per_testcase(code_path_extra_dirs, Config);
 init_per_testcase(use_long_names, Config) ->
-    meck:new(yamerl, [passthrough, no_link]),
+    Content =
+        <<"runtime:\n", "  use_long_names: true\n", "  cookie: mycookie\n",
+            "  node_name: my_node\n", "  domain: test.local">>,
+    init_long_names_config(Content, Config);
+init_per_testcase(use_long_names_no_domain, Config) ->
     Content =
         <<"runtime:\n", "  use_long_names: true\n", "  cookie: mycookie\n",
             "  node_name: my_node\n">>,
-    meck:expect(yamerl, decode_file, 2, fun(_, Opts) ->
-        yamerl:decode(Content, Opts)
-    end),
-    els_mock_diagnostics:setup(),
-    els_test_utils:init_per_testcase(code_path_extra_dirs, Config);
+    init_long_names_config(Content, Config);
+init_per_testcase(use_long_names_custom_hostname, Config) ->
+    Content =
+        <<"runtime:\n", "  use_long_names: true\n", "  cookie: mycookie\n",
+            "  node_name: my_node\n", "  hostname: 127.0.0.1">>,
+    init_long_names_config(Content, Config);
 init_per_testcase(exclude_unused_includes = TestCase, Config) ->
     els_mock_diagnostics:setup(),
     NewConfig = els_test_utils:init_per_testcase(TestCase, Config),
@@ -224,7 +231,9 @@ end_per_testcase(TestCase, Config) when
     ok;
 end_per_testcase(TestCase, Config) when
     TestCase =:= code_path_extra_dirs orelse
-        TestCase =:= use_long_names
+        TestCase =:= use_long_names orelse
+        TestCase =:= use_long_names_no_domain orelse
+        TestCase =:= use_long_names_custom_hostname
 ->
     meck:unload(yamerl),
     els_test_utils:end_per_testcase(code_path_extra_dirs, Config),
@@ -270,6 +279,15 @@ end_per_testcase(TestCase, Config) ->
     els_test_utils:end_per_testcase(TestCase, Config),
     els_mock_diagnostics:teardown(),
     ok.
+
+-spec init_long_names_config(binary(), config()) -> config().
+init_long_names_config(Content, Config) ->
+    meck:new(yamerl, [passthrough, no_link]),
+    meck:expect(yamerl, decode_file, 2, fun(_, Opts) ->
+        yamerl:decode(Content, Opts)
+    end),
+    els_mock_diagnostics:setup(),
+    els_test_utils:init_per_testcase(code_path_extra_dirs, Config).
 
 % RefactorErl
 
@@ -626,12 +644,30 @@ code_path_extra_dirs(_Config) ->
 
 -spec use_long_names(config()) -> ok.
 use_long_names(_Config) ->
-    {ok, HostName} = inet:gethostname(),
+    HostName = els_config_runtime:get_hostname(),
     NodeName =
         "my_node@" ++
             HostName ++ "." ++
-            proplists:get_value(domain, inet:get_rc(), ""),
+            els_config_runtime:get_domain(),
     Node = list_to_atom(NodeName),
+    ?assertMatch(Node, els_config_runtime:get_node_name()),
+    ok.
+
+-spec use_long_names_no_domain(config()) -> ok.
+use_long_names_no_domain(_Config) ->
+    HostName = els_config_runtime:get_hostname(),
+    NodeName =
+        "my_node@" ++ HostName,
+    Node = list_to_atom(NodeName),
+    ?assertMatch(Node, els_config_runtime:get_node_name()),
+    ok.
+
+-spec use_long_names_custom_hostname(config()) -> ok.
+use_long_names_custom_hostname(_Config) ->
+    HostName = els_config_runtime:get_hostname(),
+    NodeName = "my_node@127.0.0.1",
+    Node = list_to_atom(NodeName),
+    ?assertMatch(HostName, "127.0.0.1"),
     ?assertMatch(Node, els_config_runtime:get_node_name()),
     ok.
 
