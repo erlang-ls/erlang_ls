@@ -15,6 +15,7 @@
     get_meta/2,
     halt/1,
     i/2,
+    interpretable/2,
     load_binary/4,
     meta/4,
     meta_eval/3,
@@ -105,6 +106,12 @@ halt(Node) ->
 -spec i(node(), module()) -> any().
 i(Node, Module) ->
     rpc:call(Node, int, i, [Module]).
+
+-spec interpretable(node(), module() | string()) ->
+    true
+    | {error, no_src | no_beam | no_debug_info | badarg | {app, kernel | stdlib | gs | debugger}}.
+interpretable(Node, AbsModule) ->
+    rpc:call(Node, int, interpretable, [AbsModule]).
 
 -spec load_binary(node(), module(), string(), binary()) -> any().
 load_binary(Node, Module, File, Bin) ->

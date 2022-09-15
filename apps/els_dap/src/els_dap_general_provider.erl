@@ -192,20 +192,20 @@ handle_request(
     ensure_connected(ProjectNode, Timeout),
     {Module, LineBreaks} = els_dap_breakpoints:build_source_breakpoints(Params),
 
-    {module, Module} = els_dap_rpc:i(ProjectNode, Module),
+    {IsModuleAvailable, Message} = maybe_interprete_and_clear_module(ProjectNode, Module),
 
-    %% purge all breakpoints from the module
-    els_dap_rpc:no_break(ProjectNode, Module),
     Breakpoints1 =
         els_dap_breakpoints:do_line_breakpoints(
             ProjectNode,
             Module,
             LineBreaks,
-            Breakpoints0
+            Breakpoints0,
+            IsModuleAvailable
         ),
+
     BreakpointsRsps = [
-        #{<<"verified">> => true, <<"line">> => Line}
-     || {{_, Line}, _} <- els_dap_rpc:all_breaks(ProjectNode, Module)
+        #{<<"verified">> => IsModuleAvailable, <<"line">> => Line, message => Message}
+     || Line <- maps:keys(LineBreaks)
     ],
 
     FunctionBreaks =
@@ -215,7 +215,8 @@ handle_request(
             ProjectNode,
             Module,
             FunctionBreaks,
-            Breakpoints1
+            Breakpoints1,
+            IsModuleAvailable
         ),
 
     {#{<<"breakpoints">> => BreakpointsRsps}, State#{breakpoints => Breakpoints2}};
@@ -232,11 +233,7 @@ handle_request(
     ensure_connected(ProjectNode, Timeout),
     FunctionBreakPoints = maps:get(<<"breakpoints">>, Params, []),
     MFAs = [
-        begin
-            Spec = {Mod, _, _} = parse_mfa(MFA),
-            els_dap_rpc:i(ProjectNode, Mod),
-            Spec
-        end
+        parse_mfa(MFA)
      || #{<<"name">> := MFA, <<"enabled">> := Enabled} <- FunctionBreakPoints,
         Enabled andalso parse_mfa(MFA) =/= error
     ],
@@ -252,54 +249,64 @@ handle_request(
         MFAs
     ),
 
+    %% we need to really purge all break points here
     els_dap_rpc:no_break(ProjectNode),
-    Breakpoints1 = maps:fold(
-        fun(Mod, Breaks, Acc) ->
-            Acc#{Mod => Breaks#{function => []}}
-        end,
-        #{},
-        Breakpoints0
-    ),
 
-    Breakpoints2 = maps:fold(
-        fun(Module, FunctionBreaks, Acc) ->
-            els_dap_breakpoints:do_function_breaks(
-                ProjectNode,
-                Module,
-                FunctionBreaks,
-                Acc
-            )
-        end,
-        Breakpoints1,
-        ModFuncBreaks
-    ),
+    {Breakpoints1, VerifiedMessage} =
+        maps:fold(
+            fun(Module, FunctionBreaks, {AccBP, AccVerified}) ->
+                {IsModuleAvailable, Message} =
+                    maybe_interprete_and_clear_module(ProjectNode, Module),
+                {
+                    els_dap_breakpoints:do_function_breaks(
+                        ProjectNode,
+                        Module,
+                        FunctionBreaks,
+                        AccBP#{
+                            Module => #{function => []}
+                        },
+                        IsModuleAvailable
+                    ),
+                    AccVerified#{Module => {IsModuleAvailable, Message}}
+                }
+            end,
+            {Breakpoints0, #{}},
+            ModFuncBreaks
+        ),
+
     BreakpointsRsps = [
         #{
-            <<"verified">> => true,
-            <<"line">> => Line,
-            <<"source">> => #{<<"path">> => source(Module, ProjectNode)}
+            <<"verified">> => Verified,
+            <<"message">> => Message,
+            <<"source">> => #{
+                <<"path">> =>
+                    case Verified of
+                        true -> source(Module, ProjectNode);
+                        false -> <<"">>
+                    end
+            }
         }
-     || {{Module, Line}, [Status, _, _, _]} <-
-            els_dap_rpc:all_breaks(ProjectNode),
-        Status =:= active
+     || {Module, {Verified, Message}} <- maps:to_list(VerifiedMessage)
     ],
 
     %% replay line breaks
-    Breakpoints3 = maps:fold(
+    Breakpoints2 = maps:fold(
         fun(Module, _, Acc) ->
+            Set = true =:= els_dap_rpc:interpretable(ProjectNode, Module),
             Lines = els_dap_breakpoints:get_line_breaks(Module, Acc),
             els_dap_breakpoints:do_line_breakpoints(
                 ProjectNode,
                 Module,
                 Lines,
-                Acc
+                Acc,
+                Set
             )
         end,
-        Breakpoints2,
-        Breakpoints2
+        Breakpoints1,
+        Breakpoints1
     ),
 
-    {#{<<"breakpoints">> => BreakpointsRsps}, State#{breakpoints => Breakpoints3}};
+    {#{<<"breakpoints">> => BreakpointsRsps}, State#{breakpoints => Breakpoints2}};
 handle_request({<<"threads">>, _Params}, #{threads := Threads0} = State) ->
     Threads =
         [
@@ -1084,3 +1091,25 @@ distribution_error(Error) ->
             io_lib:format("Could not start Erlang distribution. ~p", [Error])
         )
     ).
+
+-spec maybe_interprete_and_clear_module(node(), module()) -> {boolean(), binary()}.
+maybe_interprete_and_clear_module(ProjectNode, Module) ->
+    case els_dap_rpc:interpretable(ProjectNode, Module) of
+        true ->
+            {module, Module} = els_dap_rpc:i(ProjectNode, Module),
+
+            %% purge all breakpoints from the module
+            els_dap_rpc:no_break(ProjectNode, Module),
+            {true, <<"">>};
+        {error, Reason} ->
+            Msg = unicode:characters_to_binary(
+                io_lib:format(
+                    <<
+                        "module not available (~p) in the debugged node, "
+                        "reset the breakpoint when the module is availalbe"
+                    >>,
+                    [Reason]
+                )
+            ),
+            {false, Msg}
+    end.
