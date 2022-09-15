@@ -139,7 +139,12 @@ do_line_breakpoints(Node, Module, LineBreakPoints, Breaks, Set) ->
 -spec do_function_breaks(node(), module(), [function_break()], breakpoints(), boolean()) ->
     breakpoints().
 do_function_breaks(Node, Module, FBreaks, Breaks, Set) ->
-    [[els_dap_rpc:break_in(Node, Module, Func, Arity) || {Func, Arity} <- FBreaks] || Set],
+    case Set of
+        true ->
+            [els_dap_rpc:break_in(Node, Module, Func, Arity) || {Func, Arity} <- FBreaks];
+        false ->
+            ok
+    end,
     case Breaks of
         #{Module := ModBreaks} ->
             Breaks#{Module => ModBreaks#{function => FBreaks}};

@@ -192,7 +192,7 @@ handle_request(
     ensure_connected(ProjectNode, Timeout),
     {Module, LineBreaks} = els_dap_breakpoints:build_source_breakpoints(Params),
 
-    {IsModuleAvailable, Message} = maybe_interprete_and_clear_module(ProjectNode, Module),
+    {IsModuleAvailable, Message} = maybe_interpret_and_clear_module(ProjectNode, Module),
 
     Breakpoints1 =
         els_dap_breakpoints:do_line_breakpoints(
@@ -256,7 +256,7 @@ handle_request(
         maps:fold(
             fun(Module, FunctionBreaks, {AccBP, AccVerified}) ->
                 {IsModuleAvailable, Message} =
-                    maybe_interprete_and_clear_module(ProjectNode, Module),
+                    maybe_interpret_and_clear_module(ProjectNode, Module),
                 {
                     els_dap_breakpoints:do_function_breaks(
                         ProjectNode,
@@ -1092,8 +1092,8 @@ distribution_error(Error) ->
         )
     ).
 
--spec maybe_interprete_and_clear_module(node(), module()) -> {boolean(), binary()}.
-maybe_interprete_and_clear_module(ProjectNode, Module) ->
+-spec maybe_interpret_and_clear_module(node(), module()) -> {boolean(), binary()}.
+maybe_interpret_and_clear_module(ProjectNode, Module) ->
     case els_dap_rpc:interpretable(ProjectNode, Module) of
         true ->
             {module, Module} = els_dap_rpc:i(ProjectNode, Module),
