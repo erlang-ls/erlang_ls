@@ -478,6 +478,16 @@ breakpoints(Config) ->
         )
     ),
     ?assertMatch([{{els_dap_test_module, 9}, _}], els_dap_rpc:all_breaks(Node)),
+
+    els_dap_provider:handle_request(
+        Provider,
+        request_set_breakpoints(
+            path_to_test_module(DataDir, i_dont_exist),
+            [42]
+        )
+    ),
+    ?assertMatch([{{els_dap_test_module, 9}, _}], els_dap_rpc:all_breaks(Node)),
+
     els_dap_provider:handle_request(
         Provider,
         request_set_function_breakpoints([<<"els_dap_test_module:entry/1">>])
@@ -508,7 +518,16 @@ breakpoints(Config) ->
         Provider,
         request_set_function_breakpoints([])
     ),
-    ?assertMatch([{{els_dap_test_module, 9}, _}], els_dap_rpc:all_breaks(Node)),
+    ?assertMatch(
+        [{{els_dap_test_module, 9}, _}], els_dap_rpc:all_breaks(Node)
+    ),
+    els_dap_provider:handle_request(
+        Provider,
+        request_set_function_breakpoints([<<"i_dont:exist/42">>])
+    ),
+    ?assertMatch(
+        [{{els_dap_test_module, 9}, _}], els_dap_rpc:all_breaks(Node)
+    ),
     ok.
 
 -spec project_node_exit(config()) -> ok.

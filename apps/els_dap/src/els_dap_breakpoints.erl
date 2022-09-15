@@ -3,8 +3,8 @@
     build_source_breakpoints/1,
     get_function_breaks/2,
     get_line_breaks/2,
-    do_line_breakpoints/4,
-    do_function_breaks/4,
+    do_line_breakpoints/5,
+    do_function_breaks/5,
     type/3
 ]).
 
@@ -108,21 +108,27 @@ get_function_breaks(Module, Breaks) ->
 get_line_breaks(Module, Breaks) ->
     case Breaks of
         #{Module := #{line := Lines}} -> Lines;
-        _ -> []
+        _ -> #{}
     end.
 
 -spec do_line_breakpoints(
     node(),
     module(),
     #{line() => line_breaks()},
-    breakpoints()
+    breakpoints(),
+    boolean()
 ) ->
     breakpoints().
-do_line_breakpoints(Node, Module, LineBreakPoints, Breaks) ->
-    maps:map(
-        fun(Line, _) -> els_dap_rpc:break(Node, Module, Line) end,
-        LineBreakPoints
-    ),
+do_line_breakpoints(Node, Module, LineBreakPoints, Breaks, Set) ->
+    case Set of
+        true ->
+            maps:map(
+                fun(Line, _) -> els_dap_rpc:break(Node, Module, Line) end,
+                LineBreakPoints
+            );
+        false ->
+            ok
+    end,
     case Breaks of
         #{Module := ModBreaks} ->
             Breaks#{Module => ModBreaks#{line => LineBreakPoints}};
@@ -130,10 +136,15 @@ do_line_breakpoints(Node, Module, LineBreakPoints, Breaks) ->
             Breaks#{Module => #{line => LineBreakPoints, function => []}}
     end.
 
--spec do_function_breaks(node(), module(), [function_break()], breakpoints()) ->
+-spec do_function_breaks(node(), module(), [function_break()], breakpoints(), boolean()) ->
     breakpoints().
-do_function_breaks(Node, Module, FBreaks, Breaks) ->
-    [els_dap_rpc:break_in(Node, Module, Func, Arity) || {Func, Arity} <- FBreaks],
+do_function_breaks(Node, Module, FBreaks, Breaks, Set) ->
+    case Set of
+        true ->
+            [els_dap_rpc:break_in(Node, Module, Func, Arity) || {Func, Arity} <- FBreaks];
+        false ->
+            ok
+    end,
     case Breaks of
         #{Module := ModBreaks} ->
             Breaks#{Module => ModBreaks#{function => FBreaks}};
