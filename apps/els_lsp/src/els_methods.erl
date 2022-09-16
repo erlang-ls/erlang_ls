@@ -306,9 +306,12 @@ completionitem_resolve(Params, State) ->
 -spec textdocument_definition(params(), els_server:state()) -> result().
 textdocument_definition(Params, State) ->
     Provider = els_definition_provider,
-    {response, Response} =
-        els_provider:handle_request(Provider, {definition, Params}),
-    {response, Response, State}.
+    case els_provider:handle_request(Provider, {definition, Params}) of
+        {response, Response} ->
+            {response, Response, State};
+        {async, Uri, Job} ->
+            {async, Uri, Job, State}
+    end.
 
 %%==============================================================================
 %% textDocument/references
@@ -317,9 +320,8 @@ textdocument_definition(Params, State) ->
 -spec textdocument_references(params(), els_server:state()) -> result().
 textdocument_references(Params, State) ->
     Provider = els_references_provider,
-    {response, Response} =
-        els_provider:handle_request(Provider, {references, Params}),
-    {response, Response, State}.
+    {async, Uri, Job} = els_provider:handle_request(Provider, {references, Params}),
+    {async, Uri, Job, State}.
 
 %%==============================================================================
 %% textDocument/documentHightlight
