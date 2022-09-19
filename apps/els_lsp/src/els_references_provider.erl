@@ -17,6 +17,7 @@
 %% Includes
 %%==============================================================================
 -include("els_lsp.hrl").
+-include_lib("kernel/include/logger.hrl").
 
 %%==============================================================================
 %% Types
@@ -25,7 +26,7 @@
 %%==============================================================================
 %% els_provider functions
 %%==============================================================================
--spec handle_request(any()) -> {response, [location()] | null}.
+-spec handle_request(any()) -> {async, uri(), pid()}.
 handle_request({references, Params}) ->
     #{
         <<"position">> := #{
@@ -34,6 +35,30 @@ handle_request({references, Params}) ->
         },
         <<"textDocument">> := #{<<"uri">> := Uri}
     } = Params,
+    ?LOG_DEBUG(
+        "Starting references job " "[uri=~p, line=~p, character=~p]",
+        [Uri, Line, Character]
+    ),
+    Job = run_references_job(Uri, Line, Character),
+    {async, Uri, Job}.
+
+-spec run_references_job(uri(), line(), column()) -> pid().
+run_references_job(Uri, Line, Character) ->
+    Config = #{
+        task => fun get_references/2,
+        entries => [{Uri, Line, Character}],
+        title => <<"References">>,
+        on_complete =>
+            fun(ReferencesResp) ->
+                els_server ! {result, ReferencesResp, self()},
+                ok
+            end
+    },
+    {ok, Pid} = els_background_job:new(Config),
+    Pid.
+
+-spec get_references({uri(), integer(), integer()}, _) -> null | [location()].
+get_references({Uri, Line, Character}, _) ->
     {ok, Document} = els_utils:lookup_document(Uri),
     Refs =
         case els_dt_document:get_element_at_pos(Document, Line + 1, Character + 1) of
@@ -41,8 +66,8 @@ handle_request({references, Params}) ->
             [] -> []
         end,
     case Refs of
-        [] -> {response, null};
-        Rs -> {response, Rs}
+        [] -> null;
+        Rs -> Rs
     end.
 
 %%==============================================================================

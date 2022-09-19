@@ -11,7 +11,7 @@
 %%==============================================================================
 %% els_provider functions
 %%==============================================================================
--spec handle_request(any()) -> {response, any()}.
+-spec handle_request(any()) -> {response, any()} | {async, uri(), pid()}.
 handle_request({definition, Params}) ->
     #{
         <<"position">> := #{
