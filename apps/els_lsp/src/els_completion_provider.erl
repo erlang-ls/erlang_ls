@@ -31,7 +31,16 @@
 %%==============================================================================
 -spec trigger_characters() -> [binary()].
 trigger_characters() ->
-    [<<":">>, <<"#">>, <<"?">>, <<".">>, <<"-">>, <<"\"">>].
+    [
+        <<":">>,
+        <<"#">>,
+        <<"?">>,
+        <<".">>,
+        <<"-">>,
+        <<"\"">>,
+        <<"{">>,
+        <<" ">>
+    ].
 
 -spec handle_request(els_provider:provider_request()) -> {response, any()}.
 handle_request({completion, Params}) ->
@@ -157,6 +166,28 @@ find_completions(
 ) ->
     definitions(Document, record);
 find_completions(
+    Prefix,
+    ?COMPLETION_TRIGGER_KIND_CHARACTER,
+    #{trigger := <<"{">>, document := Document}
+) ->
+    case lists:reverse(els_text:tokens(string:trim(Prefix))) of
+        [{atom, _, Name} | _] ->
+            record_fields_with_var(Document, Name);
+        _ ->
+            []
+    end;
+find_completions(
+    Prefix,
+    ?COMPLETION_TRIGGER_KIND_CHARACTER,
+    #{trigger := <<" ">>} = Opts
+) ->
+    case lists:reverse(els_text:tokens(string:trim(Prefix))) of
+        [{',', _} | _] = Tokens ->
+            complete_record_field(Opts, Tokens);
+        _ ->
+            []
+    end;
+find_completions(
     <<"-include_lib(">>,
     ?COMPLETION_TRIGGER_KIND_CHARACTER,
     #{trigger := <<"\"">>}
@@ -186,7 +217,7 @@ find_completions(
         document := Document,
         line := Line,
         column := Column
-    }
+    } = Opts
 ) when
     TriggerKind =:= ?COMPLETION_TRIGGER_KIND_INVOKED;
     TriggerKind =:= ?COMPLETION_TRIGGER_KIND_FOR_INCOMPLETE_COMPLETIONS
@@ -224,6 +255,9 @@ find_completions(
         %% Check for "[...] #anything"
         [_, {'#', _} | _] ->
             definitions(Document, record);
+        %% Check for "[...] #anything{"
+        [{'{', _}, {atom, _, RecordName}, {'#', _} | _] ->
+            record_fields_with_var(Document, RecordName);
         %% Check for "[...] Variable"
         [{var, _, _} | _] ->
             variables(Document);
@@ -260,7 +294,7 @@ find_completions(
             bifs(function, ExportFormat = true) ++
                 definitions(Document, function, ExportFormat = true);
         %% Check for "[...] atom"
-        [{atom, _, Name} | _] ->
+        [{atom, _, Name} | _] = Tokens ->
             NameBinary = atom_to_binary(Name, utf8),
             {ExportFormat, POIKind} = completion_context(Document, Line, Column),
             case ExportFormat of
@@ -268,13 +302,18 @@ find_completions(
                     %% Only complete unexported definitions when in export
                     unexported_definitions(Document, POIKind);
                 false ->
-                    keywords() ++
-                        bifs(POIKind, ExportFormat) ++
-                        atoms(Document, NameBinary) ++
-                        all_record_fields(Document, NameBinary) ++
-                        modules(NameBinary) ++
-                        definitions(Document, POIKind, ExportFormat) ++
-                        els_snippets_server:snippets()
+                    case complete_record_field(Opts, Tokens) of
+                        [] ->
+                            keywords() ++
+                                bifs(POIKind, ExportFormat) ++
+                                atoms(Document, NameBinary) ++
+                                all_record_fields(Document, NameBinary) ++
+                                modules(NameBinary) ++
+                                definitions(Document, POIKind, ExportFormat) ++
+                                els_snippets_server:snippets();
+                        RecordFields ->
+                            RecordFields
+                    end
             end;
         Tokens ->
             ?LOG_DEBUG(
@@ -285,6 +324,51 @@ find_completions(
     end;
 find_completions(_Prefix, _TriggerKind, _Opts) ->
     [].
+
+-spec complete_record_field(map(), list()) -> items().
+complete_record_field(_Opts, [{atom, _, _}, {'=', _} | _]) ->
+    [];
+complete_record_field(
+    #{document := Document, line := Line, column := Col},
+    _Tokens
+) ->
+    complete_record_field(Document, {Line, Col}, <<"key=val}.">>).
+
+-spec complete_record_field(map(), pos(), binary()) -> items().
+complete_record_field(#{text := Text} = Document, Pos, Suffix) ->
+    T0 = els_text:range(Text, {1, 1}, Pos),
+    POIs = els_dt_document:pois(Document, [function]),
+    Line =
+        case els_scope:pois_before(POIs, #{from => Pos, to => Pos}) of
+            [#{range := #{to := {L, _}}} | _] ->
+                L;
+            _ ->
+                %% No function before
+                1
+        end,
+    %% Just look at lines after last function
+    {_, T} = els_text:split_at_line(T0, Line),
+    case parse_record(els_text:strip_comments(T), Suffix) of
+        {ok, Id} ->
+            record_fields_with_var(Document, Id);
+        error ->
+            []
+    end.
+
+-spec parse_record(binary(), binary()) -> {ok, els_poi:poi_id()} | error.
+parse_record(Text, Suffix) ->
+    case string:split(Text, <<"#">>, trailing) of
+        [_] ->
+            error;
+        [Left, Right] ->
+            Str = <<"#", Right/binary, Suffix/binary>>,
+            case els_parser:parse(Str) of
+                {ok, [#{kind := record_expr, id := Id} | _]} ->
+                    {ok, Id};
+                _ ->
+                    parse_record(Left, Str)
+            end
+    end.
 
 %%=============================================================================
 %% Attributes
@@ -685,6 +769,30 @@ record_fields(Document, RecordName) ->
             ]
     end.
 
+-spec record_fields_with_var(els_dt_document:item(), atom()) -> [map()].
+record_fields_with_var(Document, RecordName) ->
+    case find_record_definition(Document, RecordName) of
+        [] ->
+            [];
+        POIs ->
+            [#{data := #{field_list := Fields}} | _] = els_poi:sort(POIs),
+            [
+                #{
+                    label => atom_to_label(Name),
+                    kind => ?COMPLETION_ITEM_KIND_FIELD,
+                    insertText => format_record_field_with_var(Name),
+                    insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+                }
+             || Name <- Fields
+            ]
+    end.
+
+-spec format_record_field_with_var(atom()) -> binary().
+format_record_field_with_var(Name) ->
+    Label = atom_to_label(Name),
+    Var = els_utils:camel_case(Label),
+    <<Label/binary, " = ${1:", Var/binary, "}">>.
+
 -spec find_record_definition(els_dt_document:item(), atom()) -> [els_poi:poi()].
 find_record_definition(Document, RecordName) ->
     POIs = els_scope:local_and_included_pois(Document, record),
@@ -1031,5 +1139,23 @@ strip_app_version_test() ->
     ?assertEqual(<<"foo-bar">>, strip_app_version(<<"foo-bar-1.2.3">>)),
     ?assertEqual(<<"foo-bar-baz">>, strip_app_version(<<"foo-bar-baz">>)),
     ?assertEqual(<<"foo-bar-baz">>, strip_app_version(<<"foo-bar-baz-1.2.3">>)).
+
+parse_record_test() ->
+    ?assertEqual(
+        {ok, foo},
+        parse_record(<<"#foo">>, <<"{}.">>)
+    ),
+    ?assertEqual(
+        {ok, foo},
+        parse_record(<<"#foo{x = y">>, <<"}.">>)
+    ),
+    ?assertEqual(
+        {ok, foo},
+        parse_record(<<"#foo{x = #bar{}">>, <<"}.">>)
+    ),
+    ?assertEqual(
+        {ok, foo},
+        parse_record(<<"#foo{x = #bar{y = #baz{}}">>, <<"}.">>)
+    ).
 
 -endif.
