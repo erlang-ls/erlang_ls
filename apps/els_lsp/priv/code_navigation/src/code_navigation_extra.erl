@@ -1,6 +1,6 @@
 -module(code_navigation_extra).
 
--export([ do/1, do_2/0, 'DO_LOUDER'/0 ]).
+-export([ do/1, do_2/0, 'DO_LOUDER'/0, function_a/2 ]).
 
 do(_Config) ->
   do_4(1, foo).
@@ -21,3 +21,8 @@ do_4(_, _) ->
 
 'DO_LOUDER'() ->
   'Code.Navigation.Elixirish':do('Atom').
+
+function_a(Arg1, Arg2) ->
+  funct(),
+  code_navigation:().
+  code_navigation:funct().
