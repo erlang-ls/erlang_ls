@@ -32,7 +32,8 @@
     record_def_recursive/1,
     var_in_application/1,
     unicode_clause_pattern/1,
-    latin1_source_code/1
+    latin1_source_code/1,
+    record_comment/1
 ]).
 
 %%==============================================================================
@@ -449,6 +450,16 @@ latin1_source_code(_Config) ->
     ?assertMatch(
         [#{data := <<"(\"È\") "/utf8>>}],
         parse_find_pois(Text, function_clause, {f, 1, 1})
+    ),
+    ok.
+
+%% Issue #1290 Parsing error
+-spec record_comment(config()) -> ok.
+record_comment(_Config) ->
+    Text = <<"#my_record{\n%% TODO\n}.">>,
+    ?assertMatch(
+        [#{id := my_record}],
+        parse_find_pois(Text, record_expr)
     ),
     ok.
 

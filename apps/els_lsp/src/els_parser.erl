@@ -851,7 +851,9 @@ record_field_name(FieldNode, Record, Kind) ->
             record_field ->
                 erl_syntax:record_field_name(FieldNode);
             record_type_field ->
-                erl_syntax:record_type_field_name(FieldNode)
+                erl_syntax:record_type_field_name(FieldNode);
+            comment ->
+                undefined
         end,
     case is_atom_node(NameNode) of
         {true, NameAtom} ->
@@ -968,7 +970,9 @@ macro_name(Tree) ->
 macro_name(Name, none) -> node_name(Name);
 macro_name(Name, Args) -> {node_name(Name), length(Args)}.
 
--spec is_atom_node(tree()) -> {true, atom()} | false.
+-spec is_atom_node(tree() | undefined) -> {true, atom()} | false.
+is_atom_node(undefined) ->
+    false;
 is_atom_node(Tree) ->
     case erl_syntax:type(Tree) of
         atom ->
