@@ -3,7 +3,8 @@
 -behaviour(els_provider).
 
 -export([
-    handle_request/1
+    handle_request/1,
+    options/0
 ]).
 
 %%==============================================================================
@@ -38,10 +39,23 @@ handle_request({rename, Params}) ->
     WorkspaceEdits = workspace_edits(Uri, Elem, NewName),
     {response, WorkspaceEdits}.
 
+-spec options() -> boolean() | map().
+options() ->
+    case els_config:get(capabilities) of
+        #{<<"textDocument">> := #{<<"rename">> := #{<<"prepareSupport">> := true}}} ->
+            #{prepareProvider => true};
+        _ ->
+            true
+    end.
+
 %%==============================================================================
 %% Internal functions
 %%==============================================================================
--spec workspace_edits(uri(), [els_poi:poi()], binary()) -> null | [any()].
+-spec workspace_edits(
+    uri(),
+    [els_poi:poi()],
+    binary()
+) -> null | [any()].
 workspace_edits(_Uri, [], _NewName) ->
     null;
 workspace_edits(OldUri, [#{kind := module} = POI | _], NewName) ->
@@ -61,7 +75,8 @@ workspace_edits(OldUri, [#{kind := module} = POI | _], NewName) ->
     ]),
     Changes = [
         #{
-            textDocument => #{uri => RefUri, version => null},
+            textDocument =>
+                #{uri => RefUri, version => null},
             edits => [
                 #{
                     range => editable_range(RefPOI, module),

@@ -46,7 +46,8 @@
     document_formatting/3,
     document_rangeformatting/3,
     document_ontypeformatting/4,
-    document_rename/4,
+    rename/4,
+    prepare_rename/3,
     folding_range/1,
     shutdown/0,
     start_link/1,
@@ -179,10 +180,15 @@ document_rangeformatting(Uri, Range, FormattingOptions) ->
 document_ontypeformatting(Uri, Position, Char, FormattingOptions) ->
     gen_server:call(?SERVER, {document_ontypeformatting, {Uri, Position, Char, FormattingOptions}}).
 
--spec document_rename(uri(), non_neg_integer(), non_neg_integer(), binary()) ->
+-spec rename(uri(), non_neg_integer(), non_neg_integer(), binary()) ->
     ok.
-document_rename(Uri, Line, Character, NewName) ->
+rename(Uri, Line, Character, NewName) ->
     gen_server:call(?SERVER, {rename, {Uri, Line, Character, NewName}}).
+
+-spec prepare_rename(uri(), non_neg_integer(), non_neg_integer()) ->
+    ok.
+prepare_rename(Uri, Line, Character) ->
+    gen_server:call(?SERVER, {preparerename, {Uri, Line, Character}}).
 
 -spec did_open(uri(), binary(), number(), binary()) -> ok.
 did_open(Uri, LanguageId, Version, Text) ->
@@ -447,6 +453,7 @@ method_lookup(document_formatting) -> <<"textDocument/formatting">>;
 method_lookup(document_rangeformatting) -> <<"textDocument/rangeFormatting">>;
 method_lookup(document_ontypeormatting) -> <<"textDocument/onTypeFormatting">>;
 method_lookup(rename) -> <<"textDocument/rename">>;
+method_lookup(preparerename) -> <<"textDocument/prepareRename">>;
 method_lookup(did_open) -> <<"textDocument/didOpen">>;
 method_lookup(did_save) -> <<"textDocument/didSave">>;
 method_lookup(did_close) -> <<"textDocument/didClose">>;
@@ -506,7 +513,9 @@ request_params({initialize, {RootUri, InitOptions}}) ->
                     #{<<"snippetSupport">> => 'true'}
             },
         <<"hover">> =>
-            #{<<"contentFormat">> => ContentFormat}
+            #{<<"contentFormat">> => ContentFormat},
+        <<"rename">> =>
+            #{<<"prepareSupport">> => 'true'}
     },
     #{
         <<"rootUri">> => RootUri,
@@ -537,6 +546,14 @@ request_params({rename, {Uri, Line, Character, NewName}}) ->
             character => Character
         },
         newName => NewName
+    };
+request_params({preparerename, {Uri, Line, Character}}) ->
+    #{
+        textDocument => #{uri => Uri},
+        position => #{
+            line => Line,
+            character => Character
+        }
     };
 request_params({folding_range, {Uri}}) ->
     TextDocument = #{uri => Uri},

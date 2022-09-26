@@ -25,7 +25,8 @@
     rename_parametrized_macro/1,
     rename_macro_from_usage/1,
     rename_record/1,
-    rename_record_field/1
+    rename_record_field/1,
+    prepare_rename/1
 ]).
 
 %%==============================================================================
@@ -75,7 +76,7 @@ rename_behaviour_callback(Config) ->
     Line = 2,
     Char = 9,
     NewName = <<"new_awesome_name">>,
-    #{result := Result} = els_client:document_rename(Uri, Line, Char, NewName),
+    Result = rename(Uri, Line, Char, NewName),
     Expected = #{
         changes =>
             #{
@@ -154,7 +155,7 @@ rename_variable(Config) ->
     UriAtom = binary_to_atom(Uri, utf8),
     NewName = <<"NewAwesomeName">>,
     %%
-    #{result := Result1} = els_client:document_rename(Uri, 3, 3, NewName),
+    Result1 = rename(Uri, 3, 3, NewName),
     Expected1 = #{
         changes => #{
             UriAtom => [
@@ -163,7 +164,7 @@ rename_variable(Config) ->
             ]
         }
     },
-    #{result := Result2} = els_client:document_rename(Uri, 2, 5, NewName),
+    Result2 = rename(Uri, 2, 5, NewName),
     Expected2 = #{
         changes => #{
             UriAtom => [
@@ -172,7 +173,7 @@ rename_variable(Config) ->
             ]
         }
     },
-    #{result := Result3} = els_client:document_rename(Uri, 6, 3, NewName),
+    Result3 = rename(Uri, 6, 3, NewName),
     Expected3 = #{
         changes => #{
             UriAtom => [
@@ -183,7 +184,7 @@ rename_variable(Config) ->
             ]
         }
     },
-    #{result := Result4} = els_client:document_rename(Uri, 11, 3, NewName),
+    Result4 = rename(Uri, 11, 3, NewName),
     Expected4 = #{
         changes => #{
             UriAtom => [
@@ -193,7 +194,7 @@ rename_variable(Config) ->
         }
     },
     %% Spec
-    #{result := Result5} = els_client:document_rename(Uri, 13, 10, NewName),
+    Result5 = rename(Uri, 13, 10, NewName),
     Expected5 = #{
         changes => #{
             UriAtom => [
@@ -204,7 +205,7 @@ rename_variable(Config) ->
         }
     },
     %% Record
-    #{result := Result6} = els_client:document_rename(Uri, 18, 19, NewName),
+    Result6 = rename(Uri, 18, 19, NewName),
     Expected6 = #{
         changes => #{
             UriAtom => [
@@ -214,7 +215,7 @@ rename_variable(Config) ->
         }
     },
     %% Macro
-    #{result := Result7} = els_client:document_rename(Uri, 21, 20, NewName),
+    Result7 = rename(Uri, 21, 20, NewName),
     Expected7 = #{
         changes => #{
             UriAtom => [
@@ -225,7 +226,7 @@ rename_variable(Config) ->
         }
     },
     %% Type
-    #{result := Result8} = els_client:document_rename(Uri, 23, 11, NewName),
+    Result8 = rename(Uri, 23, 11, NewName),
     Expected8 = #{
         changes => #{
             UriAtom => [
@@ -235,7 +236,7 @@ rename_variable(Config) ->
         }
     },
     %% Opaque
-    #{result := Result9} = els_client:document_rename(Uri, 24, 15, NewName),
+    Result9 = rename(Uri, 24, 15, NewName),
     Expected9 = #{
         changes => #{
             UriAtom => [
@@ -245,7 +246,7 @@ rename_variable(Config) ->
         }
     },
     %% Callback
-    #{result := Result10} = els_client:document_rename(Uri, 1, 15, NewName),
+    Result10 = rename(Uri, 1, 15, NewName),
     Expected10 = #{
         changes => #{
             UriAtom => [
@@ -255,7 +256,7 @@ rename_variable(Config) ->
         }
     },
     %% If
-    #{result := Result11} = els_client:document_rename(Uri, 29, 4, NewName),
+    Result11 = rename(Uri, 29, 4, NewName),
     Expected11 = #{
         changes => #{
             UriAtom => [
@@ -283,7 +284,7 @@ rename_macro(Config) ->
     Char = 13,
     NewName = <<"NEW_AWESOME_NAME">>,
     NewNameUsage = <<"?NEW_AWESOME_NAME">>,
-    #{result := Result} = els_client:document_rename(Uri, Line, Char, NewName),
+    Result = rename(Uri, Line, Char, NewName),
     Expected = #{
         changes =>
             #{
@@ -339,8 +340,7 @@ rename_module(Config) ->
     NewName = <<"new_module">>,
     Path = filename:dirname(els_uri:path(UriA)),
     NewUri = els_uri:uri(filename:join(Path, <<NewName/binary, ".erl">>)),
-    #{result := #{documentChanges := Result}} =
-        els_client:document_rename(UriA, 0, 14, NewName),
+    #{documentChanges := Result} = rename(UriA, 0, 14, NewName),
     Expected = [
         %% Module attribute
         #{
@@ -389,19 +389,19 @@ rename_function(Config) ->
     ImportUri = ?config(rename_function_import_uri, Config),
     NewName = <<"new_function">>,
     %% Function
-    #{result := Result} = els_client:document_rename(Uri, 4, 2, NewName),
+    Result = rename(Uri, 4, 2, NewName),
     %% Function clause
-    #{result := Result} = els_client:document_rename(Uri, 6, 2, NewName),
+    Result = rename(Uri, 6, 2, NewName),
     %% Application
-    #{result := Result} = els_client:document_rename(ImportUri, 7, 18, NewName),
+    Result = rename(ImportUri, 7, 18, NewName),
     %% Implicit fun
-    #{result := Result} = els_client:document_rename(Uri, 13, 10, NewName),
+    Result = rename(Uri, 13, 10, NewName),
     %% Export entry
-    #{result := Result} = els_client:document_rename(Uri, 1, 9, NewName),
+    Result = rename(Uri, 1, 9, NewName),
     %% Import entry
-    #{result := Result} = els_client:document_rename(ImportUri, 2, 26, NewName),
+    Result = rename(ImportUri, 2, 26, NewName),
     %% Spec
-    #{result := Result} = els_client:document_rename(Uri, 3, 2, NewName),
+    Result = rename(Uri, 3, 2, NewName),
     Expected = #{
         changes =>
             #{
@@ -434,7 +434,7 @@ rename_function_quoted_atom(Config) ->
     Line = 21,
     Char = 2,
     NewName = <<"new_function">>,
-    #{result := Result} = els_client:document_rename(Uri, Line, Char, NewName),
+    Result = rename(Uri, Line, Char, NewName),
     Expected = #{
         changes =>
             #{
@@ -459,13 +459,13 @@ rename_type(Config) ->
     Uri = ?config(rename_type_uri, Config),
     NewName = <<"new_type">>,
     %% Definition
-    #{result := Result} = els_client:document_rename(Uri, 3, 7, NewName),
+    Result = rename(Uri, 3, 7, NewName),
     %% Application
-    #{result := Result} = els_client:document_rename(Uri, 5, 18, NewName),
+    Result = rename(Uri, 5, 18, NewName),
     %% Fully qualified application
-    #{result := Result} = els_client:document_rename(Uri, 4, 30, NewName),
+    Result = rename(Uri, 4, 30, NewName),
     %% Export
-    #{result := Result} = els_client:document_rename(Uri, 1, 14, NewName),
+    Result = rename(Uri, 1, 14, NewName),
     Expected = #{
         changes =>
             #{
@@ -485,11 +485,11 @@ rename_opaque(Config) ->
     Uri = ?config(rename_type_uri, Config),
     NewName = <<"new_opaque">>,
     %% Definition
-    #{result := Result} = els_client:document_rename(Uri, 4, 10, NewName),
+    Result = rename(Uri, 4, 10, NewName),
     %% Application
-    #{result := Result} = els_client:document_rename(Uri, 5, 29, NewName),
+    Result = rename(Uri, 5, 29, NewName),
     %% Export
-    #{result := Result} = els_client:document_rename(Uri, 1, 24, NewName),
+    Result = rename(Uri, 1, 24, NewName),
     Expected = #{
         changes =>
             #{
@@ -510,7 +510,7 @@ rename_parametrized_macro(Config) ->
     Char = 16,
     NewName = <<"NEW_AWESOME_NAME">>,
     NewNameUsage = <<"?NEW_AWESOME_NAME">>,
-    #{result := Result} = els_client:document_rename(Uri, Line, Char, NewName),
+    Result = rename(Uri, Line, Char, NewName),
     Expected = #{
         changes =>
             #{
@@ -568,7 +568,7 @@ rename_macro_from_usage(Config) ->
     Char = 7,
     NewName = <<"NEW_AWESOME_NAME">>,
     NewNameUsage = <<"?NEW_AWESOME_NAME">>,
-    #{result := Result} = els_client:document_rename(Uri, Line, Char, NewName),
+    Result = rename(Uri, Line, Char, NewName),
     Expected = #{
         changes =>
             #{
@@ -677,11 +677,8 @@ rename_record(Config) ->
     },
 
     %% definition
-    #{result := Result} = els_client:document_rename(HdrUri, 4, 10, NewName),
-    assert_changes(Expected, Result),
-    %% usage
-    #{result := Result2} = els_client:document_rename(UsageUri, 22, 10, NewName),
-    assert_changes(Expected, Result2).
+    assert_changes(Expected, rename(HdrUri, 4, 10, NewName)),
+    assert_changes(Expected, rename(UsageUri, 22, 10, NewName)).
 
 -spec rename_record_field(config()) -> ok.
 rename_record_field(Config) ->
@@ -742,11 +739,18 @@ rename_record_field(Config) ->
     },
 
     %% definition
-    #{result := Result} = els_client:document_rename(HdrUri, 4, 25, NewName),
+    Result = rename(HdrUri, 4, 25, NewName),
     assert_changes(Expected, Result),
     %% usage
-    #{result := Result2} = els_client:document_rename(UsageUri, 22, 25, NewName),
-    assert_changes(Expected, Result2).
+    assert_changes(Expected, rename(UsageUri, 22, 25, NewName)).
+
+-spec prepare_rename(config()) -> ok.
+prepare_rename(Config) ->
+    Uri = ?config(rename_uri, Config),
+    %% Pointing to something that isn't a renameable POI should
+    %% cause prepareRename to fail.
+    ?assertEqual(prepare_rename_failed, rename(Uri, 1, 1, <<"NewName">>)),
+    ?assertEqual(prepare_rename_failed, rename(Uri, 99, 99, <<"NewName">>)).
 
 assert_changes(#{changes := ExpectedChanges}, #{changes := Changes}) ->
     ?assertEqual(maps:keys(ExpectedChanges), maps:keys(Changes)),
@@ -771,3 +775,16 @@ change(NewName, {FromL, FromC}, {ToL, ToC}) ->
             'end' => #{character => ToC, line => ToL}
         }
     }.
+
+rename(Uri, Line, Character, NewName) ->
+    case els_client:prepare_rename(Uri, Line, Character) of
+        #{result := null} ->
+            prepare_rename_failed;
+        #{result := _PreResult} ->
+            case els_client:rename(Uri, Line, Character, NewName) of
+                #{result := null} ->
+                    rename_failed;
+                #{result := Result} ->
+                    Result
+            end
+    end.

@@ -27,6 +27,7 @@
     textdocument_codeaction/2,
     textdocument_codelens/2,
     textdocument_rename/2,
+    textdocument_preparerename/2,
     textdocument_preparecallhierarchy/2,
     textdocument_semantictokens_full/2,
     textdocument_signaturehelp/2,
@@ -430,6 +431,16 @@ textdocument_rename(Params, State) ->
     Provider = els_rename_provider,
     {response, Response} =
         els_provider:handle_request(Provider, {rename, Params}),
+    {response, Response, State}.
+
+%%==============================================================================
+%% textDocument/prepareRename
+%%=============================================================================
+-spec textdocument_preparerename(params(), els_server:state()) -> result().
+textdocument_preparerename(Params, State) ->
+    Provider = els_prepare_rename_provider,
+    {response, Response} =
+        els_provider:handle_request(Provider, {prepare_rename, Params}),
     {response, Response, State}.
 
 %%==============================================================================
