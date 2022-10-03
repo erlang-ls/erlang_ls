@@ -53,8 +53,12 @@ docs(_Uri, #{kind := Kind, id := {M, F, A}}) when
 docs(Uri, #{kind := Kind, id := {F, A}}) when
     Kind =:= application;
     Kind =:= implicit_fun;
-    Kind =:= export_entry
+    Kind =:= export_entry;
+    Kind =:= spec
 ->
+    M = els_uri:module(Uri),
+    function_docs('local', M, F, A);
+docs(Uri, #{kind := function_clause, id := {F, A, _Index}}) ->
     M = els_uri:module(Uri),
     function_docs('local', M, F, A);
 docs(Uri, #{kind := macro, id := Name} = POI) ->

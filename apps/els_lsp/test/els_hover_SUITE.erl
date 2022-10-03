@@ -24,6 +24,8 @@
     remote_fun_expression/1,
     no_poi/1,
     included_macro/1,
+    edoc_spec/1,
+    edoc_definition/1,
     local_macro/1,
     weird_macro/1,
     macro_with_zero_args/1,
@@ -264,6 +266,50 @@ remote_fun_expression(Config) ->
     ?assertEqual(Expected, Contents),
     ok.
 
+edoc_definition(Config) ->
+    Uri = ?config(hover_docs_caller_uri, Config),
+    #{result := Result} = els_client:hover(Uri, 41, 3),
+    ?assert(maps:is_key(contents, Result)),
+    Contents = maps:get(contents, Result),
+    Value =
+        case has_eep48_edoc() of
+            true ->
+                <<"```erlang\nedoc() -> ok.\n```\n\n---\n\nAn edoc hover item\n">>;
+            false ->
+                <<
+                    "## edoc/0\n\n---\n\n```erlang\n-spec edoc() -> ok.\n```\n\n"
+                    "An edoc hover item\n\n"
+                >>
+        end,
+    Expected = #{
+        kind => <<"markdown">>,
+        value => Value
+    },
+    ?assertEqual(Expected, Contents),
+    ok.
+
+edoc_spec(Config) ->
+    Uri = ?config(hover_docs_caller_uri, Config),
+    #{result := Result} = els_client:hover(Uri, 40, 10),
+    ?assert(maps:is_key(contents, Result)),
+    Contents = maps:get(contents, Result),
+    Value =
+        case has_eep48_edoc() of
+            true ->
+                <<"```erlang\nedoc() -> ok.\n```\n\n---\n\nAn edoc hover item\n">>;
+            false ->
+                <<
+                    "## edoc/0\n\n---\n\n```erlang\n-spec edoc() -> ok.\n```\n\n"
+                    "An edoc hover item\n\n"
+                >>
+        end,
+    Expected = #{
+        kind => <<"markdown">>,
+        value => Value
+    },
+    ?assertEqual(Expected, Contents),
+    ok.
+
 local_macro(Config) ->
     Uri = ?config(hover_macro_uri, Config),
     #{result := Result} = els_client:hover(Uri, 6, 4),
@@ -441,8 +487,27 @@ remote_opaque(Config) ->
 
 nonexisting_type(Config) ->
     Uri = ?config(hover_type_uri, Config),
-    #{result := Result} = els_client:hover(Uri, 22, 10),
-    Expected = null,
+    #{result := Result} = els_client:hover(Uri, 22, 15),
+    %% The spec for `j' is shown instead of the type docs.
+    Value =
+        case has_eep48_edoc() of
+            true ->
+                <<
+                    "## j/1\n\n---\n\n```erlang\n\n  j(_) \n\n```\n\n"
+                    "```erlang\n-spec j(doesnt:exist()) -> ok.\n```"
+                >>;
+            false ->
+                <<
+                    "## j/1\n\n---\n\n```erlang\n\n  j(_) \n\n```\n\n"
+                    "```erlang\n-spec j(doesnt:exist()) -> ok.\n```"
+                >>
+        end,
+    Expected = #{
+        contents => #{
+            kind => <<"markdown">>,
+            value => Value
+        }
+    },
     ?assertEqual(Expected, Result),
     ok.
 
