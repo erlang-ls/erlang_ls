@@ -25,7 +25,8 @@
     initialize_lenses_invalid/1,
     initialize_providers_default/1,
     initialize_providers_custom/1,
-    initialize_providers_invalid/1
+    initialize_providers_invalid/1,
+    initialize_prepare_rename/1
 ]).
 
 %%==============================================================================
@@ -254,4 +255,13 @@ initialize_providers_invalid(Config) ->
     ?assertEqual(Expected, Result),
     #{capabilities := Capabilities} = els_general_provider:server_capabilities(),
     ?assertEqual(true, maps:is_key(hoverProvider, Capabilities)),
+    ok.
+
+-spec initialize_prepare_rename(config()) -> ok.
+initialize_prepare_rename(_Config) ->
+    RootUri = els_test_utils:root_uri(),
+    els_client:initialize(RootUri),
+    #{capabilities := #{renameProvider := RenameProvider}} =
+        els_general_provider:server_capabilities(),
+    ?assertEqual(#{prepareProvider => true}, RenameProvider),
     ok.
