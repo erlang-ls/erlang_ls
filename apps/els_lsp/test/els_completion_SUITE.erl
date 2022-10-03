@@ -31,6 +31,7 @@
     only_exported_functions_after_colon/1,
     records/1,
     record_fields/1,
+    record_fields_inside_record/1,
     types/1,
     types_export_list/1,
     variables/1,
@@ -911,6 +912,105 @@ record_fields(Config) ->
         els_client:completion(Uri, 52, 90, TriggerKindChar, <<".">>),
     ?assertEqual(lists:sort(ExpectedQuoted), lists:sort(Completion5)),
 
+    ok.
+
+-spec record_fields_inside_record(config()) -> ok.
+record_fields_inside_record(Config) ->
+    Uri = ?config(completion_records_uri, Config),
+    TriggerKindChar = ?COMPLETION_TRIGGER_KIND_CHARACTER,
+    TriggerKindInvoked = ?COMPLETION_TRIGGER_KIND_INVOKED,
+    Expected1 = [
+        #{
+            kind => ?COMPLETION_ITEM_KIND_FIELD,
+            label => <<"field_a">>,
+            insertText => <<"field_a = ${1:FieldA}">>,
+            insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+        },
+        #{
+            kind => ?COMPLETION_ITEM_KIND_FIELD,
+            label => <<"field_b">>,
+            insertText => <<"field_b = ${1:FieldB}">>,
+            insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+        },
+        #{
+            kind => ?COMPLETION_ITEM_KIND_FIELD,
+            label => <<"'Field C'">>,
+            insertText => <<"'Field C' = ${1:Field C}">>,
+            insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+        }
+    ],
+    Expected2 = [
+        #{
+            kind => ?COMPLETION_ITEM_KIND_FIELD,
+            label => <<"field_x">>,
+            insertText => <<"field_x = ${1:FieldX}">>,
+            insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+        },
+        #{
+            kind => ?COMPLETION_ITEM_KIND_FIELD,
+            label => <<"field_y">>,
+            insertText => <<"field_y = ${1:FieldY}">>,
+            insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+        }
+    ],
+    %% Completion of #record_a in function head
+    %% #record_a{|
+    #{result := Completion1} =
+        els_client:completion(Uri, 6, 22, TriggerKindChar, <<"{">>),
+
+    %% Completion of #record_a in function head
+    %% #record_a{field_a = a, |
+    #{result := Completion1} =
+        els_client:completion(Uri, 6, 35, TriggerKindChar, <<" ">>),
+
+    %% Completion of #record_a in function head
+    %% #record_a{|
+    #{result := Completion1} =
+        els_client:completion(Uri, 6, 22, TriggerKindInvoked, <<>>),
+
+    %% Completion of #record_a in function head
+    %% #record_a{fiel|
+    #{result := Completion1} =
+        els_client:completion(Uri, 6, 26, TriggerKindInvoked, <<>>),
+
+    %% Completion of #record_b in function body
+    %% #record_b{fi|
+    #{result := Completion2} =
+        els_client:completion(Uri, 7, 16, TriggerKindInvoked, <<>>),
+
+    %% Completion of #record_a inside #record_b
+    %% #record_b{field_x = #record_a{|
+    #{result := Completion1} =
+        els_client:completion(Uri, 7, 35, TriggerKindInvoked, <<>>),
+
+    %% Completion of #record_a in function head
+    %% #record_b{field_x = #record_a{|
+    #{result := Completion1} =
+        els_client:completion(Uri, 7, 35, TriggerKindChar, <<"{">>),
+
+    %% Completion of #record_b
+    %% #record_b{field_x = #record_a{}, |
+    #{result := Completion2} =
+        els_client:completion(Uri, 7, 38, TriggerKindChar, <<" ">>),
+
+    %% Records in comments are ignored
+    #{result := Completion2} =
+        els_client:completion(Uri, 9, 16, TriggerKindInvoked, <<>>),
+
+    %% No completion when trying to complete inside a tuple
+    #{result := []} =
+        els_client:completion(Uri, 10, 6, TriggerKindChar, <<"{">>),
+    #{result := []} =
+        els_client:completion(Uri, 10, 6, TriggerKindInvoked, <<>>),
+
+    %% #record_b{field_y = y|} invoke completion
+    %% shouldn't trigger record fields completion
+    #{result := Completion3} =
+        els_client:completion(Uri, 9, 26, TriggerKindInvoked, <<>>),
+    ?assertNotEqual(lists:sort(Expected1), Completion3),
+    ?assertNotEqual(lists:sort(Expected2), Completion3),
+    ?assertEqual(lists:sort(Expected1), lists:sort(Completion1)),
+    ?assertEqual(lists:sort(Expected2), lists:sort(Completion2)),
     ok.
 
 -spec types(config()) -> ok.

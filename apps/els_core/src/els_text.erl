@@ -12,6 +12,7 @@
     tokens/1,
     apply_edits/2
 ]).
+-export([strip_comments/1]).
 
 -export_type([edit/0]).
 
@@ -131,6 +132,17 @@ ensure_string(Text) when is_binary(Text) ->
     els_utils:to_list(Text);
 ensure_string(Text) ->
     Text.
+
+-spec strip_comments(binary()) -> binary().
+strip_comments(Text) ->
+    lines_to_bin(
+        lists:map(
+            fun(Line) ->
+                hd(string:split(Line, "%"))
+            end,
+            bin_to_lines(Text)
+        )
+    ).
 
 %%==============================================================================
 %% Internal functions

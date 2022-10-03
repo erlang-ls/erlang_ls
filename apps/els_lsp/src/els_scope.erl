@@ -4,7 +4,8 @@
 -export([
     local_and_included_pois/2,
     local_and_includer_pois/2,
-    variable_scope_range/2
+    variable_scope_range/2,
+    pois_before/2
 ]).
 
 -include("els_lsp.hrl").
@@ -154,9 +155,9 @@ variable_scope_range(VarRange, Document) ->
     end.
 
 -spec pois_before([els_poi:poi()], els_poi:poi_range()) -> [els_poi:poi()].
-pois_before(POIs, VarRange) ->
+pois_before(POIs, Range) ->
     %% Reverse since we are typically interested in the last POI
-    lists:reverse([POI || POI <- POIs, els_range:compare(range(POI), VarRange)]).
+    lists:reverse([POI || POI <- POIs, els_range:compare(range(POI), Range)]).
 
 -spec pois_after([els_poi:poi()], els_poi:poi_range()) -> [els_poi:poi()].
 pois_after(POIs, VarRange) ->

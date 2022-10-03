@@ -22,6 +22,7 @@
     base64_encode_term/1,
     base64_decode_term/1,
     levenshtein_distance/2,
+    camel_case/1,
     jaro_distance/2,
     is_windows/0,
     system_tmp_dir/0
@@ -487,6 +488,13 @@ base64_encode_term(Term) ->
 base64_decode_term(Base64) ->
     binary_to_term(base64:decode(Base64)).
 
+-spec camel_case(binary() | string()) -> binary().
+camel_case(Str0) ->
+    %% Remove ''
+    Str = string:trim(Str0, both, "'"),
+    Words = [string:titlecase(Word) || Word <- string:lexemes(Str, "_")],
+    iolist_to_binary(Words).
+
 -spec levenshtein_distance(binary(), binary()) -> integer().
 levenshtein_distance(S, T) ->
     {Distance, _} = levenshtein_distance(to_list(S), to_list(T), #{}),
@@ -716,5 +724,13 @@ jaro_distance_test_() ->
             0.6666666666666666
         )
     ].
+
+camel_case_test() ->
+    ?assertEqual(<<"">>, camel_case(<<"">>)),
+    ?assertEqual(<<"F">>, camel_case(<<"f">>)),
+    ?assertEqual(<<"Foo">>, camel_case(<<"foo">>)),
+    ?assertEqual(<<"FooBar">>, camel_case(<<"foo_bar">>)),
+    ?assertEqual(<<"FooBarBaz">>, camel_case(<<"foo_bar_baz">>)),
+    ?assertEqual(<<"FooBarBaz">>, camel_case(<<"'foo_bar_baz'">>)).
 
 -endif.
