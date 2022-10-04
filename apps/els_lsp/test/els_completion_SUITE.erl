@@ -25,6 +25,7 @@
     exported_types/1,
     functions_arity/1,
     functions_export_list/1,
+    functions_no_args/1,
     handle_empty_lines/1,
     handle_colon_inside_string/1,
     macros/1,
@@ -34,6 +35,8 @@
     record_fields_inside_record/1,
     types/1,
     types_export_list/1,
+    types_context/1,
+    types_no_args/1,
     variables/1,
     remote_fun/1,
     snippets/1,
@@ -477,6 +480,17 @@ default_completions(Config) ->
                 function => <<"DO_LOUDER">>,
                 arity => 0
             }
+        },
+        #{
+            insertText => <<"function_a(${1:Arg1}, ${2:Arg2})">>,
+            insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
+            kind => ?COMPLETION_ITEM_KIND_FUNCTION,
+            label => <<"function_a/2">>,
+            data => #{
+                module => <<"code_navigation_extra">>,
+                function => <<"function_a">>,
+                arity => 2
+            }
         }
     ],
 
@@ -494,6 +508,11 @@ default_completions(Config) ->
         #{
             insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT,
             kind => ?COMPLETION_ITEM_KIND_MODULE,
+            label => <<"code_navigation">>
+        },
+        #{
+            insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT,
+            kind => ?COMPLETION_ITEM_KIND_CONSTANT,
             label => <<"code_navigation">>
         },
         #{
@@ -518,15 +537,18 @@ default_completions(Config) ->
         }
         | Functions
     ],
-
     DefaultCompletion =
-        els_completion_provider:keywords() ++
-            els_completion_provider:bifs(function, false) ++
+        keywords() ++
+            els_completion_provider:bifs(function, args) ++
             els_snippets_server:snippets(),
     #{result := Completion1} = els_client:completion(Uri, 9, 6, TriggerKind, <<"">>),
     ?assertEqual(
-        lists:sort(Expected1),
-        filter_completion(Completion1, DefaultCompletion)
+        [],
+        filter_completion(Completion1, DefaultCompletion) -- Expected1
+    ),
+    ?assertEqual(
+        [],
+        Expected1 -- filter_completion(Completion1, DefaultCompletion)
     ),
 
     Expected2 = [
@@ -687,7 +709,7 @@ functions_arity(Config) ->
                 }
             }
          || {FunName, Arity} <- ExportedFunctions
-        ] ++ els_completion_provider:bifs(function, true),
+        ] ++ els_completion_provider:bifs(function, arity_only),
     #{result := Completion} =
         els_client:completion(Uri, 51, 17, TriggerKind, <<"">>),
     ?assertEqual(lists:sort(ExpectedCompletion), lists:sort(Completion)),
@@ -726,6 +748,67 @@ functions_export_list(Config) ->
     #{result := Completion} =
         els_client:completion(Uri, 3, 13, TriggerKind, <<"">>),
     ?assertEqual(Expected, Completion).
+
+-spec functions_no_args(config()) -> ok.
+functions_no_args(Config) ->
+    TriggerKind = ?COMPLETION_TRIGGER_KIND_INVOKED,
+    Uri = ?config(code_navigation_extra_uri, Config),
+    ct:comment("Completing function at func|t(), should include args"),
+    #{result := Completion1} =
+        els_client:completion(Uri, 26, 7, TriggerKind, <<>>),
+    ?assertEqual(
+        [<<"function_a(${1:Arg1}, ${2:Arg2})">>],
+        [
+            InsertText
+         || #{
+                kind := ?COMPLETION_ITEM_KIND_FUNCTION,
+                label := <<"function_a/2">>,
+                insertText := InsertText
+            } <- Completion1
+        ]
+    ),
+    ct:comment("Completing function at funct|(), shouldn't include args"),
+    #{result := Completion2} =
+        els_client:completion(Uri, 26, 8, TriggerKind, <<>>),
+    ?assertEqual(
+        [<<"function_a">>],
+        [
+            InsertText
+         || #{
+                kind := ?COMPLETION_ITEM_KIND_FUNCTION,
+                label := <<"function_a/2">>,
+                insertText := InsertText
+            } <- Completion2
+        ]
+    ),
+    ct:comment("Completing function at code_navigation:|(), shouldn't include args"),
+    #{result := Completion3} =
+        els_client:completion(Uri, 27, 19, ?COMPLETION_TRIGGER_KIND_CHARACTER, <<":">>),
+    ?assertEqual(
+        [<<"function_a">>],
+        [
+            InsertText
+         || #{
+                kind := ?COMPLETION_ITEM_KIND_FUNCTION,
+                label := <<"function_a/0">>,
+                insertText := InsertText
+            } <- Completion3
+        ]
+    ),
+    ct:comment("Completing function at code_navigation:funct|(), shouldn't include args"),
+    #{result := Completion4} =
+        els_client:completion(Uri, 28, 24, TriggerKind, <<>>),
+    ?assertEqual(
+        [<<"function_a">>],
+        [
+            InsertText
+         || #{
+                kind := ?COMPLETION_ITEM_KIND_FUNCTION,
+                insertText := InsertText,
+                label := <<"function_a/0">>
+            } <- Completion4
+        ]
+    ).
 
 -spec handle_empty_lines(config()) -> ok.
 handle_empty_lines(Config) ->
@@ -1065,18 +1148,20 @@ types(Config) ->
     ],
 
     DefaultCompletion =
-        els_completion_provider:keywords() ++
-            els_completion_provider:bifs(type_definition, false) ++
+        els_completion_provider:bifs(type_definition, args) ++
             els_snippets_server:snippets(),
 
     ct:comment("Types defined both in the current file and in includes"),
     #{result := Completion1} =
         els_client:completion(Uri, 55, 27, TriggerKind, <<"">>),
     ?assertEqual(
-        lists:sort(Expected),
-        filter_completion(Completion1, DefaultCompletion)
+        [],
+        Expected -- (Completion1 -- DefaultCompletion)
     ),
-
+    ?assertEqual(
+        [],
+        (Completion1 -- DefaultCompletion) -- Expected
+    ),
     ok.
 
 -spec types_export_list(config()) -> ok.
@@ -1084,16 +1169,6 @@ types_export_list(Config) ->
     TriggerKind = ?COMPLETION_TRIGGER_KIND_INVOKED,
     Uri = ?config(code_navigation_types_uri, Config),
     Expected = [
-        #{
-            insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT,
-            kind => ?COMPLETION_ITEM_KIND_TYPE_PARAM,
-            label => <<"type_b/0">>,
-            data => #{
-                module => <<"code_navigation_types">>,
-                type => <<"type_b">>,
-                arity => 0
-            }
-        },
         #{
             insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT,
             kind => ?COMPLETION_ITEM_KIND_TYPE_PARAM,
@@ -1113,6 +1188,16 @@ types_export_list(Config) ->
                 type => <<"user_type_b">>,
                 arity => 0
             }
+        },
+        #{
+            insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT,
+            kind => ?COMPLETION_ITEM_KIND_TYPE_PARAM,
+            label => <<"user_type_d/0">>,
+            data => #{
+                module => <<"code_navigation_types">>,
+                type => <<"user_type_d">>,
+                arity => 0
+            }
         }
     ],
     ct:comment("Types in an export_type section is provided with arity"),
@@ -1120,6 +1205,190 @@ types_export_list(Config) ->
         els_client:completion(Uri, 5, 19, TriggerKind, <<"">>),
     ?assertEqual(Expected, Completion),
     ok.
+
+-spec types_context(config()) -> ok.
+types_context(Config) ->
+    TriggerKind = ?COMPLETION_TRIGGER_KIND_INVOKED,
+    Uri = ?config(code_navigation_types_uri, Config),
+    UserTypes =
+        [
+            #{
+                data =>
+                    #{
+                        arity => 0,
+                        module => <<"code_navigation_types">>,
+                        type => <<"opaque_type_a">>
+                    },
+                insertText => <<"opaque_type_a()">>,
+                insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
+                kind => ?COMPLETION_ITEM_KIND_TYPE_PARAM,
+                label => <<"opaque_type_a/0">>
+            },
+            #{
+                data =>
+                    #{
+                        arity => 0,
+                        module => <<"code_navigation_types">>,
+                        type => <<"type_a">>
+                    },
+                insertText => <<"type_a()">>,
+                insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
+                kind => ?COMPLETION_ITEM_KIND_TYPE_PARAM,
+                label => <<"type_a/0">>
+            },
+            #{
+                data =>
+                    #{
+                        arity => 0,
+                        module => <<"code_navigation_types">>,
+                        type => <<"type_b">>
+                    },
+                insertText => <<"type_b()">>,
+                insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
+                kind => ?COMPLETION_ITEM_KIND_TYPE_PARAM,
+                label => <<"type_b/0">>
+            },
+            #{
+                data =>
+                    #{
+                        arity => 0,
+                        module => <<"code_navigation_types">>,
+                        type => <<"user_type_a">>
+                    },
+                insertText => <<"user_type_a()">>,
+                insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
+                kind => ?COMPLETION_ITEM_KIND_TYPE_PARAM,
+                label => <<"user_type_a/0">>
+            },
+            #{
+                data =>
+                    #{
+                        arity => 0,
+                        module => <<"code_navigation_types">>,
+                        type => <<"user_type_b">>
+                    },
+                insertText => <<"user_type_b()">>,
+                insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
+                kind => ?COMPLETION_ITEM_KIND_TYPE_PARAM,
+                label => <<"user_type_b/0">>
+            },
+            #{
+                data =>
+                    #{
+                        arity => 0,
+                        module => <<"code_navigation_types">>,
+                        type => <<"user_type_c">>
+                    },
+                insertText => <<"user_type_c()">>,
+                insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
+                kind => ?COMPLETION_ITEM_KIND_TYPE_PARAM,
+                label => <<"user_type_c/0">>
+            },
+            #{
+                data =>
+                    #{
+                        arity => 0,
+                        module => <<"code_navigation_types">>,
+                        type => <<"user_type_d">>
+                    },
+                insertText => <<"user_type_d()">>,
+                insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
+                kind => ?COMPLETION_ITEM_KIND_TYPE_PARAM,
+                label => <<"user_type_d/0">>
+            }
+        ],
+    Bifs = els_completion_provider:bifs(type_definition, args),
+    Expected1 = UserTypes ++ Bifs,
+
+    ct:comment("Completing a type inside a -type declaration should return types"),
+    #{result := Completion1} =
+        els_client:completion(Uri, 16, 27, TriggerKind, <<>>),
+    ?assertEqual([], Completion1 -- Expected1),
+    ?assertEqual([], Expected1 -- Completion1),
+
+    ct:comment("Completing a map value inside a -type should return types"),
+    #{result := Completion2} =
+        els_client:completion(Uri, 21, 43, TriggerKind, <<>>),
+    ?assertEqual([], Completion2 -- Expected1),
+    ?assertEqual([], Expected1 -- Completion2),
+
+    ct:comment("Completing a type in a record definition should return types"),
+    #{result := Completion1} =
+        els_client:completion(Uri, 18, 38, TriggerKind, <<>>),
+
+    ct:comment("Completing a record value should not return types"),
+    #{result := Completion4} =
+        els_client:completion(Uri, 18, 23, TriggerKind, <<>>),
+    ?assertNotEqual([], Completion4),
+    ?assertEqual(UserTypes, UserTypes -- Completion4),
+
+    ct:comment("Completing a type in a spec return types"),
+    #{result := Completion5} =
+        els_client:completion(Uri, 24, 31, TriggerKind, <<>>),
+    #{result := Completion5} =
+        els_client:completion(Uri, 24, 54, TriggerKind, <<>>),
+    ?assertEqual([], Completion5 -- Expected1),
+    ?assertEqual([], Expected1 -- Completion5),
+
+    ct:comment("Completing a value in function head should not return types"),
+    #{result := Completion6} =
+        els_client:completion(Uri, 25, 15, TriggerKind, <<>>),
+    ?assertNotEqual([], Completion6),
+    ?assertEqual(UserTypes, UserTypes -- Completion6),
+
+    ct:comment("Completing a value in function body should not return types"),
+    #{result := Completion6} =
+        els_client:completion(Uri, 26, 8, TriggerKind, <<>>),
+    ?assertNotEqual([], Completion6),
+    ?assertEqual(UserTypes, UserTypes -- Completion6),
+    ok.
+
+-spec types_no_args(config()) -> ok.
+types_no_args(Config) ->
+    TriggerKind = ?COMPLETION_TRIGGER_KIND_INVOKED,
+    Uri = ?config(code_navigation_types_uri, Config),
+    ct:comment("Completing function at typ|e(), should include args"),
+    #{result := Completion1} =
+        els_client:completion(Uri, 28, 27, TriggerKind, <<>>),
+    ?assertEqual(
+        [<<"type_a()">>],
+        [
+            InsertText
+         || #{
+                kind := ?COMPLETION_ITEM_KIND_TYPE_PARAM,
+                label := <<"type_a/0">>,
+                insertText := InsertText
+            } <- Completion1
+        ]
+    ),
+    ct:comment("Completing function at type|(), shouldn't include args"),
+    #{result := Completion2} =
+        els_client:completion(Uri, 28, 28, TriggerKind, <<>>),
+    ?assertEqual(
+        [<<"type_a">>],
+        [
+            InsertText
+         || #{
+                kind := ?COMPLETION_ITEM_KIND_TYPE_PARAM,
+                label := <<"type_a/0">>,
+                insertText := InsertText
+            } <- Completion2
+        ]
+    ),
+    ct:comment("Completing function at code_navigation:|(), shouldn't include args"),
+    #{result := Completion3} =
+        els_client:completion(Uri, 28, 49, ?COMPLETION_TRIGGER_KIND_CHARACTER, <<":">>),
+    ?assertEqual(
+        [<<"type_a">>],
+        [
+            InsertText
+         || #{
+                kind := ?COMPLETION_ITEM_KIND_TYPE_PARAM,
+                label := <<"type_a/0">>,
+                insertText := InsertText
+            } <- Completion3
+        ]
+    ).
 
 -spec variables(config()) -> ok.
 variables(Config) ->
@@ -1129,6 +1398,14 @@ variables(Config) ->
         #{
             kind => ?COMPLETION_ITEM_KIND_VARIABLE,
             label => <<"_Config">>
+        },
+        #{
+            kind => ?COMPLETION_ITEM_KIND_VARIABLE,
+            label => <<"Arg1">>
+        },
+        #{
+            kind => ?COMPLETION_ITEM_KIND_VARIABLE,
+            label => <<"Arg2">>
         }
     ],
 
@@ -1172,6 +1449,17 @@ expected_exported_functions() ->
                 function => <<"DO_LOUDER">>,
                 arity => 0
             }
+        },
+        #{
+            label => <<"function_a/2">>,
+            kind => ?COMPLETION_ITEM_KIND_FUNCTION,
+            insertText => <<"function_a(${1:Arg1}, ${2:Arg2})">>,
+            insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
+            data => #{
+                module => <<"code_navigation_extra">>,
+                function => <<"function_a">>,
+                arity => 2
+            }
         }
     ].
 
@@ -1205,6 +1493,16 @@ expected_exported_functions_arity_only() ->
                 module => <<"code_navigation_extra">>,
                 function => <<"DO_LOUDER">>,
                 arity => 0
+            }
+        },
+        #{
+            label => <<"function_a/2">>,
+            kind => ?COMPLETION_ITEM_KIND_FUNCTION,
+            insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT,
+            data => #{
+                module => <<"code_navigation_extra">>,
+                function => <<"function_a">>,
+                arity => 2
             }
         }
     ].
@@ -1651,3 +1949,6 @@ has_eep48(Module) ->
         {ok, _} -> true;
         _ -> false
     end.
+
+keywords() ->
+    els_completion_provider:keywords(test, test).
