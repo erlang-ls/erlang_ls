@@ -50,7 +50,8 @@
     resolve_opaque_application_remote_self/1,
     resolve_type_application_remote_external/1,
     resolve_opaque_application_remote_external/1,
-    resolve_type_application_remote_otp/1
+    resolve_type_application_remote_otp/1,
+    completion_request_fails/1
 ]).
 
 %%==============================================================================
@@ -534,6 +535,11 @@ default_completions(Config) ->
             insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT,
             kind => ?COMPLETION_ITEM_KIND_MODULE,
             label => <<"code_action">>
+        },
+        #{
+            insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT,
+            kind => ?COMPLETION_ITEM_KIND_MODULE,
+            label => <<"code_completion_fail">>
         }
         | Functions
     ],
@@ -1938,6 +1944,18 @@ resolve_type_application_remote_otp(Config) ->
             }
     },
     ?assertEqual(Expected, Result).
+
+%% Issue #1387
+completion_request_fails(Config) ->
+    Uri = ?config(code_completion_fail_uri, Config),
+    TriggerKind = ?COMPLETION_TRIGGER_KIND_INVOKED,
+    %% Complete at -module(s|).
+    #{result := Result1} = els_client:completion(Uri, 1, 10, TriggerKind, <<>>),
+    ?assertNotEqual(null, Result1),
+    %% Complete at a|, file doesn't end with a newline!
+    #{result := Result2} = els_client:completion(Uri, 2, 2, TriggerKind, <<>>),
+    ?assertNotEqual(null, Result2),
+    ok.
 
 select_completionitems(CompletionItems, Kind, Label) ->
     [CI || #{kind := K, label := L} = CI <- CompletionItems, L =:= Label, K =:= Kind].
