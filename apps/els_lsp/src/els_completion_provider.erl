@@ -352,20 +352,20 @@ complete_record_field(
     complete_record_field(Document, {Line, Col}, <<"key=val}.">>).
 
 -spec complete_record_field(map(), pos(), binary()) -> items().
-complete_record_field(#{text := Text} = Document, Pos, Suffix) ->
-    T0 = els_text:range(Text, {1, 1}, Pos),
+complete_record_field(#{text := Text0} = Document, Pos, Suffix) ->
+    Prefix0 = els_text:range(Text0, {1, 1}, Pos),
     POIs = els_dt_document:pois(Document, [function]),
-    Line =
+    %% Look for record start between current pos and end of last function
+    Prefix =
         case els_scope:pois_before(POIs, #{from => Pos, to => Pos}) of
-            [#{range := #{to := {L, _}}} | _] ->
-                L;
+            [#{range := #{to := {Line, _}}} | _] ->
+                {_, Prefix1} = els_text:split_at_line(Prefix0, Line),
+                Prefix1;
             _ ->
-                %% No function before
-                1
+                %% No function before, consider all the text
+                Prefix0
         end,
-    %% Just look at lines after last function
-    {_, T} = els_text:split_at_line(T0, Line),
-    case parse_record(els_text:strip_comments(T), Suffix) of
+    case parse_record(els_text:strip_comments(Prefix), Suffix) of
         {ok, Id} ->
             record_fields_with_var(Document, Id);
         error ->
@@ -726,13 +726,9 @@ completion_context(#{text := Text} = Document, Line, Column, Tokens) ->
             true ->
                 arity_only;
             false ->
-                NextChar = els_text:range(
-                    Text,
-                    {Line, Column + 1},
-                    {Line, Column + 2}
-                ),
-                case NextChar of
-                    <<"(">> ->
+                case els_text:get_char(Text, Line, Column + 1) of
+                    {ok, $(} ->
+                        %% Don't inlude args if next character is a '('
                         no_args;
                     _ ->
                         args

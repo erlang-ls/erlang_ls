@@ -7,6 +7,7 @@
     last_token/1,
     line/2,
     line/3,
+    get_char/3,
     range/3,
     split_at_line/2,
     tokens/1,
@@ -34,6 +35,18 @@ line(Text, LineNum) ->
 line(Text, LineNum, ColumnNum) ->
     Line = line(Text, LineNum),
     binary:part(Line, {0, ColumnNum}).
+
+-spec get_char(text(), line_num(), column_num()) ->
+    {ok, char()} | {error, out_of_range}.
+get_char(Text, Line, Column) ->
+    LineStarts = line_starts(Text),
+    Pos = pos(LineStarts, {Line, Column}),
+    case Pos < size(Text) of
+        true ->
+            {ok, binary:at(Text, Pos)};
+        false ->
+            {error, out_of_range}
+    end.
 
 %% @doc Extract a snippet from a text, from [StartLoc..EndLoc).
 -spec range(text(), {line_num(), column_num()}, {line_num(), column_num()}) ->
