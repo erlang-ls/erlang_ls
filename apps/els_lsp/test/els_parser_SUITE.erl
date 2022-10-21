@@ -25,6 +25,7 @@
     types_with_types/1,
     record_def_with_types/1,
     record_def_with_record_type/1,
+    record_index/1,
     callback_recursive/1,
     specs_recursive/1,
     types_recursive/1,
@@ -308,6 +309,14 @@ record_def_with_record_type(_Config) ->
     %% No redundanct atom POIs
     ?assertMatch([], parse_find_pois(Text2, atom)),
     ok.
+
+-spec record_index(config()) -> ok.
+record_index(_Config) ->
+    Text1 = "#r1.f1.",
+    ?assertMatch([_], parse_find_pois(Text1, record_expr, r1)),
+    ?assertMatch([_], parse_find_pois(Text1, record_field, {r1, f1})),
+    %% No redundanct atom POIs
+    ?assertMatch([#{id := '*exprs*'}], parse_find_pois(Text1, atom)).
 
 -spec callback_recursive(config()) -> ok.
 callback_recursive(_Config) ->

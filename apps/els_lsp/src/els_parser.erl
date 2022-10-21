@@ -209,6 +209,8 @@ do_points_of_interest(Tree) ->
                 macro(Tree);
             record_access ->
                 record_access(Tree);
+            record_index_expr ->
+                record_index_expr(Tree);
             record_expr ->
                 record_expr(Tree);
             variable ->
@@ -796,6 +798,29 @@ record_access_pois(Tree, Record) ->
         | FieldPoi
     ].
 
+-spec record_index_expr(tree()) -> [els_poi:poi()].
+record_index_expr(Tree) ->
+    RecordNode = erl_syntax:record_index_expr_type(Tree),
+    case is_record_name(RecordNode) of
+        {true, Record} ->
+            record_index_expr_pois(Tree, Record);
+        false ->
+            []
+    end.
+
+-spec record_index_expr_pois(tree(), atom()) -> [els_poi:poi()].
+record_index_expr_pois(Tree, Record) ->
+    FieldNode = erl_syntax:record_index_expr_field(Tree),
+    FieldPoi =
+        case is_atom_node(FieldNode) of
+            {true, FieldName} ->
+                [poi(erl_syntax:get_pos(FieldNode), record_field, {Record, FieldName})];
+            _ ->
+                []
+        end,
+    Anno = record_index_expr_location(Tree),
+    [poi(Anno, record_expr, Record) | FieldPoi].
+
 -spec record_expr(tree()) -> [els_poi:poi()].
 record_expr(Tree) ->
     RecordNode = erl_syntax:record_expr_type(Tree),
@@ -1067,6 +1092,13 @@ subtrees(Tree, record_access) ->
         skip_record_name_atom(NameNode),
         skip_name_atom(FieldNode)
     ];
+subtrees(Tree, record_index_expr) ->
+    NameNode = erl_syntax:record_index_expr_type(Tree),
+    FieldNode = erl_syntax:record_index_expr_field(Tree),
+    [
+        skip_record_name_atom(NameNode),
+        skip_name_atom(FieldNode)
+    ];
 subtrees(Tree, record_expr) ->
     NameNode = erl_syntax:record_expr_type(Tree),
     Fields = erl_syntax:record_expr_fields(Tree),
@@ -1296,6 +1328,12 @@ record_access_location(Tree) ->
     %% best approximation is the end of the argument
     Start = get_end_location(erl_syntax:record_access_argument(Tree)),
     Anno = erl_syntax:get_pos(erl_syntax:record_access_type(Tree)),
+    erl_anno:set_location(Start, Anno).
+
+-spec record_index_expr_location(tree()) -> erl_anno:anno().
+record_index_expr_location(Tree) ->
+    Start = get_start_location(Tree),
+    Anno = erl_syntax:get_pos(erl_syntax:record_index_expr_type(Tree)),
     erl_anno:set_location(Start, Anno).
 
 -spec record_expr_location(tree(), tree()) -> erl_anno:anno().
