@@ -134,7 +134,7 @@ do_initialize(RootUri, Capabilities, InitOptions, {ConfigPath, Config}) ->
     Lenses = maps:get("lenses", Config, #{}),
     Diagnostics = maps:get("diagnostics", Config, #{}),
     ExcludePathsSpecs = [[OtpPath, "lib", P ++ "*"] || P <- OtpAppsExclude],
-    ExcludePaths = els_utils:resolve_paths(ExcludePathsSpecs, RootPath, true),
+    ExcludePaths = els_utils:resolve_paths(ExcludePathsSpecs, true),
     ?LOG_INFO("Excluded OTP Applications: ~p", [OtpAppsExclude]),
     CodeReload = maps:get("code_reload", Config, disabled),
     Runtime = maps:get("runtime", Config, #{}),
@@ -375,7 +375,7 @@ report_missing_config() ->
 -spec include_paths(path(), string(), boolean()) -> [string()].
 include_paths(RootPath, IncludeDirs, Recursive) ->
     Paths = [
-        els_utils:resolve_paths([[RootPath, Dir]], RootPath, Recursive)
+        els_utils:resolve_paths([[RootPath, Dir]], Recursive)
      || Dir <- IncludeDirs
     ],
     lists:append(Paths).
@@ -389,7 +389,6 @@ project_paths(RootPath, Dirs, Recursive) ->
                 [RootPath, Dir, "test"],
                 [RootPath, Dir, "include"]
             ],
-            RootPath,
             Recursive
         )
      || Dir <- Dirs
@@ -411,7 +410,6 @@ otp_paths(OtpPath, Recursive) ->
             [OtpPath, "lib", "*", "src"],
             [OtpPath, "lib", "*", "include"]
         ],
-        OtpPath,
         Recursive
     ).
 

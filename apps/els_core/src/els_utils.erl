@@ -14,7 +14,7 @@
     include_lib_id/1,
     macro_string_to_term/1,
     project_relative/1,
-    resolve_paths/3,
+    resolve_paths/2,
     to_binary/1,
     to_list/1,
     compose_node_name/2,
@@ -215,12 +215,11 @@ fold_files(F, Filter, Dir, Acc) ->
 %% @doc Resolve paths based on path specs
 %%
 %% Gets a list of path specs and returns the expanded list of paths.
-%% Path specs can contains glob expressions. Resolved paths that contain
-%% symlinks will be ignored.
--spec resolve_paths([[path()]], path(), boolean()) -> [[path()]].
-resolve_paths(PathSpecs, RootPath, Recursive) ->
+%% Path specs can contains glob expressions.
+-spec resolve_paths([[path()]], boolean()) -> [[path()]].
+resolve_paths(PathSpecs, Recursive) ->
     lists:append([
-        resolve_path(PathSpec, RootPath, Recursive)
+        resolve_path(PathSpec, Recursive)
      || PathSpec <- PathSpecs
     ]).
 
@@ -320,8 +319,8 @@ is_symlink(Path) ->
 
 %% @doc Resolve paths recursively
 
--spec resolve_path([path()], path(), boolean()) -> [path()].
-resolve_path(PathSpec, RootPath, Recursive) ->
+-spec resolve_path([path()], boolean()) -> [path()].
+resolve_path(PathSpec, Recursive) ->
     Path = filename:join(PathSpec),
     Paths = filelib:wildcard(Path),
 
@@ -329,10 +328,10 @@ resolve_path(PathSpec, RootPath, Recursive) ->
         true ->
             lists:append([
                 [make_normalized_path(P) | subdirs(P)]
-             || P <- Paths, not contains_symlink(P, RootPath)
+             || P <- Paths
             ]);
         false ->
-            [make_normalized_path(P) || P <- Paths, not contains_symlink(P, RootPath)]
+            [make_normalized_path(P) || P <- Paths]
     end.
 
 %% Returns all subdirectories for the provided path
@@ -360,22 +359,6 @@ subdirs_(Path, Files, Subdirs) ->
         end
     end,
     lists:foldl(Fold, Subdirs, Files).
-
--spec contains_symlink(path(), path()) -> boolean().
-contains_symlink(RootPath, RootPath) ->
-    false;
-contains_symlink([], _RootPath) ->
-    false;
-contains_symlink(Path, RootPath) ->
-    Parts = filename:split(Path),
-    case lists:droplast(Parts) of
-        [] ->
-            false;
-        ParentParts ->
-            Parent = filename:join(ParentParts),
-            ((not (Parent == RootPath)) and (is_symlink(Parent))) orelse
-                contains_symlink(Parent, RootPath)
-    end.
 
 -spec cmd_receive(port()) -> integer().
 cmd_receive(Port) ->
