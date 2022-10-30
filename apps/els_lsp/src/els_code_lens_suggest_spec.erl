@@ -30,6 +30,9 @@ init(#{uri := Uri} = _Document) ->
         Info ->
             Info
     catch
+        throw:{dialyzer_error, "Could not read PLT file " ++ _ = Message} ->
+            ?LOG_WARNING("~s are you missing configuration?", [Message]),
+            'no_info';
         C:E:S ->
             Fmt =
                 "Cannot extract typer info.~n"
