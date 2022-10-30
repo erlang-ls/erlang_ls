@@ -853,13 +853,13 @@ handle_rpc_result({ok, Module}, _) ->
         }
     );
 handle_rpc_result(Err, Module) ->
-    ?LOG_INFO(
-        "[code_reload] code_reload using c:c/1 crashed with: ~p",
-        [Err]
+    ?LOG_ERROR(
+        "[code_reload] rpc c:c(~s) crashed with: ~p",
+        [Module, Err]
     ),
     Msg = io_lib:format(
-        "code_reload swap crashed for: ~s with: ~w",
-        [Module, Err]
+        "code_reload failed for: ~s (check logs for details)",
+        [Module]
     ),
     els_server:send_notification(
         <<"window/showMessage">>,
