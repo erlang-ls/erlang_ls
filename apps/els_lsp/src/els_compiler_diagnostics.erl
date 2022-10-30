@@ -81,7 +81,13 @@ source() ->
 -spec on_complete(uri(), [els_diagnostics:diagnostic()]) -> ok.
 on_complete(Uri, Diagnostics) ->
     ?MODULE:telemetry(Uri, Diagnostics),
-    maybe_compile_and_load(Uri, Diagnostics).
+    case filename:extension(Uri) of
+        <<".erl">> ->
+            maybe_compile_and_load(Uri, Diagnostics);
+        _Ext ->
+            ?LOG_DEBUG("Skipping compile and load due to extension [uri=~p]", [Uri]),
+            ok
+    end.
 
 %%==============================================================================
 %% Internal Functions
