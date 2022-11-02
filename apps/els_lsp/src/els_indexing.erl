@@ -33,22 +33,32 @@
 -spec find_and_deeply_index_file(string()) ->
     {ok, uri()} | {error, any()}.
 find_and_deeply_index_file(FileName) ->
-    SearchPaths = els_config:get(search_paths),
-    case
-        file:path_open(
-            SearchPaths,
-            els_utils:to_binary(FileName),
-            [read]
-        )
-    of
-        {ok, IoDevice, Path} ->
-            %% TODO: Avoid opening file twice
-            file:close(IoDevice),
-            Uri = els_uri:uri(Path),
-            ensure_deeply_indexed(Uri),
-            {ok, Uri};
-        {error, Error} ->
-            {error, Error}
+    case get({?MODULE, find_and_deep_index_file, FileName}) of
+        undefined ->
+            SearchPaths = els_config:get(search_paths),
+            case
+                file:path_open(
+                    SearchPaths,
+                    els_utils:to_binary(FileName),
+                    [read]
+                )
+            of
+                {ok, IoDevice, Path} ->
+                    %% TODO: Avoid opening file twice
+                    file:close(IoDevice),
+                    Uri = els_uri:uri(Path),
+                    ensure_deeply_indexed(Uri),
+                    {ok, Uri};
+                {error, _} = Error ->
+                    %% Optimization!
+                    %% If we can't find the file, then memoize the error result
+                    %% by storing it in the process dictionary as we most
+                    %% likely won't find it if we try again.
+                    put({?MODULE, find_and_deeply_index_file, FileName}, Error),
+                    Error
+            end;
+        {error, _} = Error ->
+            Error
     end.
 
 -spec is_generated_file(binary(), string()) -> boolean().
