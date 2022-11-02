@@ -23,7 +23,8 @@ options() ->
         <<"ct-run-test">>,
         <<"show-behaviour-usages">>,
         <<"suggest-spec">>,
-        <<"function-references">>
+        <<"function-references">>,
+        <<"add-behaviour-callbacks">>
     ],
     #{
         commands => [
@@ -105,6 +106,85 @@ execute_command(<<"suggest-spec">>, [
         },
     els_server:send_request(Method, Params),
     [];
+execute_command(<<"add-behaviour-callbacks">>, [
+    #{
+        <<"uri">> := Uri,
+        <<"behaviour">> := Behaviour
+    }
+]) ->
+    {ok, Document} = els_utils:lookup_document(Uri),
+    case els_utils:find_module(binary_to_atom(Behaviour, utf8)) of
+        {error, _} ->
+            [];
+        {ok, BeUri} ->
+            %% Put exported callback functions after -behaviour() or -export()
+            #{range := #{to := {ExportLine, _Col}}} =
+                lists:last(
+                    els_poi:sort(
+                        els_dt_document:pois(
+                            Document,
+                            [behaviour, export]
+                        )
+                    )
+                ),
+            ExportPos = {ExportLine + 1, 1},
+
+            %% Put callback functions after the last function
+            CallbacksPos =
+                case els_poi:sort(els_dt_document:pois(Document, [function])) of
+                    [] ->
+                        {ExportLine + 2, 1};
+                    POIs ->
+                        #{data := #{wrapping_range := #{to := Pos}}} = lists:last(POIs),
+                        Pos
+                end,
+            {ok, BeDoc} = els_utils:lookup_document(BeUri),
+            CallbackPOIs = els_poi:sort(els_dt_document:pois(BeDoc, [callback])),
+            FunPOIs = els_dt_document:pois(Document, [function]),
+
+            %% Only add missing callback functions, existing functions are kept.
+            Funs = [Id || #{id := Id} <- FunPOIs],
+            Callbacks = [
+                Cb
+             || #{id := Id} = Cb <- CallbackPOIs,
+                not lists:member(Id, Funs)
+            ],
+            Comment = ["\n%%% ", Behaviour, " callbacks\n"],
+            ExportText = Comment ++ [export_text(Id) || Id <- Callbacks],
+            Text = Comment ++ [fun_text(Cb, BeDoc) || Cb <- Callbacks],
+            Method = <<"workspace/applyEdit">>,
+            Params =
+                #{
+                    edit =>
+                        #{
+                            changes => #{
+                                Uri =>
+                                    [
+                                        #{
+                                            newText => iolist_to_binary(ExportText),
+                                            range => els_protocol:range(
+                                                #{
+                                                    from => ExportPos,
+                                                    to => ExportPos
+                                                }
+                                            )
+                                        },
+                                        #{
+                                            newText => iolist_to_binary(Text),
+                                            range => els_protocol:range(
+                                                #{
+                                                    from => CallbacksPos,
+                                                    to => CallbacksPos
+                                                }
+                                            )
+                                        }
+                                    ]
+                            }
+                        }
+                },
+            els_server:send_request(Method, Params),
+            []
+    end;
 execute_command(Command, Arguments) ->
     case wrangler_handler:execute_command(Command, Arguments) of
         true ->
@@ -116,3 +196,43 @@ execute_command(Command, Arguments) ->
             )
     end,
     [].
+
+-spec spec_text(binary()) -> binary().
+spec_text(<<"-callback", Rest/binary>>) ->
+    <<"-spec", Rest/binary>>;
+spec_text(Text) ->
+    Text.
+
+-spec fun_text(els_poi:poi(), els_dt_document:item()) -> iolist().
+fun_text(#{id := {Name, Arity}, range := Range}, #{text := Text}) ->
+    #{from := From, to := To} = Range,
+    %% TODO: Assuming 2 space indentation
+    CallbackText = els_text:range(Text, From, To),
+    SpecText = spec_text(CallbackText),
+    [
+        io_lib:format("~s", [SpecText]),
+        "\n",
+        atom_to_binary(Name, utf8),
+        "(",
+        args_text(Arity, 1),
+        ") ->\n",
+        "  error(not_implemented).\n\n"
+    ].
+
+-spec export_text(els_poi:poi()) -> iolist().
+export_text(#{id := {Name, Arity}}) ->
+    [
+        "-export([",
+        atom_to_binary(Name, utf8),
+        "/",
+        integer_to_list(Arity),
+        "]).\n"
+    ].
+
+-spec args_text(integer(), integer()) -> iolist().
+args_text(0, 1) ->
+    [];
+args_text(Arity, Arity) ->
+    ["_"];
+args_text(Arity, N) ->
+    ["_, " | args_text(Arity, N + 1)].

@@ -7,10 +7,12 @@
     remove_macro/4,
     remove_unused/4,
     suggest_variable/4,
-    fix_atom_typo/4
+    fix_atom_typo/4,
+    undefined_callback/4
 ]).
 
 -include("els_lsp.hrl").
+-include_lib("kernel/include/logger.hrl").
 
 -spec create_function(uri(), range(), binary(), [binary()]) -> [map()].
 create_function(Uri, Range0, _Data, [UndefinedFun]) ->
@@ -188,6 +190,27 @@ fix_atom_typo(Uri, Range, _Data, [Atom]) ->
             Atom,
             Range
         )
+    ].
+
+-spec undefined_callback(uri(), range(), binary(), [binary()]) -> [map()].
+undefined_callback(Uri, _Range, _Data, [_Function, Behaviour]) ->
+    Title = <<"Add missing callbacks for: ", Behaviour/binary>>,
+    [
+        #{
+            title => Title,
+            kind => ?CODE_ACTION_KIND_QUICKFIX,
+            command =>
+                els_command:make_command(
+                    Title,
+                    <<"add-behaviour-callbacks">>,
+                    [
+                        #{
+                            uri => Uri,
+                            behaviour => Behaviour
+                        }
+                    ]
+                )
+        }
     ].
 
 -spec ensure_range(els_poi:poi_range(), binary(), [els_poi:poi()]) ->
