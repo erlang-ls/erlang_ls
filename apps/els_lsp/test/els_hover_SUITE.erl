@@ -528,10 +528,7 @@ nonexisting_type(Config) ->
     Value =
         case has_eep48_edoc() of
             true ->
-                <<
-                    "## j/1\n\n---\n\n```erlang\n\n  j(_) \n\n```\n\n"
-                    "```erlang\n-spec j(doesnt:exist()) -> ok.\n```"
-                >>;
+                <<"```erlang\nj(_ :: doesnt:exist()) -> ok.\n```\n\n---\n\n\n">>;
             false ->
                 <<
                     "## j/1\n\n---\n\n```erlang\n\n  j(_) \n\n```\n\n"
