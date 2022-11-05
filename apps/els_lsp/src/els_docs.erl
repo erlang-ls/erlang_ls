@@ -103,7 +103,8 @@ docs(_M, _POI) ->
 -spec function_docs(application_type(), atom(), atom(), non_neg_integer()) ->
     [els_markup_content:doc_entry()].
 function_docs(Type, M, F, A) ->
-    case eep48_docs(function, M, F, A) of
+    %% this enables mocking eep48_docs/4 in tests
+    case ?MODULE:eep48_docs(function, M, F, A) of
         {ok, Docs} ->
             [{text, Docs}];
         {error, not_available} ->
