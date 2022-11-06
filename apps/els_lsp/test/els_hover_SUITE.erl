@@ -79,7 +79,10 @@ init_per_testcase(TestCase, Config) ->
 -spec end_per_testcase(atom(), config()) -> ok.
 end_per_testcase(TestCase, Config) ->
     lists:foreach(
-        fun (els_docs_meck) -> meck:unload(els_docs); (_) -> ok end,
+        fun
+            (els_docs_meck) -> meck:unload(els_docs);
+            (_) -> ok
+        end,
         erlang:registered()
     ),
     els_test_utils:end_per_testcase(TestCase, Config).
