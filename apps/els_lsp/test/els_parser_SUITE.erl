@@ -25,6 +25,7 @@
     types_with_types/1,
     record_def_with_types/1,
     record_def_with_record_type/1,
+    record_index/1,
     callback_recursive/1,
     specs_recursive/1,
     types_recursive/1,
@@ -277,7 +278,7 @@ record_def_with_types(_Config) ->
 
     Text2 = "-record(r1, {f1 = defval :: t2()}).",
     ?assertMatch([_], parse_find_pois(Text2, type_application, {t2, 0})),
-    %% No redundanct atom POIs
+    %% No redundant atom POIs
     ?assertMatch([#{id := defval}], parse_find_pois(Text2, atom)),
 
     Text3 = "-record(r1, {f1 :: t1(integer())}).",
@@ -290,7 +291,7 @@ record_def_with_types(_Config) ->
 
     Text4 = "-record(r1, {f1 :: m:t1(integer())}).",
     ?assertMatch([_], parse_find_pois(Text4, type_application, {m, t1, 1})),
-    %% No redundanct atom POIs
+    %% No redundant atom POIs
     ?assertMatch([], parse_find_pois(Text4, atom)),
 
     ok.
@@ -299,15 +300,23 @@ record_def_with_types(_Config) ->
 record_def_with_record_type(_Config) ->
     Text1 = "-record(r1, {f1 :: #r2{}}).",
     ?assertMatch([_], parse_find_pois(Text1, record_expr, r2)),
-    %% No redundanct atom POIs
+    %% No redundant atom POIs
     ?assertMatch([], parse_find_pois(Text1, atom)),
 
     Text2 = "-record(r1, {f1 :: #r2{f2 :: t2()}}).",
     ?assertMatch([_], parse_find_pois(Text2, record_expr, r2)),
     ?assertMatch([_], parse_find_pois(Text2, record_field, {r2, f2})),
-    %% No redundanct atom POIs
+    %% No redundant atom POIs
     ?assertMatch([], parse_find_pois(Text2, atom)),
     ok.
+
+-spec record_index(config()) -> ok.
+record_index(_Config) ->
+    Text1 = "#r1.f1.",
+    ?assertMatch([_], parse_find_pois(Text1, record_expr, r1)),
+    ?assertMatch([_], parse_find_pois(Text1, record_field, {r1, f1})),
+    %% No redundant atom POIs
+    ?assertMatch([#{id := '*exprs*'}], parse_find_pois(Text1, atom)).
 
 -spec callback_recursive(config()) -> ok.
 callback_recursive(_Config) ->
