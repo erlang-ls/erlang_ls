@@ -859,22 +859,30 @@ record_fields_with_var(Document, RecordName) ->
             [];
         POIs ->
             [#{data := #{field_list := Fields}} | _] = els_poi:sort(POIs),
+            SnippetSupport = snippet_support(),
+            Format =
+                case SnippetSupport of
+                    true -> ?INSERT_TEXT_FORMAT_SNIPPET;
+                    false -> ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+                end,
             [
                 #{
                     label => atom_to_label(Name),
                     kind => ?COMPLETION_ITEM_KIND_FIELD,
-                    insertText => format_record_field_with_var(Name),
-                    insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+                    insertText => format_record_field_with_var(Name, SnippetSupport),
+                    insertTextFormat => Format
                 }
              || Name <- Fields
             ]
     end.
 
--spec format_record_field_with_var(atom()) -> binary().
-format_record_field_with_var(Name) ->
+-spec format_record_field_with_var(atom(), SnippetSupport :: boolean()) -> binary().
+format_record_field_with_var(Name, true) ->
     Label = atom_to_label(Name),
     Var = els_utils:camel_case(Label),
-    <<Label/binary, " = ${1:", Var/binary, "}">>.
+    <<Label/binary, " = ${1:", Var/binary, "}">>;
+format_record_field_with_var(Name, false) ->
+    atom_to_label(Name).
 
 -spec find_record_definition(els_dt_document:item(), atom()) -> [els_poi:poi()].
 find_record_definition(Document, RecordName) ->
