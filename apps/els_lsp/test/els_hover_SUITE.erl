@@ -33,8 +33,10 @@
     local_record/1,
     included_record/1,
     local_type/1,
+    local_type_definition/1,
     remote_type/1,
     local_opaque/1,
+    local_opaque_definition/1,
     remote_opaque/1,
     nonexisting_type/1,
     nonexisting_module/1
@@ -434,6 +436,23 @@ local_type(Config) ->
     ?assertEqual(Expected, Result),
     ok.
 
+local_type_definition(Config) ->
+    Uri = ?config(hover_type_uri, Config),
+    #{result := Result} = els_client:hover(Uri, 3, 8),
+    Value =
+        case has_eep48_edoc() of
+            true -> <<"```erlang\n-type type_a() :: any().\n```\n\n---\n\n\n">>;
+            false -> <<"```erlang\n-type type_a() :: any().\n```">>
+        end,
+    Expected = #{
+        contents => #{
+            kind => <<"markdown">>,
+            value => Value
+        }
+    },
+    ?assertEqual(Expected, Result),
+    ok.
+
 remote_type(Config) ->
     Uri = ?config(hover_type_uri, Config),
     #{result := Result} = els_client:hover(Uri, 10, 10),
@@ -454,6 +473,23 @@ remote_type(Config) ->
 local_opaque(Config) ->
     Uri = ?config(hover_type_uri, Config),
     #{result := Result} = els_client:hover(Uri, 14, 10),
+    Value =
+        case has_eep48_edoc() of
+            true -> <<"```erlang\n-opaque opaque_type_a() \n```\n\n---\n\n\n">>;
+            false -> <<"```erlang\n-opaque opaque_type_a() :: any().\n```">>
+        end,
+    Expected = #{
+        contents => #{
+            kind => <<"markdown">>,
+            value => Value
+        }
+    },
+    ?assertEqual(Expected, Result),
+    ok.
+
+local_opaque_definition(Config) ->
+    Uri = ?config(hover_type_uri, Config),
+    #{result := Result} = els_client:hover(Uri, 4, 11),
     Value =
         case has_eep48_edoc() of
             true -> <<"```erlang\n-opaque opaque_type_a() \n```\n\n---\n\n\n">>;

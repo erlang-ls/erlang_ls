@@ -84,9 +84,15 @@ docs(Uri, #{kind := record_expr} = POI) ->
         _ ->
             []
     end;
-docs(_M, #{kind := type_application, id := {M, F, A}}) ->
+docs(_M, #{kind := Kind, id := {M, F, A}}) when
+    Kind =:= type_application;
+    Kind =:= type_definition
+->
     type_docs('remote', M, F, A);
-docs(Uri, #{kind := type_application, id := {F, A}}) ->
+docs(Uri, #{kind := Kind, id := {F, A}}) when
+    Kind =:= type_application;
+    Kind =:= type_definition
+->
     type_docs('local', els_uri:module(Uri), F, A);
 docs(_M, _POI) ->
     [].
