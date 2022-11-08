@@ -19,7 +19,7 @@
 %%==============================================================================
 %% Type Definitions
 %%==============================================================================
--type state() :: els_typer:info() | 'no_info'.
+-type state() :: els_typer:info() | {error, atom()}.
 
 %%==============================================================================
 %% Callback functions for the els_code_lens behaviour
@@ -30,23 +30,26 @@ init(#{uri := Uri} = _Document) ->
         Info ->
             Info
     catch
-        throw:{dialyzer_error, "Could not read PLT file " ++ _ = Message} ->
-            ?LOG_WARNING("~s are you missing configuration?", [Message]),
-            'no_info';
         C:E:S ->
+            {Reason, Explanation} =
+                case explanation(E) of
+                    undefined -> {unknown, "Cannot extract typer info."};
+                    Expl -> Expl
+                end,
             Fmt =
-                "Cannot extract typer info.~n"
+                "~s: ~s~n"
                 "Class: ~p~n"
                 "Exception: ~p~n"
                 "Stacktrace: ~p~n",
-            ?LOG_WARNING(Fmt, [C, E, S]),
-            'no_info'
+            ?LOG_WARNING(Fmt, [Reason, Explanation, C, E, S]),
+            {error, Reason}
     end.
 
 -spec command(els_dt_document:item(), els_poi:poi(), state()) -> els_command:command().
-command(_Document, _POI, 'no_info') ->
+command(_Document, _POI, {error, Reason}) ->
     CommandId = <<"suggest-spec">>,
-    Title = <<"Cannot extract specs (check logs for details)">>,
+    Message = io_lib:format("Cannot extract specs ('~p', check logs for details)", [Reason]),
+    Title = els_utils:to_binary(Message),
     els_command:make_command(Title, CommandId, []);
 command(Document, #{range := #{from := {Line, _}}} = POI, Info) ->
     #{uri := Uri} = Document,
@@ -98,3 +101,20 @@ truncate_spec_title(Spec, MaxLength) ->
 -spec spec_title_max_length() -> integer().
 spec_title_max_length() ->
     application:get_env(els_core, suggest_spec_title_max_length, 100).
+
+%% @doc Explain the given exception, try to suggest a solution.
+-spec explanation(any()) -> {atom(), string()} | undefined.
+explanation({dialyzer_error, "Could not read PLT file " ++ _ = Reason}) ->
+    Pattern = "Could not read PLT file (.*) (not_valid|no_such_file)",
+    case re:run(Reason, Pattern, [{capture, all_but_first, list}]) of
+        {match, [File, "no_such_file"]} ->
+            {no_plt, "Could not read the PLT file, check that 'plt_path' is correct: " ++ File};
+        {match, [File, "not_valid"]} ->
+            {invalid_plt, "Could not read the PLT file because it is not valid: " ++ File};
+        _ ->
+            undefined
+    end;
+explanation({dialyzer_error, "Old PLT file " ++ Message}) ->
+    {old_plt, "Dialyzer could not read the PLT file because it is incompatible: " ++ Message};
+explanation(_) ->
+    undefined.
