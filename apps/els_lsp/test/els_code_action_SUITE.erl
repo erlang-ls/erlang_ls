@@ -19,7 +19,8 @@
     remove_unused_macro/1,
     remove_unused_import/1,
     create_undefined_function/1,
-    create_undefined_function_arity/1
+    create_undefined_function_arity/1,
+    fix_callbacks/1
 ]).
 
 %%==============================================================================
@@ -388,4 +389,40 @@ create_undefined_function_arity(Config) ->
             }
         ],
     ?assertEqual(Expected, Result),
+    ok.
+
+-spec fix_callbacks(config()) -> ok.
+fix_callbacks(Config) ->
+    Uri = ?config(code_action_uri, Config),
+    % Ignored
+    Range = els_protocol:range(#{from => {4, 1}, to => {4, 15}}),
+    Diag = #{
+        message => <<"undefined callback function init/1 \(behaviour 'gen_server'\)">>,
+        range => Range,
+        severity => 3,
+        source => <<"Compiler">>
+    },
+    #{result := Result} = els_client:document_codeaction(Uri, Range, [Diag]),
+    Title = <<"Add missing callbacks for: gen_server">>,
+    Command = els_command:with_prefix(<<"add-behaviour-callbacks">>),
+    ?assertMatch(
+        [
+            #{
+                command := #{
+                    title := Title,
+                    command := Command,
+                    arguments :=
+                        [
+                            #{
+                                uri := Uri,
+                                behaviour := <<"gen_server">>
+                            }
+                        ]
+                },
+                kind := <<"quickfix">>,
+                title := Title
+            }
+        ],
+        Result
+    ),
     ok.

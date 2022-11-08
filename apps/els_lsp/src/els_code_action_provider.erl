@@ -28,8 +28,10 @@ handle_request({document_codeaction, Params}) ->
 %% @doc Result: `(Command | CodeAction)[] | null'
 -spec code_actions(uri(), range(), code_action_context()) -> [map()].
 code_actions(Uri, Range, #{<<"diagnostics">> := Diagnostics}) ->
-    lists:flatten([make_code_actions(Uri, D) || D <- Diagnostics]) ++
-        wrangler_handler:get_code_actions(Uri, Range).
+    lists:usort(
+        lists:flatten([make_code_actions(Uri, D) || D <- Diagnostics]) ++
+            wrangler_handler:get_code_actions(Uri, Range)
+    ).
 
 -spec make_code_actions(uri(), map()) -> [map()].
 make_code_actions(
@@ -47,7 +49,9 @@ make_code_actions(
             {"Unused macro: (.*)", fun els_code_actions:remove_macro/4},
             {"function (.*) undefined", fun els_code_actions:create_function/4},
             {"Unused file: (.*)", fun els_code_actions:remove_unused/4},
-            {"Atom typo\\? Did you mean: (.*)", fun els_code_actions:fix_atom_typo/4}
+            {"Atom typo\\? Did you mean: (.*)", fun els_code_actions:fix_atom_typo/4},
+            {"undefined callback function (.*) \\\(behaviour '(.*)'\\\)",
+                fun els_code_actions:undefined_callback/4}
         ],
         Uri,
         Range,
