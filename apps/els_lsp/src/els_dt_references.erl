@@ -61,7 +61,8 @@
     | record
     | include
     | include_lib
-    | behaviour.
+    | behaviour
+    | atom.
 -export_type([poi_category/0]).
 
 %%==============================================================================
@@ -185,4 +186,6 @@ kind_to_category(Kind) when Kind =:= include ->
 kind_to_category(Kind) when Kind =:= include_lib ->
     include_lib;
 kind_to_category(Kind) when Kind =:= behaviour ->
-    behaviour.
+    behaviour;
+kind_to_category(Kind) when Kind =:= atom ->
+    atom.
