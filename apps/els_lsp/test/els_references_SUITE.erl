@@ -32,6 +32,7 @@
     type_local/1,
     type_remote/1,
     type_included/1,
+    atom/1,
     refresh_after_watched_file_deleted/1,
     refresh_after_watched_file_changed/1,
     refresh_after_watched_file_added/1,
@@ -552,6 +553,32 @@ type_included(Config) ->
     #{result := Locations} = els_client:references(UriTypes, 15, 25),
     ct:comment("Find references for type_b from definition"),
     #{result := Locations} = els_client:references(UriHeader, 2, 7),
+    assert_locations(Locations, ExpectedLocations),
+    ok.
+
+-spec atom(config()) -> ok.
+atom(Config) ->
+    Uri = ?config(code_navigation_uri, Config),
+    %% References for the `code_navigation_extra' atom
+    #{result := Locations} = els_client:references(Uri, 85, 5),
+    ExpectedLocations = [
+        #{
+            uri => Uri,
+            range => #{from => {85, 3}, to => {85, 24}}
+        },
+        #{
+            uri => Uri,
+            range => #{from => {86, 14}, to => {86, 35}}
+        },
+        #{
+            uri => Uri,
+            range => #{from => {132, 36}, to => {132, 57}}
+        },
+        #{
+            uri => Uri,
+            range => #{from => {134, 35}, to => {134, 56}}
+        }
+    ],
     assert_locations(Locations, ExpectedLocations),
     ok.
 
