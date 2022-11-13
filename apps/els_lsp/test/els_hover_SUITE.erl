@@ -80,7 +80,7 @@ init_per_testcase(TestCase, Config) ->
 end_per_testcase(TestCase, Config) ->
     lists:foreach(
         fun
-            (els_docs_meck) -> meck:unload(els_docs);
+            (els_eep48_docs_meck) -> meck:unload(els_eep48_docs);
             (_) -> ok
         end,
         erlang:registered()
@@ -92,7 +92,7 @@ end_per_testcase(TestCase, Config) ->
 %%==============================================================================
 local_call_no_args(Config) ->
     %% this test is for the fallback when EEP-48 is not available
-    suppress_eep48_docs(hover_docs_caller, local_call, 0),
+    mock_eep48_render_fail(),
     Uri = ?config(hover_docs_caller_uri, Config),
     #{result := Result} = els_client:hover(Uri, 10, 7),
     ?assert(maps:is_key(contents, Result)),
@@ -107,7 +107,7 @@ local_call_no_args(Config) ->
 
 local_call_with_args(Config) ->
     %% this test is for the fallback when EEP-48 is not available
-    suppress_eep48_docs(hover_docs_caller, local_call, 2),
+    mock_eep48_render_fail(),
     Uri = ?config(hover_docs_caller_uri, Config),
     #{result := Result} = els_client:hover(Uri, 13, 7),
     ?assert(maps:is_key(contents, Result)),
@@ -132,7 +132,7 @@ local_call_with_args(Config) ->
 
 remote_call_multiple_clauses(Config) ->
     %% this test is for the fallback when EEP-48 is not available
-    suppress_eep48_docs(hover_docs, multiple_clauses, 1),
+    mock_eep48_render_fail(),
     Uri = ?config(hover_docs_caller_uri, Config),
     #{result := Result} = els_client:hover(Uri, 16, 15),
     ?assert(maps:is_key(contents, Result)),
@@ -240,7 +240,7 @@ remote_call_otp(Config) ->
 
 local_fun_expression(Config) ->
     %% this test is for the fallback when EEP-48 is not available
-    suppress_eep48_docs(hover_docs_caller, local_call, 2),
+    mock_eep48_render_fail(),
     Uri = ?config(hover_docs_caller_uri, Config),
     #{result := Result} = els_client:hover(Uri, 19, 5),
     ?assert(maps:is_key(contents, Result)),
@@ -265,7 +265,7 @@ local_fun_expression(Config) ->
 
 remote_fun_expression(Config) ->
     %% this test is for the fallback when EEP-48 is not available
-    suppress_eep48_docs(hover_docs, multiple_clauses, 1),
+    mock_eep48_render_fail(),
     Uri = ?config(hover_docs_caller_uri, Config),
     #{result := Result} = els_client:hover(Uri, 20, 10),
     ?assert(maps:is_key(contents, Result)),
@@ -588,14 +588,14 @@ nonexisting_module(Config) ->
 %% Helpers
 %%==============================================================================
 
-suppress_eep48_docs(Module, Function, Arity) ->
-    EepDocs = fun
-        (function, M, F, A) when {M, F, A} =:= {Module, Function, Arity} ->
-            {error, not_available};
-        (T, M, F, A) ->
-            error({unexpected, T, M, F, A})
-    end,
-    meck:expect(els_docs, eep48_docs, EepDocs).
+mock_eep48_render_fail() ->
+    %% els_docs calls the render functions twice
+    Fail4 = fun(_, _, _, _) -> {error, {mocked, ?MODULE, ?LINE}} end,
+    Fail3 = fun(_, _, _) -> {error, {mocked, ?MODULE, ?LINE}} end,
+    meck:expect(els_eep48_docs, render, Fail4),
+    meck:expect(els_eep48_docs, render, Fail3),
+    meck:expect(els_eep48_docs, render_type, Fail4),
+    meck:expect(els_eep48_docs, render_type, Fail3).
 
 has_eep48_edoc() ->
     list_to_integer(erlang:system_info(otp_release)) >= 24.
