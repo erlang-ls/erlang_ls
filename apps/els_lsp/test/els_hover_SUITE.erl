@@ -201,42 +201,43 @@ remote_call_otp(Config) ->
     #{result := Result} = els_client:hover(Uri, 26, 12),
     ?assert(maps:is_key(contents, Result)),
     Contents = maps:get(contents, Result),
-    Value =
-        case has_eep48(file) of
-            true ->
-                <<
-                    "```erlang\nwrite(IoDevice, Bytes) -> ok | {error, Reason}\n"
-                    "when\n  IoDevice :: io_device() | atom(),\n  Bytes :: iodata(),"
-                    "\n  Reason :: posix() | badarg | terminated.\n```\n\n---\n\n"
-                    "Writes `Bytes` to the file referenced by `IoDevice`\\. This "
-                    "function is the only way to write to a file opened in `raw` "
-                    "mode \\(although it works for normally opened files too\\)\\. "
-                    "Returns `ok` if successful, and `{error, Reason}` otherwise\\."
-                    "\n\nIf the file is opened with `encoding` set to something else "
-                    "than `latin1`, each byte written can result in many bytes being "
-                    "written to the file, as the byte range 0\\.\\.255 can represent "
-                    "anything between one and four bytes depending on value and UTF "
-                    "encoding type\\.\n\nTypical error reasons:\n\n* **`ebadf`**  \n"
-                    "  The file is not opened for writing\\.\n\n* **`enospc`**  \n"
-                    "  No space is left on the device\\.\n"
-                >>;
-            false ->
-                <<
-                    "## file:write/2\n\n---\n\n```erlang\n\n  write(File, Bytes) "
-                    "when is_pid(File) orelse is_atom(File)\n\n  write(#file_"
-                    "descriptor{module = Module} = Handle, Bytes) \n\n  "
-                    "write(_, _) \n\n```\n\n```erlang\n-spec write(IoDevice, Bytes)"
-                    " -> ok | {error, Reason} when\n      IoDevice :: io_device() |"
-                    " atom(),\n      Bytes :: iodata(),\n      Reason :: posix() | "
-                    "badarg | terminated.\n```"
-                >>
-        end,
-    Expected = #{
-        kind => <<"markdown">>,
-        value => Value
-    },
-    ?assertEqual(Expected, Contents),
-    ok.
+    ?assertMatch(#{kind := <<"markdown">>, value := _}, Contents),
+    ActualValue = maps:get(value, Contents),
+    case {has_eep48_edoc(), has_eep48(file)} of
+        {true, false} ->
+            %% If this should fail the test we should document requirements for
+            %% the development environment so that OTP has the EEP-48 docs.
+            {skip, "This OTP build does not have EEP-48 docs for the 'file' module"};
+        {true, true} ->
+            ExpectValue = <<
+                "```erlang\nwrite(IoDevice, Bytes) -> ok | {error, Reason}\n"
+                "when\n  IoDevice :: io_device() | atom(),\n  Bytes :: iodata(),"
+                "\n  Reason :: posix() | badarg | terminated.\n```\n\n---\n\n"
+                "Writes `Bytes` to the file referenced by `IoDevice`\\. This "
+                "function is the only way to write to a file opened in `raw` "
+                "mode \\(although it works for normally opened files too\\)\\. "
+                "Returns `ok` if successful, and `{error, Reason}` otherwise\\."
+                "\n\nIf the file is opened with `encoding` set to something else "
+                "than `latin1`, each byte written can result in many bytes being "
+                "written to the file, as the byte range 0\\.\\.255 can represent "
+                "anything between one and four bytes depending on value and UTF "
+                "encoding type\\.\n\nTypical error reasons:\n\n* **`ebadf`**  \n"
+                "  The file is not opened for writing\\.\n\n* **`enospc`**  \n"
+                "  No space is left on the device\\.\n"
+            >>,
+            ?assertEqual(ExpectValue, ActualValue);
+        {false, _} ->
+            ExpectValue = <<
+                "## file:write/2\n\n---\n\n```erlang\n\n  write(File, Bytes) "
+                "when is_pid(File) orelse is_atom(File)\n\n  write(#file_"
+                "descriptor{module = Module} = Handle, Bytes) \n\n  "
+                "write(_, _) \n\n```\n\n```erlang\n-spec write(IoDevice, Bytes)"
+                " -> ok | {error, Reason} when\n      IoDevice :: io_device() |"
+                " atom(),\n      Bytes :: iodata(),\n      Reason :: posix() | "
+                "badarg | terminated.\n```"
+            >>,
+            ?assertEqual(ExpectValue, ActualValue)
+    end.
 
 local_fun_expression(Config) ->
     %% this test is for the fallback when EEP-48 is not available
@@ -599,8 +600,17 @@ mock_eep48_render_fail() ->
 
 has_eep48_edoc() ->
     list_to_integer(erlang:system_info(otp_release)) >= 24.
+
 has_eep48(Module) ->
     case catch code:get_doc(Module) of
-        {ok, _} -> true;
-        _ -> false
+        {ok, {docs_v1, _, erlang, _, _, _, Docs}} ->
+            lists:any(
+                fun
+                    ({_, _, _, #{}, _}) -> true;
+                    ({_, _, _, _, _}) -> false
+                end,
+                Docs
+            );
+        _ ->
+            false
     end.
