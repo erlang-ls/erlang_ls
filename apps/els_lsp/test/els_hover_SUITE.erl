@@ -543,10 +543,20 @@ nonexisting_type(Config) ->
     #{result := Result} = els_client:hover(Uri, 22, 15),
     %% The spec for `j' is shown instead of the type docs.
     Value =
-        case has_eep48_edoc() of
-            true ->
-                <<"```erlang\nj(_ :: doesnt:exist()) -> ok.\n```\n\n---\n\n\n">>;
-            false ->
+        case list_to_integer(erlang:system_info(otp_release)) of
+            %% WIP: I think this might not be the way to go,
+            %% just putting it here for the PR.
+            25 ->
+                <<
+                    "```erlang\nj(_ :: doesnt:exist()) -> ok.\n```\n\n"
+                    "---\n\n\n"
+                >>;
+            24 ->
+                <<
+                    "## j/1\n\n---\n\n```erlang\n\n  j(_) \n\n```\n\n"
+                    "```erlang\n-spec j(doesnt:exist()) -> ok.\n```"
+                >>;
+            _ ->
                 <<
                     "## j/1\n\n---\n\n```erlang\n\n  j(_) \n\n```\n\n"
                     "```erlang\n-spec j(doesnt:exist()) -> ok.\n```"
