@@ -81,7 +81,7 @@ handle_request({initialize, Params}) ->
             _ ->
                 #{}
         end,
-    ok = els_config:initialize(RootUri, Capabilities, InitOptions, true),
+    ok = els_config:initialize(RootUri, Capabilities, InitOptions, use_els_server),
     {response, server_capabilities()};
 handle_request({initialized, _Params}) ->
     RootUri = els_config:get(root_uri),

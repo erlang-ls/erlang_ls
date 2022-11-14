@@ -92,27 +92,37 @@
 
 -spec initialize(uri(), map(), map()) -> ok.
 initialize(RootUri, Capabilities, InitOptions) ->
-    initialize(RootUri, Capabilities, InitOptions, _ReportMissingConfig = false).
+    initialize(RootUri, Capabilities, InitOptions, _ErrorReporting = no_els_server).
 
--spec initialize(uri(), map(), map(), boolean()) -> ok.
-initialize(RootUri, Capabilities, InitOptions, ReportMissingConfig) ->
+-spec initialize(uri(), map(), map(), use_els_server | no_els_server) -> ok.
+initialize(RootUri, Capabilities, InitOptions, ErrorReporting) ->
     RootPath = els_utils:to_list(els_uri:path(RootUri)),
     ConfigPaths = config_paths(RootPath, InitOptions),
-    {GlobalConfigPath, GlobalConfig} = consult_config(
-        global_config_paths(),
-        false
-    ),
-    {LocalConfigPath, LocalConfig} = consult_config(
-        ConfigPaths,
-        ReportMissingConfig
-    ),
+    {GlobalConfigPath, MaybeGlobalConfig} = find_config(global_config_paths()),
+    {LocalConfigPath, MaybeLocalConfig} = find_config(ConfigPaths),
     ConfigPath =
         case LocalConfigPath of
-            undefined -> GlobalConfigPath;
-            _ -> LocalConfigPath
+            undefined ->
+                report_missing_config(ErrorReporting),
+                GlobalConfigPath;
+            _ ->
+                LocalConfigPath
         end,
-    %% Augment Config onto GlobalConfig
-    Config = maps:merge(GlobalConfig, LocalConfig),
+    Config =
+        case {MaybeGlobalConfig, MaybeLocalConfig} of
+            {{ok, GlobalConfig}, {ok, LocalConfig}} ->
+                %% Augment LocalConfig onto GlobalConfig, note that this
+                %% is not a deep merge of nested maps.
+                maps:merge(GlobalConfig, LocalConfig);
+            {{error, Reason}, _} ->
+                %% We should not continue if the config is broken, but would
+                %% need a bigger initialization refactor to make that work.
+                report_broken_config(ErrorReporting, GlobalConfigPath, Reason),
+                #{};
+            {_, {error, Reason}} ->
+                report_broken_config(ErrorReporting, LocalConfigPath, Reason),
+                #{}
+        end,
     do_initialize(RootUri, Capabilities, InitOptions, {ConfigPath, Config}).
 
 -spec do_initialize(uri(), map(), map(), {undefined | path(), map()}) -> ok.
@@ -329,39 +339,82 @@ possible_config_paths(Path) ->
         filename:join([Path, ?ALTERNATIVE_CONFIG_FILE])
     ].
 
--spec consult_config([path()], boolean()) -> {undefined | path(), map()}.
-consult_config([], ReportMissingConfig) ->
-    ?LOG_INFO("No config file found."),
-    case ReportMissingConfig of
-        true ->
-            report_missing_config();
-        false ->
-            ok
-    end,
-    {undefined, #{}};
-consult_config([Path | Paths], ReportMissingConfig) ->
-    ?LOG_INFO("Reading config file. path=~p", [Path]),
-    Options = [{map_node_format, map}],
-    try yamerl:decode_file(Path, Options) of
-        [] -> {Path, #{}};
-        [Config] -> {Path, Config}
-    catch
-        Class:Error ->
-            ?LOG_DEBUG(
-                "Could not read config file: path=~p class=~p error=~p",
-                [Path, Class, Error]
-            ),
-            consult_config(Paths, ReportMissingConfig)
+-spec find_config([path()]) -> {FoundPath, OkConfig | Error} when
+    FoundPath :: path() | undefined,
+    OkConfig :: {ok, map()},
+    Error :: {error, term()}.
+find_config(Paths) ->
+    case lists:dropwhile(fun(P) -> not filelib:is_regular(P) end, Paths) of
+        [FoundPath | _] ->
+            {FoundPath, consult_config(FoundPath)};
+        _ ->
+            {undefined, {ok, #{}}}
     end.
 
--spec report_missing_config() -> ok.
-report_missing_config() ->
+-spec consult_config(path()) -> {ok, map()} | {error, term()}.
+consult_config(Path) ->
+    Options = [{map_node_format, map}],
+    try yamerl:decode_file(Path, Options) of
+        [] ->
+            ?LOG_WARNING("Using empty configuration from: ~p", [Path]),
+            {ok, #{}};
+        [Config] ->
+            {ok, Config}
+    catch
+        Class:Error ->
+            {error, {Class, Error}}
+    end.
+
+-spec report_missing_config(use_els_server | no_els_server) -> ok.
+report_missing_config(no_els_server) ->
+    %% https://github.com/erlang-ls/erlang_ls/issues/1060
+    ?LOG_INFO(
+        "The current project is missing an erlang_ls.config file. "
+        "Need help configuring Erlang LS for your project? "
+        "Visit: https://erlang-ls.github.io/configuration/"
+    );
+report_missing_config(use_els_server) ->
     Msg =
         io_lib:format(
             "The current project is missing an erlang_ls.config file. "
             "Need help configuring Erlang LS for your project? "
             "Visit: https://erlang-ls.github.io/configuration/",
             []
+        ),
+    els_server:send_notification(
+        <<"window/showMessage">>,
+        #{
+            type => ?MESSAGE_TYPE_WARNING,
+            message => els_utils:to_binary(Msg)
+        }
+    ),
+    ok.
+
+-spec report_broken_config(
+    use_els_server | no_els_server,
+    path(),
+    Reason :: term()
+) -> ok.
+report_broken_config(no_els_server, Path, Reason) ->
+    %% https://github.com/erlang-ls/erlang_ls/issues/1060
+    ?LOG_ERROR(
+        "The erlang_ls.config file at ~s can't be read (~p) "
+        "Need help configuring Erlang LS for your project? "
+        "Visit: https://erlang-ls.github.io/configuration/",
+        [Path, Reason]
+    );
+report_broken_config(use_els_server, Path, Reason) ->
+    ?LOG_ERROR(
+        "Failed to parse configuration file at ~s: ~p",
+        [Path, Reason]
+    ),
+    Msg =
+        io_lib:format(
+            "The erlang_ls.config file at ~s can't be read "
+            "(check logs for details). "
+            "Need help configuring Erlang LS for your project? "
+            "Visit: https://erlang-ls.github.io/configuration/",
+            [Path]
         ),
     els_server:send_notification(
         <<"window/showMessage">>,
