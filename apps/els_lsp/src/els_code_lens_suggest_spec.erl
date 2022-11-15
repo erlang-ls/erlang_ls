@@ -61,7 +61,7 @@ command(Document, #{range := #{from := {Line, _}}} = POI, Info) ->
 
 -spec is_default() -> boolean().
 is_default() ->
-    true.
+    false.
 
 -spec pois(els_dt_document:item()) -> [els_poi:poi()].
 pois(Document) ->

@@ -191,8 +191,7 @@ initialize_lenses_custom(Config) ->
     els_client:initialize(RootUri, InitOpts),
     Expected = [
         <<"function-references">>,
-        <<"server-info">>,
-        <<"suggest-spec">>
+        <<"server-info">>
     ],
     Result = els_code_lens:enabled_lenses(),
     ?assertEqual(Expected, Result),
@@ -209,8 +208,7 @@ initialize_lenses_invalid(Config) ->
     Expected = [
         <<"ct-run-test">>,
         <<"function-references">>,
-        <<"show-behaviour-usages">>,
-        <<"suggest-spec">>
+        <<"show-behaviour-usages">>
     ],
     ?assertEqual(Expected, Result),
     ok.
