@@ -80,7 +80,10 @@ incoming_calls(Config) ->
                             folding_range => #{
                                 from => {7, ?END_OF_LINE},
                                 to => {16, ?END_OF_LINE}
-                            }
+                            },
+                            clause_body_ranges => [
+                                #{from => {8, 3}, to => {8, 5}}, #{from => {10, 3}, to => {16, 18}}
+                            ]
                         },
                     id => {function_a, 1},
                     kind => function,
@@ -133,7 +136,12 @@ incoming_calls(Config) ->
                                                     #{
                                                         from => {7, ?END_OF_LINE},
                                                         to => {13, ?END_OF_LINE}
-                                                    }
+                                                    },
+                                                clause_body_ranges =>
+                                                    [
+                                                        #{from => {8, 3}, to => {8, 5}},
+                                                        #{from => {10, 3}, to => {13, 18}}
+                                                    ]
                                             },
                                         id => {function_a, 1},
                                         kind => function,
@@ -185,7 +193,12 @@ incoming_calls(Config) ->
                                                     #{
                                                         from => {7, ?END_OF_LINE},
                                                         to => {16, ?END_OF_LINE}
-                                                    }
+                                                    },
+                                                clause_body_ranges =>
+                                                    [
+                                                        #{from => {8, 3}, to => {8, 5}},
+                                                        #{from => {10, 3}, to => {16, 18}}
+                                                    ]
                                             },
                                         id => {function_a, 1},
                                         kind => function,
@@ -254,7 +267,11 @@ outgoing_calls(Config) ->
                         folding_range => #{
                             from => {7, ?END_OF_LINE},
                             to => {16, ?END_OF_LINE}
-                        }
+                        },
+                        clause_body_ranges => [
+                            #{from => {8, 3}, to => {8, 5}},
+                            #{from => {10, 3}, to => {16, 18}}
+                        ]
                     },
                     id => {function_a, 1},
                     kind => function,
@@ -301,7 +318,11 @@ outgoing_calls(Config) ->
                                 folding_range => #{
                                     from => {7, ?END_OF_LINE},
                                     to => {16, ?END_OF_LINE}
-                                }
+                                },
+                                clause_body_ranges => [
+                                    #{from => {8, 3}, to => {8, 5}},
+                                    #{from => {10, 3}, to => {16, 18}}
+                                ]
                             },
                         id => {function_a, 1},
                         kind => function,
@@ -325,7 +346,10 @@ outgoing_calls(Config) ->
                                 folding_range => #{
                                     from => {18, ?END_OF_LINE},
                                     to => {19, ?END_OF_LINE}
-                                }
+                                },
+                                clause_body_ranges => [
+                                    #{from => {19, 3}, to => {19, 5}}
+                                ]
                             },
                         id => {function_b, 0},
                         kind => function,
@@ -349,7 +373,11 @@ outgoing_calls(Config) ->
                                 folding_range => #{
                                     from => {7, ?END_OF_LINE},
                                     to => {13, ?END_OF_LINE}
-                                }
+                                },
+                                clause_body_ranges => [
+                                    #{from => {8, 3}, to => {8, 5}},
+                                    #{from => {10, 3}, to => {13, 18}}
+                                ]
                             },
                         id => {function_a, 1},
                         kind => function,
@@ -373,7 +401,10 @@ outgoing_calls(Config) ->
                                 folding_range => #{
                                     from => {18, ?END_OF_LINE},
                                     to => {19, ?END_OF_LINE}
-                                }
+                                },
+                                clause_body_ranges => [
+                                    #{from => {19, 3}, to => {19, 5}}
+                                ]
                             },
                         id => {function_b, 0},
                         kind => function,

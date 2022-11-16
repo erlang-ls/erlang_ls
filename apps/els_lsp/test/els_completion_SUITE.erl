@@ -51,6 +51,7 @@
     resolve_type_application_remote_external/1,
     resolve_opaque_application_remote_external/1,
     resolve_type_application_remote_otp/1,
+    function_clause/1,
     completion_request_fails/1
 ]).
 
@@ -1944,6 +1945,40 @@ resolve_type_application_remote_otp(Config) ->
             }
     },
     ?assertEqual(Expected, Result).
+
+-spec function_clause(config()) -> ok.
+function_clause(Config) ->
+    Uri = ?config(completion_functionclause_uri, Config),
+    Uri2 = ?config(completion_functionclause_2_uri, Config),
+    TriggerKindChar = ?COMPLETION_TRIGGER_KIND_CHARACTER,
+    Expected1 =
+        [
+            #{
+                kind => ?COMPLETION_ITEM_KIND_SNIPPET,
+                label => <<"Add function clause">>,
+                insertText => <<"\ntest_b(${1:Arg1}, ${2:Arg2}, ${3:Arg3}) ->\n    ${4:Body}">>,
+                insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
+                insertTextMode => ?INSERT_TEXT_MODE_AS_IS
+            }
+        ],
+
+    #{result := Completion1} =
+        els_client:completion(Uri, 11, 24, TriggerKindChar, <<";">>),
+
+    #{result := Completion2} =
+        els_client:completion(Uri, 9, 12, TriggerKindChar, <<";">>),
+
+    #{result := Completion3} =
+        els_client:completion(Uri, 4, 18, TriggerKindChar, <<";">>),
+
+    #{result := Completion4} =
+        els_client:completion(Uri2, 6, 19, TriggerKindChar, <<";">>),
+
+    ?assertEqual(Expected1, Completion1),
+    ?assertEqual(Expected1, Completion2),
+    ?assertEqual([], Completion3),
+    ?assertEqual([], Completion4),
+    ok.
 
 %% Issue #1387
 completion_request_fails(Config) ->

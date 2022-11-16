@@ -43,7 +43,8 @@ trigger_characters() ->
         <<"-">>,
         <<"\"">>,
         <<"{">>,
-        <<" ">>
+        <<" ">>,
+        <<";">>
     ].
 
 -spec handle_request(els_provider:provider_request()) -> {response, any()}.
@@ -192,6 +193,14 @@ find_completions(
         _ ->
             []
     end;
+find_completions(
+    Prefix,
+    ?COMPLETION_TRIGGER_KIND_CHARACTER,
+    #{
+        trigger := <<";">>
+    } = Opts
+) ->
+    complete_function_clause(Prefix, Opts);
 find_completions(
     <<"-include_lib(">>,
     ?COMPLETION_TRIGGER_KIND_CHARACTER,
@@ -417,6 +426,77 @@ complete_type_definition(Document, Name, ItemFormat) ->
         bifs(type_definition, ItemFormat) ++
         modules(NameBinary) ++
         atoms(Document, NameBinary).
+
+-spec complete_function_clause(binary(), options()) -> items().
+complete_function_clause(Prefix, Opts) ->
+    #{
+        document := Document,
+        line := Line,
+        column := Column
+    } = Opts,
+
+    #{
+        pois := POIs,
+        text := Text
+    } = Document,
+    MatchedPois = match_all_pos(POIs, {Line, Column}),
+    MatchedFunctionPoi = lists:search(
+        fun(Poi) ->
+            case Poi of
+                #{kind := function} -> true;
+                _ -> false
+            end
+        end,
+        MatchedPois
+    ),
+
+    CompletionLine = els_text:line(Text, Line - 1),
+    %% Prefix does not include trigger character, but CompletionLine does
+    AtEndOfLine = size(Prefix) == (size(CompletionLine) - 1),
+
+    case {MatchedFunctionPoi, AtEndOfLine} of
+        %% We want to complete only at end of function clause body, to prevent
+        %% completing in middle of a clause in a case, receive, etc.
+        {{value, MatchedFun}, true} ->
+            #{data := #{clause_body_ranges := ClauseBodies}} = MatchedFun,
+
+            MatchedClauseBody =
+                lists:search(
+                    fun(#{to := {BodyEndLine, _Col}}) -> BodyEndLine == Line end, ClauseBodies
+                ),
+            case MatchedClauseBody of
+                {value, _} ->
+                    #{id := {Name, Arity}} = MatchedFun,
+                    ArgumentList = lists:map(
+                        fun(Num) ->
+                            io_lib:format("${~p:Arg~p}", [Num, Num])
+                        end,
+                        lists:seq(1, Arity)
+                    ),
+                    ArgumentText = lists:join(", ", ArgumentList),
+
+                    Snippet =
+                        io_lib:format(
+                            "\n~s(~s) ->\n    ${~p:Body}",
+                            [atom_to_list(Name), ArgumentText, Arity + 1]
+                        ),
+
+                    [
+                        #{
+                            label => <<"Add function clause">>,
+                            kind => ?COMPLETION_ITEM_KIND_SNIPPET,
+                            insertText => list_to_binary(Snippet),
+                            insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
+                            insertTextMode => ?INSERT_TEXT_MODE_AS_IS
+                        }
+                    ];
+                _ ->
+                    %% Did not match endline of function clause body
+                    []
+            end;
+        _ ->
+            []
+    end.
 
 %%=============================================================================
 %% Attributes

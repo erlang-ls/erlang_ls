@@ -622,6 +622,12 @@ function(Tree) ->
      || {I, Clause} <- IndexedClauses,
         erl_syntax:type(Clause) =:= clause
     ],
+
+    FunctionBodyRanges = [
+        range_from_body_trees(erl_syntax:clause_body(Clause))
+     || Clause <- Clauses
+    ],
+
     {StartLine, StartColumn} = get_start_location(Tree),
     {EndLine, EndColumn} = get_end_location(Tree),
     FoldingRange = exceeds_one_line(StartLine, EndLine),
@@ -639,13 +645,27 @@ function(Tree) ->
                 from => {StartLine, StartColumn},
                 to => {EndLine, EndColumn}
             },
-            folding_range => FoldingRange
+            folding_range => FoldingRange,
+            clause_body_ranges => FunctionBodyRanges
         }
     ),
     lists:append([
         [FunctionPOI],
         ClausesPOIs
     ]).
+
+-spec range_from_body_trees([tree()]) -> [els_poi:poi()].
+range_from_body_trees(BodyTrees) ->
+    FirstExpr = hd(BodyTrees),
+    LastExpr = lists:last(BodyTrees),
+
+    {StartLine, StartColumn} = _Start = get_start_location(FirstExpr),
+    {EndLine, EndColumn} = _End = get_end_location(LastExpr),
+
+    #{
+        from => {StartLine, StartColumn},
+        to => {EndLine, EndColumn}
+    }.
 
 -spec analyze_function(tree(), [tree()]) ->
     {atom(), arity(), [{integer(), string()}]}.

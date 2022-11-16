@@ -141,6 +141,16 @@
     | ?INSERT_TEXT_FORMAT_SNIPPET.
 
 %%------------------------------------------------------------------------------
+%% Insert Text Mode
+%%------------------------------------------------------------------------------
+
+-define(INSERT_TEXT_MODE_AS_IS, 1).
+-define(INSERT_TEXT_MODE_ADJUST_INDENTATION, 2).
+-type insert_text_mode() ::
+    ?INSERT_TEXT_MODE_AS_IS
+    | ?INSERT_TEXT_MODE_ADJUST_INDENTATION.
+
+%%------------------------------------------------------------------------------
 %% Text Edit
 %%------------------------------------------------------------------------------
 -type text_edit() :: #{
