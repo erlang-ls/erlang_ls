@@ -335,6 +335,7 @@
     kind => completion_item_kind(),
     insertText => binary(),
     insertTextFormat => insert_text_format(),
+    insertTextMode => insert_text_mode(),
     data => map()
 }.
 

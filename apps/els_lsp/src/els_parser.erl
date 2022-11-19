@@ -654,7 +654,7 @@ function(Tree) ->
         ClausesPOIs
     ]).
 
--spec range_from_body_trees([tree()]) -> [els_poi:poi()].
+-spec range_from_body_trees([tree()]) -> els_poi:poi_range().
 range_from_body_trees(BodyTrees) ->
     FirstExpr = hd(BodyTrees),
     LastExpr = lists:last(BodyTrees),
