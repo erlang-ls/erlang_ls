@@ -162,6 +162,8 @@ remove_macro(Uri, Range, _Data, [Macro]) ->
     end.
 
 -spec remove_unused(uri(), range(), binary(), [binary()]) -> [map()].
+remove_unused(_Uri, _Range0, <<>>, [_Import]) ->
+    [];
 remove_unused(Uri, _Range0, Data, [Import]) ->
     {ok, Document} = els_utils:lookup_document(Uri),
     case els_range:inclusion_range(Data, Document) of
