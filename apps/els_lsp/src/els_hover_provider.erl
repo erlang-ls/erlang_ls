@@ -41,9 +41,11 @@ handle_request({hover, Params}) ->
 
 -spec run_hover_job(uri(), line(), column()) -> pid().
 run_hover_job(Uri, Line, Character) ->
+    {ok, Doc} = els_utils:lookup_document(Uri),
+    POIs = els_dt_document:get_element_at_pos(Doc, Line + 1, Character + 1),
     Config = #{
         task => fun get_docs/2,
-        entries => [{Uri, Line, Character}],
+        entries => [{Uri, POIs}],
         title => <<"Hover">>,
         on_complete =>
             fun(HoverResp) ->
@@ -54,19 +56,21 @@ run_hover_job(Uri, Line, Character) ->
     {ok, Pid} = els_background_job:new(Config),
     Pid.
 
--spec get_docs({uri(), integer(), integer()}, undefined) -> map() | null.
-get_docs({Uri, Line, Character}, _) ->
-    {ok, Doc} = els_utils:lookup_document(Uri),
-    POIs = els_dt_document:get_element_at_pos(Doc, Line + 1, Character + 1),
-    do_get_docs(Uri, POIs).
+-spec get_docs({uri(), [els_poi:poi()]}, undefined) -> map() | null.
+get_docs({Uri, POIs}, _) ->
+    Pid = self(),
+    spawn(fun() -> do_get_docs(Uri, POIs, Pid) end),
+    receive
+        HoverResp -> HoverResp
+    end.
 
--spec do_get_docs(uri(), [els_poi:poi()]) -> map() | null.
-do_get_docs(_Uri, []) ->
-    null;
-do_get_docs(Uri, [POI | Rest]) ->
+-spec do_get_docs(uri(), [els_poi:poi()], pid()) -> map() | null.
+do_get_docs(_Uri, [], Pid) ->
+    Pid ! null;
+do_get_docs(Uri, [POI | Rest], Pid) ->
     case els_docs:docs(Uri, POI) of
         [] ->
-            do_get_docs(Uri, Rest);
+            do_get_docs(Uri, Rest, Pid);
         Entries ->
-            #{contents => els_markup_content:new(Entries)}
+            Pid ! #{contents => els_markup_content:new(Entries)}
     end.

@@ -167,6 +167,7 @@ do_initialize(RootUri, Capabilities, InitOptions, {ConfigPath, Config}) ->
     RefactorErl = maps:get("refactorerl", Config, notconfigured),
     Providers = maps:get("providers", Config, #{}),
     EdocParseEnabled = maps:get("edoc_parse_enabled", Config, true),
+    DocsMemo = maps:get("docs_memo", Config, false),
 
     %% Initialize and start Wrangler
     case maps:get("wrangler", Config, notconfigured) of
@@ -220,6 +221,7 @@ do_initialize(RootUri, Capabilities, InitOptions, {ConfigPath, Config}) ->
     ok = set(plt_path, DialyzerPltPath),
     ok = set(code_reload, CodeReload),
     ok = set(providers, Providers),
+    ok = set(docs_memo, DocsMemo),
     ?LOG_INFO("Config=~p", [Config]),
     ok = set(
         runtime,

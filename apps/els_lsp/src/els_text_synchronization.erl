@@ -59,7 +59,9 @@ did_open(Params) ->
     ok.
 
 -spec did_save(map()) -> ok.
-did_save(_Params) ->
+did_save(Params) ->
+    #{<<"textDocument">> := #{<<"uri">> := Uri}} = Params,
+    els_docs_memo:delete_by_uri(Uri),
     ok.
 
 -spec did_change_watched_files(map()) -> ok.
@@ -93,8 +95,10 @@ handle_file_change(Uri, Type) when
     Type =:= ?FILE_CHANGE_TYPE_CREATED;
     Type =:= ?FILE_CHANGE_TYPE_CHANGED
 ->
+    els_docs_memo:delete_by_uri(Uri),
     reload_from_disk(Uri);
 handle_file_change(Uri, Type) when Type =:= ?FILE_CHANGE_TYPE_DELETED ->
+    els_docs_memo:delete_by_uri(Uri),
     els_indexing:remove(Uri).
 
 -spec reload_from_disk(uri()) -> ok.
