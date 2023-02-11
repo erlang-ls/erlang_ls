@@ -84,8 +84,9 @@ handle_request({<<"initialize">>, _Params}, State) ->
     RootUri = els_uri:uri(els_utils:to_binary(RootPath)),
     InitOptions = #{},
     Capabilities = capabilities(),
-    %% another fix, see https://github.com/erlang-ls/erlang_ls/issues/1060
-    ok = els_config:initialize(RootUri, Capabilities, InitOptions),
+    %% we can't use LSP notifications here, see
+    %% https://github.com/erlang-ls/erlang_ls/issues/1060
+    ok = els_config:initialize(RootUri, Capabilities, InitOptions, log),
     {Capabilities, State};
 handle_request({<<"launch">>, #{<<"cwd">> := Cwd} = Params}, State) ->
     case start_distribution(Params) of

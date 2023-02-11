@@ -86,15 +86,18 @@
     providers => map()
 }.
 
+-type error_reporting() :: lsp_notification | log.
+
 %%==============================================================================
 %% Exported functions
 %%==============================================================================
 
 -spec initialize(uri(), map(), map()) -> ok.
 initialize(RootUri, Capabilities, InitOptions) ->
-    initialize(RootUri, Capabilities, InitOptions, _ErrorReporting = no_els_server).
+    %% https://github.com/erlang-ls/erlang_ls/issues/1060
+    initialize(RootUri, Capabilities, InitOptions, _ErrorReporting = log).
 
--spec initialize(uri(), map(), map(), use_els_server | no_els_server) -> ok.
+-spec initialize(uri(), map(), map(), error_reporting()) -> ok.
 initialize(RootUri, Capabilities, InitOptions, ErrorReporting) ->
     RootPath = els_utils:to_list(els_uri:path(RootUri)),
     ConfigPaths = config_paths(RootPath, InitOptions),
@@ -365,15 +368,14 @@ consult_config(Path) ->
             {error, {Class, Error}}
     end.
 
--spec report_missing_config(use_els_server | no_els_server) -> ok.
-report_missing_config(no_els_server) ->
-    %% https://github.com/erlang-ls/erlang_ls/issues/1060
+-spec report_missing_config(error_reporting()) -> ok.
+report_missing_config(log) ->
     ?LOG_INFO(
         "The current project is missing an erlang_ls.config file. "
         "Need help configuring Erlang LS for your project? "
         "Visit: https://erlang-ls.github.io/configuration/"
     );
-report_missing_config(use_els_server) ->
+report_missing_config(lsp_notification) ->
     Msg =
         io_lib:format(
             "The current project is missing an erlang_ls.config file. "
@@ -391,19 +393,18 @@ report_missing_config(use_els_server) ->
     ok.
 
 -spec report_broken_config(
-    use_els_server | no_els_server,
+    error_reporting(),
     path(),
     Reason :: term()
 ) -> ok.
-report_broken_config(no_els_server, Path, Reason) ->
-    %% https://github.com/erlang-ls/erlang_ls/issues/1060
+report_broken_config(log, Path, Reason) ->
     ?LOG_ERROR(
         "The erlang_ls.config file at ~s can't be read (~p) "
         "Need help configuring Erlang LS for your project? "
         "Visit: https://erlang-ls.github.io/configuration/",
         [Path, Reason]
     );
-report_broken_config(use_els_server, Path, Reason) ->
+report_broken_config(lsp_notification, Path, Reason) ->
     ?LOG_ERROR(
         "Failed to parse configuration file at ~s: ~p",
         [Path, Reason]
