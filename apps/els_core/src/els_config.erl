@@ -359,10 +359,12 @@ consult_config(Path) ->
     Options = [{map_node_format, map}],
     try yamerl:decode_file(Path, Options) of
         [] ->
-            ?LOG_WARNING("Using empty configuration from: ~p", [Path]),
+            ?LOG_WARNING("Using empty configuration from ~s", [Path]),
             {ok, #{}};
-        [Config] ->
-            {ok, Config}
+        [Config] when is_map(Config) ->
+            {ok, Config};
+        _ ->
+            {error, {syntax_error, Path}}
     catch
         Class:Error ->
             {error, {Class, Error}}
