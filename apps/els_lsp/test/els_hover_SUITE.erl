@@ -203,12 +203,8 @@ remote_call_otp(Config) ->
     Contents = maps:get(contents, Result),
     ?assertMatch(#{kind := <<"markdown">>, value := _}, Contents),
     ActualValue = maps:get(value, Contents),
-    case {has_eep48_edoc(), has_eep48(file)} of
-        {true, false} ->
-            %% If this should fail the test we should document requirements for
-            %% the development environment so that OTP has the EEP-48 docs.
-            {skip, "This OTP build does not have EEP-48 docs for the 'file' module"};
-        {true, true} ->
+    case has_eep48(file) of
+        true ->
             ExpectValue = <<
                 "```erlang\nwrite(IoDevice, Bytes) -> ok | {error, Reason}\n"
                 "when\n  IoDevice :: io_device() | atom(),\n  Bytes :: iodata(),"
@@ -226,7 +222,7 @@ remote_call_otp(Config) ->
                 "  No space is left on the device\\.\n"
             >>,
             ?assertEqual(ExpectValue, ActualValue);
-        {false, _} ->
+        false ->
             ExpectValue = <<
                 "## file:write/2\n\n---\n\n```erlang\n\n  write(File, Bytes) "
                 "when is_pid(File) orelse is_atom(File)\n\n  write(#file_"
