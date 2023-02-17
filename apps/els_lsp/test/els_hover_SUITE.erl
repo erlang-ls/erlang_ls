@@ -587,7 +587,8 @@ nonexisting_module(Config) ->
 
 mock_doc_chunks_unavailable() ->
     meck:expect(
-        els_docs, eep48_docs,
+        els_docs,
+        eep48_docs,
         fun(_, _, _, _) -> {error, not_available} end
     ).
 
