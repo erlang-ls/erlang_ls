@@ -1919,12 +1919,8 @@ resolve_type_application_remote_otp(Config) ->
         Result
     ),
     #{documentation := #{value := ActualValue}} = Result,
-    case {has_eep48_edoc(), has_eep48(file)} of
-        {true, false} ->
-            %% If this should fail the test we should document requirements for
-            %% the development environment so that OTP has the EEP-48 docs.
-            {skip, "This OTP build does not have EEP-48 docs for the 'file' module"};
-        {true, true} ->
+    case has_eep48(file) of
+        true ->
             ExpectValue = <<
                 "```erlang\n-type name_all() ::\n     string() |"
                 " atom() | deep_list() | (RawFilename :: binary()).\n"
@@ -1939,7 +1935,7 @@ resolve_type_application_remote_otp(Config) ->
                 "\\(not even at the end\\)\\.\n"
             >>,
             ?assertEqual(ExpectValue, ActualValue);
-        {false, _} ->
+        false ->
             ExpectValue = <<
                 "```erlang\n-type name_all()  :: "
                 "string() | atom() | deep_list() | "
