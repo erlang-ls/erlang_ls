@@ -541,17 +541,10 @@ nonexisting_type(Config) ->
     %% The spec for `j' is shown instead of the type docs.
     Value =
         case list_to_integer(erlang:system_info(otp_release)) of
-            %% WIP: I think this might not be the way to go,
-            %% just putting it here for the PR.
             25 ->
                 <<
                     "```erlang\nj(_ :: doesnt:exist()) -> ok.\n```\n\n"
                     "---\n\n\n"
-                >>;
-            24 ->
-                <<
-                    "## j/1\n\n---\n\n```erlang\n\n  j(_) \n\n```\n\n"
-                    "```erlang\n-spec j(doesnt:exist()) -> ok.\n```"
                 >>;
             _ ->
                 <<
