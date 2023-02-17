@@ -1971,7 +1971,7 @@ has_eep48(Module) ->
         {ok, {docs_v1, _, erlang, _, _, _, Docs}} ->
             lists:any(
                 fun
-                    ({_, _, _, #{}, _}) -> true;
+                    ({_, _, _, Doc, _}) when is_map(Doc) -> true;
                     ({_, _, _, _, _}) -> false
                 end,
                 Docs
