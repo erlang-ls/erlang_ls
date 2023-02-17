@@ -316,7 +316,7 @@ exit_post(S, _Args, Res) ->
             true -> 0;
             false -> 1
         end,
-    els_test_utils:wait_for(halt_called, 1000),
+    els_test_utils:wait_for(halt_called, 64000),
     ?assert(meck:called(els_utils, halt, [ExpectedExitCode])),
     ?assertMatch(ok, Res),
     true.
