@@ -376,6 +376,9 @@ setup() ->
     application:ensure_all_started(els_lsp),
     ConfigFile = filename:join([els_utils:system_tmp_dir(), "erlang_ls.config"]),
     file:write_file(ConfigFile, <<"">>),
+    %% An empty config file makes the config loader log warnings,
+    %% we don't need to see them when running the tests.
+    logger:set_module_level(els_config, error),
     ok.
 
 %%==============================================================================
