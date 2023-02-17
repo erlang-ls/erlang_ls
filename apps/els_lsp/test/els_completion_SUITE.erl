@@ -1683,12 +1683,8 @@ resolve_application_remote_otp(Config) ->
         Result
     ),
     #{documentation := #{value := ActualValue}} = Result,
-    case {has_eep48_edoc(), has_eep48(file)} of
-        {true, false} ->
-            %% If this should fail the test we should document requirements for
-            %% the development environment so that OTP has the EEP-48 docs.
-            {skip, "This OTP build does not have EEP-48 docs for the 'file' module"};
-        {true, true} ->
+    case has_eep48(file) of
+        true ->
             ExpectValue = <<
                 "```erlang\nwrite(IoDevice, Bytes) -> ok | {error, "
                 "Reason}\nwhen\n  IoDevice :: io_device() | atom(),\n  Bytes ::"
@@ -1706,7 +1702,7 @@ resolve_application_remote_otp(Config) ->
                 "  No space is left on the device\\.\n"
             >>,
             ?assertEqual(ExpectValue, ActualValue);
-        {false, _} ->
+        false ->
             ExpectValue = <<
                 "## file:write/2\n\n---\n\n```erlang\n\n  write(File, "
                 "Bytes) when is_pid(File) orelse is_atom(File)\n\n  write(#file_"
