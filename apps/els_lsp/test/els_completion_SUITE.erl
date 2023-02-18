@@ -1675,45 +1675,44 @@ resolve_application_remote_otp(Config) ->
         <<"write/2">>
     ),
     #{result := Result} = els_client:completionitem_resolve(Selected),
-    ?assertMatch(
-        #{
-            data := #{module := <<"file">>, function := <<"write">>, arity := 2},
-            documentation := #{kind := <<"markdown">>, value := _}
-        },
-        Result
-    ),
-    #{documentation := #{value := ActualValue}} = Result,
-    case has_eep48(file) of
-        true ->
-            ExpectValue = <<
-                "```erlang\nwrite(IoDevice, Bytes) -> ok | {error, "
-                "Reason}\nwhen\n  IoDevice :: io_device() | atom(),\n  Bytes ::"
-                " iodata(),\n  Reason :: posix() | badarg | terminated.\n```\n\n"
-                "---\n\nWrites `Bytes` to the file referenced by `IoDevice`\\. "
-                "This function is the only way to write to a file opened in `raw`"
-                " mode \\(although it works for normally opened files too\\)\\. "
-                "Returns `ok` if successful, and `{error, Reason}` otherwise\\."
-                "\n\nIf the file is opened with `encoding` set to something else "
-                "than `latin1`, each byte written can result in many bytes being "
-                "written to the file, as the byte range 0\\.\\.255 can represent "
-                "anything between one and four bytes depending on value and UTF "
-                "encoding type\\.\n\nTypical error reasons:\n\n* **`ebadf`**  \n"
-                "  The file is not opened for writing\\.\n\n* **`enospc`**  \n"
-                "  No space is left on the device\\.\n"
-            >>,
-            ?assertEqual(ExpectValue, ActualValue);
-        false ->
-            ExpectValue = <<
-                "## file:write/2\n\n---\n\n```erlang\n\n  write(File, "
-                "Bytes) when is_pid(File) orelse is_atom(File)\n\n  write(#file_"
-                "descriptor{module = Module} = Handle, Bytes) \n\n  write(_, _) "
-                "\n\n```\n\n```erlang\n-spec write(IoDevice, Bytes) -> ok | "
-                "{error, Reason} when\n      IoDevice :: io_device() | atom(),"
-                "\n      Bytes :: iodata(),\n      Reason :: posix() | "
-                "badarg | terminated.\n```"
-            >>,
-            ?assertEqual(ExpectValue, ActualValue)
-    end.
+    Value =
+        case has_eep48(file) of
+            true ->
+                <<
+                    "```erlang\nwrite(IoDevice, Bytes) -> ok | {error, "
+                    "Reason}\nwhen\n  IoDevice :: io_device() | atom(),\n  Bytes ::"
+                    " iodata(),\n  Reason :: posix() | badarg | terminated.\n```\n\n"
+                    "---\n\nWrites `Bytes` to the file referenced by `IoDevice`\\. "
+                    "This function is the only way to write to a file opened in `raw`"
+                    " mode \\(although it works for normally opened files too\\)\\. "
+                    "Returns `ok` if successful, and `{error, Reason}` otherwise\\."
+                    "\n\nIf the file is opened with `encoding` set to something else "
+                    "than `latin1`, each byte written can result in many bytes being "
+                    "written to the file, as the byte range 0\\.\\.255 can represent "
+                    "anything between one and four bytes depending on value and UTF "
+                    "encoding type\\.\n\nTypical error reasons:\n\n* **`ebadf`**  \n"
+                    "  The file is not opened for writing\\.\n\n* **`enospc`**  \n"
+                    "  No space is left on the device\\.\n"
+                >>;
+            false ->
+                <<
+                    "## file:write/2\n\n---\n\n```erlang\n\n  write(File, "
+                    "Bytes) when is_pid(File) orelse is_atom(File)\n\n  write(#file_"
+                    "descriptor{module = Module} = Handle, Bytes) \n\n  write(_, _) "
+                    "\n\n```\n\n```erlang\n-spec write(IoDevice, Bytes) -> ok | "
+                    "{error, Reason} when\n      IoDevice :: io_device() | atom(),"
+                    "\n      Bytes :: iodata(),\n      Reason :: posix() | "
+                    "badarg | terminated.\n```"
+                >>
+        end,
+    Expected = Selected#{
+        documentation =>
+            #{
+                kind => <<"markdown">>,
+                value => Value
+            }
+    },
+    ?assertEqual(Expected, Result).
 
 call_markdown(F, Doc) ->
     call_markdown(<<"completion_resolve">>, F, Doc).
@@ -1914,35 +1913,37 @@ resolve_type_application_remote_otp(Config) ->
         <<"name_all/0">>
     ),
     #{result := Result} = els_client:completionitem_resolve(Selected),
-    ?assertMatch(
-        #{documentation := #{kind := <<"markdown">>, value := _}},
-        Result
-    ),
-    #{documentation := #{value := ActualValue}} = Result,
-    case has_eep48(file) of
-        true ->
-            ExpectValue = <<
-                "```erlang\n-type name_all() ::\n     string() |"
-                " atom() | deep_list() | (RawFilename :: binary()).\n"
-                "```\n\n---\n\nIf VM is in Unicode filename mode, "
-                "characters are allowed to be \\> 255\\. `RawFilename`"
-                " is a filename not subject to Unicode translation, "
-                "meaning that it can contain characters not conforming"
-                " to the Unicode encoding expected from the file system"
-                " \\(that is, non\\-UTF\\-8 characters although the VM is"
-                " started in Unicode filename mode\\)\\. Null characters "
-                "\\(integer value zero\\) are *not* allowed in filenames "
-                "\\(not even at the end\\)\\.\n"
-            >>,
-            ?assertEqual(ExpectValue, ActualValue);
-        false ->
-            ExpectValue = <<
-                "```erlang\n-type name_all()  :: "
-                "string() | atom() | deep_list() | "
-                "(RawFilename :: binary()).\n```"
-            >>,
-            ?assertEqual(ExpectValue, ActualValue)
-    end.
+    Value =
+        case has_eep48(file) of
+            true ->
+                <<
+                    "```erlang\n-type name_all() ::\n     string() |"
+                    " atom() | deep_list() | (RawFilename :: binary()).\n"
+                    "```\n\n---\n\nIf VM is in Unicode filename mode, "
+                    "characters are allowed to be \\> 255\\. `RawFilename`"
+                    " is a filename not subject to Unicode translation, "
+                    "meaning that it can contain characters not conforming"
+                    " to the Unicode encoding expected from the file system"
+                    " \\(that is, non\\-UTF\\-8 characters although the VM is"
+                    " started in Unicode filename mode\\)\\. Null characters "
+                    "\\(integer value zero\\) are *not* allowed in filenames "
+                    "\\(not even at the end\\)\\.\n"
+                >>;
+            false ->
+                <<
+                    "```erlang\n-type name_all()  :: "
+                    "string() | atom() | deep_list() | "
+                    "(RawFilename :: binary()).\n```"
+                >>
+        end,
+    Expected = Selected#{
+        documentation =>
+            #{
+                kind => <<"markdown">>,
+                value => Value
+            }
+    },
+    ?assertEqual(Expected, Result).
 
 %% Issue #1387
 completion_request_fails(Config) ->
