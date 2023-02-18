@@ -546,6 +546,8 @@ nonexisting_type(Config) ->
                     "```erlang\nj(_ :: doesnt:exist()) -> ok.\n```\n\n"
                     "---\n\n\n"
                 >>;
+            % els_eep48_docs:render returns {error, function_missing} for
+            % OTP versions under 25
             _ ->
                 <<
                     "## j/1\n\n---\n\n```erlang\n\n  j(_) \n\n```\n\n"
