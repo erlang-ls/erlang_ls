@@ -28,6 +28,8 @@
     step/2
 ]).
 
+-include_lib("kernel/include/logger.hrl").
+
 -spec interpreted(node()) -> any().
 interpreted(Node) ->
     rpc:call(Node, int, interpreted, []).
@@ -76,11 +78,11 @@ eval(Node, Input, Bindings) ->
 
 -spec file(node(), module()) -> {ok, file:filename()} | {error, not_found}.
 file(Node, Module) ->
-    case file_from_int(Node, Module) of
+    case file_from_module_info(Node, Module) of
         {ok, FileFromInt} ->
             {ok, FileFromInt};
         {error, not_found} ->
-            case file_from_module_info(Node, Module) of
+            case file_from_int(Node, Module) of
                 {ok, FileFromModuleInfo} ->
                     {ok, FileFromModuleInfo};
                 {error, not_found} ->
@@ -90,28 +92,39 @@ file(Node, Module) ->
 
 -spec file_from_int(node(), module()) -> {ok, file:filename()} | {error, not_found}.
 file_from_int(Node, Module) ->
+    ?LOG_DEBUG("Looking in Int: [~p]", [Module]),
     case rpc:call(Node, int, file, [Module]) of
         {error, not_loaded} ->
+            ?LOG_DEBUG("Not Found in Int: [~p]", [Module]),
             {error, not_found};
         Path ->
+            ?LOG_DEBUG("Found in Int: [~p]", [Path]),
             {ok, Path}
     end.
 
 -spec file_from_code_server(node(), module()) -> {ok, file:filename()} | {error, not_found}.
 file_from_code_server(Node, Module) ->
+    ?LOG_DEBUG("Looking in Code Server: [~p]", [Module]),
     BeamName = atom_to_list(Module) ++ ".beam",
     case rpc:call(Node, code, where_is_file, [BeamName]) of
-        non_existing -> {error, not_found};
-        BeamFile -> rpc:call(Node, filelib, find_source, [BeamFile])
+        non_existing ->
+            ?LOG_DEBUG("Not found in Code Server: [~p]", [Module]),
+            {error, not_found};
+        BeamFile ->
+            ?LOG_DEBUG("Found in Code Server: [~p]", [BeamFile]),
+            rpc:call(Node, filelib, find_source, [BeamFile])
     end.
 
 -spec file_from_module_info(node(), module()) -> {ok, file:filename()} | {error, not_found}.
 file_from_module_info(Node, Module) ->
+    ?LOG_DEBUG("Looking in Module Info: [~p]", [Module]),
     CompileOpts = module_info(Node, Module, compile),
     case proplists:get_value(source, CompileOpts) of
         undefined ->
+            ?LOG_DEBUG("Not found in Module Info: [~p]", [Module]),
             {error, not_found};
         Source ->
+            ?LOG_DEBUG("Found in Module Info: [~p]", [Source]),
             case rpc:call(Node, filelib, is_regular, [Source]) of
                 true ->
                     {ok, Cwd} = rpc:call(Node, file, get_cwd, []),
@@ -120,8 +133,10 @@ file_from_module_info(Node, Module) ->
                             %% File is already absolute
                             {ok, Source};
                         RelativePath ->
-                            {ok, filename:join(Cwd, RelativePath)}
-                        end;
+                            Joined = filename:join(Cwd, RelativePath),
+                            ?LOG_DEBUG("Composed Absolute Path as: [~p]", [Joined]),
+                            {ok, Joined}
+                    end;
                 false ->
                     %% Build is not hermetic
                     {error, not_found}
