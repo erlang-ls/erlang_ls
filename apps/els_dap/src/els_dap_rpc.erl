@@ -80,11 +80,11 @@ file(Node, Module) ->
         {ok, FileFromInt} ->
             {ok, FileFromInt};
         {error, not_found} ->
-            case file_from_code_server(Node, Module) of
-                {ok, FileFromCode} ->
-                    {ok, FileFromCode};
+            case file_from_module_info(Node, Module) of
+                {ok, FileFromModuleInfo} ->
+                    {ok, FileFromModuleInfo};
                 {error, not_found} ->
-                    file_from_module_info(Node, Module)
+                    file_from_code_server(Node, Module)
             end
     end.
 
@@ -105,10 +105,28 @@ file_from_code_server(Node, Module) ->
         BeamFile -> rpc:call(Node, filelib, find_source, [BeamFile])
     end.
 
--spec file_from_module_info(node(), module()) -> {ok, file:filename()}.
+-spec file_from_module_info(node(), module()) -> {ok, file:filename()} | {error, not_found}.
 file_from_module_info(Node, Module) ->
     CompileOpts = module_info(Node, Module, compile),
-    proplists:get_value(source, CompileOpts).
+    case proplists:get_value(source, CompileOpts) of
+        undefined ->
+            {error, not_found};
+        Source ->
+            case rpc:call(Node, filelib, is_regular, [Source]) of
+                true ->
+                    {ok, Cwd} = rpc:call(Node, file, get_cwd, []),
+                    case rpc:call(Node, filelib, safe_relative_path, [Source, Cwd]) of
+                        unsafe ->
+                            %% File is already absolute
+                            {ok, Source};
+                        RelativePath ->
+                            {ok, filename:join(Cwd, RelativePath)}
+                        end;
+                false ->
+                    %% Build is not hermetic
+                    {error, not_found}
+            end
+    end.
 
 -spec get_meta(node(), pid()) -> {ok, pid()}.
 get_meta(Node, Pid) ->
