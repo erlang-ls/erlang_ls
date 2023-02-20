@@ -743,7 +743,7 @@ break_line(Pid, Node) ->
 
 -spec source(atom(), atom()) -> binary().
 source(Module, Node) ->
-    Source0 = els_dap_rpc:file(Node, Module),
+    {ok, Source0} = els_dap_rpc:file(Node, Module),
     Source1 = filename:absname(Source0),
     els_dap_rpc:clear(Node),
     unicode:characters_to_binary(Source1).

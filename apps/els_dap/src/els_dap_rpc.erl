@@ -74,26 +74,41 @@ eval(Node, Input, Bindings) ->
         {badrpc, Error} -> Error
     end.
 
--spec file(node(), module()) -> file:filename().
+-spec file(node(), module()) -> {ok, file:filename()} | {error, not_found}.
 file(Node, Module) ->
-    MaybeSource =
-        case rpc:call(Node, int, file, [Module]) of
-            {error, not_loaded} ->
-                BeamName = atom_to_list(Module) ++ ".beam",
-                case rpc:call(Node, code, where_is_file, [BeamName]) of
-                    non_existing -> {error, not_found};
-                    BeamFile -> rpc:call(Node, filelib, find_source, [BeamFile])
-                end;
-            IntSource ->
-                {ok, IntSource}
-        end,
-    case MaybeSource of
-        {ok, Source} ->
-            Source;
+    case file_from_int(Node, Module) of
+        {ok, FileFromInt} ->
+            {ok, FileFromInt};
         {error, not_found} ->
-            CompileOpts = module_info(Node, Module, compile),
-            proplists:get_value(source, CompileOpts)
+            case file_from_code_server(Node, Module) of
+                {ok, FileFromCode} ->
+                    {ok, FileFromCode};
+                {error, not_found} ->
+                    file_from_module_info(Node, Module)
+            end
     end.
+
+-spec file_from_int(node(), module()) -> {ok, file:filename()} | {error, not_found}.
+file_from_int(Node, Module) ->
+    case rpc:call(Node, int, file, [Module]) of
+        {error, not_loaded} ->
+            {error, not_found};
+        Path ->
+            {ok, Path}
+    end.
+
+-spec file_from_code_server(node(), module()) -> {ok, file:filename()} | {error, not_found}.
+file_from_code_server(Node, Module) ->
+    BeamName = atom_to_list(Module) ++ ".beam",
+    case rpc:call(Node, code, where_is_file, [BeamName]) of
+        non_existing -> {error, not_found};
+        BeamFile -> rpc:call(Node, filelib, find_source, [BeamFile])
+    end.
+
+-spec file_from_module_info(node(), module()) -> {ok, file:filename()}.
+file_from_module_info(Node, Module) ->
+    CompileOpts = module_info(Node, Module, compile),
+    proplists:get_value(source, CompileOpts).
 
 -spec get_meta(node(), pid()) -> {ok, pid()}.
 get_meta(Node, Pid) ->
