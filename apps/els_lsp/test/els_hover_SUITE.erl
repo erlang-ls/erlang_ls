@@ -590,7 +590,7 @@ mock_doc_chunks_unavailable() ->
         eep48_docs,
         fun(_, _, _, _) -> {error, not_available} end
     ),
-    fun () ->
+    fun() ->
         ok = meck:unload(els_docs)
     end.
 
