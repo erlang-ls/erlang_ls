@@ -138,7 +138,6 @@ file_from_module_info(Node, Module) ->
                             {ok, Joined}
                     end;
                 false ->
-                    %% Build is not hermetic
                     {error, not_found}
             end
     end.
