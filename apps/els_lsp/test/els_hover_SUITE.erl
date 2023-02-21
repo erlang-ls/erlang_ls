@@ -84,6 +84,8 @@ end_per_testcase(TestCase, Config) ->
 %% Testcases
 %%==============================================================================
 local_call_no_args(Config) ->
+    %% this test is for the fallback render when no doc chunks are available
+    CleanupMock = mock_doc_chunks_unavailable(),
     Uri = ?config(hover_docs_caller_uri, Config),
     #{result := Result} = els_client:hover(Uri, 10, 7),
     ?assert(maps:is_key(contents, Result)),
@@ -94,9 +96,12 @@ local_call_no_args(Config) ->
         value => Value
     },
     ?assertEqual(Expected, Contents),
+    CleanupMock(),
     ok.
 
 local_call_with_args(Config) ->
+    %% this test is for the fallback render when no doc chunks are available
+    CleanupMock = mock_doc_chunks_unavailable(),
     Uri = ?config(hover_docs_caller_uri, Config),
     #{result := Result} = els_client:hover(Uri, 13, 7),
     ?assert(maps:is_key(contents, Result)),
@@ -117,9 +122,12 @@ local_call_with_args(Config) ->
         value => Value
     },
     ?assertEqual(Expected, Contents),
+    CleanupMock(),
     ok.
 
 remote_call_multiple_clauses(Config) ->
+    %% this test is for the fallback render when no doc chunks are available
+    CleanupMock = mock_doc_chunks_unavailable(),
     Uri = ?config(hover_docs_caller_uri, Config),
     #{result := Result} = els_client:hover(Uri, 16, 15),
     ?assert(maps:is_key(contents, Result)),
@@ -137,6 +145,7 @@ remote_call_multiple_clauses(Config) ->
         value => Value
     },
     ?assertEqual(Expected, Contents),
+    CleanupMock(),
     ok.
 
 local_call_edoc(Config) ->
@@ -226,6 +235,8 @@ remote_call_otp(Config) ->
     ok.
 
 local_fun_expression(Config) ->
+    %% this test is for the fallback render when no doc chunks are available
+    CleanupMock = mock_doc_chunks_unavailable(),
     Uri = ?config(hover_docs_caller_uri, Config),
     #{result := Result} = els_client:hover(Uri, 19, 5),
     ?assert(maps:is_key(contents, Result)),
@@ -246,9 +257,12 @@ local_fun_expression(Config) ->
         value => Value
     },
     ?assertEqual(Expected, Contents),
+    CleanupMock(),
     ok.
 
 remote_fun_expression(Config) ->
+    %% this test is for the fallback render when no doc chunks are available
+    CleanupMock = mock_doc_chunks_unavailable(),
     Uri = ?config(hover_docs_caller_uri, Config),
     #{result := Result} = els_client:hover(Uri, 20, 10),
     ?assert(maps:is_key(contents, Result)),
@@ -266,6 +280,7 @@ remote_fun_expression(Config) ->
         value => Value
     },
     ?assertEqual(Expected, Contents),
+    CleanupMock(),
     ok.
 
 edoc_definition(Config) ->
@@ -526,13 +541,15 @@ nonexisting_type(Config) ->
     #{result := Result} = els_client:hover(Uri, 22, 15),
     %% The spec for `j' is shown instead of the type docs.
     Value =
-        case has_eep48_edoc() of
-            true ->
+        case list_to_integer(erlang:system_info(otp_release)) of
+            25 ->
                 <<
-                    "## j/1\n\n---\n\n```erlang\n\n  j(_) \n\n```\n\n"
-                    "```erlang\n-spec j(doesnt:exist()) -> ok.\n```"
+                    "```erlang\nj(_ :: doesnt:exist()) -> ok.\n```\n\n"
+                    "---\n\n\n"
                 >>;
-            false ->
+            % els_eep48_docs:render returns {error, function_missing} for
+            % OTP versions under 25
+            _ ->
                 <<
                     "## j/1\n\n---\n\n```erlang\n\n  j(_) \n\n```\n\n"
                     "```erlang\n-spec j(doesnt:exist()) -> ok.\n```"
@@ -560,10 +577,36 @@ nonexisting_module(Config) ->
     ?assertEqual(Expected, Result),
     ok.
 
+%%==============================================================================
+%% Helpers
+%%==============================================================================
+
+%% @doc
+%% Returns a function that can be used to unload the mock.
+%% @end
+mock_doc_chunks_unavailable() ->
+    meck:expect(
+        els_docs,
+        eep48_docs,
+        fun(_, _, _, _) -> {error, not_available} end
+    ),
+    fun() ->
+        ok = meck:unload(els_docs)
+    end.
+
 has_eep48_edoc() ->
     list_to_integer(erlang:system_info(otp_release)) >= 24.
+
 has_eep48(Module) ->
     case catch code:get_doc(Module) of
-        {ok, _} -> true;
-        _ -> false
+        {ok, {docs_v1, _, erlang, _, _, _, Docs}} ->
+            lists:any(
+                fun
+                    ({_, _, _, Doc, _}) when is_map(Doc) -> true;
+                    ({_, _, _, _, _}) -> false
+                end,
+                Docs
+            );
+        _ ->
+            false
     end.

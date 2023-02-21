@@ -1962,10 +1962,19 @@ select_completionitems(CompletionItems, Kind, Label) ->
 
 has_eep48_edoc() ->
     list_to_integer(erlang:system_info(otp_release)) >= 24.
+
 has_eep48(Module) ->
     case catch code:get_doc(Module) of
-        {ok, _} -> true;
-        _ -> false
+        {ok, {docs_v1, _, erlang, _, _, _, Docs}} ->
+            lists:any(
+                fun
+                    ({_, _, _, Doc, _}) when is_map(Doc) -> true;
+                    ({_, _, _, _, _}) -> false
+                end,
+                Docs
+            );
+        _ ->
+            false
     end.
 
 keywords() ->
