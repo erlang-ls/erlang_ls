@@ -31,8 +31,6 @@
     use_long_names_no_domain/1,
     use_long_names_custom_hostname/1,
     epp_with_nonexistent_macro/1,
-    code_reload/1,
-    code_reload_sticky_mod/1,
     elvis/1,
     escript/1,
     escript_warnings/1,
@@ -89,13 +87,6 @@ end_per_suite(Config) ->
     els_test_utils:end_per_suite(Config).
 
 -spec init_per_testcase(atom(), config()) -> config().
-init_per_testcase(TestCase, Config) when
-    TestCase =:= code_reload orelse
-        TestCase =:= code_reload_sticky_mod
-->
-    mock_rpc(),
-    mock_code_reload_enabled(),
-    els_test_utils:init_per_testcase(TestCase, Config);
 init_per_testcase(TestCase, Config) when
     TestCase =:= atom_typo
 ->
@@ -212,13 +203,6 @@ end_per_testcase(TestCase, Config) when
     els_test_utils:end_per_testcase(TestCase, Config),
     els_mock_diagnostics:teardown(),
     ok;
-end_per_testcase(TestCase, Config) when
-    TestCase =:= code_reload orelse
-        TestCase =:= code_reload_sticky_mod
-->
-    unmock_rpc(),
-    unmock_code_reload_enabled(),
-    els_test_utils:end_per_testcase(TestCase, Config);
 end_per_testcase(TestCase, Config) when
     TestCase =:= crossref orelse
         TestCase =:= crossref_pseudo_functions orelse
@@ -766,37 +750,6 @@ escript_errors(_Config) ->
     Hints = [],
     els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
 
--spec code_reload(config()) -> ok.
-code_reload(Config) ->
-    Uri = ?config(diagnostics_uri, Config),
-    Module = els_uri:module(Uri),
-    ok = els_compiler_diagnostics:on_complete(Uri, []),
-    {ok, HostName} = inet:gethostname(),
-    NodeName = list_to_atom("fakenode@" ++ HostName),
-    ?assert(meck:called(rpc, call, [NodeName, c, c, [Module]])),
-    ok.
-
--spec code_reload_sticky_mod(config()) -> ok.
-code_reload_sticky_mod(Config) ->
-    Uri = ?config(diagnostics_uri, Config),
-    Module = els_uri:module(Uri),
-    {ok, HostName} = inet:gethostname(),
-    NodeName = list_to_atom("fakenode@" ++ HostName),
-    meck:expect(
-        rpc,
-        call,
-        fun
-            (PNode, code, is_sticky, [_]) when PNode =:= NodeName ->
-                true;
-            (Node, Mod, Fun, Args) ->
-                meck:passthrough([Node, Mod, Fun, Args])
-        end
-    ),
-    ok = els_compiler_diagnostics:on_complete(Uri, []),
-    ?assert(meck:called(rpc, call, [NodeName, code, is_sticky, [Module]])),
-    ?assertNot(meck:called(rpc, call, [NodeName, c, c, [Module]])),
-    ok.
-
 -spec crossref(config()) -> ok.
 crossref(_Config) ->
     Path = src_path("diagnostics_xref.erl"),
@@ -1083,41 +1036,6 @@ unused_macros_refactorerl(_Config) ->
 %%==============================================================================
 %% Internal Functions
 %%==============================================================================
-
-mock_rpc() ->
-    meck:new(rpc, [passthrough, no_link, unstick]),
-    {ok, HostName} = inet:gethostname(),
-    NodeName = list_to_atom("fakenode@" ++ HostName),
-    meck:expect(
-        rpc,
-        call,
-        fun
-            (PNode, c, c, [Module]) when PNode =:= NodeName ->
-                {ok, Module};
-            (Node, Mod, Fun, Args) ->
-                meck:passthrough([Node, Mod, Fun, Args])
-        end
-    ).
-
-unmock_rpc() ->
-    meck:unload(rpc).
-
-mock_code_reload_enabled() ->
-    meck:new(els_config, [passthrough, no_link]),
-    meck:expect(
-        els_config,
-        get,
-        fun
-            (code_reload) ->
-                {ok, HostName} = inet:gethostname(),
-                #{"node" => "fakenode@" ++ HostName};
-            (Key) ->
-                meck:passthrough([Key])
-        end
-    ).
-
-unmock_code_reload_enabled() ->
-    meck:unload(els_config).
 
 mock_compiler_telemetry_enabled() ->
     meck:new(els_config, [passthrough, no_link]),
