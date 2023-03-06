@@ -287,7 +287,7 @@ do_fold_files(F, Filter, Dir, [File | Rest], Acc0) ->
     Acc =
         case filelib:is_regular(Path) of
             true -> do_fold_file(F, Filter, Path, Acc0);
-            false -> do_fold_dir(F, Filter, Dir, Acc0)
+            false -> do_fold_dir(F, Filter, Path, Acc0)
         end,
     do_fold_files(F, Filter, Dir, Rest, Acc).
 
