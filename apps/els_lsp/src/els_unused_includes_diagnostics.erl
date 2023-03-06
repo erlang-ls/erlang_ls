@@ -32,7 +32,12 @@ is_default() ->
 
 -spec run(uri()) -> [els_diagnostics:diagnostic()].
 run(Uri) ->
-    case els_utils:lookup_document(Uri) of
+    %% hrl don't have to warning unuse
+    case filename:extension(binary_to_list(Uri)) =/= ".hrl" 
+        andalso els_utils:lookup_document(Uri)
+    of
+        false ->
+            [];
         {error, _Error} ->
             [];
         {ok, Document} ->
