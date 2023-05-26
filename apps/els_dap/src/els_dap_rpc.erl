@@ -11,7 +11,7 @@
     clear/1,
     continue/2,
     eval/3,
-    file/2,
+    file/3,
     get_meta/2,
     halt/1,
     i/2,
@@ -76,9 +76,10 @@ eval(Node, Input, Bindings) ->
         {badrpc, Error} -> Error
     end.
 
--spec file(node(), module()) -> {ok, file:filename()} | {error, not_found}.
-file(Node, Module) ->
-    case file_from_module_info(Node, Module) of
+-spec file(node(), module(), binary()) -> {ok, file:filename()} | {error, not_found}.
+file(Node, Module, Cwd) ->
+    ?LOG_DEBUG("Looking in Int: [~p]", [Module]),
+    case file_from_module_info(Node, Module, Cwd) of
         {ok, FileFromInt} ->
             {ok, FileFromInt};
         {error, not_found} ->
@@ -115,8 +116,9 @@ file_from_code_server(Node, Module) ->
             rpc:call(Node, filelib, find_source, [BeamFile])
     end.
 
--spec file_from_module_info(node(), module()) -> {ok, file:filename()} | {error, not_found}.
-file_from_module_info(Node, Module) ->
+-spec file_from_module_info(node(), module(), binary()) ->
+    {ok, file:filename()} | {error, not_found}.
+file_from_module_info(Node, Module, Cwd) ->
     ?LOG_DEBUG("Looking in Module Info: [~p]", [Module]),
     CompileOpts = module_info(Node, Module, compile),
     case proplists:get_value(source, CompileOpts) of
@@ -125,21 +127,25 @@ file_from_module_info(Node, Module) ->
             {error, not_found};
         Source ->
             ?LOG_DEBUG("Found in Module Info: [~p]", [Source]),
-            case rpc:call(Node, filelib, is_regular, [Source]) of
-                true ->
-                    {ok, Cwd} = rpc:call(Node, file, get_cwd, []),
-                    case rpc:call(Node, filelib, safe_relative_path, [Source, Cwd]) of
-                        unsafe ->
-                            %% File is already absolute
-                            {ok, Source};
-                        RelativePath ->
-                            Joined = filename:join(Cwd, RelativePath),
-                            ?LOG_DEBUG("Composed Absolute Path as: [~p]", [Joined]),
-                            {ok, Joined}
-                    end;
-                false ->
-                    {error, not_found}
+            case filelib:safe_relative_path(Source, Cwd) of
+                unsafe ->
+                    %% File is already absolute
+                    regular_file(Node, Source);
+                RelativePath ->
+                    AbsolutePath = filename:join(Cwd, RelativePath),
+                    ?LOG_DEBUG("Composed Absolute Path as: [~p]", [AbsolutePath]),
+                    regular_file(Node, AbsolutePath)
             end
+    end.
+
+-spec regular_file(node(), file:filename()) -> {ok, file:filename()} | {error, not_found}.
+regular_file(Node, Path) ->
+    case rpc:call(Node, filelib, is_regular, [Path]) of
+        true ->
+            {ok, Path};
+        false ->
+            ?LOG_DEBUG("File is not regular: [~p]", [Path]),
+            {error, not_found}
     end.
 
 -spec get_meta(node(), pid()) -> {ok, pid()}.

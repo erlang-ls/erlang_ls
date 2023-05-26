@@ -56,7 +56,8 @@
     breakpoints := els_dap_breakpoints:breakpoints(),
     hits => #{line() => non_neg_integer()},
     timeout := timeout(),
-    mode := mode()
+    mode := mode(),
+    cwd := binary()
 }.
 -type bindings() :: [{varname(), term()}].
 -type varname() :: atom() | string().
@@ -66,6 +67,7 @@
 
 -spec init() -> state().
 init() ->
+    {ok, Cwd} = file:get_cwd(),
     #{
         threads => #{},
         launch_params => #{},
@@ -73,7 +75,8 @@ init() ->
         breakpoints => #{},
         hits => #{},
         timeout => 30,
-        mode => undefined
+        mode => undefined,
+        cwd => els_utils:to_binary(Cwd)
     }.
 
 -spec handle_request(request(), state()) ->
@@ -134,10 +137,11 @@ handle_request({<<"launch">>, #{<<"cwd">> := Cwd} = Params}, State) ->
             {#{}, State#{
                 project_node => ProjectNode,
                 launch_params => Params,
-                timeout => TimeOut
+                timeout => TimeOut,
+                cwd => Cwd
             }};
         {error, Error} ->
-            {{error, distribution_error(Error)}, State}
+            {{error, distribution_error(Error)}, maps:put(cwd, Cwd, State)}
     end;
 handle_request({<<"attach">>, Params}, State) ->
     case start_distribution(Params) of
@@ -229,7 +233,8 @@ handle_request(
     #{
         project_node := ProjectNode,
         breakpoints := Breakpoints0,
-        timeout := Timeout
+        timeout := Timeout,
+        cwd := Cwd
     } = State
 ) ->
     ensure_connected(ProjectNode, Timeout),
@@ -283,7 +288,7 @@ handle_request(
             <<"source">> => #{
                 <<"path">> =>
                     case Verified of
-                        true -> source(Module, ProjectNode);
+                        true -> source(Module, ProjectNode, Cwd);
                         false -> <<"">>
                     end
             }
@@ -512,9 +517,10 @@ handle_request({<<"disconnect">>, _Params}, State) ->
     module(),
     integer(),
     atom(),
-    pid()
+    pid(),
+    binary()
 ) -> boolean().
-evaluate_condition(Breakpt, Module, Line, ProjectNode, ThreadPid) ->
+evaluate_condition(Breakpt, Module, Line, ProjectNode, ThreadPid, Cwd) ->
     %% evaluate condition if exists, otherwise treat as 'true'
     case Breakpt of
         #{condition := CondExpr} ->
@@ -528,7 +534,7 @@ evaluate_condition(Breakpt, Module, Line, ProjectNode, ThreadPid) ->
                     WarnCond = unicode:characters_to_binary(
                         io_lib:format(
                             "~s:~b - Breakpoint condition evaluated to non-Boolean: ~w~n",
-                            [source(Module, ProjectNode), Line, CondEval]
+                            [source(Module, ProjectNode, Cwd), Line, CondEval]
                         )
                     ),
                     els_dap_server:send_event(
@@ -550,9 +556,10 @@ evaluate_condition(Breakpt, Module, Line, ProjectNode, ThreadPid) ->
     module(),
     integer(),
     atom(),
-    pid()
+    pid(),
+    binary()
 ) -> boolean().
-evaluate_hitcond(Breakpt, HitCount, Module, Line, ProjectNode, ThreadPid) ->
+evaluate_hitcond(Breakpt, HitCount, Module, Line, ProjectNode, ThreadPid, Cwd) ->
     %% evaluate condition if exists, otherwise treat as 'true'
     case Breakpt of
         #{hitcond := HitExpr} ->
@@ -563,7 +570,7 @@ evaluate_hitcond(Breakpt, HitCount, Module, Line, ProjectNode, ThreadPid) ->
                     WarnHit = unicode:characters_to_binary(
                         io_lib:format(
                             "~s:~b - Breakpoint hit condition not a non-negative int: ~w~n",
-                            [source(Module, ProjectNode), Line, HitEval]
+                            [source(Module, ProjectNode, Cwd), Line, HitEval]
                         )
                     ),
                     els_dap_server:send_event(
@@ -585,9 +592,10 @@ evaluate_hitcond(Breakpt, HitCount, Module, Line, ProjectNode, ThreadPid) ->
     module(),
     integer(),
     atom(),
-    pid()
+    pid(),
+    binary()
 ) -> boolean().
-check_stop(Breakpt, IsHit, Module, Line, ProjectNode, ThreadPid) ->
+check_stop(Breakpt, IsHit, Module, Line, ProjectNode, ThreadPid, Cwd) ->
     case Breakpt of
         #{logexpr := LogExpr} ->
             case IsHit of
@@ -596,7 +604,7 @@ check_stop(Breakpt, IsHit, Module, Line, ProjectNode, ThreadPid) ->
                     LogMessage = unicode:characters_to_binary(
                         io_lib:format(
                             "~s:~b - ~p~n",
-                            [source(Module, ProjectNode), Line, Return]
+                            [source(Module, ProjectNode, Cwd), Line, Return]
                         )
                     ),
                     els_dap_server:send_event(
@@ -643,18 +651,19 @@ handle_info(
         project_node := ProjectNode,
         breakpoints := Breakpoints,
         hits := Hits0,
-        mode := Mode0
+        mode := Mode0,
+        cwd := Cwd
     } = State
 ) ->
     ?LOG_DEBUG("Int CB called. thread=~p", [ThreadPid]),
     ThreadId = id(ThreadPid),
     Thread = #{
         pid => ThreadPid,
-        frames => stack_frames(ThreadPid, ProjectNode)
+        frames => stack_frames(ThreadPid, ProjectNode, Cwd)
     },
     {Module, Line} = break_module_line(ThreadPid, ProjectNode),
     Breakpt = els_dap_breakpoints:type(Breakpoints, Module, Line),
-    Condition = evaluate_condition(Breakpt, Module, Line, ProjectNode, ThreadPid),
+    Condition = evaluate_condition(Breakpt, Module, Line, ProjectNode, ThreadPid, Cwd),
     %% update hit count for current line if condition is true
     HitCount = maps:get(Line, Hits0, 0) + 1,
     Hits1 =
@@ -665,9 +674,9 @@ handle_info(
     %% check if there is hit expression, if yes check along with condition
     IsHit =
         Condition andalso
-            evaluate_hitcond(Breakpt, HitCount, Module, Line, ProjectNode, ThreadPid),
+            evaluate_hitcond(Breakpt, HitCount, Module, Line, ProjectNode, ThreadPid, Cwd),
     %% finally, either stop or log
-    Stop = check_stop(Breakpt, IsHit, Module, Line, ProjectNode, ThreadPid),
+    Stop = check_stop(Breakpt, IsHit, Module, Line, ProjectNode, ThreadPid, Cwd),
     Mode1 =
         case Stop of
             true -> debug_stop(ThreadId);
@@ -713,8 +722,8 @@ inject_dap_agent(Node) ->
 id(Pid) ->
     erlang:phash2(Pid).
 
--spec stack_frames(pid(), atom()) -> #{frame_id() => frame()}.
-stack_frames(Pid, Node) ->
+-spec stack_frames(pid(), atom(), binary()) -> #{frame_id() => frame()}.
+stack_frames(Pid, Node, Cwd) ->
     {ok, Meta} = els_dap_rpc:get_meta(Node, Pid),
     [{Level, {M, F, A}} | Rest] =
         els_dap_rpc:meta(Node, Meta, backtrace, all),
@@ -724,11 +733,11 @@ stack_frames(Pid, Node) ->
         module => M,
         function => F,
         arguments => A,
-        source => source(M, Node),
+        source => source(M, Node, Cwd),
         line => break_line(Pid, Node),
         bindings => Bindings
     },
-    collect_frames(Node, Meta, Level, Rest, #{StackFrameId => StackFrame}).
+    collect_frames(Node, Cwd, Meta, Level, Rest, #{StackFrameId => StackFrame}).
 
 -spec break_module_line(pid(), atom()) -> {module(), integer()}.
 break_module_line(Pid, Node) ->
@@ -741,9 +750,9 @@ break_line(Pid, Node) ->
     {_, Line} = break_module_line(Pid, Node),
     Line.
 
--spec source(atom(), atom()) -> binary().
-source(Module, Node) ->
-    {ok, Source0} = els_dap_rpc:file(Node, Module),
+-spec source(atom(), atom(), binary()) -> binary().
+source(Module, Node, Cwd) ->
+    {ok, Source0} = els_dap_rpc:file(Node, Module, Cwd),
     Source1 = filename:absname(Source0),
     els_dap_rpc:clear(Node),
     unicode:characters_to_binary(Source1).
@@ -954,12 +963,12 @@ format_term(T) ->
         ]
     ).
 
--spec collect_frames(node(), pid(), pos_integer(), Backtrace, Acc) -> Acc when
+-spec collect_frames(node(), binary(), pid(), pos_integer(), Backtrace, Acc) -> Acc when
     Acc :: #{frame_id() => frame()},
     Backtrace :: [{pos_integer(), {module(), atom(), non_neg_integer()}}].
-collect_frames(_, _, _, [], Acc) ->
+collect_frames(_, _, _, _, [], Acc) ->
     Acc;
-collect_frames(Node, Meta, Level, [{NextLevel, {M, F, A}} | Rest], Acc) ->
+collect_frames(Node, Cwd, Meta, Level, [{NextLevel, {M, F, A}} | Rest], Acc) ->
     case els_dap_rpc:meta(Node, Meta, stack_frame, {up, Level}) of
         {NextLevel, {_, Line}, Bindings} ->
             StackFrameId = erlang:unique_integer([positive]),
@@ -967,12 +976,13 @@ collect_frames(Node, Meta, Level, [{NextLevel, {M, F, A}} | Rest], Acc) ->
                 module => M,
                 function => F,
                 arguments => A,
-                source => source(M, Node),
+                source => source(M, Node, Cwd),
                 line => Line,
                 bindings => Bindings
             },
             collect_frames(
                 Node,
+                Cwd,
                 Meta,
                 NextLevel,
                 Rest,
