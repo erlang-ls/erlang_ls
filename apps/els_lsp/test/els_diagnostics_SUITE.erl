@@ -334,7 +334,7 @@ bound_var_in_pattern(_Config) ->
     Source = <<"BoundVarInPattern">>,
     Errors = [],
     Warnings = [],
-    Hints = [
+    Hints0 = [
         #{
             message => <<"Bound variable in pattern: Var1">>,
             range => {{5, 2}, {5, 6}}
@@ -355,13 +355,26 @@ bound_var_in_pattern(_Config) ->
             message => <<"Bound variable in pattern: Var5">>,
             range => {{23, 6}, {23, 10}}
         }
-        %% erl_syntax_lib:annotate_bindings does not handle named funs
-        %% correctly
-        %% , #{ message => <<"Bound variable in pattern: New">>
-        %%    , range => {{28, 6}, {28, 9}}}
-        %% , #{ message => <<"Bound variable in pattern: F">>
-        %%    , range => {{29, 6}, {29, 9}}}
     ],
+    Hints =
+        case list_to_integer(erlang:system_info(otp_release)) of
+            Version when Version < 25 ->
+                Hints0;
+            _ ->
+                lists:append(
+                    Hints0,
+                    [
+                        #{
+                            message => <<"Bound variable in pattern: New">>,
+                            range => {{28, 6}, {28, 9}}
+                        },
+                        #{
+                            message => <<"Bound variable in pattern: F">>,
+                            range => {{29, 6}, {29, 7}}
+                        }
+                    ]
+                )
+        end,
     els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
 
 -spec bound_var_in_pattern_cannot_parse(config()) -> ok.
