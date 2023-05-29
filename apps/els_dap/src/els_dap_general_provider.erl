@@ -225,6 +225,8 @@ handle_request(
             IsModuleAvailable
         ),
 
+    stop_interpreting_modules_with_no_breaks(ProjectNode, Breakpoints2),
+
     {#{<<"breakpoints">> => BreakpointsRsps}, State#{breakpoints => Breakpoints2}};
 handle_request({<<"setExceptionBreakpoints">>, _Params}, State) ->
     {#{}, State};
@@ -312,6 +314,8 @@ handle_request(
         Breakpoints1,
         Breakpoints1
     ),
+
+    stop_interpreting_modules_with_no_breaks(ProjectNode, Breakpoints2),
 
     {#{<<"breakpoints">> => BreakpointsRsps}, State#{breakpoints => Breakpoints2}};
 handle_request({<<"threads">>, _Params}, #{threads := Threads0} = State) ->
@@ -1125,3 +1129,12 @@ maybe_interpret_and_clear_module(ProjectNode, Module) ->
             ),
             {false, Msg}
     end.
+
+-spec stop_interpreting_modules_with_no_breaks(node(), els_dap_breakpoints:breakpoints()) -> ok.
+stop_interpreting_modules_with_no_breaks(ProjectNode, Breakpoints) ->
+    Interpreted = els_dap_rpc:interpreted(ProjectNode),
+    [
+        els_dap_rpc:n(ProjectNode, Module)
+     || Module <- Interpreted, not els_dap_breakpoints:has_breaks(Module, Breakpoints)
+    ],
+    ok.

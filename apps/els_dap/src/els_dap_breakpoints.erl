@@ -3,6 +3,7 @@
     build_source_breakpoints/1,
     get_function_breaks/2,
     get_line_breaks/2,
+    has_breaks/2,
     do_line_breakpoints/5,
     do_function_breaks/5,
     type/3
@@ -110,6 +111,10 @@ get_line_breaks(Module, Breaks) ->
         #{Module := #{line := Lines}} -> Lines;
         _ -> #{}
     end.
+
+-spec has_breaks(module(), breakpoints()) -> boolean().
+has_breaks(Module, Breaks) ->
+    get_line_breaks(Module, Breaks) =/= #{} orelse get_function_breaks(Module, Breaks) =/= [].
 
 -spec do_line_breakpoints(
     node(),
