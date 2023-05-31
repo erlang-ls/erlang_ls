@@ -10,6 +10,7 @@
     break_in/4,
     clear/1,
     continue/2,
+    delete_break/3,
     eval/3,
     file/3,
     get_meta/2,
@@ -65,6 +66,10 @@ clear(Node) ->
 -spec continue(node(), pid()) -> any().
 continue(Node, Pid) ->
     rpc:call(Node, int, continue, [Pid]).
+
+-spec delete_break(node(), module(), non_neg_integer()) -> any().
+delete_break(Node, Module, Line) ->
+    rpc:call(Node, int, delete_break, [Module, Line]).
 
 -spec eval(node(), string(), [any()]) -> any().
 eval(Node, Input, Bindings) ->

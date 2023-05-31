@@ -34,7 +34,8 @@
     log_points_with_hit/1,
     log_points_with_hit1/1,
     log_points_with_cond_and_hit/1,
-    log_points_empty_cond/1
+    log_points_empty_cond/1,
+    remove_breakpoint/1
 ]).
 
 %%==============================================================================
@@ -155,6 +156,26 @@ wait_for_break(NodeName, WantModule, WantLine) ->
                 fun
                     ({_, _, break, {Module, Line}}) when
                         Module =:= WantModule andalso Line =:= WantLine
+                    ->
+                        true;
+                    (_) ->
+                        false
+                end,
+                Snapshots
+            )
+        end,
+    els_dap_test_utils:wait_for_fun(Checker, 200, 20).
+
+-spec wait_for_exit(binary(), module()) -> boolean().
+wait_for_exit(NodeName, WantModule) ->
+    Node = binary_to_atom(NodeName, utf8),
+    Checker =
+        fun() ->
+            Snapshots = rpc:call(Node, int, snapshot, []),
+            lists:any(
+                fun
+                    ({_, {Module, _, _}, exit, normal}) when
+                        Module =:= WantModule
                     ->
                         true;
                     (_) ->
@@ -667,6 +688,55 @@ log_points_base(Config, LogLine, Params, BreakLine, NumCalls) ->
         NumCalls,
         meck:num_calls(els_dap_server, send_event, [<<"output">>, '_'])
     ),
+    ok.
+
+-spec remove_breakpoint(config()) -> ok.
+remove_breakpoint(Config) ->
+    Provider = els_dap_general_provider,
+    DataDir = ?config(data_dir, Config),
+    Node = ?config(node, Config),
+    BreakLine = 9,
+    Params = #{},
+
+    %% Initialize
+    els_dap_provider:handle_request(Provider, request_initialize(#{})),
+    els_dap_provider:handle_request(
+        Provider,
+        request_launch(DataDir, Node, els_dap_test_module, dummy, [unused])
+    ),
+    els_test_utils:wait_until_mock_called(els_dap_server, send_event),
+    %% Set Breakpoint
+    meck:reset([els_dap_server]),
+    els_dap_provider:handle_request(
+        Provider,
+        request_set_breakpoints(
+            path_to_test_module(DataDir, els_dap_test_module),
+            [{BreakLine, Params}]
+        )
+    ),
+    %% Spawn a process on the target node which will hit the
+    %% breakpoint multiple times
+    spawn(binary_to_atom(Node), fun() -> els_dap_test_module:entry(10) end),
+    %% Wait until we hit the breakpoint for the first time
+    ?assertEqual(ok, wait_for_break(Node, els_dap_test_module, BreakLine)),
+    %% Retrieve the list of active threads
+    #{<<"threads">> := [#{<<"id">> := ThreadId}]} =
+        els_dap_provider:handle_request(
+            Provider,
+            request_threads()
+        ),
+    %% Reset the breakpoint
+    els_dap_provider:handle_request(
+        Provider,
+        request_set_breakpoints(
+            path_to_test_module(DataDir, els_dap_test_module),
+            []
+        )
+    ),
+    %% Continue thread execution
+    els_dap_provider:handle_request(Provider, request_continue(ThreadId)),
+    %% Check for process termination
+    ?assertEqual(ok, wait_for_exit(Node, els_dap_test_module)),
     ok.
 
 %%==============================================================================
