@@ -198,6 +198,11 @@ handle_request(
     ensure_connected(ProjectNode, Timeout),
     {Module, LineBreaks} = els_dap_breakpoints:build_source_breakpoints(Params),
 
+    %% Due to a bug in the OTP debugger and interpreter, removing the
+    %% breakpoints via 'int:no_break(Module)' is not enough.
+    %% See: https://github.com/erlang/otp/issues/7336
+    force_delete_breakpoints(ProjectNode, Module, Breakpoints0),
+
     {IsModuleAvailable, Message} = maybe_interpret_and_clear_module(ProjectNode, Module),
 
     Breakpoints1 =
@@ -1124,4 +1129,16 @@ maybe_interpret_and_clear_module(ProjectNode, Module) ->
                 )
             ),
             {false, Msg}
+    end.
+
+-spec force_delete_breakpoints(node(), module(), els_dap_breakpoints:breakpoints()) -> ok.
+force_delete_breakpoints(ProjectNode, Module, Breakpoints) ->
+    case Breakpoints of
+        #{Module := #{line := Lines}} ->
+            [
+                els_dap_rpc:delete_break(ProjectNode, Module, Line)
+             || Line <- maps:keys(Lines)
+            ];
+        _ ->
+            ok
     end.
