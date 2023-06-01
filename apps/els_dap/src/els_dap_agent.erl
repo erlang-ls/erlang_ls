@@ -10,7 +10,14 @@
 
 -spec int_cb(pid(), pid()) -> ok.
 int_cb(Thread, ProviderPid) ->
-    ProviderPid ! {int_cb, Thread},
+    case lists:keyfind(Thread, 1, int:snapshot()) of
+        {_Pid, _Function, break, _Info} ->
+            ProviderPid ! {int_cb, Thread};
+        {_Pid, _Function, 'exit', _Info} ->
+            ProviderPid ! {int_cb_exit, Thread};
+        _ ->
+            ok
+    end,
     ok.
 
 -spec meta_eval(pid(), string()) -> any().
