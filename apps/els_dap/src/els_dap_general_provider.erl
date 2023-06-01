@@ -170,7 +170,7 @@ handle_request(
     %% TODO: Fetch stack_trace mode from Launch Config
     els_dap_rpc:stack_trace(ProjectNode, all),
     MFA = {els_dap_agent, int_cb, [self()]},
-    els_dap_rpc:auto_attach(ProjectNode, [break], MFA),
+    els_dap_rpc:auto_attach(ProjectNode, ['break', 'exit'], MFA),
 
     case LaunchParams of
         #{
@@ -320,7 +320,7 @@ handle_request(
 
     {#{<<"breakpoints">> => BreakpointsRsps}, State#{breakpoints => Breakpoints2}};
 handle_request({<<"threads">>, _Params}, #{threads := Threads0} = State) ->
-    Threads =
+    ThreadsResp =
         [
             #{
                 <<"id">> => Id,
@@ -328,7 +328,7 @@ handle_request({<<"threads">>, _Params}, #{threads := Threads0} = State) ->
             }
          || {Id, #{pid := Pid} = _Thread} <- maps:to_list(Threads0)
         ],
-    {#{<<"threads">> => Threads}, State};
+    {#{<<"threads">> => ThreadsResp}, State#{threads => Threads0}};
 handle_request({<<"stackTrace">>, Params}, #{threads := Threads} = State) ->
     #{<<"threadId">> := ThreadId} = Params,
     Thread = maps:get(ThreadId, Threads),
@@ -692,6 +692,11 @@ handle_info(
         mode => Mode1,
         hits => Hits1
     };
+handle_info({int_cb_exit, ThreadPid}, #{threads := Threads} = State) ->
+    ?LOG_DEBUG("int_cb_exit called. thread=~p", [ThreadPid]),
+    Params = #{<<"reason">> => <<"exited">>, <<"threadId">> => id(ThreadPid)},
+    els_dap_server:send_event(<<"thread">>, Params),
+    State#{threads => maps:remove(id(ThreadPid), Threads)};
 handle_info({nodedown, Node}, State) ->
     %% the project node is down, there is nothing left to do then to exit
     ?LOG_NOTICE("project node ~p terminated, ending debug session", [Node]),
