@@ -611,7 +611,7 @@ make_code(qlc, {error, _Module, _Reason}) ->
 make_code(qlc, _E) ->
     <<"Q1699">>;
 %% stdlib-3.15.2/src/erl_parse.yrl
-make_code(erl_parse, "head mismatch") ->
+make_code(erl_parse, "head mismatch" ++ _) ->
     <<"P1700">>;
 make_code(erl_parse, "bad type variable") ->
     <<"P1701">>;
