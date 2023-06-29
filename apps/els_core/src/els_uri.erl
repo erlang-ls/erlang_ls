@@ -45,9 +45,16 @@ path(Uri, IsWindows) ->
     case {IsWindows, Host} of
         {true, <<>>} ->
             % Windows drive letter, have to strip the initial slash
-            re:replace(
+            Path1 = re:replace(
                 Path, "^/([a-zA-Z]:)(.*)", "\\1\\2", [{return, binary}]
-            );
+            ),
+            % Also need to lowercase it
+            case Path1 of
+                <<Drive0, ":", Rest/binary>> ->
+                    Drive = string:to_lower(Drive0),
+                    <<Drive, ":", Rest/binary>>;
+                _ -> Path1
+            end;
         {true, _} ->
             <<"//", Host/binary, Path/binary>>;
         {false, <<>>} ->
