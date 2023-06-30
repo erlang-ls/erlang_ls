@@ -95,14 +95,11 @@ percent_decode(Str) ->
     http_uri:decode(Str).
 -endif.
 
-
 -spec lowercase_drive_letter(binary()) -> binary().
 lowercase_drive_letter(<<Drive0, ":", Rest/binary>>) ->
     Drive = string:to_lower(Drive0),
     <<Drive, ":", Rest/binary>>;
-
 lowercase_drive_letter(Path) -> Path.
-
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
