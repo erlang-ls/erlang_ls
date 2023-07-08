@@ -63,7 +63,7 @@ way to either launch or attach to the node.
 
 That config file also enumerates the capabilities supported in the `Runtime
 Node`, similar to the way code lens and diagnostic sources are currently
-configured in the `erlang_ls.comfig` file.  The initial assumption is that there
+configured in the `erlang_ls.config` file.  The initial assumption is that there
 is a well-known set of supported ones.  At a later stage we may include some
 sort of capability query process on starting the `Runtime Node`.
 
