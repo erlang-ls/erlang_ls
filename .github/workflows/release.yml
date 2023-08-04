@@ -1,0 +1,193 @@
+name: Release
+on:
+  release:
+    types:
+      - created
+
+# Test trigger. Uncomment to test basic flow.
+#   NOTE: it will fail on trying to get the release url
+# on:
+#   push:
+#     branches:
+#       - '*'
+
+jobs:
+  linux:
+    strategy:
+      matrix:
+        platform: [ubuntu-latest]
+        otp-version: [23, 24, 25]
+    runs-on: ${{ matrix.platform }}
+    container:
+      image: erlang:${{ matrix.otp-version }}
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Cache Hex packages
+      uses: actions/cache@v1
+      with:
+        path: ~/.cache/rebar3/hex/hexpm/packages
+        key: ${{ runner.os }}-hex-${{ hashFiles(format('{0}{1}', github.workspace, '/rebar.lock')) }}
+        restore-keys: |
+          ${{ runner.os }}-hex-
+    - name: Cache Dialyzer PLTs
+      uses: actions/cache@v1
+      with:
+        path: ~/.cache/rebar3/rebar3_*_plt
+        key: ${{ runner.os }}-dialyzer-${{ hashFiles(format('{0}{1}', github.workspace, '/rebar.config')) }}
+        restore-keys: |
+          ${{ runner.os }}-dialyzer-
+    - name: Compile
+      run: rebar3 compile
+    - name: Escriptize LSP Server
+      run: rebar3 escriptize
+    - name: Store LSP Server Escript
+      uses: actions/upload-artifact@v2
+      with:
+        name: erlang_ls
+        path: _build/default/bin/erlang_ls
+    - name: Escriptize DAP Server
+      run: rebar3 as dap escriptize
+    - name: Store DAP Server Escript
+      uses: actions/upload-artifact@v2
+      with:
+        name: els_dap
+        path: _build/dap/bin/els_dap
+    - name: Check formatting
+      run: rebar3 fmt -c
+    - name: Lint
+      run: rebar3 lint
+    - name: Generate Dialyzer PLT for usage in CT Tests
+      run: dialyzer --build_plt --apps erts kernel stdlib
+    - name: Start epmd as daemon
+      run: epmd -daemon
+    - name: Run CT Tests
+      run: rebar3 ct
+    - name: Store CT Logs
+      uses: actions/upload-artifact@v2
+      with:
+        name: ct-logs
+        path: _build/test/logs
+    - name: Run PropEr Tests
+      run: rebar3 proper --cover --constraint_tries 100
+    - name: Run Checks
+      run: rebar3 do dialyzer, xref
+    - name: Create Cover Reports
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: rebar3 do cover, coveralls send
+    - name: Produce Documentation
+      run: rebar3 edoc
+      if: ${{ matrix.otp-version == '24' }}
+    - name: Publish Documentation
+      uses: actions/upload-artifact@v2
+      with:
+        name: edoc
+        path: |
+          apps/els_core/doc
+          apps/els_lsp/doc
+          apps/els_dap/doc
+
+    # Make release artifacts : erlang_ls
+    - name: Make erlang_ls-linux.tar.gz
+      run: 'tar -zcvf erlang_ls-linux-${{ matrix.otp-version }}.tar.gz -C _build/default/bin/ erlang_ls'
+    - env:
+        GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+      id: get_release_url
+      name: Get release url
+      uses: "bruceadams/get-release@v1.3.2"
+    - env:
+        GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+      name: Upload release erlang_ls.-linux.tar.gz
+      uses: "actions/upload-release-asset@v1.0.2"
+      with:
+        asset_content_type: application/octet-stream
+        asset_name: "erlang_ls-linux-${{ matrix.otp-version }}.tar.gz"
+        asset_path: "erlang_ls-linux-${{ matrix.otp-version }}.tar.gz"
+        upload_url: "${{ steps.get_release_url.outputs.upload_url }}"
+    # Make release artifacts : els_dap
+    - name: Make els_dap-linux.tar.gz
+      run: 'tar -zcvf els_dap-linux-${{ matrix.otp-version }}.tar.gz -C _build/default/bin/ els_dap'
+    - env:
+        GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+      name: Upload release els_dap-linux.tar.gz
+      uses: "actions/upload-release-asset@v1.0.2"
+      with:
+        asset_content_type: application/octet-stream
+        asset_name: "els_dap-linux-${{ matrix.otp-version }}.tar.gz"
+        asset_path: "els_dap-linux-${{ matrix.otp-version }}.tar.gz"
+        upload_url: "${{ steps.get_release_url.outputs.upload_url }}"
+  windows:
+    runs-on: windows-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Install Erlang
+      run: choco install -y erlang --version 23.3
+    - name: Install rebar3
+      run: choco install -y rebar3 --version 3.13.1
+    - name: Compile
+      run: rebar3 compile
+    - name: Escriptize LSP Server
+      run: rebar3 escriptize
+    - name: Store LSP Server Escript
+      uses: actions/upload-artifact@v2
+      with:
+        name: erlang_ls
+        path: _build/default/bin/erlang_ls
+    - name: Escriptize DAP Server
+      run: rebar3 as dap escriptize
+    - name: Store DAP Server Escript
+      uses: actions/upload-artifact@v2
+      with:
+        name: els_dap
+        path: _build/dap/bin/els_dap
+    - name: Lint
+      run: rebar3 lint
+    - name: Generate Dialyzer PLT for usage in CT Tests
+      run: dialyzer --build_plt --apps erts kernel stdlib
+    - name: Start epmd as daemon
+      run: erl -sname a -noinput -eval "halt(0)."
+    - name: Run CT Tests
+      run: rebar3 ct
+    - name: Store CT Logs
+      uses: actions/upload-artifact@v2
+      with:
+        name: ct-logs
+        path: _build/test/logs
+    - name: Run PropEr Tests
+      run: rebar3 proper --cover --constraint_tries 100
+    - name: Run Checks
+      run: rebar3 do dialyzer, xref
+    - name: Produce Documentation
+      run: rebar3 edoc
+
+    # Make release artifacts : erlang_ls
+    - name: Make erlang_ls-win32.tar.gz
+      run: 'tar -zcvf erlang_ls-win32.tar.gz -C _build/default/bin/ erlang_ls'
+    - env:
+        GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+      id: get_release_url
+      name: Get release url
+      uses: "bruceadams/get-release@v1.3.2"
+    - env:
+        GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+      name: Upload release erlang_ls.-win32.tar.gz
+      uses: "actions/upload-release-asset@v1.0.2"
+      with:
+        asset_content_type: application/octet-stream
+        asset_name: erlang_ls-win32.tar.gz
+        asset_path: erlang_ls-win32.tar.gz
+        upload_url: "${{ steps.get_release_url.outputs.upload_url }}"
+    # Make release artifacts : els_dap
+    - name: Make els_dap-win32.tar.gz
+      run: 'tar -zcvf els_dap-win32.tar.gz -C _build/default/bin/ els_dap'
+    - env:
+        GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+      name: Upload release els_dap-win32.tar.gz
+      uses: "actions/upload-release-asset@v1.0.2"
+      with:
+        asset_content_type: application/octet-stream
+        asset_name: els_dap-win32.tar.gz
+        asset_path: els_dap-win32.tar.gz
+        upload_url: "${{ steps.get_release_url.outputs.upload_url }}"
