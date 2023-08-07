@@ -42,13 +42,6 @@ jobs:
       with:
         name: erlang_ls
         path: _build/default/bin/erlang_ls
-    - name: Escriptize DAP Server
-      run: rebar3 as dap escriptize
-    - name: Store DAP Server Escript
-      uses: actions/upload-artifact@v2
-      with:
-        name: els_dap
-        path: _build/dap/bin/els_dap
     - name: Check formatting
       run: rebar3 fmt -c
     - name: Lint
@@ -82,7 +75,6 @@ jobs:
         path: |
           apps/els_core/doc
           apps/els_lsp/doc
-          apps/els_dap/doc
   windows:
     runs-on: windows-latest
     steps:

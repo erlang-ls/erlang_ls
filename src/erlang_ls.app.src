@@ -2,7 +2,7 @@
     {description, "Erlang LS"},
     {vsn, git},
     {registered, []},
-    {applications, [kernel, stdlib, els_core, els_lsp, els_dap]},
+    {applications, [kernel, stdlib, els_core, els_lsp]},
     {env, []},
     {modules, []},
 

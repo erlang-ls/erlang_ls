@@ -46,13 +46,6 @@ jobs:
       with:
         name: erlang_ls
         path: _build/default/bin/erlang_ls
-    - name: Escriptize DAP Server
-      run: rebar3 as dap escriptize
-    - name: Store DAP Server Escript
-      uses: actions/upload-artifact@v2
-      with:
-        name: els_dap
-        path: _build/dap/bin/els_dap
     - name: Check formatting
       run: rebar3 fmt -c
     - name: Lint
@@ -86,7 +79,6 @@ jobs:
         path: |
           apps/els_core/doc
           apps/els_lsp/doc
-          apps/els_dap/doc
 
     # Make release artifacts : erlang_ls
     - name: Make erlang_ls-linux.tar.gz
@@ -104,18 +96,6 @@ jobs:
         asset_content_type: application/octet-stream
         asset_name: "erlang_ls-linux-${{ matrix.otp-version }}.tar.gz"
         asset_path: "erlang_ls-linux-${{ matrix.otp-version }}.tar.gz"
-        upload_url: "${{ steps.get_release_url.outputs.upload_url }}"
-    # Make release artifacts : els_dap
-    - name: Make els_dap-linux.tar.gz
-      run: 'tar -zcvf els_dap-linux-${{ matrix.otp-version }}.tar.gz -C _build/dap/bin/ els_dap'
-    - env:
-        GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
-      name: Upload release els_dap-linux.tar.gz
-      uses: "actions/upload-release-asset@v1.0.2"
-      with:
-        asset_content_type: application/octet-stream
-        asset_name: "els_dap-linux-${{ matrix.otp-version }}.tar.gz"
-        asset_path: "els_dap-linux-${{ matrix.otp-version }}.tar.gz"
         upload_url: "${{ steps.get_release_url.outputs.upload_url }}"
   windows:
     runs-on: windows-latest
@@ -135,13 +115,6 @@ jobs:
       with:
         name: erlang_ls
         path: _build/default/bin/erlang_ls
-    - name: Escriptize DAP Server
-      run: rebar3 as dap escriptize
-    - name: Store DAP Server Escript
-      uses: actions/upload-artifact@v2
-      with:
-        name: els_dap
-        path: _build/dap/bin/els_dap
     - name: Lint
       run: rebar3 lint
     - name: Generate Dialyzer PLT for usage in CT Tests
@@ -178,16 +151,4 @@ jobs:
         asset_content_type: application/octet-stream
         asset_name: erlang_ls-win32.tar.gz
         asset_path: erlang_ls-win32.tar.gz
-        upload_url: "${{ steps.get_release_url.outputs.upload_url }}"
-    # Make release artifacts : els_dap
-    - name: Make els_dap-win32.tar.gz
-      run: 'tar -zcvf els_dap-win32.tar.gz -C _build/dap/bin/ els_dap'
-    - env:
-        GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
-      name: Upload release els_dap-win32.tar.gz
-      uses: "actions/upload-release-asset@v1.0.2"
-      with:
-        asset_content_type: application/octet-stream
-        asset_name: els_dap-win32.tar.gz
-        asset_path: els_dap-win32.tar.gz
         upload_url: "${{ steps.get_release_url.outputs.upload_url }}"
