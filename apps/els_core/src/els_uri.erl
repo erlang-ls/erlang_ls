@@ -98,10 +98,15 @@ percent_decode(Str) ->
     %% The `percent_decode/1' function is unavailable until OTP 23.2
     case erlang:function_exported(uri_string, percent_decode, 1) of
         'true' ->
-            uri_string:percent_decode(Str);
+            percent_decode2(Str);
         'false' ->
             http_uri:decode(Str)
     end.
+
+-dialyzer([{nowarn_function, percent_decode2/1}]).
+-spec percent_decode2(binary()) -> binary().
+percent_decode2(Str) ->
+    uri_string:percent_decode(Str).
 -else.
 -spec percent_decode(binary()) -> binary().
 percent_decode(Str) ->
