@@ -18,6 +18,9 @@
         els_core,
         gradualizer
     ]},
+    {optional_applications, [
+        edoc
+    ]},
     {env, []},
     {modules, []},
     {maintainers, []},
