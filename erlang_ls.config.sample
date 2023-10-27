@@ -3,6 +3,12 @@ apps_dirs:
 deps_dirs:
   - "_build/default/lib/*"
   - "_build/test/lib/*"
+
+%% If your code exists in directories other than "src", add them through this configuration
+erls_dirs:
+  - "common"
+  - "game"
+
 include_dirs:
   - "apps"
   - "apps/*/include"
