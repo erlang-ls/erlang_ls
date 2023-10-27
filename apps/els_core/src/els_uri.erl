@@ -68,7 +68,7 @@ uri(Path) ->
                 {H, uri_join(T)};
             {true, _} ->
                 % Strip the trailing slash from the first component
-                H1 = string:slice(Head, 0, 2),
+                H1 = <<(string:slice(Head, 0, 1))/binary, "%3A">>,
                 {<<>>, uri_join([H1 | Tail])}
         end,
 
