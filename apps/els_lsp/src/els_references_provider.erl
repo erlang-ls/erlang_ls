@@ -101,14 +101,12 @@ find_references(Uri, #{
     {F, A, _Index} = Id,
     Key = {els_uri:module(Uri), F, A},
     find_references_for_id(Kind, Key);
-find_references(Uri, Poi = #{kind := Kind}) when
+find_references(_Uri, #{kind := Kind, id := Key}) when
     Kind =:= record;
     Kind =:= record_def_field;
     Kind =:= define
 ->
-    uri_pois_to_locations(
-        find_scoped_references_for_def(Uri, Poi)
-    );
+    find_references_for_id(Kind, Key);
 find_references(Uri, Poi = #{kind := Kind, id := Id}) when
     Kind =:= type_definition
 ->
