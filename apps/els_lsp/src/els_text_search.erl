@@ -34,6 +34,10 @@ extract_pattern({macro, {Name, _Arity}}) ->
     Name;
 extract_pattern({macro, Name}) ->
     Name;
+extract_pattern({record, Record}) ->
+    Record;
+extract_pattern({record_field, {Record, _Field}}) ->
+    Record;
 extract_pattern({include, Id}) ->
     include_id(Id);
 extract_pattern({include_lib, Id}) ->

@@ -286,6 +286,8 @@ get_words(Text) ->
             Fun = fun
                 ({atom, _Location, Atom}, Words) ->
                     sets:add_element(Atom, Words);
+                ({var, _Location, Var}, Words) ->
+                    sets:add_element(Var, Words);
                 ({string, _Location, String}, Words) ->
                     case filename:extension(String) of
                         ".hrl" ->
