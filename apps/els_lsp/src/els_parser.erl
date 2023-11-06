@@ -266,16 +266,17 @@ application(Tree) ->
             [poi(Pos, application, {M, F, A}, Data)] ++
                 [poi(ModPos, variable, M) || ModType =:= variable] ++
                 [poi(FunPos, variable, F) || FunType =:= variable];
-        MFA ->
+        {M, _, _} = MFA ->
             ModFunTree = erl_syntax:application_operator(Tree),
-            Pos = erl_syntax:get_pos(ModFunTree),
             FunTree = erl_syntax:module_qualifier_body(ModFunTree),
+            FunPos = erl_syntax:get_pos(FunTree),
             ModTree = erl_syntax:module_qualifier_argument(ModFunTree),
+            ModPos = erl_syntax:get_pos(ModTree),
             Data = #{
-                name_range => els_range:range(erl_syntax:get_pos(FunTree)),
-                mod_range => els_range:range(erl_syntax:get_pos(ModTree))
+                name_range => els_range:range(FunPos),
+                mod_range => els_range:range(ModPos)
             },
-            [poi(Pos, application, MFA, Data)]
+            [poi(ModPos, module, M), poi(FunPos, application, MFA, Data)]
     end.
 
 -spec application_mfa(tree()) ->
