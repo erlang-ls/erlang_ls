@@ -156,6 +156,7 @@ index_references(Id, Uri, POIs, Version) ->
 
 -spec index_reference(atom(), uri(), els_poi:poi(), version()) -> ok.
 index_reference(M, Uri, #{kind := Kind, id := {F, A}} = POI, Version) when
+    Kind =/= macro,
     Kind =/= record_field
 ->
     index_reference(M, Uri, POI#{id => {M, F, A}}, Version);
