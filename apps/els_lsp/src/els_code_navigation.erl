@@ -17,14 +17,19 @@
 %% Includes
 %%==============================================================================
 -include("els_lsp.hrl").
--include_lib("kernel/include/logger.hrl").
+
+%%==============================================================================
+%% Type definitions
+%%==============================================================================
+-type goto_definition() :: [{uri(), els_poi:poi()}].
+-export_type([goto_definition/0]).
 
 %%==============================================================================
 %% API
 %%==============================================================================
 
 -spec goto_definition(uri(), els_poi:poi()) ->
-    {ok, [{uri(), els_poi:poi()}]} | {error, any()}.
+    {ok, goto_definition()} | {error, any()}.
 goto_definition(
     Uri,
     Var = #{kind := variable}
@@ -133,6 +138,8 @@ goto_definition(_Uri, #{kind := parse_transform, id := Module}) ->
         {ok, Uri} -> defs_to_res(find(Uri, module, Module));
         {error, Error} -> {error, Error}
     end;
+goto_definition(Uri, #{kind := callback, id := Id}) ->
+    defs_to_res(find(Uri, callback, Id));
 goto_definition(_Filename, _) ->
     {error, not_found}.
 

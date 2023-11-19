@@ -19,6 +19,7 @@
     application_remote/1,
     atom/1,
     behaviour/1,
+    behaviour_callback_definition/1,
     definition_after_closing/1,
     duplicate_definition/1,
     export_entry/1,
@@ -175,6 +176,18 @@ behaviour(Config) ->
     ?assertEqual(?config(behaviour_a_uri, Config), DefUri),
     ?assertEqual(
         els_protocol:range(#{from => {1, 9}, to => {1, 20}}),
+        Range
+    ),
+    ok.
+
+-spec behaviour_callback_definition(config()) -> ok.
+behaviour_callback_definition(Config) ->
+    Uri = ?config(code_navigation_uri, Config),
+    Def = els_client:definition(Uri, 28, 5),
+    #{result := [#{range := Range, uri := DefUri}]} = Def,
+    ?assertEqual(?config(behaviour_a_uri, Config), DefUri),
+    ?assertEqual(
+        els_protocol:range(#{from => {3, 1}, to => {3, 30}}),
         Range
     ),
     ok.
