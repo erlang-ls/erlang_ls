@@ -23,7 +23,7 @@ handle_request({definition, Params}) ->
     } = Params,
     {ok, Document} = els_utils:lookup_document(Uri),
     POIs = els_dt_document:get_element_at_pos(Document, Line + 1, Character + 1),
- ?LOG_WARNING(#{pois => POIs}),
+    ?LOG_WARNING(#{pois => POIs}),
     case goto_definition(Uri, POIs) of
         null ->
             #{text := Text} = Document,
@@ -48,12 +48,12 @@ goto_definition(Uri, [#{id := FunId, kind := function} = POI | Rest]) ->
     case BehaviourPOIs of
         [] ->
             %% cursor is not over a function - continue
-              case els_code_navigation:goto_definition(Uri, POI) of
-                  {ok, Definitions} ->
-                      goto_definitions_to_goto(Definitions);
-                  _ ->
-                      goto_definition(Uri, Rest)
-              end;
+            case els_code_navigation:goto_definition(Uri, POI) of
+                {ok, Definitions} ->
+                    goto_definitions_to_goto(Definitions);
+                _ ->
+                    goto_definition(Uri, Rest)
+            end;
         Behaviours ->
             case does_implement_behaviour(FunId, Behaviours) of
                 false ->
@@ -61,13 +61,12 @@ goto_definition(Uri, [#{id := FunId, kind := function} = POI | Rest]) ->
                     goto_definition(Uri, Rest);
                 {true, BehaviourModuleUri, MatchingCallback} ->
                     {ok, Definitions} = els_code_navigation:goto_definition(
-                                          BehaviourModuleUri,
-                                          MatchingCallback
-                                         ),
+                        BehaviourModuleUri,
+                        MatchingCallback
+                    ),
                     goto_definitions_to_goto(Definitions)
             end
     end;
-
 goto_definition(Uri, [POI | Rest]) ->
     case els_code_navigation:goto_definition(Uri, POI) of
         {ok, Definitions} ->
@@ -122,29 +121,37 @@ fix_line_offset(
     }.
 
 -spec goto_definitions_to_goto(Definitions) -> Result when
-      Definitions :: els_code_navigation:goto_definition(),
-      Result :: [map()].
+    Definitions :: els_code_navigation:goto_definition(),
+    Result :: [map()].
 goto_definitions_to_goto(Definitions) ->
-    lists:map(fun({DefUri, DefPOI}) ->
-                    #{range := Range} = DefPOI,
-                    #{uri => DefUri, range => els_protocol:range(Range)}
-              end, Definitions).
+    lists:map(
+        fun({DefUri, DefPOI}) ->
+            #{range := Range} = DefPOI,
+            #{uri => DefUri, range => els_protocol:range(Range)}
+        end,
+        Definitions
+    ).
 
 -spec does_implement_behaviour(any(), list()) -> {true, any()} | false.
-does_implement_behaviour(_, []) -> false;
+does_implement_behaviour(_, []) ->
+    false;
 does_implement_behaviour(FunId, [#{id := ModuleId, kind := behaviour} | Rest]) ->
-   {ok, BehaviourModuleUri} = els_utils:find_module(ModuleId),
-   {ok, BehaviourModuleDocument} = els_utils:lookup_document(BehaviourModuleUri),
-   DefinedCallbacks = els_dt_document:pois(BehaviourModuleDocument,
-                                                    [callback]),
-   MaybeMatchingCallback = lists:filter(fun(#{id := CallbackId}) ->
-                                                         CallbackId =:= FunId
-                                                 end, DefinedCallbacks),
-   case MaybeMatchingCallback of
-       [] -> does_implement_behaviour(FunId, Rest);
-       [H | _] -> {true, BehaviourModuleUri, H}
-   end.
-
+    {ok, BehaviourModuleUri} = els_utils:find_module(ModuleId),
+    {ok, BehaviourModuleDocument} = els_utils:lookup_document(BehaviourModuleUri),
+    DefinedCallbacks = els_dt_document:pois(
+        BehaviourModuleDocument,
+        [callback]
+    ),
+    MaybeMatchingCallback = lists:filter(
+        fun(#{id := CallbackId}) ->
+            CallbackId =:= FunId
+        end,
+        DefinedCallbacks
+    ),
+    case MaybeMatchingCallback of
+        [] -> does_implement_behaviour(FunId, Rest);
+        [H | _] -> {true, BehaviourModuleUri, H}
+    end.
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
