@@ -7,7 +7,6 @@
 ]).
 
 -include("els_lsp.hrl").
--include_lib("kernel/include/logger.hrl").
 
 %%==============================================================================
 %% els_provider functions
@@ -23,7 +22,6 @@ handle_request({definition, Params}) ->
     } = Params,
     {ok, Document} = els_utils:lookup_document(Uri),
     POIs = els_dt_document:get_element_at_pos(Document, Line + 1, Character + 1),
-    ?LOG_WARNING(#{pois => POIs}),
     case goto_definition(Uri, POIs) of
         null ->
             #{text := Text} = Document,
@@ -44,7 +42,6 @@ goto_definition(_Uri, []) ->
 goto_definition(Uri, [#{id := FunId, kind := function} = POI | Rest]) ->
     {ok, Document} = els_utils:lookup_document(Uri),
     BehaviourPOIs = els_dt_document:pois(Document, [behaviour]),
-    ?LOG_WARNING(#{bpois => BehaviourPOIs}),
     case BehaviourPOIs of
         [] ->
             %% cursor is not over a function - continue
