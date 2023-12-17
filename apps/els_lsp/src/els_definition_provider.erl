@@ -129,7 +129,7 @@ goto_definitions_to_goto(Definitions) ->
         Definitions
     ).
 
--spec does_implement_behaviour(any(), list()) -> {true, any()} | false.
+-spec does_implement_behaviour(any(), list()) -> {true, uri(), els_poi:poi()} | false.
 does_implement_behaviour(_, []) ->
     false;
 does_implement_behaviour(FunId, [#{id := ModuleId, kind := behaviour} | Rest]) ->
