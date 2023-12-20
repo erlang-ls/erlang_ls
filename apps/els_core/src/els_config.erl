@@ -165,6 +165,7 @@ do_initialize(RootUri, Capabilities, InitOptions, {ConfigPath, Config}) ->
 
     RefactorErl = maps:get("refactorerl", Config, notconfigured),
     Providers = maps:get("providers", Config, #{}),
+    EdocParseEnabled = maps:get("edoc_parse_enabled", Config, true),
 
     %% Initialize and start Wrangler
     case maps:get("wrangler", Config, notconfigured) of
@@ -236,6 +237,7 @@ do_initialize(RootUri, Capabilities, InitOptions, {ConfigPath, Config}) ->
     ok = set(elvis_config_path, ElvisConfigPath),
     ok = set(compiler_telemetry_enabled, CompilerTelemetryEnabled),
     ok = set(edoc_custom_tags, EDocCustomTags),
+    ok = set(edoc_parse_enabled, EdocParseEnabled),
     ok = set(incremental_sync, IncrementalSync),
     ok = set(
         indexing,
