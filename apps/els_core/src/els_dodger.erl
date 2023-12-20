@@ -567,7 +567,7 @@ quickscan_form([{'-', _L}, {'if', La} | _Ts]) ->
     kill_form(La);
 quickscan_form([{'-', _L}, {atom, La, elif} | _Ts]) ->
     kill_form(La);
-quickscan_form([{'-', _L}, {atom, La, else} | _Ts]) ->
+quickscan_form([{'-', _L}, {atom, La, 'else'} | _Ts]) ->
     kill_form(La);
 quickscan_form([{'-', _L}, {atom, La, endif} | _Ts]) ->
     kill_form(La);
@@ -791,13 +791,13 @@ scan_form([{'-', _L}, {atom, La, elif} | Ts], Opt) ->
         {atom, La, 'elif'}
         | scan_macros(Ts, Opt)
     ];
-scan_form([{'-', _L}, {atom, La, else} | Ts], Opt) ->
+scan_form([{'-', _L}, {atom, La, 'else'} | Ts], Opt) ->
     [
         {atom, La, ?pp_form},
         {'(', La},
         {')', La},
         {'->', La},
-        {atom, La, else}
+        {atom, La, 'else'}
         | scan_macros(Ts, Opt)
     ];
 scan_form([{'-', _L}, {atom, La, endif} | Ts], Opt) ->
