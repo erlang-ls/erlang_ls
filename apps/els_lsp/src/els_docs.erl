@@ -37,7 +37,7 @@
 -type application_type() :: 'local' | 'remote'.
 
 %%==============================================================================
-%% Dialyer Ignores (due to upstream bug, see ERL-1262
+%% Dialyzer Ignores (due to upstream bug, see ERL-1262
 %%==============================================================================
 -dialyzer({nowarn_function, function_docs/4}).
 
@@ -103,18 +103,33 @@ docs(_M, _POI) ->
 -spec function_docs(application_type(), atom(), atom(), non_neg_integer()) ->
     [els_markup_content:doc_entry()].
 function_docs(Type, M, F, A) ->
-    %% call via ?MODULE to enable mocking in tests
-    case ?MODULE:eep48_docs(function, M, F, A) of
-        {ok, Docs} ->
-            [{text, Docs}];
-        {error, not_available} ->
-            %% We cannot fetch the EEP-48 style docs, so instead we create
-            %% something similar using the tools we have.
+    case edoc_parse_enabled() of
+        true ->
+            %% call via ?MODULE to enable mocking in tests
+            case ?MODULE:eep48_docs(function, M, F, A) of
+                {ok, Docs} ->
+                    [{text, Docs}];
+                {error, not_available} ->
+                    %% We cannot fetch the EEP-48 style docs, so instead we create
+                    %% something similar using the tools we have.
+                    Sig = {h2, signature(Type, M, F, A)},
+                    L = [
+                        function_clauses(M, F, A),
+                        specs(M, F, A),
+                        edoc(M, F, A)
+                    ],
+                    case lists:append(L) of
+                        [] ->
+                            [Sig];
+                        Docs ->
+                            [Sig, {text, "---"} | Docs]
+                    end
+            end;
+        false ->
             Sig = {h2, signature(Type, M, F, A)},
             L = [
                 function_clauses(M, F, A),
-                specs(M, F, A),
-                edoc(M, F, A)
+                specs(M, F, A)
             ],
             case lists:append(L) of
                 [] ->
@@ -127,11 +142,16 @@ function_docs(Type, M, F, A) ->
 -spec type_docs(application_type(), atom(), atom(), non_neg_integer()) ->
     [els_markup_content:doc_entry()].
 type_docs(_Type, M, F, A) ->
-    %% call via ?MODULE to enable mocking in tests
-    case ?MODULE:eep48_docs(type, M, F, A) of
-        {ok, Docs} ->
-            [{text, Docs}];
-        {error, not_available} ->
+    case edoc_parse_enabled() of
+        true ->
+            %% call via ?MODULE to enable mocking in tests
+            case ?MODULE:eep48_docs(type, M, F, A) of
+                {ok, Docs} ->
+                    [{text, Docs}];
+                {error, not_available} ->
+                    type(M, F, A)
+            end;
+        false ->
             type(M, F, A)
     end.
 
@@ -495,3 +515,7 @@ spawn_group_proxy(Acc) ->
         M ->
             spawn_group_proxy([M | Acc])
     end.
+
+-spec edoc_parse_enabled() -> boolean().
+edoc_parse_enabled() ->
+    true == els_config:get(edoc_parse_enabled).
