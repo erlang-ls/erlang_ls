@@ -197,9 +197,10 @@ remote_call_otp(Config) ->
     #{result := Result} = els_client:hover(Uri, 26, 12),
     ?assert(maps:is_key(contents, Result)),
     Contents = maps:get(contents, Result),
+    OtpRelease = list_to_integer(erlang:system_info(otp_release)),
     Value =
         case has_eep48(file) of
-            true when ?OTP_RELEASE >= 26 ->
+            true when OtpRelease >= 26 ->
                 <<
                     "```erlang\nwrite(IoDevice, Bytes) -> ok | {error, "
                     "Reason}\nwhen\n  IoDevice :: io_device() | io:device(),\n"
