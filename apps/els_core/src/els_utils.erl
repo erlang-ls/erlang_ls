@@ -374,17 +374,29 @@ cmd_receive(Port) ->
 -spec prioritize_uris([uri()]) -> [uri()].
 prioritize_uris(Uris) ->
     Root = els_config:get(root_uri),
-    Order = fun
-        (nomatch) ->
-            3;
-        (Cont) ->
-            case string:find(Cont, "/src/") of
-                nomatch -> 1;
-                _ -> 0
-            end
-    end,
-    Prio = [{Order(string:prefix(Uri, Root)), Uri} || Uri <- Uris],
+    AppsPaths = els_config:get(apps_paths),
+    Prio = [{score_uri(Uri, Root, AppsPaths), Uri} || Uri <- Uris],
     [Uri || {_, Uri} <- lists:sort(Prio)].
+
+-spec score_uri(uri(), uri(), [file:name()]) -> tuple().
+score_uri(Uri, RootUri, AppsPaths) ->
+    Path = els_uri:path(Uri),
+    Prefix = string:prefix(Uri, RootUri),
+    %% prefer files under project root
+    S1 =
+        case Prefix of
+            nomatch -> 1;
+            _Rest -> 0
+        end,
+    %% among those, prefer files under some project app directory (e.g.
+    %% deprioritize dependencies and shadow copies)
+    S2 = length([
+        AP
+     || S1 == 0,
+        AP <- AppsPaths,
+        string:prefix(Path, AP) /= nomatch
+    ]),
+    {S1, -S2}.
 
 %%==============================================================================
 %% This section excerpted from the rebar3 sources, rebar_dir.erl
