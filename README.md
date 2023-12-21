@@ -12,6 +12,10 @@ An Erlang server implementing Microsoft's Language Server Protocol 3.15.
 * [Erlang OTP 22+](https://github.com/erlang/otp)
 * [rebar3 3.9.1+](https://github.com/erlang/rebar3)
 
+## Supported OTP versions
+
+* 23, 24, 25, 26
+
 ## Quickstart
 
 Compile the project:
