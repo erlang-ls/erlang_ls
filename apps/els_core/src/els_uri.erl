@@ -5,6 +5,10 @@
 %%==============================================================================
 -module(els_uri).
 
+-if(?OTP_RELEASE =:= 23).
+-compile([{nowarn_deprecated_function, [{http_uri, decode, 1}]}]).
+-endif.
+
 %%==============================================================================
 %% Exports
 %%==============================================================================
@@ -84,9 +88,24 @@ uri(Path) ->
 uri_join(List) ->
     lists:join(<<"/">>, List).
 
--if(?OTP_RELEASE >= 23).
+-if(?OTP_RELEASE > 23).
 -spec percent_decode(binary()) -> binary().
 percent_decode(Str) ->
+    uri_string:percent_decode(Str).
+-elif(?OTP_RELEASE =:= 23).
+-spec percent_decode(binary()) -> binary().
+percent_decode(Str) ->
+    %% The `percent_decode/1' function is unavailable until OTP 23.2
+    case erlang:function_exported(uri_string, percent_decode, 1) of
+        'true' ->
+            percent_decode2(Str);
+        'false' ->
+            http_uri:decode(Str)
+    end.
+
+-dialyzer([{nowarn_function, percent_decode2/1}]).
+-spec percent_decode2(binary()) -> binary().
+percent_decode2(Str) ->
     uri_string:percent_decode(Str).
 -else.
 -spec percent_decode(binary()) -> binary().
