@@ -140,7 +140,9 @@ index_references(Id, Uri, POIs, Version) ->
         %% Behaviour
         behaviour,
         %% Type
-        type_application
+        type_application,
+        %% Atom
+        atom
     ],
     [
         index_reference(Id, Uri, POI, Version)

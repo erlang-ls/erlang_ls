@@ -142,7 +142,8 @@ find_references(Uri, #{kind := module}) ->
     Refs = find_references_to_module(Uri),
     [location(U, R) || #{uri := U, range := R} <- Refs];
 find_references(_Uri, #{kind := Kind, id := Name}) when
-    Kind =:= behaviour
+    Kind =:= behaviour;
+    Kind =:= atom
 ->
     find_references_for_id(Kind, Name);
 find_references(_Uri, _POI) ->

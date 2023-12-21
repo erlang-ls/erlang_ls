@@ -39,6 +39,8 @@ extract_pattern({include, Id}) ->
 extract_pattern({include_lib, Id}) ->
     include_id(Id);
 extract_pattern({behaviour, Name}) ->
+    Name;
+extract_pattern({atom, Name}) ->
     Name.
 
 -spec include_id(string()) -> string().
