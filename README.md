@@ -7,6 +7,8 @@
 
 An Erlang server implementing Microsoft's Language Server Protocol 3.15.
 
+[Documentation](https://erlang-ls.github.io/)
+
 ## Minimum Requirements
 
 * [Erlang OTP 22+](https://github.com/erlang/otp)
