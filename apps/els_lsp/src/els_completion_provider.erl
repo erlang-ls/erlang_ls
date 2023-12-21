@@ -996,6 +996,8 @@ bifs(type_definition, ItemFormat) ->
         {'nil', 0},
         {'no_return', 0},
         {'node', 0},
+        {'nonempty_binary', 0},
+        {'nonempty_bitstring', 0},
         {'nonempty_improper_list', 2},
         {'nonempty_list', 1},
         {'non_neg_integer', 0},
