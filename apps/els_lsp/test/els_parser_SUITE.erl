@@ -33,6 +33,7 @@
     record_def_recursive/1,
     var_in_application/1,
     comprehensions/1,
+    maybe_expr/1,
     unicode_clause_pattern/1,
     latin1_source_code/1,
     record_comment/1,
@@ -461,6 +462,20 @@ comprehensions(_Config) ->
     ?assertMatch(
         [#{id := 'Y'}, #{id := 'X'}, #{id := 'X'}, #{id := 'Y'}, #{id := 'M'}],
         parse_find_pois(Text3, variable)
+    ),
+    ok.
+
+maybe_expr(_Config) ->
+    Text1 = "maybe {ok, X} ?= f(), {ok, Y} ?= g() end",
+    ?assertMatch(
+        [#{id := 'X'}, #{id := 'Y'}],
+        parse_find_pois(Text1, variable)
+    ),
+
+    Text2 = "maybe {ok, X} ?= f() else {error, Err} -> Err end",
+    ?assertMatch(
+        [#{id := 'X'}, #{id := 'Err'}, #{id := 'Err'}],
+        parse_find_pois(Text2, variable)
     ),
     ok.
 

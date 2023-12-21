@@ -403,6 +403,10 @@ erlfmt_to_st(Node) ->
         {clause, _, _, _, _} = Clause ->
             %% clauses of case/if/receive/try
             erlfmt_clause_to_st(Clause);
+        {else_clause, Pos, Clauses} ->
+            %% The else clause of a maybe expression - in OTP it is just called
+            %% 'else' but has the same format and content
+            erlfmt_to_st_1({'else', Pos, Clauses});
         %% Lists are represented as a `list` node instead of a chain of `cons`
         %% and `nil` nodes, similar to the `tuple` node. The last element of
         %% the list can be a `cons` node representing explicit consing syntax.
