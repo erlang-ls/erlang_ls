@@ -47,7 +47,7 @@ jobs:
     - name: Lint
       run: rebar3 lint
     - name: Generate Dialyzer PLT for usage in CT Tests
-      run: dialyzer --build_plt --apps erts kernel stdlib compiler
+      run: dialyzer --build_plt --apps erts kernel stdlib compiler crypto
     - name: Start epmd as daemon
       run: epmd -daemon
     - name: Run CT Tests
