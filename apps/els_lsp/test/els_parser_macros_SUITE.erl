@@ -19,7 +19,8 @@
     macro_in_application/1,
     record_def_field_macro/1,
     module_macro_as_record_name/1,
-    other_macro_as_record_name/1
+    other_macro_as_record_name/1,
+    macro_guards/1
 ]).
 
 %%==============================================================================
@@ -227,6 +228,17 @@ other_macro_as_record_name(_Config) ->
     ?assertMatch([], parse_find_pois(Text4, record_expr)),
     ?assertMatch([], parse_find_pois(Text4, record_field)),
     ?assertMatch([_], parse_find_pois(Text4, macro, 'M')),
+    ok.
+
+macro_guards(_Config) ->
+    Text1 = "?foo(Expr when Guard1)",
+    ?assertMatch([#{id := 'Expr'}, #{id := 'Guard1'}], parse_find_pois(Text1, variable)),
+
+    Text2 = "?foo(Expr when Guard1; Guard2)",
+    ?assertMatch(
+        [#{id := 'Expr'}, #{id := 'Guard1'}, #{id := 'Guard2'}],
+        parse_find_pois(Text2, variable)
+    ),
     ok.
 
 %%==============================================================================
