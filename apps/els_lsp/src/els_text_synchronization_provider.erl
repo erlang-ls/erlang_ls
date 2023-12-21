@@ -38,6 +38,7 @@ handle_request({did_change, Params}) ->
 handle_request({did_save, Params}) ->
     ok = els_text_synchronization:did_save(Params),
     #{<<"textDocument">> := #{<<"uri">> := Uri}} = Params,
+    ok = els_code_reload:maybe_compile_and_load(Uri),
     {diagnostics, Uri, els_diagnostics:run_diagnostics(Uri)};
 handle_request({did_close, Params}) ->
     ok = els_text_synchronization:did_close(Params),
