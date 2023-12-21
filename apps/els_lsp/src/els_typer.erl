@@ -34,6 +34,14 @@
 
 -include("els_lsp.hrl").
 
+-if(?OTP_RELEASE >= 26).
+-define(DEFAULT_PLT_FILE, dialyzer_iplt:get_default_iplt_filename()).
+-define(PLT_FROM_FILE(PltFile), dialyzer_iplt:from_file(PltFile)).
+-else.
+-define(DEFAULT_PLT_FILE, dialyzer_plt:get_default_plt()).
+-define(PLT_FROM_FILE(PltFile), dialyzer_plt:from_file(PltFile)).
+-endif.
+
 -type files() :: [file:filename()].
 -type callgraph() :: dialyzer_callgraph:callgraph().
 -type codeserver() :: dialyzer_codeserver:codeserver().
@@ -427,11 +435,11 @@ get_dialyzer_plt() ->
     PltFile =
         case els_config:get(plt_path) of
             undefined ->
-                dialyzer_plt:get_default_plt();
+                ?DEFAULT_PLT_FILE;
             PltPath ->
                 PltPath
         end,
-    dialyzer_plt:from_file(PltFile).
+    ?PLT_FROM_FILE(PltFile).
 
 %% Exported Types
 
