@@ -149,25 +149,36 @@ parse_incomplete_tokens(Tokens) ->
         {ok, Form} ->
             {ok, Form};
         {error, {ErrorLoc, erlfmt_parse, _Reason}} ->
-            TrimmedTokens = tokens_until(Tokens, ErrorLoc),
+            ErrorPos = loc_to_pos(ErrorLoc),
+            TrimmedTokens = tokens_until(Tokens, ErrorPos),
             parse_incomplete_tokens(TrimmedTokens)
     end.
 
+%% Convert location in various formats to a consistent position that can always be compared
+-spec loc_to_pos(erlfmt_scan:anno() | erl_anno:location()) -> pos().
+loc_to_pos(#{location := Loc}) ->
+    %% erlfmt_scan:anno()
+    loc_to_pos(Loc);
+loc_to_pos({Line, Col} = Loc) when is_integer(Line), is_integer(Col) ->
+    Loc;
+loc_to_pos(Line) when is_integer(Line) ->
+    {Line, 0}.
+
 %% @doc Drop tokens after given location but keep final dot, to preserve its
 %% location
--spec tokens_until([erlfmt_scan:token()], erl_anno:location()) ->
+-spec tokens_until([erlfmt_scan:token()], pos()) ->
     [erlfmt_scan:token()].
-tokens_until([_Hd, {dot, _} = Dot], _Loc) ->
+tokens_until([_Hd, {dot, _} = Dot], _Pos) ->
     %% We need to drop at least one token before the dot.
     %% Otherwise if error location is at the dot, we cannot just drop the dot and
     %% add a dot again, because it would result in an infinite loop.
     [Dot];
-tokens_until([Hd | Tail], Loc) ->
-    case erlfmt_scan:get_anno(location, Hd) < Loc of
+tokens_until([Hd | Tail], Pos) ->
+    case erlfmt_scan:get_anno(location, Hd) < Pos of
         true ->
-            [Hd | tokens_until(Tail, Loc)];
+            [Hd | tokens_until(Tail, Pos)];
         false ->
-            tokens_until(Tail, Loc)
+            tokens_until(Tail, Pos)
     end.
 
 %% `erlfmt_scan' does not support start location other than {1,1}
