@@ -271,13 +271,63 @@ maybe_imported(_Document, _Kind, _Data) ->
     [].
 
 -spec find_in_scope(uri(), els_poi:poi()) -> [els_poi:poi()].
-find_in_scope(Uri, #{kind := variable, id := VarId, range := VarRange}) ->
+find_in_scope(
+    Uri,
+    #{kind := variable, id := VarId, range := VarRange}
+) ->
     {ok, Document} = els_utils:lookup_document(Uri),
+    LcPOIs = els_poi:sort(els_dt_document:pois(Document, [list_comp])),
     VarPOIs = els_poi:sort(els_dt_document:pois(Document, [variable])),
     ScopeRange = els_scope:variable_scope_range(VarRange, Document),
-    [
+    MatchInScope = [
         POI
-     || #{range := Range, id := Id} = POI <- VarPOIs,
-        els_range:in(Range, ScopeRange),
+     || #{id := Id} = POI <- pois_in(VarPOIs, ScopeRange),
         Id =:= VarId
-    ].
+    ],
+    %% Handle special case if variable POI is inside list comprehension (LC)
+    MatchingLcPOIs = pois_contains(LcPOIs, VarRange),
+    case find_in_scope_list_comp(MatchingLcPOIs, MatchInScope) of
+        [] ->
+            MatchInScope -- find_in_scope_list_comp(LcPOIs, MatchInScope);
+        MatchInLc ->
+            MatchInLc
+    end.
+
+-spec find_in_scope_list_comp([els_poi:poi()], [els_poi:poi()]) ->
+    [els_poi:poi()].
+find_in_scope_list_comp([], _VarPOIs) ->
+    %% No match in LC, use regular scope
+    [];
+find_in_scope_list_comp([LcPOI | LcPOIs], VarPOIs) ->
+    #{data := #{pattern_ranges := PatRanges}, range := LcRange} = LcPOI,
+    VarsInLc = pois_in(VarPOIs, LcRange),
+    {PatVars, OtherVars} =
+        lists:partition(
+            fun(#{range := Range}) ->
+                lists:any(
+                    fun(PatRange) ->
+                        els_range:in(Range, PatRange)
+                    end,
+                    PatRanges
+                )
+            end,
+            VarsInLc
+        ),
+    case PatVars of
+        [] ->
+            %% Didn't find any patterned vars in this LC, try the next one
+            find_in_scope_list_comp(LcPOIs, VarPOIs);
+        _ ->
+            %% Put pattern vars first to make goto definition work
+            PatVars ++ OtherVars
+    end.
+
+-spec pois_in([els_poi:poi()], els_poi:poi_range()) ->
+    [els_poi:poi()].
+pois_in(POIs, Range) ->
+    [POI || #{range := R} = POI <- POIs, els_range:in(R, Range)].
+
+-spec pois_contains([els_poi:poi()], els_poi:poi_range()) ->
+    [els_poi:poi()].
+pois_contains(POIs, Range) ->
+    [POI || #{range := R} = POI <- POIs, els_range:in(Range, R)].

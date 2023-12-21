@@ -53,6 +53,7 @@
     type_application_user/1,
     type_export_entry/1,
     variable/1,
+    variable_list_comp/1,
     opaque_application_remote/1,
     opaque_application_user/1,
     parse_incomplete/1
@@ -623,38 +624,77 @@ type_export_entry(Config) ->
 -spec variable(config()) -> ok.
 variable(Config) ->
     Uri = ?config(code_navigation_uri, Config),
-    Def0 = els_client:definition(Uri, 104, 9),
-    Def1 = els_client:definition(Uri, 105, 10),
-    Def2 = els_client:definition(Uri, 107, 10),
-    Def3 = els_client:definition(Uri, 108, 10),
-    Def4 = els_client:definition(Uri, 19, 36),
-    #{result := [#{range := Range0, uri := DefUri0}]} = Def0,
-    #{result := [#{range := Range1, uri := DefUri0}]} = Def1,
-    #{result := [#{range := Range2, uri := DefUri0}]} = Def2,
-    #{result := [#{range := Range3, uri := DefUri0}]} = Def3,
-    #{result := [#{range := Range4, uri := DefUri0}]} = Def4,
-
-    ?assertEqual(?config(code_navigation_uri, Config), DefUri0),
     ?assertEqual(
-        els_protocol:range(#{from => {103, 12}, to => {103, 15}}),
-        Range0
+        {#{from => {103, 12}, to => {103, 15}}, Uri},
+        definition(Uri, 104, 9)
     ),
     ?assertEqual(
-        els_protocol:range(#{from => {104, 3}, to => {104, 6}}),
-        Range1
+        {#{from => {104, 3}, to => {104, 6}}, Uri},
+        definition(Uri, 105, 10)
     ),
     ?assertEqual(
-        els_protocol:range(#{from => {106, 12}, to => {106, 15}}),
-        Range2
+        {#{from => {106, 12}, to => {106, 15}}, Uri},
+        definition(Uri, 107, 10)
     ),
     ?assertEqual(
-        els_protocol:range(#{from => {106, 12}, to => {106, 15}}),
-        Range3
+        {#{from => {106, 12}, to => {106, 15}}, Uri},
+        definition(Uri, 108, 10)
     ),
     %% Inside macro
     ?assertEqual(
-        els_protocol:range(#{from => {19, 17}, to => {19, 18}}),
-        Range4
+        {#{from => {19, 17}, to => {19, 18}}, Uri},
+        definition(Uri, 19, 36)
+    ),
+    ok.
+
+-spec variable_list_comp(config()) -> ok.
+variable_list_comp(Config) ->
+    Uri = ?config(variable_list_comp_uri, Config),
+
+    %% one: Should skip LC
+    ?assertEqual(
+        {#{from => {4, 5}, to => {4, 8}}, Uri},
+        definition(Uri, 6, 5)
+    ),
+    %% one: Should go to LC generator pattern
+    ?assertEqual(
+        {#{from => {5, 14}, to => {5, 17}}, Uri},
+        definition(Uri, 5, 7)
+    ),
+    %% two: Should go to first LC generator pattern
+    ?assertEqual(
+        {#{from => {9, 14}, to => {9, 17}}, Uri},
+        definition(Uri, 9, 7)
+    ),
+    %% two: Should go to second LC generator pattern
+    ?assertEqual(
+        {#{from => {10, 14}, to => {10, 17}}, Uri},
+        definition(Uri, 10, 7)
+    ),
+    %% three: Should go to variable definition
+    ?assertEqual(
+        {#{from => {13, 5}, to => {13, 8}}, Uri},
+        definition(Uri, 14, 7)
+    ),
+    %% three: Should go to variable definition (same)
+    ?assertEqual(
+        {#{from => {13, 5}, to => {13, 8}}, Uri},
+        definition(Uri, 15, 5)
+    ),
+    %% four: Should go to first LC generator pattern
+    ?assertEqual(
+        {#{from => {18, 22}, to => {18, 25}}, Uri},
+        definition(Uri, 18, 8)
+    ),
+    %% four: Should go to second LC generator pattern
+    ?assertEqual(
+        {#{from => {19, 22}, to => {19, 26}}, Uri},
+        definition(Uri, 18, 13)
+    ),
+    %% four: Should go to third LC generator pattern
+    ?assertEqual(
+        {#{from => {19, 39}, to => {19, 42}}, Uri},
+        definition(Uri, 19, 32)
     ),
     ok.
 
@@ -716,3 +756,11 @@ parse_incomplete(Config) ->
         els_client:definition(Uri, 19, 3)
     ),
     ok.
+
+definition(Uri, Line, Char) ->
+    case els_client:definition(Uri, Line, Char) of
+        #{result := [#{range := Range, uri := DefUri}]} ->
+            {els_range:to_poi_range(Range), DefUri};
+        Res ->
+            {error, Res}
+    end.

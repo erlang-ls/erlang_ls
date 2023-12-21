@@ -213,6 +213,8 @@ do_points_of_interest(Tree) ->
                 record_index_expr(Tree);
             record_expr ->
                 record_expr(Tree);
+            list_comp ->
+                list_comp(Tree);
             variable ->
                 variable(Tree);
             atom ->
@@ -720,6 +722,21 @@ implicit_fun(Tree) ->
 macro(Tree) ->
     Anno = macro_location(Tree),
     [poi(Anno, macro, macro_name(Tree))].
+
+-spec list_comp(tree()) -> [els_poi:poi()].
+list_comp(Tree) ->
+    Pos = erl_syntax:get_pos(Tree),
+    Body = erl_syntax:list_comp_body(Tree),
+    PatRanges = [
+        els_range:range(
+            erl_syntax:get_pos(
+                erl_syntax:generator_pattern(Gen)
+            )
+        )
+     || Gen <- Body,
+        erl_syntax:type(Gen) =:= generator
+    ],
+    [poi(Pos, list_comp, undefined, #{pattern_ranges => PatRanges})].
 
 -spec map_record_def_fields(Fun, tree(), atom()) -> [Result] when
     Fun :: fun((tree(), atom()) -> Result).

@@ -18,6 +18,7 @@
     rename_macro/1,
     rename_module/1,
     rename_variable/1,
+    rename_variable_list_comp/1,
     rename_function/1,
     rename_function_quoted_atom/1,
     rename_type/1,
@@ -276,6 +277,99 @@ rename_variable(Config) ->
     assert_changes(Expected9, Result9),
     assert_changes(Expected10, Result10),
     assert_changes(Expected11, Result11).
+
+-spec rename_variable_list_comp(config()) -> ok.
+rename_variable_list_comp(Config) ->
+    Uri = ?config(variable_list_comp_uri, Config),
+    UriAtom = binary_to_atom(Uri, utf8),
+    NewName = <<"NewAwesomeName">>,
+    %% one: Skip LC
+    Result1 = rename(Uri, 3, 4, NewName),
+    Result1 = rename(Uri, 5, 4, NewName),
+    Expected1 = #{
+        changes => #{
+            UriAtom => [
+                change(NewName, {3, 4}, {3, 7}),
+                change(NewName, {5, 4}, {5, 7})
+            ]
+        }
+    },
+    %% one: Rename in LC only
+    Result2 = rename(Uri, 4, 6, NewName),
+    Result2 = rename(Uri, 4, 13, NewName),
+    Expected2 = #{
+        changes => #{
+            UriAtom => [
+                change(NewName, {4, 6}, {4, 9}),
+                change(NewName, {4, 13}, {4, 16})
+            ]
+        }
+    },
+    %% two: Rename in first LC only
+    Result3 = rename(Uri, 8, 6, NewName),
+    Result3 = rename(Uri, 8, 13, NewName),
+    Expected3 = #{
+        changes => #{
+            UriAtom => [
+                change(NewName, {8, 6}, {8, 9}),
+                change(NewName, {8, 13}, {8, 16})
+            ]
+        }
+    },
+    %% two: Rename in second LC only
+    Result4 = rename(Uri, 9, 6, NewName),
+    Result4 = rename(Uri, 9, 13, NewName),
+    Expected4 = #{
+        changes => #{
+            UriAtom => [
+                change(NewName, {9, 6}, {9, 9}),
+                change(NewName, {9, 13}, {9, 16})
+            ]
+        }
+    },
+    %% three: Rename all Var (no Var in LC pattern)
+    Result5 = rename(Uri, 12, 4, NewName),
+    Result5 = rename(Uri, 13, 6, NewName),
+    Result5 = rename(Uri, 14, 4, NewName),
+    Expected5 = #{
+        changes => #{
+            UriAtom => [
+                change(NewName, {12, 4}, {12, 7}),
+                change(NewName, {13, 6}, {13, 9}),
+                change(NewName, {14, 4}, {14, 7})
+            ]
+        }
+    },
+    %% four: Rename Var2, second LC generator pattern
+    Result6 = rename(Uri, 17, 12, NewName),
+    Result6 = rename(Uri, 18, 21, NewName),
+    Expected6 = #{
+        changes => #{
+            UriAtom => [
+                change(NewName, {17, 12}, {17, 16}),
+                change(NewName, {18, 21}, {18, 25})
+            ]
+        }
+    },
+    %% four: FIXME: Bug, shouldn't rename Var inside second LC
+    %% Result7 = rename(Uri, 17, 7, NewName),
+    %% Result7 = rename(Uri, 17, 21, NewName),
+    %% Expected7 = #{
+    %%     changes => #{
+    %%         UriAtom => [
+    %%             change(NewName, {17, 7}, {17, 10}),
+    %%             change(NewName, {17, 21}, {17, 24})
+    %%         ]
+    %%     }
+    %% },
+    assert_changes(Expected1, Result1),
+    assert_changes(Expected2, Result2),
+    assert_changes(Expected3, Result3),
+    assert_changes(Expected4, Result4),
+    assert_changes(Expected5, Result5),
+    assert_changes(Expected6, Result6),
+    %% assert_changes(Expected7, Result7),
+    ok.
 
 -spec rename_macro(config()) -> ok.
 rename_macro(Config) ->
