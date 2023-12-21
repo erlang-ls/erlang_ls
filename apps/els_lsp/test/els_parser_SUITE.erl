@@ -32,6 +32,7 @@
     opaque_recursive/1,
     record_def_recursive/1,
     var_in_application/1,
+    comprehensions/1,
     unicode_clause_pattern/1,
     latin1_source_code/1,
     record_comment/1,
@@ -440,6 +441,26 @@ var_in_application(_Config) ->
             }
         ],
         parse_find_pois(Text5, application)
+    ),
+    ok.
+
+comprehensions(_Config) ->
+    Text1 = "[X || X <- L]",
+    ?assertMatch(
+        [#{id := 'X'}, #{id := 'X'}, #{id := 'L'}],
+        parse_find_pois(Text1, variable)
+    ),
+
+    Text2 = "<< <<Y, X>> || <<X, Y>> <= B >>",
+    ?assertMatch(
+        [#{id := 'Y'}, #{id := 'X'}, #{id := 'X'}, #{id := 'Y'}, #{id := 'B'}],
+        parse_find_pois(Text2, variable)
+    ),
+
+    Text3 = "#{ Y => X || X := Y <- M }",
+    ?assertMatch(
+        [#{id := 'Y'}, #{id := 'X'}, #{id := 'X'}, #{id := 'Y'}, #{id := 'M'}],
+        parse_find_pois(Text3, variable)
     ),
     ok.
 
