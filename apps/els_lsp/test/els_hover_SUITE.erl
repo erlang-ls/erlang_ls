@@ -197,8 +197,33 @@ remote_call_otp(Config) ->
     #{result := Result} = els_client:hover(Uri, 26, 12),
     ?assert(maps:is_key(contents, Result)),
     Contents = maps:get(contents, Result),
+    OtpRelease = list_to_integer(erlang:system_info(otp_release)),
     Value =
         case has_eep48(file) of
+            true when OtpRelease >= 26 ->
+                <<
+                    "```erlang\nwrite(IoDevice, Bytes) -> ok | {error, "
+                    "Reason}\nwhen\n  IoDevice :: io_device() | io:device(),\n"
+                    "  Bytes :: iodata(),"
+                    "\n  Reason :: posix() | badarg | terminated.\n```\n\n"
+                    "---\n\n"
+                    "Writes `Bytes` to the file referenced by `IoDevice`\\."
+                    " This function is the only way to write to a file opened in"
+                    " `raw` mode \\(although it works for normally opened files"
+                    " too\\)\\. Returns `ok` if successful, and"
+                    " `{error, Reason}` otherwise\\.\n\nIf the file is opened"
+                    " with `encoding` set to something else than `latin1`,"
+                    " each byte written can result in many bytes being written"
+                    " to the file, as the byte range 0\\.\\.255 can represent"
+                    " anything between one and four bytes depending on value"
+                    " and UTF encoding type\\. If you want to write"
+                    " [`unicode:chardata()`](https://erlang.org/doc/man/unicode"
+                    ".html#type-chardata) to the `IoDevice` you should use"
+                    " [`io:put_chars/2`](https://erlang.org/doc/man/io.html"
+                    "#put_chars-2) instead\\.\n\nTypical error reasons:\n\n"
+                    "* **`ebadf`**  \n  The file is not opened for writing\\.\n\n"
+                    "* **`enospc`**  \n  No space is left on the device\\.\n"
+                >>;
             true ->
                 <<
                     "```erlang\nwrite(IoDevice, Bytes) -> ok | {error, Reason}\n"
@@ -541,8 +566,8 @@ nonexisting_type(Config) ->
     #{result := Result} = els_client:hover(Uri, 22, 15),
     %% The spec for `j' is shown instead of the type docs.
     Value =
-        case list_to_integer(erlang:system_info(otp_release)) of
-            25 ->
+        case list_to_integer(erlang:system_info(otp_release)) >= 25 of
+            true ->
                 <<
                     "```erlang\nj(_ :: doesnt:exist()) -> ok.\n```\n\n"
                     "---\n\n\n"
