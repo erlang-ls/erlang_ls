@@ -49,9 +49,10 @@ path(Uri, IsWindows) ->
     case {IsWindows, Host} of
         {true, <<>>} ->
             % Windows drive letter, have to strip the initial slash
-            re:replace(
+            Path1 = re:replace(
                 Path, "^/([a-zA-Z]:)(.*)", "\\1\\2", [{return, binary}]
-            );
+            ),
+            lowercase_drive_letter(Path1);
         {true, _} ->
             <<"//", Host/binary, Path/binary>>;
         {false, <<>>} ->
@@ -112,6 +113,13 @@ percent_decode2(Str) ->
 percent_decode(Str) ->
     http_uri:decode(Str).
 -endif.
+
+-spec lowercase_drive_letter(binary()) -> binary().
+lowercase_drive_letter(<<Drive0, ":", Rest/binary>>) ->
+    Drive = string:to_lower(Drive0),
+    <<Drive, ":", Rest/binary>>;
+lowercase_drive_letter(Path) ->
+    Path.
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
