@@ -4,7 +4,8 @@
 -export([
     all/0,
     init_per_suite/1,
-    end_per_suite/1
+    end_per_suite/1,
+    init_per_testcase/2
 ]).
 
 %% Test cases
@@ -33,6 +34,7 @@
     record_def_recursive/1,
     var_in_application/1,
     comprehensions/1,
+    map_comprehensions/1,
     maybe_expr/1,
     unicode_clause_pattern/1,
     latin1_source_code/1,
@@ -62,6 +64,23 @@ end_per_suite(_Config) -> ok.
 
 -spec all() -> [atom()].
 all() -> els_test_utils:all(?MODULE).
+
+init_per_testcase(map_comprehensions, Config) ->
+    case list_to_integer(erlang:system_info(otp_release)) < 26 of
+        true ->
+            {skip, "Map comprehensions are only supported from OTP 26"};
+        false ->
+            Config
+    end;
+init_per_testcase(maybe_expr, Config) ->
+    case list_to_integer(erlang:system_info(otp_release)) < 25 of
+        true ->
+            {skip, "Maybe expressions are only supported from OTP 25"};
+        false ->
+            Config
+    end;
+init_per_testcase(_, Config) ->
+    Config.
 
 %%==============================================================================
 %% Testcases
@@ -457,7 +476,9 @@ comprehensions(_Config) ->
         [#{id := 'Y'}, #{id := 'X'}, #{id := 'X'}, #{id := 'Y'}, #{id := 'B'}],
         parse_find_pois(Text2, variable)
     ),
+    ok.
 
+map_comprehensions(_Config) ->
     Text3 = "#{ Y => X || X := Y <- M }",
     ?assertMatch(
         [#{id := 'Y'}, #{id := 'X'}, #{id := 'X'}, #{id := 'Y'}, #{id := 'M'}],
