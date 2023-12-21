@@ -634,7 +634,25 @@ exported_functions_arity(Config) ->
 exported_types(Config) ->
     TriggerKind = ?COMPLETION_TRIGGER_KIND_CHARACTER,
     Uri = ?config(code_navigation_uri, Config),
-    Types = file_exported_types(),
+
+    OtpRelease = list_to_integer(erlang:system_info(otp_release)),
+
+    Types =
+        [
+            <<"date_time">>,
+            <<"fd">>,
+            <<"file_info">>,
+            <<"filename">>,
+            <<"filename_all">>,
+            <<"io_device">>
+        ] ++
+            [<<"location">> || OtpRelease >= 26] ++
+            [
+                <<"mode">>,
+                <<"name">>,
+                <<"name_all">>,
+                <<"posix">>
+            ],
     Expected = [
         #{
             insertText => <<T/binary, "()">>,
@@ -1993,34 +2011,3 @@ has_eep48(Module) ->
 
 keywords() ->
     els_completion_provider:keywords(test, test).
-
--if(OTP_RELEASE >= 26).
-file_exported_types() ->
-    [
-        <<"date_time">>,
-        <<"fd">>,
-        <<"file_info">>,
-        <<"filename">>,
-        <<"filename_all">>,
-        <<"io_device">>,
-        <<"location">>,
-        <<"mode">>,
-        <<"name">>,
-        <<"name_all">>,
-        <<"posix">>
-    ].
--else.
-file_exported_types() ->
-    [
-        <<"date_time">>,
-        <<"fd">>,
-        <<"file_info">>,
-        <<"filename">>,
-        <<"filename_all">>,
-        <<"io_device">>,
-        <<"mode">>,
-        <<"name">>,
-        <<"name_all">>,
-        <<"posix">>
-    ].
--endif.
