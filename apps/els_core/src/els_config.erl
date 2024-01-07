@@ -60,7 +60,8 @@
     | refactorerl
     | wrangler
     | edoc_custom_tags
-    | providers.
+    | providers
+    | formatting.
 
 -type path() :: file:filename().
 -type state() :: #{
@@ -83,7 +84,8 @@
     compiler_telemetry_enabled => boolean(),
     wrangler => map() | 'notconfigured',
     refactorerl => map() | 'notconfigured',
-    providers => map()
+    providers => map(),
+    formatting => map()
 }.
 
 -type error_reporting() :: lsp_notification | log.
@@ -167,6 +169,7 @@ do_initialize(RootUri, Capabilities, InitOptions, {ConfigPath, Config}) ->
     RefactorErl = maps:get("refactorerl", Config, notconfigured),
     Providers = maps:get("providers", Config, #{}),
     EdocParseEnabled = maps:get("edoc_parse_enabled", Config, true),
+    Formatting = maps:get("formatting", Config, #{}),
 
     %% Initialize and start Wrangler
     case maps:get("wrangler", Config, notconfigured) of
@@ -269,6 +272,7 @@ do_initialize(RootUri, Capabilities, InitOptions, {ConfigPath, Config}) ->
     ok = set(indexing_enabled, IndexingEnabled),
 
     ok = set(refactorerl, RefactorErl),
+    ok = set(formatting, Formatting),
     ok.
 
 -spec start_link() -> {ok, pid()}.

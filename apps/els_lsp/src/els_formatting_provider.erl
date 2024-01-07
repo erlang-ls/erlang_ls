@@ -99,7 +99,9 @@ format_document_local(
         sub_indent => SubIndent,
         output_dir => Dir
     },
-    Formatter = rebar3_formatter:new(default_formatter, Opts, unused),
+    Config = els_config:get(formatting),
+    FormatterName = get_formatter_name(Config),
+    Formatter = rebar3_formatter:new(FormatterName, Opts, unused),
     rebar3_formatter:format_file(RelativePath, Formatter),
     ok.
 
@@ -119,3 +121,19 @@ rangeformat_document(_Uri, _Document, _Range, _Options) ->
     {ok, [text_edit()]}.
 ontypeformat_document(_Uri, _Document, _Line, _Col, _Char, _Options) ->
     {ok, []}.
+
+-spec get_formatter_name(map() | undefined) ->
+    sr_formatter | erlfmt_formatter | otp_formatter | default_formatter.
+get_formatter_name(undefined) ->
+    default_formatter;
+get_formatter_name(Config) ->
+    case maps:get("formatter", Config, undefined) of
+        "sr" ->
+            sr_formatter;
+        "erlfmt" ->
+            erlfmt_formatter;
+        "otp" ->
+            otp_formatter;
+        _ ->
+            default_formatter
+    end.
