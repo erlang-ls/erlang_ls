@@ -95,6 +95,14 @@ has_definition(
 has_definition(
     #{
         kind := application,
+        data := #{mod_is_variable := true}
+    },
+    _
+) ->
+    true;
+has_definition(
+    #{
+        kind := application,
         id := {Module, module_info, Arity}
     },
     _
@@ -112,14 +120,6 @@ has_definition(
     #{
         kind := application,
         id := {behaviour_info, 1}
-    },
-    _
-) ->
-    true;
-has_definition(
-    #{
-        kind := application,
-        data := #{mod_is_variable := true}
     },
     _
 ) ->
