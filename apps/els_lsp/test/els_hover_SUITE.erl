@@ -39,7 +39,8 @@
     local_opaque_definition/1,
     remote_opaque/1,
     nonexisting_type/1,
-    nonexisting_module/1
+    nonexisting_module/1,
+    memoize/1
 ]).
 
 %%==============================================================================
@@ -599,6 +600,25 @@ nonexisting_module(Config) ->
                 value => <<"## nonexisting:main/0">>
             }
     },
+    ?assertEqual(Expected, Result),
+    ok.
+
+memoize(Config) ->
+    RootUri = els_test_utils:root_uri(),
+    DataDir = ?config(data_dir, Config),
+    ConfigPath = filename:join(DataDir, "docs_memo_true.config"),
+    InitOpts = #{<<"erlang">> => #{<<"config_path">> => ConfigPath}},
+    els_client:initialize(RootUri, InitOpts),
+
+    Uri = ?config(hover_docs_caller_uri, Config),
+    #{result := Expected} = els_client:hover(Uri, 41, 3),
+    {ok, [Item]} = els_docs_memo:lookup({hover_docs_caller, edoc, 0, 'local', function}),
+    #{entries := Entries} = Item,
+
+    %% JSON RPC
+    Encoded = jsx:encode(#{contents => els_markup_content:new(Entries)}),
+    Result = jsx:decode(Encoded, [{labels, atom}]),
+
     ?assertEqual(Expected, Result),
     ok.
 

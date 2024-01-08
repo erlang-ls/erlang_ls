@@ -31,7 +31,8 @@ tables() ->
         els_dt_document,
         els_dt_document_index,
         els_dt_references,
-        els_dt_signatures
+        els_dt_signatures,
+        els_docs_memo
     ].
 
 -spec delete(atom(), any()) -> ok.
