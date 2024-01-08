@@ -33,4 +33,6 @@ main() ->
 
   % At lease one failure so we know the diagnostic is running
   unknown_module:nonexistent(),
+  Mod:module_info(),
+  Mod:module_info(module),
   ok.
