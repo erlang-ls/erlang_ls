@@ -12,15 +12,30 @@ maybe_compile_and_load(Uri) ->
     Ext = filename:extension(Uri),
     case els_config:get(code_reload) of
         #{"node" := NodeStr} when Ext == <<".erl">> ->
-            Node = els_utils:compose_node_name(
-                NodeStr,
-                els_config_runtime:get_name_type()
-            ),
+            Nodes =
+                case NodeStr of
+                    [List | _] when is_list(List) ->
+                        NodeStr;
+                    List when is_list(List) ->
+                        [NodeStr];
+                    _ ->
+                        not_a_list
+                end,
             Module = els_uri:module(Uri),
-            case rpc:call(Node, code, is_sticky, [Module]) of
-                true -> ok;
-                _ -> handle_rpc_result(rpc:call(Node, c, c, [Module]), Module)
-            end;
+            [
+                begin
+                    Node = els_utils:compose_node_name(
+                        N,
+                        els_config_runtime:get_name_type()
+                    ),
+                    case rpc:call(Node, code, is_sticky, [Module]) of
+                        true -> ok;
+                        _ -> handle_rpc_result(rpc:call(Node, c, c, [Module]), Module)
+                    end
+                end
+             || N <- Nodes
+            ],
+            ok;
         _ ->
             ok
     end.
