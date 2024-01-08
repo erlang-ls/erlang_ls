@@ -5,7 +5,6 @@ PREFIX ?= '/usr/local'
 all:
 	@ echo "Building escript..."
 	@ rebar3 escriptize
-	@ rebar3 as dap escriptize
 
 .PHONY: install
 install: all
