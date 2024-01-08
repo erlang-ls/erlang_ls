@@ -170,6 +170,7 @@ do_initialize(RootUri, Capabilities, InitOptions, {ConfigPath, Config}) ->
     Providers = maps:get("providers", Config, #{}),
     EdocParseEnabled = maps:get("edoc_parse_enabled", Config, true),
     Formatting = maps:get("formatting", Config, #{}),
+    DocsMemo = maps:get("docs_memo", Config, false),
 
     %% Initialize and start Wrangler
     case maps:get("wrangler", Config, notconfigured) of
@@ -223,6 +224,7 @@ do_initialize(RootUri, Capabilities, InitOptions, {ConfigPath, Config}) ->
     ok = set(plt_path, DialyzerPltPath),
     ok = set(code_reload, CodeReload),
     ok = set(providers, Providers),
+    ok = set(docs_memo, DocsMemo),
     ?LOG_INFO("Config=~p", [Config]),
     ok = set(
         runtime,
@@ -495,9 +497,18 @@ add_code_paths(WCDirs, RootDir) ->
         WCDirs
     ),
     Dirs = [
-        [$/ | safe_relative_path(Dir, RootDir)]
+        RelativeDir
      || Name <- AllNames,
-        filelib:is_dir([$/ | Dir] = filename:absname(Name, RootDir))
+        begin
+            AbsDir = filename:absname(Name, RootDir),
+            RelativeDir =
+                case AbsDir of
+                    [$/ | Dir] -> [$/ | safe_relative_path(Dir, RootDir)];
+                    [D, $:, $/ | Dir] -> [D, $:, $/ | safe_relative_path(Dir, RootDir)];
+                    _ -> error
+                end,
+            filelib:is_dir(AbsDir)
+        end
     ],
     lists:foreach(AddADir, Dirs).
 

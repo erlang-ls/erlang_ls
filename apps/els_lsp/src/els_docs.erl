@@ -105,26 +105,7 @@ docs(_M, _POI) ->
 function_docs(Type, M, F, A) ->
     case edoc_parse_enabled() of
         true ->
-            %% call via ?MODULE to enable mocking in tests
-            case ?MODULE:eep48_docs(function, M, F, A) of
-                {ok, Docs} ->
-                    [{text, Docs}];
-                {error, not_available} ->
-                    %% We cannot fetch the EEP-48 style docs, so instead we create
-                    %% something similar using the tools we have.
-                    Sig = {h2, signature(Type, M, F, A)},
-                    L = [
-                        function_clauses(M, F, A),
-                        specs(M, F, A),
-                        edoc(M, F, A)
-                    ],
-                    case lists:append(L) of
-                        [] ->
-                            [Sig];
-                        Docs ->
-                            [Sig, {text, "---"} | Docs]
-                    end
-            end;
+            function_docs(Type, M, F, A, els_config:get(docs_memo));
         false ->
             Sig = {h2, signature(Type, M, F, A)},
             L = [
@@ -139,19 +120,68 @@ function_docs(Type, M, F, A) ->
             end
     end.
 
+-spec function_docs(application_type(), atom(), atom(), non_neg_integer(), boolean()) ->
+    [els_markup_content:doc_entry()].
+function_docs(Type, M, F, A, true = _DocsMemo) ->
+    MFACT = {M, F, A, Type, function},
+    case els_docs_memo:lookup(MFACT) of
+        {ok, [#{entries := Entries}]} ->
+            Entries;
+        {ok, []} ->
+            Entries = function_docs(Type, M, F, A, false),
+            ok = els_docs_memo:insert(#{mfact => MFACT, entries => Entries}),
+            Entries
+    end;
+function_docs(Type, M, F, A, false = _DocsMemo) ->
+    %% call via ?MODULE to enable mocking in tests
+    case ?MODULE:eep48_docs(function, M, F, A) of
+        {ok, Docs} ->
+            [{text, Docs}];
+        {error, not_available} ->
+            %% We cannot fetch the EEP-48 style docs, so instead we create
+            %% something similar using the tools we have.
+            Sig = {h2, signature(Type, M, F, A)},
+            L = [
+                function_clauses(M, F, A),
+                specs(M, F, A),
+                edoc(M, F, A)
+            ],
+            case lists:append(L) of
+                [] ->
+                    [Sig];
+                Docs ->
+                    [Sig, {text, "---"} | Docs]
+            end
+    end.
+
 -spec type_docs(application_type(), atom(), atom(), non_neg_integer()) ->
     [els_markup_content:doc_entry()].
-type_docs(_Type, M, F, A) ->
+type_docs(Type, M, F, A) ->
     case edoc_parse_enabled() of
         true ->
-            %% call via ?MODULE to enable mocking in tests
-            case ?MODULE:eep48_docs(type, M, F, A) of
-                {ok, Docs} ->
-                    [{text, Docs}];
-                {error, not_available} ->
-                    type(M, F, A)
-            end;
+            type_docs(Type, M, F, A, els_config:get(docs_memo));
         false ->
+            type(M, F, A)
+    end.
+
+-spec type_docs(application_type(), atom(), atom(), non_neg_integer(), boolean()) ->
+    [els_markup_content:doc_entry()].
+type_docs(Type, M, F, A, true = _DocsMemo) ->
+    MFACT = {M, F, A, Type, type},
+    case els_docs_memo:lookup(MFACT) of
+        {ok, [#{entries := Entries}]} ->
+            Entries;
+        {ok, []} ->
+            Entries = type_docs(Type, M, F, A, false),
+            ok = els_docs_memo:insert(#{mfact => MFACT, entries => Entries}),
+            Entries
+    end;
+type_docs(_Type, M, F, A, false = _DocsMemo) ->
+    %% call via ?MODULE to enable mocking in tests
+    case ?MODULE:eep48_docs(type, M, F, A) of
+        {ok, Docs} ->
+            [{text, Docs}];
+        {error, not_available} ->
             type(M, F, A)
     end.
 
@@ -306,8 +336,8 @@ get_edoc_chunk(M, Uri) ->
             error
     end.
 -else.
--dialyzer({no_match, function_docs/4}).
--dialyzer({no_match, type_docs/4}).
+-dialyzer({no_match, function_docs/5}).
+-dialyzer({no_match, type_docs/5}).
 -spec eep48_docs(function | type, atom(), atom(), non_neg_integer()) ->
     {error, not_available}.
 eep48_docs(_Type, _M, _F, _A) ->
