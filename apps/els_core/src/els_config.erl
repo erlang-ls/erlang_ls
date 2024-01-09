@@ -102,6 +102,7 @@ initialize(RootUri, Capabilities, InitOptions) ->
 -spec initialize(uri(), map(), map(), error_reporting()) -> ok.
 initialize(RootUri, Capabilities, InitOptions, ErrorReporting) ->
     RootPath = els_utils:to_list(els_uri:path(RootUri)),
+    ?LOG_INFO("Root path: ~s", [RootPath]),
     ConfigPaths = config_paths(RootPath, InitOptions),
     {GlobalConfigPath, MaybeGlobalConfig} = find_config(global_config_paths()),
     {LocalConfigPath, MaybeLocalConfig} = find_config(ConfigPaths),
