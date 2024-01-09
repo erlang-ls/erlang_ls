@@ -146,7 +146,8 @@ index_references(Id, Uri, POIs, Version) ->
         %% Macro
         macro,
         %% Record
-        record_expr
+        record_expr,
+        record_field
     ],
     [
         index_reference(Id, Uri, POI, Version)
@@ -156,16 +157,10 @@ index_references(Id, Uri, POIs, Version) ->
     ok.
 
 -spec index_reference(atom(), uri(), els_poi:poi(), version()) -> ok.
-index_reference(_M, Uri, #{kind := Kind, id := Id, range := Range}, Version) when
-    Kind =:= macro
+index_reference(M, Uri, #{kind := Kind, id := {F, A}} = POI, Version) when
+    Kind =/= macro,
+    Kind =/= record_field
 ->
-    els_dt_references:versioned_insert(Kind, #{
-        id => Id,
-        uri => Uri,
-        range => Range,
-        version => Version
-    });
-index_reference(M, Uri, #{kind := _Kind, id := {F, A}} = POI, Version) ->
     index_reference(M, Uri, POI#{id => {M, F, A}}, Version);
 index_reference(_M, Uri, #{kind := Kind, id := Id, range := Range}, Version) ->
     els_dt_references:versioned_insert(Kind, #{

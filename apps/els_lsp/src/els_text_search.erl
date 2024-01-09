@@ -44,8 +44,7 @@ extract_pattern({behaviour, Name}) ->
     Name;
 extract_pattern({atom, Name}) ->
     Name;
-extract_pattern({record, {_Record, Name}}) ->
-    %% Record fields
+extract_pattern({record_field, {_Record, Name}}) ->
     Name;
 extract_pattern({record, Name}) ->
     Name.

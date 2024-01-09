@@ -156,29 +156,54 @@ local_refs(Uri, Kind, Id) ->
     LocalRefs.
 
 -spec find_scoped_references_for_def(uri(), els_poi:poi()) -> [location()].
-find_scoped_references_for_def(Uri, #{kind := Kind, id := Id}) when
-    Kind =:= record_def_field;
+find_scoped_references_for_def(Uri, POI = #{kind := Kind}) when
     Kind =:= type_definition
 ->
     %% TODO: This is a hack, ideally we shouldn't have any special handling for
-    %%       these kinds
+    %%       these kinds.
+    find_scoped_references_naive(Uri, POI);
+find_scoped_references_for_def(Uri, POI) ->
+    %% Finding scoped references can be done in two ways:
+    %% * Naive, find all POIs that can reach our POI and matches the id.
+    %% * Indexed, use the index to find all matching POIs, then check if
+    %%   they actually reference our POI by using goto_definition.
+    %% It varies from case to case which is the fastest, so we race both
+    %% functions to get the quickest answer.
+    Naive = fun() -> find_scoped_references_naive(Uri, POI) end,
+    Index = fun() -> find_scoped_references_with_index(Uri, POI) end,
+    els_utils:race([Naive, Index], _Timeout = 15000).
+
+-spec find_scoped_references_naive(uri(), els_poi:poi()) -> [location()].
+find_scoped_references_naive(Uri, #{id := Id, kind := Kind}) ->
     RefKind = kind_to_ref_kind(Kind),
     Refs = els_scope:local_and_includer_pois(Uri, [RefKind]),
-    [
+    MatchingRefs = [
         location(U, R)
      || {U, Pois} <- Refs,
         #{id := N, range := R} <- Pois,
         N =:= Id
-    ];
-find_scoped_references_for_def(Uri, POI = #{kind := Kind, id := Id}) ->
+    ],
+    ?LOG_DEBUG(
+        "Found scoped references (naive) for ~p: ~p",
+        [Id, length(MatchingRefs)]
+    ),
+    MatchingRefs.
+
+-spec find_scoped_references_with_index(uri(), els_poi:poi()) -> [location()].
+find_scoped_references_with_index(Uri, POI = #{kind := Kind, id := Id}) ->
     RefPOI = POI#{kind := kind_to_ref_kind(Kind)},
-    F = fun(#{uri := RefUri}) ->
+    Match = fun(#{uri := RefUri}) ->
         case els_code_navigation:goto_definition(RefUri, RefPOI) of
-            {ok, Uri, _} -> true;
-            _ -> false
+            {ok, [{Uri, _}]} -> true;
+            _Else -> false
         end
     end,
-    [Ref || Ref <- find_references_for_id(Kind, Id), F(Ref)].
+    Refs = [Ref || Ref <- find_references_for_id(Kind, Id), Match(Ref)],
+    ?LOG_DEBUG(
+        "Found scoped references (with index) for ~p: ~p",
+        [Id, length(Refs)]
+    ),
+    Refs.
 
 -spec kind_to_ref_kind(els_poi:poi_kind()) -> els_poi:poi_kind().
 kind_to_ref_kind(define) ->
