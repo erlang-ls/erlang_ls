@@ -83,14 +83,13 @@ last_token(Text) ->
 apply_edits(Text, []) ->
     Text;
 apply_edits(Text, Edits) when is_binary(Text) ->
-    Lines = lists:foldl(
+    lists:foldl(
         fun(Edit, Acc) ->
-            apply_edit(Acc, 0, Edit)
+            lines_to_bin(apply_edit(bin_to_lines(Acc), 0, Edit))
         end,
-        bin_to_lines(Text),
+        Text,
         Edits
-    ),
-    lines_to_bin(Lines).
+    ).
 
 -spec apply_edit(lines(), line_num(), edit()) -> lines().
 apply_edit([], L, {#{from := {FromL, _}}, _} = Edit) when L < FromL ->
@@ -142,9 +141,7 @@ bin_to_lines(Text) ->
 
 -spec ensure_string(binary() | string()) -> string().
 ensure_string(Text) when is_binary(Text) ->
-    els_utils:to_list(Text);
-ensure_string(Text) ->
-    Text.
+    els_utils:to_list(Text).
 
 -spec strip_comments(binary()) -> binary().
 strip_comments(Text) ->
