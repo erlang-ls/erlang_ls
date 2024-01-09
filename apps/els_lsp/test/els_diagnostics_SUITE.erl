@@ -17,6 +17,7 @@
     bound_var_in_pattern_cannot_parse/1,
     compiler/1,
     compiler_with_behaviour/1,
+    compiler_with_behaviour_recursive/1,
     compiler_with_broken_behaviour/1,
     compiler_with_custom_macros/1,
     compiler_with_parse_transform/1,
@@ -398,6 +399,16 @@ compiler(_Config) ->
             range => {{6, 0}, {6, 4}}
         }
     ],
+    Hints = [],
+    els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
+
+-spec compiler_with_behaviour_recursive(config()) -> ok.
+compiler_with_behaviour_recursive(_Config) ->
+    %% Test that recursive deps are handled for behaviours
+    Path = src_path("diagnostics_behaviour_recursive_impl.erl"),
+    Source = <<"Compiler">>,
+    Errors = [],
+    Warnings = [],
     Hints = [],
     els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
 
