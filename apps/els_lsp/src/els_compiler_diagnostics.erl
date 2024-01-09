@@ -791,8 +791,7 @@ module_name_check(Path) ->
 %% @doc Load a dependency, return the old version of the code (if any),
 %% so it can be restored.
 -spec load_dependency(atom(), string()) ->
-    {{atom(), binary(), file:filename()}, [els_diagnostics:diagnostic()]}
-    | error.
+    {{atom(), binary(), file:filename()} | error, [els_diagnostics:diagnostic()]}.
 load_dependency(Module, IncludingPath) ->
     Old = code:get_object_code(Module),
     Diagnostics =

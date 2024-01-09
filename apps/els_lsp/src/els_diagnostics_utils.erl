@@ -21,7 +21,7 @@
 
 -spec dependencies(uri()) -> [atom()].
 dependencies(Uri) ->
-    dependencies([Uri], [], sets:new()).
+    lists:reverse(dependencies([Uri], [], sets:new())).
 
 -spec included_uris(els_dt_document:item()) -> [uri()].
 included_uris(Document) ->
@@ -108,6 +108,15 @@ dependencies([Uri | Uris], Acc, AlreadyProcessed) ->
                 IncludedUris,
                 AlreadyProcessed
             ),
+            BeUris = lists:usort(
+                lists:flatten(
+                    [be_deps(Id) || #{id := Id} <- Behaviours]
+                )
+            ),
+            FilteredBeUris = exclude_already_processed(
+                BeUris,
+                AlreadyProcessed
+            ),
             PTUris = lists:usort(
                 lists:flatten(
                     [pt_deps(Id) || #{id := Id} <- ParseTransforms]
@@ -118,9 +127,10 @@ dependencies([Uri | Uris], Acc, AlreadyProcessed) ->
                 AlreadyProcessed
             ),
             dependencies(
-                Uris ++ FilteredIncludedUris ++ FilteredPTUris,
+                Uris ++ FilteredIncludedUris ++ FilteredPTUris ++ FilteredBeUris,
                 Acc ++ [Id || #{id := Id} <- Behaviours ++ ParseTransforms] ++
-                    [els_uri:module(FPTUri) || FPTUri <- FilteredPTUris],
+                    [els_uri:module(FPTUri) || FPTUri <- FilteredPTUris] ++
+                    [els_uri:module(BeUri) || BeUri <- FilteredBeUris],
                 sets:add_element(Uri, AlreadyProcessed)
             );
         {error, _Error} ->
@@ -150,9 +160,47 @@ pt_deps(Module) ->
             []
     end.
 
+-spec be_deps(atom()) -> [uri()].
+be_deps(Module) ->
+    case els_utils:find_module(Module) of
+        {ok, Uri} ->
+            case els_utils:lookup_document(Uri) of
+                {ok, Document} ->
+                    Behaviours = els_dt_document:pois(
+                        Document,
+                        [
+                            behaviour
+                        ]
+                    ),
+                    behaviours_to_uris(Behaviours);
+                {error, _Error} ->
+                    []
+            end;
+        {error, Error} ->
+            ?LOG_INFO("Find module failed [module=~p] [error=~p]", [Module, Error]),
+            []
+    end.
+
 -spec applications_to_uris([els_poi:poi()]) -> [uri()].
 applications_to_uris(Applications) ->
     Modules = [M || #{id := {M, _F, _A}} <- Applications],
+    Fun = fun(M, Acc) ->
+        case els_utils:find_module(M) of
+            {ok, Uri} ->
+                [Uri | Acc];
+            {error, Error} ->
+                ?LOG_INFO(
+                    "Could not find module [module=~p] [error=~p]",
+                    [M, Error]
+                ),
+                Acc
+        end
+    end,
+    lists:foldl(Fun, [], Modules).
+
+-spec behaviours_to_uris([els_poi:poi()]) -> [uri()].
+behaviours_to_uris(Behaviours) ->
+    Modules = [M || #{id := M} <- Behaviours],
     Fun = fun(M, Acc) ->
         case els_utils:find_module(M) of
             {ok, Uri} ->
