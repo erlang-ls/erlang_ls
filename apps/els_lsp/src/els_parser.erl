@@ -27,6 +27,16 @@
 -type deep_list(T) :: [T | deep_list(T)].
 
 %%==============================================================================
+%% Dialyzer
+%%==============================================================================
+
+%% Spec of erlfmt:read_nodes_string is wrong, it CAN return {skip, _}
+
+-dialyzer([{nowarn_function, parse/1}]).
+-dialyzer([{nowarn_function, parse_text/1}]).
+-dialyzer([{nowarn_function, fix_erlfmt/1}]).
+
+%%==============================================================================
 %% API
 %%==============================================================================
 -spec parse(binary()) -> {ok, [els_poi:poi()]}.
@@ -35,18 +45,33 @@ parse(Text) ->
     case erlfmt:read_nodes_string("nofile", String) of
         {ok, Forms, _ErrorInfo} ->
             {ok, lists:flatten(parse_forms(Forms))};
+        {skip, _} ->
+            ?LOG_INFO("Erlfmt skipped parsing, try to fix it."),
+            parse(fix_erlfmt(Text));
         {error, _ErrorInfo} ->
             {ok, []}
     end.
+
+-spec fix_erlfmt(binary()) -> binary().
+fix_erlfmt(Text) ->
+    %% erlfmt will skip if it finds pragma @noformat, so we remove it
+    binary:replace(Text, <<"@noformat">>, <<"@doformat">>).
 
 -spec parse_file(file:name_all()) -> {ok, [tree()]} | {error, term()}.
 parse_file(FileName) ->
     forms_to_ast(erlfmt:read_nodes(FileName)).
 
+%% Spec of erlfmt:read_nodes_string is wrong, it can return {skip, _}
 -spec parse_text(binary()) -> {ok, [tree()]} | {error, term()}.
 parse_text(Text) ->
     String = els_utils:to_list(Text),
-    forms_to_ast(erlfmt:read_nodes_string("nofile", String)).
+    case erlfmt:read_nodes_string("nofile", String) of
+        {skip, _} ->
+            ?LOG_INFO("Erlfmt skipped parsing, try to fix it."),
+            parse_text(fix_erlfmt(Text));
+        Result ->
+            forms_to_ast(Result)
+    end.
 
 -spec forms_to_ast(tuple()) -> {ok, [tree()]} | {error, term()}.
 forms_to_ast({ok, Forms, _ErrorInfo}) ->
