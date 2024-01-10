@@ -25,7 +25,8 @@
     camel_case/1,
     jaro_distance/2,
     is_windows/0,
-    system_tmp_dir/0
+    system_tmp_dir/0,
+    race/2
 ]).
 
 %%==============================================================================
@@ -272,9 +273,39 @@ system_tmp_dir() ->
             "/tmp"
     end.
 
+%% @doc Run functions in parallel and return the result of the first function
+%%      that terminates
+-spec race([fun(() -> Result)], timeout()) -> Result.
+race(Funs, Timeout) ->
+    Parent = self(),
+    Ref = make_ref(),
+    Pids = [spawn_link(fun() -> Parent ! {Ref, Fun()} end) || Fun <- Funs],
+    receive
+        {Ref, Result} ->
+            %% Ensure no lingering processes
+            [exit(Pid, kill) || Pid <- Pids],
+            %% Ensure no lingering messages
+            ok = flush(Ref),
+            Result
+    after Timeout ->
+        %% Ensure no lingering processes
+        [exit(Pid, kill) || Pid <- Pids],
+        %% Ensure no lingering messages
+        ok = flush(Ref),
+        error(timeout)
+    end.
+
 %%==============================================================================
 %% Internal functions
 %%==============================================================================
+-spec flush(reference()) -> ok.
+flush(Ref) ->
+    receive
+        {Ref, _} ->
+            flush(Ref)
+    after 0 ->
+        ok
+    end.
 
 %% Folding over files
 

@@ -101,14 +101,12 @@ find_references(Uri, #{
     {F, A, _Index} = Id,
     Key = {els_uri:module(Uri), F, A},
     find_references_for_id(Kind, Key);
-find_references(Uri, Poi = #{kind := Kind}) when
+find_references(Uri, POI = #{kind := Kind}) when
     Kind =:= record;
     Kind =:= record_def_field;
     Kind =:= define
 ->
-    uri_pois_to_locations(
-        find_scoped_references_for_def(Uri, Poi)
-    );
+    find_scoped_references_for_def(Uri, POI);
 find_references(Uri, Poi = #{kind := Kind, id := Id}) when
     Kind =:= type_definition
 ->
@@ -119,11 +117,9 @@ find_references(Uri, Poi = #{kind := Kind, id := Id}) when
         end,
     lists:usort(
         find_references_for_id(Kind, Key) ++
-            uri_pois_to_locations(
-                find_scoped_references_for_def(Uri, Poi)
-            )
+            find_scoped_references_for_def(Uri, Poi)
     );
-find_references(Uri, Poi = #{kind := Kind}) when
+find_references(Uri, Poi = #{kind := Kind, id := Id}) when
     Kind =:= record_expr;
     Kind =:= record_field;
     Kind =:= macro;
@@ -134,9 +130,7 @@ find_references(Uri, Poi = #{kind := Kind}) when
             find_references(DefUri, DefPoi);
         _ ->
             %% look for references only in the current document
-            uri_pois_to_locations(
-                find_scoped_references_for_def(Uri, Poi)
-            )
+            local_refs(Uri, Kind, Id)
     end;
 find_references(Uri, #{kind := module}) ->
     Refs = find_references_to_module(Uri),
@@ -149,28 +143,79 @@ find_references(_Uri, #{kind := Kind, id := Name}) when
 find_references(_Uri, _POI) ->
     [].
 
--spec find_scoped_references_for_def(uri(), els_poi:poi()) -> [{uri(), els_poi:poi()}].
-find_scoped_references_for_def(Uri, #{kind := Kind, id := Name}) ->
-    Kinds = kind_to_ref_kinds(Kind),
-    Refs = els_scope:local_and_includer_pois(Uri, Kinds),
-    [
-        {U, Poi}
-     || {U, Pois} <- Refs,
-        #{id := N} = Poi <- Pois,
-        N =:= Name
-    ].
+-spec local_refs(uri(), els_poi:poi_kind(), els_poi:poi_id()) ->
+    [location()].
+local_refs(Uri, Kind, Id) ->
+    {ok, Document} = els_utils:lookup_document(Uri),
+    POIs = els_dt_document:pois(Document, [kind_to_ref_kind(Kind)]),
+    LocalRefs = [
+        location(Uri, R)
+     || #{range := R, id := IdPoi} <- POIs,
+        Id == IdPoi
+    ],
+    LocalRefs.
 
--spec kind_to_ref_kinds(els_poi:poi_kind()) -> [els_poi:poi_kind()].
-kind_to_ref_kinds(define) ->
-    [macro];
-kind_to_ref_kinds(record) ->
-    [record_expr];
-kind_to_ref_kinds(record_def_field) ->
-    [record_field];
-kind_to_ref_kinds(type_definition) ->
-    [type_application];
-kind_to_ref_kinds(Kind) ->
-    [Kind].
+-spec find_scoped_references_for_def(uri(), els_poi:poi()) -> [location()].
+find_scoped_references_for_def(Uri, POI = #{kind := Kind}) when
+    Kind =:= type_definition
+->
+    %% TODO: This is a hack, ideally we shouldn't have any special handling for
+    %%       these kinds.
+    find_scoped_references_naive(Uri, POI);
+find_scoped_references_for_def(Uri, POI) ->
+    %% Finding scoped references can be done in two ways:
+    %% * Naive, find all POIs that can reach our POI and matches the id.
+    %% * Indexed, use the index to find all matching POIs, then check if
+    %%   they actually reference our POI by using goto_definition.
+    %% It varies from case to case which is the fastest, so we race both
+    %% functions to get the quickest answer.
+    Naive = fun() -> find_scoped_references_naive(Uri, POI) end,
+    Index = fun() -> find_scoped_references_with_index(Uri, POI) end,
+    els_utils:race([Naive, Index], _Timeout = 15000).
+
+-spec find_scoped_references_naive(uri(), els_poi:poi()) -> [location()].
+find_scoped_references_naive(Uri, #{id := Id, kind := Kind}) ->
+    RefKind = kind_to_ref_kind(Kind),
+    Refs = els_scope:local_and_includer_pois(Uri, [RefKind]),
+    MatchingRefs = [
+        location(U, R)
+     || {U, Pois} <- Refs,
+        #{id := N, range := R} <- Pois,
+        N =:= Id
+    ],
+    ?LOG_DEBUG(
+        "Found scoped references (naive) for ~p: ~p",
+        [Id, length(MatchingRefs)]
+    ),
+    MatchingRefs.
+
+-spec find_scoped_references_with_index(uri(), els_poi:poi()) -> [location()].
+find_scoped_references_with_index(Uri, POI = #{kind := Kind, id := Id}) ->
+    RefPOI = POI#{kind := kind_to_ref_kind(Kind)},
+    Match = fun(#{uri := RefUri}) ->
+        case els_code_navigation:goto_definition(RefUri, RefPOI) of
+            {ok, [{Uri, _}]} -> true;
+            _Else -> false
+        end
+    end,
+    Refs = [Ref || Ref <- find_references_for_id(Kind, Id), Match(Ref)],
+    ?LOG_DEBUG(
+        "Found scoped references (with index) for ~p: ~p",
+        [Id, length(Refs)]
+    ),
+    Refs.
+
+-spec kind_to_ref_kind(els_poi:poi_kind()) -> els_poi:poi_kind().
+kind_to_ref_kind(define) ->
+    macro;
+kind_to_ref_kind(record) ->
+    record_expr;
+kind_to_ref_kind(record_def_field) ->
+    record_field;
+kind_to_ref_kind(type_definition) ->
+    type_application;
+kind_to_ref_kind(Kind) ->
+    Kind.
 
 -spec find_references_to_module(uri()) -> [els_dt_references:item()].
 find_references_to_module(Uri) ->
@@ -202,10 +247,6 @@ find_references_to_module(Uri) ->
 find_references_for_id(Kind, Id) ->
     {ok, Refs} = els_dt_references:find_by_id(Kind, Id),
     [location(U, R) || #{uri := U, range := R} <- Refs].
-
--spec uri_pois_to_locations([{uri(), els_poi:poi()}]) -> [location()].
-uri_pois_to_locations(Refs) ->
-    [location(U, R) || {U, #{range := R}} <- Refs].
 
 -spec location(uri(), els_poi:poi_range()) -> location().
 location(Uri, Range) ->

@@ -307,10 +307,10 @@ changes(Uri, #{kind := DefKind} = DefPoi, NewName) when
     Self = #{range => editable_range(DefPoi), newText => NewName},
     Refs = els_references_provider:find_scoped_references_for_def(Uri, DefPoi),
     lists:foldl(
-        fun({U, Poi}, Acc) ->
+        fun(#{uri := U, range := R}, Acc) ->
             Change = #{
-                range => editable_range(Poi),
-                newText => new_name(Poi, NewName)
+                range => R,
+                newText => new_name(DefKind, NewName)
             },
             maps:update_with(U, fun(V) -> [Change | V] end, [Change], Acc)
         end,
@@ -320,10 +320,10 @@ changes(Uri, #{kind := DefKind} = DefPoi, NewName) when
 changes(_Uri, _POI, _NewName) ->
     null.
 
--spec new_name(els_poi:poi(), binary()) -> binary().
-new_name(#{kind := macro}, NewName) ->
+-spec new_name(els_poi:poi_kind(), binary()) -> binary().
+new_name(define, NewName) ->
     <<"?", NewName/binary>>;
-new_name(#{kind := record_expr}, NewName) ->
+new_name(record, NewName) ->
     <<"#", NewName/binary>>;
 new_name(_, NewName) ->
     NewName.
