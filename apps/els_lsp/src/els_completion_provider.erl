@@ -287,15 +287,18 @@ find_completions(
         [{'(', _}, {var, _, 'FEATURE_AVAILABLE'}, {'?', _} | _] ->
             features();
         %% Check for "-behaviour(anything"
-        [{atom, _, _}, {'(', _}, {atom, _, Attribute}, {'-', _}] when
+        [{atom, _, Begin}, {'(', _}, {atom, _, Attribute}, {'-', _}] when
             Attribute =:= behaviour; Attribute =:= behavior
         ->
-            [item_kind_module(Module) || Module <- behaviour_modules()];
+            [
+                item_kind_module(Module)
+             || Module <- behaviour_modules(atom_to_list(Begin))
+            ];
         %% Check for "-behaviour("
         [{'(', _}, {atom, _, Attribute}, {'-', _}] when
             Attribute =:= behaviour; Attribute =:= behavior
         ->
-            [item_kind_module(Module) || Module <- behaviour_modules()];
+            [item_kind_module(Module) || Module <- behaviour_modules("")];
         %% Check for "[...] fun atom"
         [{atom, _, _}, {'fun', _} | _] ->
             bifs(function, ItemFormat = arity_only) ++
@@ -657,16 +660,21 @@ item_kind_module(Module) ->
         insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
     }.
 
--spec behaviour_modules() -> [atom()].
-behaviour_modules() ->
-    {ok, Modules} = els_dt_document_index:find_by_kind(module),
+-spec behaviour_modules(list()) -> [atom()].
+behaviour_modules(Begin) ->
     OtpBehaviours = [
         gen_event,
         gen_server,
         gen_statem,
         supervisor
     ],
-    Behaviours = [Id || #{id := Id, uri := Uri} <- Modules, is_behaviour(Uri)],
+    Candidates = els_dt_document:find_candidates(callback),
+    Behaviours = [
+        els_uri:module(Uri)
+     || Uri <- Candidates,
+        lists:prefix(Begin, atom_to_list(els_uri:module(Uri))),
+        is_behaviour(Uri)
+    ],
     OtpBehaviours ++ Behaviours.
 
 -spec is_behaviour(uri()) -> boolean().
