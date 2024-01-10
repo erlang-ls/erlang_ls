@@ -34,7 +34,8 @@
     var_in_application/1,
     unicode_clause_pattern/1,
     latin1_source_code/1,
-    record_comment/1
+    record_comment/1,
+    pragma_noformat/1
 ]).
 
 %%==============================================================================
@@ -471,6 +472,15 @@ record_comment(_Config) ->
         parse_find_pois(Text, record_expr)
     ),
     ok.
+
+%% Issue #1482
+%% Erlfmt returns {skip, _} if the text contains pragma @noformat.
+%% This would cause els_parser to crash.
+-spec pragma_noformat(config()) -> ok.
+pragma_noformat(_Config) ->
+    Text = <<"%% @noformat\nfoo">>,
+    ?assertMatch({ok, _}, els_parser:parse(Text)),
+    ?assertMatch({ok, _}, els_parser:parse_text(Text)).
 
 %%==============================================================================
 %% Helper functions
