@@ -203,6 +203,11 @@
 -define(COMPLETION_TRIGGER_KIND_CHARACTER, 2).
 -define(COMPLETION_TRIGGER_KIND_FOR_INCOMPLETE_COMPLETIONS, 3).
 
+-type completion_trigger_kind() ::
+    ?COMPLETION_TRIGGER_KIND_INVOKED
+    | ?COMPLETION_TRIGGER_KIND_CHARACTER
+    | ?COMPLETION_TRIGGER_KIND_FOR_INCOMPLETE_COMPLETIONS.
+
 %%------------------------------------------------------------------------------
 %% Versioned Text Document Identifier
 %%------------------------------------------------------------------------------

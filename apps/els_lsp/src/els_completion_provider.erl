@@ -46,7 +46,8 @@ trigger_characters() ->
         <<" ">>
     ].
 
--spec handle_request(els_provider:provider_request()) -> {response, any()}.
+-spec handle_request(els_provider:provider_request()) ->
+    {response, any()} | {async, uri(), pid()}.
 handle_request({completion, Params}) ->
     #{
         <<"position">> := #{
@@ -55,7 +56,6 @@ handle_request({completion, Params}) ->
         },
         <<"textDocument">> := #{<<"uri">> := Uri}
     } = Params,
-    {ok, #{text := Text} = Document} = els_utils:lookup_document(Uri),
     Context = maps:get(
         <<"context">>,
         Params,
@@ -63,6 +63,23 @@ handle_request({completion, Params}) ->
     ),
     TriggerKind = maps:get(<<"triggerKind">>, Context),
     TriggerCharacter = maps:get(<<"triggerCharacter">>, Context, <<>>),
+    Job = run_completion_job(Uri, Line, Character, TriggerKind, TriggerCharacter),
+    {async, Uri, Job};
+handle_request({resolve, CompletionItem}) ->
+    {response, resolve(CompletionItem)}.
+
+%%==============================================================================
+%% Internal functions
+%%==============================================================================
+-spec run_completion_job(
+    uri(),
+    line(),
+    column(),
+    completion_trigger_kind(),
+    binary()
+) -> pid().
+run_completion_job(Uri, Line, Character, TriggerKind, TriggerCharacter) ->
+    {ok, #{text := Text} = Document} = els_utils:lookup_document(Uri),
     %% We subtract 1 to strip the character that triggered the
     %% completion from the string.
     Length =
@@ -79,20 +96,32 @@ handle_request({completion, Params}) ->
             ?COMPLETION_TRIGGER_KIND_FOR_INCOMPLETE_COMPLETIONS ->
                 els_text:line(Text, Line, Character)
         end,
+    ?LOG_INFO("Find completions for ~s", [Prefix]),
     Opts = #{
         trigger => TriggerCharacter,
         document => Document,
         line => Line + 1,
         column => Character
     },
-    Completions = find_completions(Prefix, TriggerKind, Opts),
-    {response, Completions};
-handle_request({resolve, CompletionItem}) ->
-    {response, resolve(CompletionItem)}.
+    Config = #{
+        task => fun find_completions/2,
+        entries => [{Prefix, TriggerKind, Opts}],
+        title => <<"Completion">>,
+        on_complete =>
+            fun(Resp) ->
+                els_server ! {result, Resp, self()},
+                ok
+            end
+    },
+    {ok, Pid} = els_background_job:new(Config),
+    Pid.
 
-%%==============================================================================
-%% Internal functions
-%%==============================================================================
+-spec find_completions({binary(), completion_trigger_kind(), options()}, any()) -> items().
+find_completions({Prefix, TriggerKind, Opts}, _) ->
+    Result = find_completions(Prefix, TriggerKind, Opts),
+    ?LOG_INFO("Found completions: ~p", [length(Result)]),
+    Result.
+
 -spec resolve(map()) -> map().
 resolve(
     #{
@@ -131,7 +160,7 @@ resolve(
 resolve(CompletionItem) ->
     CompletionItem.
 
--spec find_completions(binary(), integer(), options()) -> items().
+-spec find_completions(binary(), completion_trigger_kind(), options()) -> items().
 find_completions(
     Prefix,
     ?COMPLETION_TRIGGER_KIND_CHARACTER,
