@@ -285,9 +285,9 @@ textdocument_hover(Params, State) ->
 -spec textdocument_completion(params(), els_server:state()) -> result().
 textdocument_completion(Params, State) ->
     Provider = els_completion_provider,
-    {response, Response} =
+    {async, Uri, Job} =
         els_provider:handle_request(Provider, {completion, Params}),
-    {response, Response, State}.
+    {async, Uri, Job, State}.
 
 %%==============================================================================
 %% completionItem/resolve
