@@ -36,6 +36,12 @@
 -dialyzer([{nowarn_function, parse_text/1}]).
 -dialyzer([{nowarn_function, fix_erlfmt/1}]).
 
+%% Spec of erlfmt_parse:parse_node/1 is wrong,
+%% error location can be returned in various formats
+%% see https://github.com/WhatsApp/erlfmt/pull/352
+
+-dialyzer([{nowarn_function, loc_to_pos/1}]).
+
 %%==============================================================================
 %% API
 %%==============================================================================
