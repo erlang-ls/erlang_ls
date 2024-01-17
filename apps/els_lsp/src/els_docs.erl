@@ -317,24 +317,82 @@ get_edoc_chunk(M, Uri) ->
     %% edoc in Erlang/OTP 24 and later can create doc chunks for edoc
     case {code:ensure_loaded(edoc_doclet_chunks), code:ensure_loaded(edoc_layout_chunks)} of
         {{module, _}, {module, _}} ->
-            Path = els_uri:path(Uri),
-            Dir = erlang_ls:cache_root(),
-            ok = edoc:run(
-                [els_utils:to_list(Path)],
-                [
-                    {doclet, edoc_doclet_chunks},
-                    {layout, edoc_layout_chunks},
-                    {dir, Dir}
-                    | edoc_options()
-                ]
-            ),
-            Chunk = filename:join([Dir, "chunks", atom_to_list(M) ++ ".chunk"]),
-            {ok, Bin} = file:read_file(Chunk),
-            {ok, binary_to_term(Bin)};
+            case edoc_run(Uri) of
+                ok ->
+                    {ok, Bin} = file:read_file(chunk_file_path(M)),
+                    {ok, binary_to_term(Bin)};
+                error ->
+                    error
+            end;
         E ->
             ?LOG_DEBUG("[edoc_chunk] load error", [E]),
             error
     end.
+
+-spec chunk_file_path(module()) -> file:filename_all().
+chunk_file_path(M) ->
+    Dir = erlang_ls:cache_root(),
+    filename:join([Dir, "chunks", atom_to_list(M) ++ ".chunk"]).
+
+-spec is_chunk_file_up_to_date(binary(), module()) -> boolean().
+is_chunk_file_up_to_date(Path, Module) ->
+    ChunkPath = chunk_file_path(Module),
+    filelib:is_file(ChunkPath) andalso
+        filelib:last_modified(ChunkPath) > filelib:last_modified(Path).
+
+-spec edoc_run(uri()) -> ok | error.
+edoc_run(Uri) ->
+    Ref = make_ref(),
+    Module = els_uri:module(Uri),
+    Path = els_uri:path(Uri),
+    Opts = [
+        {doclet, edoc_doclet_chunks},
+        {layout, edoc_layout_chunks},
+        {dir, erlang_ls:cache_root()}
+        | edoc_options()
+    ],
+    Parent = self(),
+    case is_chunk_file_up_to_date(Path, Module) of
+        true ->
+            ?LOG_DEBUG("Chunk file is up to date!"),
+            ok;
+        false ->
+            %% Run job to generate chunk file
+            %% This can be slow, run it in a spawned process so
+            %% we can timeout
+            spawn_link(
+                fun() ->
+                    Name = list_to_atom(lists:concat(['docs_', Module])),
+                    try
+                        %% Use register to ensure we only run one of these
+                        %% processes at the same time.
+                        true = register(Name, self()),
+                        ?LOG_DEBUG("Generating doc chunks for ~s.", [Module]),
+                        Res = edoc:run([els_utils:to_list(Path)], Opts),
+                        ?LOG_DEBUG("Done generating doc chunks for ~s.", [Module]),
+                        Parent ! {Ref, Res}
+                    catch
+                        _:Err:St ->
+                            ?LOG_INFO(
+                                "Generating do chunks for ~s failed: ~p\n~p",
+                                [Module, Err, St]
+                            ),
+                            %% Respond to parent with error
+                            Parent ! {Ref, error}
+                    end
+                end
+            ),
+            receive
+                {Ref, Res} ->
+                    Res
+            after 1000 ->
+                %% This took too long, return and let job continue
+                %% running in background in order to let it generate
+                %% a chunk file
+                error
+            end
+    end.
+
 -else.
 -dialyzer({no_match, function_docs/5}).
 -dialyzer({no_match, type_docs/5}).
