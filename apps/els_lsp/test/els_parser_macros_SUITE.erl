@@ -19,7 +19,9 @@
     macro_in_application/1,
     record_def_field_macro/1,
     module_macro_as_record_name/1,
-    other_macro_as_record_name/1
+    other_macro_as_record_name/1,
+    macro_guards/1,
+    macro_as_case_clause/1
 ]).
 
 %%==============================================================================
@@ -227,6 +229,30 @@ other_macro_as_record_name(_Config) ->
     ?assertMatch([], parse_find_pois(Text4, record_expr)),
     ?assertMatch([], parse_find_pois(Text4, record_field)),
     ?assertMatch([_], parse_find_pois(Text4, macro, 'M')),
+    ok.
+
+macro_guards(_Config) ->
+    Text1 = "?foo(Expr when Guard1)",
+    ?assertMatch([#{id := 'Expr'}, #{id := 'Guard1'}], parse_find_pois(Text1, variable)),
+
+    Text2 = "?foo(Expr when Guard1; Guard2)",
+    ?assertMatch(
+        [#{id := 'Expr'}, #{id := 'Guard1'}, #{id := 'Guard2'}],
+        parse_find_pois(Text2, variable)
+    ),
+    ok.
+
+%% Supperted by erlfmt since erlfmt#350
+macro_as_case_clause(_Config) ->
+    Text1 = "case X of ?M1(Y); ?M2(2) end",
+    ?assertMatch(
+        [#{id := {'M1', 1}}, #{id := {'M2', 1}}],
+        parse_find_pois(Text1, macro)
+    ),
+    ?assertMatch(
+        [#{id := 'X'}, #{id := 'Y'}],
+        parse_find_pois(Text1, variable)
+    ),
     ok.
 
 %%==============================================================================
