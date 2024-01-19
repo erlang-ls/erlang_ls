@@ -20,6 +20,7 @@
     remove_unused_import/1,
     create_undefined_function/1,
     create_undefined_function_arity/1,
+    create_undefined_function_variable_names/1,
     fix_callbacks/1
 ]).
 
@@ -313,8 +314,8 @@ remove_unused_import(Config) ->
 create_undefined_function(Config) ->
     Uri = ?config(code_action_uri, Config),
     Range = els_protocol:range(#{
-        from => {23, 2},
-        to => {23, 8}
+        from => {23, 3},
+        to => {23, 9}
     }),
     Diag = #{
         message => <<"function foobar/0 undefined">>,
@@ -334,8 +335,8 @@ create_undefined_function(Config) ->
                                     #{
                                         range =>
                                             els_protocol:range(#{
-                                                from => {27, 1},
-                                                to => {27, 1}
+                                                from => {28, 1},
+                                                to => {28, 1}
                                             }),
                                         newText =>
                                             <<"foobar() ->\n  ok.\n\n">>
@@ -354,8 +355,8 @@ create_undefined_function(Config) ->
 create_undefined_function_arity(Config) ->
     Uri = ?config(code_action_uri, Config),
     Range = els_protocol:range(#{
-        from => {24, 2},
-        to => {24, 8}
+        from => {24, 3},
+        to => {24, 9}
     }),
     Diag = #{
         message => <<"function foobar/3 undefined">>,
@@ -375,17 +376,58 @@ create_undefined_function_arity(Config) ->
                                     #{
                                         range =>
                                             els_protocol:range(#{
-                                                from => {27, 1},
-                                                to => {27, 1}
+                                                from => {28, 1},
+                                                to => {28, 1}
                                             }),
                                         newText =>
-                                            <<"foobar(_, _, _) ->\n  ok.\n\n">>
+                                            <<"foobar(Arg1, Arg2, Arg3) ->\n  ok.\n\n">>
                                     }
                                 ]
                         }
                 },
                 kind => <<"quickfix">>,
                 title => <<"Create function foobar/3">>
+            }
+        ],
+    ?assertEqual(Expected, Result),
+    ok.
+
+-spec create_undefined_function_variable_names((config())) -> ok.
+create_undefined_function_variable_names(Config) ->
+    Uri = ?config(code_action_uri, Config),
+    Range = els_protocol:range(#{
+        from => {25, 3},
+        to => {25, 9}
+    }),
+    Diag = #{
+        message => <<"function foobar/5 undefined">>,
+        range => Range,
+        severity => 2,
+        source => <<"">>
+    },
+    #{result := Result} = els_client:document_codeaction(Uri, Range, [Diag]),
+    Expected =
+        [
+            #{
+                edit => #{
+                    changes =>
+                        #{
+                            binary_to_atom(Uri, utf8) =>
+                                [
+                                    #{
+                                        range =>
+                                            els_protocol:range(#{
+                                                from => {28, 1},
+                                                to => {28, 1}
+                                            }),
+                                        newText =>
+                                            <<"foobar(Foo, FooBar, Bar, FooBar) ->\n  ok.\n\n">>
+                                    }
+                                ]
+                        }
+                },
+                kind => <<"quickfix">>,
+                title => <<"Create function foobar/5">>
             }
         ],
     ?assertEqual(Expected, Result),

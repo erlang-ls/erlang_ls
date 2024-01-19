@@ -290,9 +290,12 @@ application(Tree) ->
             Pos = erl_syntax:get_pos(erl_syntax:application_operator(Tree)),
             case erl_internal:bif(F, A) of
                 %% Call to a function from the `erlang` module
-                true -> [poi(Pos, application, {erlang, F, A}, #{imported => true})];
+                true ->
+                    [poi(Pos, application, {erlang, F, A}, #{imported => true})];
                 %% Local call
-                false -> [poi(Pos, application, {F, A})]
+                false ->
+                    Args = erl_syntax:application_arguments(Tree),
+                    [poi(Pos, application, {F, A}, #{args => args_from_subtrees(Args)})]
             end;
         {{ModType, M}, {FunType, F}, A} ->
             ModFunTree = erl_syntax:application_operator(Tree),
@@ -719,13 +722,43 @@ function_args(Clause) ->
 args_from_subtrees(Trees) ->
     Arity = length(Trees),
     [
-        case erl_syntax:type(T) of
-            %% TODO: Handle literals
-            variable -> {N, erl_syntax:variable_literal(T)};
-            _ -> {N, "Arg" ++ integer_to_list(N)}
+        case extract_variable(T) of
+            {true, Variable} ->
+                {N, Variable};
+            false ->
+                {N, "Arg" ++ integer_to_list(N)}
         end
      || {N, T} <- lists:zip(lists:seq(1, Arity), Trees)
     ].
+
+-spec extract_variable(tree()) -> {true, string()} | false.
+extract_variable(T) ->
+    case erl_syntax:type(T) of
+        %% TODO: Handle literals
+        variable ->
+            {true, erl_syntax:variable_literal(T)};
+        match_expr ->
+            Body = erl_syntax:match_expr_body(T),
+            Pattern = erl_syntax:match_expr_pattern(T),
+            case {extract_variable(Pattern), extract_variable(Body)} of
+                {false, Result} ->
+                    Result;
+                {Result, _} ->
+                    Result
+            end;
+        record_expr ->
+            RecordNode = erl_syntax:record_expr_type(T),
+            case erl_syntax:type(RecordNode) of
+                atom ->
+                    NameAtom = erl_syntax:atom_value(RecordNode),
+                    NameBin = els_utils:camel_case(atom_to_binary(NameAtom, utf8)),
+                    {true, unicode:characters_to_list(NameBin)};
+                _ ->
+                    false
+            end;
+        _Type ->
+            false
+    end.
 
 -spec implicit_fun(tree()) -> [els_poi:poi()].
 implicit_fun(Tree) ->

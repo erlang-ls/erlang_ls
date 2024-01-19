@@ -16,8 +16,10 @@
 
 -spec create_function(uri(), range(), binary(), [binary()]) -> [map()].
 create_function(Uri, Range0, _Data, [UndefinedFun]) ->
-    {ok, Document} = els_utils:lookup_document(Uri),
+    {ok, #{text := Text} = Document} = els_utils:lookup_document(Uri),
     Range = els_range:to_poi_range(Range0),
+    Indent = guess_indentation(string:lexemes(Text, "\n")),
+    IndentStr = lists:duplicate(Indent, 32),
     FunPOIs = els_dt_document:pois(Document, [function]),
     %% Figure out which function the error was found in, as we want to
     %% create the function right after the current function.
@@ -32,8 +34,11 @@ create_function(Uri, Range0, _Data, [UndefinedFun]) ->
         [#{to := {Line, _}} | _] ->
             [Name, ArityBin] = string:split(UndefinedFun, "/"),
             Arity = binary_to_integer(ArityBin),
-            Args = string:join(lists:duplicate(Arity, "_"), ", "),
-            SpecAndFun = io_lib:format("~s(~s) ->\n  ok.\n\n", [Name, Args]),
+            Args = format_args(Document, Arity, Range),
+            SpecAndFun = io_lib:format(
+                "~s(~s) ->\n~sok.\n\n",
+                [Name, Args, IndentStr]
+            ),
             [
                 make_edit_action(
                     Uri,
@@ -244,3 +249,45 @@ make_edit_action(Uri, Title, Kind, Text, Range) ->
 -spec edit(uri(), binary(), range()) -> workspace_edit().
 edit(Uri, Text, Range) ->
     #{changes => #{Uri => [#{newText => Text, range => Range}]}}.
+
+-spec format_args(
+    els_dt_document:item(),
+    non_neg_integer(),
+    els_poi:poi_range()
+) -> string().
+format_args(Document, Arity, Range) ->
+    %% Find the matching function application and extract
+    %% argument names from it.
+    AppPOIs = els_dt_document:pois(Document, [application]),
+    Matches = [
+        POI
+     || #{range := R} = POI <- AppPOIs,
+        els_range:in(R, Range)
+    ],
+    case Matches of
+        [#{data := #{args := Args0}} | _] ->
+            string:join([A || {_N, A} <- Args0], ", ");
+        [] ->
+            string:join(lists:duplicate(Arity, "_"), ", ")
+    end.
+
+-spec guess_indentation([binary()]) -> pos_integer().
+guess_indentation([]) ->
+    2;
+guess_indentation([A, B | Rest]) ->
+    ACount = count_leading_spaces(A, 0),
+    BCount = count_leading_spaces(B, 0),
+    case {ACount, BCount} of
+        {0, N} when N > 0 ->
+            N;
+        {_, _} ->
+            guess_indentation([B | Rest])
+    end.
+
+-spec count_leading_spaces(binary(), non_neg_integer()) -> non_neg_integer().
+count_leading_spaces(<<>>, _Acc) ->
+    0;
+count_leading_spaces(<<" ", Rest/binary>>, Acc) ->
+    count_leading_spaces(Rest, 1 + Acc);
+count_leading_spaces(<<_:8, _/binary>>, Acc) ->
+    Acc.

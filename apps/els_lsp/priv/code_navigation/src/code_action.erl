@@ -22,4 +22,5 @@ function_c() ->
 function_d() ->
   foobar(),
   foobar(x,y,z),
+  foobar(Foo, #foo_bar{}, Bar = 123, #foo_bar{} = Baz),
   ok.
