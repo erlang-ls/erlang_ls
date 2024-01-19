@@ -218,6 +218,12 @@ attributes(Config) ->
             insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
             kind => ?COMPLETION_ITEM_KIND_SNIPPET,
             label => <<"-vsn(Version).">>
+        },
+        #{
+            insertText => <<"module(completion_attributes).">>,
+            insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
+            kind => ?COMPLETION_ITEM_KIND_SNIPPET,
+            label => <<"-module(completion_attributes).">>
         }
     ],
     #{result := Completions} =

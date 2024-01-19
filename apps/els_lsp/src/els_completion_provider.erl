@@ -190,9 +190,9 @@ find_completions(
 find_completions(
     _Prefix,
     ?COMPLETION_TRIGGER_KIND_CHARACTER,
-    #{trigger := <<"-">>, document := _Document, column := 1}
+    #{trigger := <<"-">>, document := Document, column := 1}
 ) ->
-    attributes();
+    attributes(Document);
 find_completions(
     _Prefix,
     ?COMPLETION_TRIGGER_KIND_CHARACTER,
@@ -299,7 +299,7 @@ find_completions(
             variables(Document);
         %% Check for "-anything"
         [{atom, _, _}, {'-', _}] ->
-            attributes();
+            attributes(Document);
         %% Check for "-export(["
         [{'[', _}, {'(', _}, {atom, _, export}, {'-', _}] ->
             unexported_definitions(Document, function);
@@ -453,8 +453,8 @@ complete_type_definition(Document, Name, ItemFormat) ->
 %%=============================================================================
 %% Attributes
 %%=============================================================================
--spec attributes() -> items().
-attributes() ->
+-spec attributes(els_dt_document:item()) -> items().
+attributes(Document) ->
     [
         snippet(attribute_behaviour),
         snippet(attribute_callback),
@@ -474,8 +474,17 @@ attributes() ->
         snippet(attribute_opaque),
         snippet(attribute_record),
         snippet(attribute_type),
-        snippet(attribute_vsn)
+        snippet(attribute_vsn),
+        attribute_module(Document)
     ].
+
+-spec attribute_module(els_dt_document:item()) -> item().
+attribute_module(#{id := Id}) ->
+    IdBin = atom_to_binary(Id, utf8),
+    snippet(
+        <<"-module(", IdBin/binary, ").">>,
+        <<"module(", IdBin/binary, ").">>
+    ).
 
 %%=============================================================================
 %% Include paths
