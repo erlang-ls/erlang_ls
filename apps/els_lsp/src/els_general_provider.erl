@@ -133,7 +133,8 @@ available_providers() ->
         "code-lens",
         "rename",
         "call-hierarchy",
-        "semantic-tokens"
+        "semantic-tokens",
+        "inlay-hint"
     ].
 
 %% @doc Give the list of all providers enabled by default.
@@ -197,6 +198,8 @@ server_capabilities() ->
             renameProvider =>
                 els_rename_provider:options(),
             callHierarchyProvider => true,
+            inlayHintProvider =>
+                els_inlay_hint_provider:options(),
             semanticTokensProvider =>
                 #{
                     legend =>
@@ -306,4 +309,5 @@ provider_id(executeCommandProvider) -> "execute-command";
 provider_id(codeLensProvider) -> "code-lens";
 provider_id(renameProvider) -> "rename";
 provider_id(callHierarchyProvider) -> "call-hierarchy";
-provider_id(semanticTokensProvider) -> "semantic-tokens".
+provider_id(semanticTokensProvider) -> "semantic-tokens";
+provider_id(inlayHintProvider) -> "inlay-hint".

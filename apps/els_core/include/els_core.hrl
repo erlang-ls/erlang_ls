@@ -603,6 +603,35 @@
 }.
 
 %%------------------------------------------------------------------------------
+%% Inlay hint
+%%------------------------------------------------------------------------------
+-define(INLAY_HINT_KIND_TYPE, 1).
+-define(INLAY_HINT_KIND_PARAMETER, 2).
+
+-type inlay_hint_kind() ::
+    ?INLAY_HINT_KIND_TYPE
+    | ?INLAY_HINT_KIND_PARAMETER.
+
+-type inlay_hint_label_part() ::
+    #{
+        value := binary(),
+        tooltip => binary() | markup_content(),
+        location => location(),
+        command => els_command:command()
+    }.
+
+-type inlay_hint() :: #{
+    position := position(),
+    label := binary() | [inlay_hint_label_part()],
+    kind => inlay_hint_kind(),
+    textEdits => [text_edit()],
+    tooltip => binary() | markup_content(),
+    paddingLeft => boolean(),
+    paddingRight => boolean(),
+    data => map()
+}.
+
+%%------------------------------------------------------------------------------
 %% Workspace
 %%------------------------------------------------------------------------------
 

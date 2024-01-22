@@ -172,6 +172,7 @@ do_initialize(RootUri, Capabilities, InitOptions, {ConfigPath, Config}) ->
     RefactorErl = maps:get("refactorerl", Config, notconfigured),
     Providers = maps:get("providers", Config, #{}),
     EdocParseEnabled = maps:get("edoc_parse_enabled", Config, true),
+    InlayHintsEnabled = maps:get("inlay_hints_enabled", Config, false),
     Formatting = maps:get("formatting", Config, #{}),
     DocsMemo = maps:get("docs_memo", Config, false),
 
@@ -248,6 +249,7 @@ do_initialize(RootUri, Capabilities, InitOptions, {ConfigPath, Config}) ->
     ok = set(edoc_custom_tags, EDocCustomTags),
     ok = set(edoc_parse_enabled, EdocParseEnabled),
     ok = set(incremental_sync, IncrementalSync),
+    ok = set(inlay_hints_enabled, InlayHintsEnabled),
     ok = set(
         indexing,
         maps:merge(

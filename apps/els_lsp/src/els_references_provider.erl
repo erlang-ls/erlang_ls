@@ -48,11 +48,7 @@ run_references_job(Uri, Line, Character) ->
         task => fun get_references/2,
         entries => [{Uri, Line, Character}],
         title => <<"References">>,
-        on_complete =>
-            fun(ReferencesResp) ->
-                els_server ! {result, ReferencesResp, self()},
-                ok
-            end
+        on_complete => fun els_server:register_result/1
     },
     {ok, Pid} = els_background_job:new(Config),
     Pid.

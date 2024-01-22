@@ -37,8 +37,7 @@ handle_request({run_diagnostics, Params}) ->
 %%==============================================================================
 -spec notify([els_diagnostics:diagnostic()], pid()) -> ok.
 notify(Diagnostics, Job) ->
-    els_server ! {diagnostics, Diagnostics, Job},
-    ok.
+    els_server:register_diagonstics(Diagnostics, Job).
 
 -spec publish(uri(), [els_diagnostics:diagnostic()]) -> ok.
 publish(Uri, Diagnostics) ->
