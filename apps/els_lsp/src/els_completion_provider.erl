@@ -768,7 +768,7 @@ definitions(Document, POIKind, ItemFormat, ExportedOnly) ->
     {item_format(), els_poi:poi_kind() | any}.
 completion_context(#{text := Text} = Document, Line, Column, Tokens) ->
     ItemFormat =
-        case is_in(Document, Line, Column, [export, export_type]) of
+        case is_in_export(Document, Line, Column) of
             true ->
                 arity_only;
             false ->
@@ -800,6 +800,28 @@ completion_context(#{text := Text} = Document, Line, Column, Tokens) ->
                 end
         end,
     {ItemFormat, POIKind}.
+
+-spec is_in_export(els_dt_document:item(), line(), column()) -> boolean().
+is_in_export(#{text := Text} = Document, Line, Column) ->
+    %% Sometimes is_in will be confused because -export() failed to be parsed.
+    %% In such case we can use a heuristic to determine if we are inside
+    %% an export.
+    is_in(Document, Line, Column, [export, export_type]) orelse
+        is_in_export_heuristic(Text, Line - 1).
+
+-spec is_in_export_heuristic(binary(), line()) -> boolean().
+is_in_export_heuristic(Text, Line) ->
+    case els_text:line(Text, Line) of
+        <<"-export", _/binary>> ->
+            %% In export
+            true;
+        <<" ", _/binary>> when Line > 1 ->
+            %% Indented line, continue to search previous line
+            is_in_export_heuristic(Text, Line - 1);
+        _ ->
+            %% Not in export
+            false
+    end.
 
 -spec resolve_definitions(
     uri(),
@@ -1334,5 +1356,23 @@ parse_record_test() ->
         {ok, foo},
         parse_record(<<"#foo{x = #bar{y = #baz{}}">>, <<"}.">>)
     ).
+
+is_exported_heuristic_test_() ->
+    Text = <<
+        "-module(test).\n"
+        "-export([foo/0\n"
+        "         bar/0\n"
+        "         baz/0\n"
+        "        ]).\n"
+        "-define(FOO, foo).\n"
+    >>,
+    [
+        ?_assertEqual(false, is_in_export_heuristic(Text, 0)),
+        ?_assertEqual(true, is_in_export_heuristic(Text, 1)),
+        ?_assertEqual(true, is_in_export_heuristic(Text, 2)),
+        ?_assertEqual(true, is_in_export_heuristic(Text, 3)),
+        ?_assertEqual(true, is_in_export_heuristic(Text, 4)),
+        ?_assertEqual(false, is_in_export_heuristic(Text, 5))
+    ].
 
 -endif.
