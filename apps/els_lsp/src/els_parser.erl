@@ -295,7 +295,9 @@ application(Tree) ->
                 %% Local call
                 false ->
                     Args = erl_syntax:application_arguments(Tree),
-                    [poi(Pos, application, {F, A}, #{args => args_from_subtrees(Args)})]
+                    [poi(Pos, application, {F, A},
+                         #{args => args_from_subtrees(Args)
+                          })]
             end;
         {{ModType, M}, {FunType, F}, A} ->
             ModFunTree = erl_syntax:application_operator(Tree),
@@ -318,9 +320,13 @@ application(Tree) ->
             Pos = erl_syntax:get_pos(ModFunTree),
             FunTree = erl_syntax:module_qualifier_body(ModFunTree),
             ModTree = erl_syntax:module_qualifier_argument(ModFunTree),
+            %% ArgsTree = erl_syntax:application_arguments(Tree),
+            %% ArgsRange = els_range:range(erl_syntax:get_pos(ArgsTree)),
+
             Data = #{
                 name_range => els_range:range(erl_syntax:get_pos(FunTree)),
                 mod_range => els_range:range(erl_syntax:get_pos(ModTree))
+                %% args_range => ArgsRange
             },
             [poi(Pos, application, MFA, Data)]
     end.

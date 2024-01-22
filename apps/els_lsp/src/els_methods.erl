@@ -37,6 +37,7 @@
     workspace_didchangewatchedfiles/2,
     workspace_symbol/2
 ]).
+-export([textdocument_inlayhint/2]).
 
 %%==============================================================================
 %% Includes
@@ -441,6 +442,16 @@ textdocument_preparerename(Params, State) ->
     Provider = els_prepare_rename_provider,
     {response, Response} =
         els_provider:handle_request(Provider, {prepare_rename, Params}),
+    {response, Response, State}.
+
+%%==============================================================================
+%% textDocument/inlayHint
+%%=============================================================================
+-spec textdocument_inlayhint(params(), els_server:state()) -> result().
+textdocument_inlayhint(Params, State) ->
+    Provider = els_inlay_hint_provider,
+    {response, Response} =
+        els_provider:handle_request(Provider, {inlay_hint, Params}),
     {response, Response, State}.
 
 %%==============================================================================
