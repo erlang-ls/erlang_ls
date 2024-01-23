@@ -137,9 +137,11 @@ do_initialize(RootUri, Capabilities, InitOptions, {ConfigPath, Config}) ->
     RootPath = els_utils:to_list(els_uri:path(RootUri)),
     OtpPath = maps:get("otp_path", Config, code:root_dir()),
     ?LOG_INFO("OTP Path: ~p", [OtpPath]),
-    DepsDirs = maps:get("deps_dirs", Config, []),
-    AppsDirs = maps:get("apps_dirs", Config, ["."]),
-    IncludeDirs = maps:get("include_dirs", Config, ["include"]),
+    {DefaultDepsDirs, DefaultAppsDirs, DefaultIncludeDirs} =
+        get_default_dirs(RootPath),
+    DepsDirs = maps:get("deps_dirs", Config, DefaultDepsDirs),
+    AppsDirs = maps:get("apps_dirs", Config, DefaultAppsDirs),
+    IncludeDirs = maps:get("include_dirs", Config, DefaultIncludeDirs),
     ExcludeUnusedIncludes = maps:get("exclude_unused_includes", Config, []),
     Macros = maps:get("macros", Config, []),
     DialyzerPltPath = maps:get("plt_path", Config, undefined),
@@ -277,6 +279,41 @@ do_initialize(RootUri, Capabilities, InitOptions, {ConfigPath, Config}) ->
     ok = set(refactorerl, RefactorErl),
     ok = set(formatting, Formatting),
     ok.
+
+-spec get_default_dirs(string()) ->
+    {DefaultDepsDirs, DefaultAppsDirs, DefaultIncludeDirs}
+when
+    DefaultDepsDirs :: [string()],
+    DefaultAppsDirs :: [string()],
+    DefaultIncludeDirs :: [string()].
+get_default_dirs(RootPath) ->
+    HasRebarConfig = filelib:is_file(filename:join(RootPath, "rebar.config")),
+    HasErlangMk = filelib:is_file(filename:join(RootPath, "erlang.mk")),
+    case {HasErlangMk, HasRebarConfig} of
+        {false, true} ->
+            ?LOG_INFO("Found rebar.config, using rebar3 default paths."),
+            {
+                _DefaultDepsDirs = [
+                    "_build/default/lib/*",
+                    "_build/test/lib/*"
+                ],
+                _DefaultAppsDirs = ["apps/*", "."],
+                _DefaultIncludeDirs = [
+                    "src",
+                    "include",
+                    "apps",
+                    "apps/*/include",
+                    "_build/*/lib/",
+                    "_build/*/lib/*/include"
+                ]
+            };
+        {_, _} ->
+            {
+                _DefaultDepsDirs = ["deps/*"],
+                _DefaultAppsDirs = ["apps/*", "."],
+                _DefaultIncludeDirs = ["src", "include"]
+            }
+    end.
 
 -spec start_link() -> {ok, pid()}.
 start_link() ->
