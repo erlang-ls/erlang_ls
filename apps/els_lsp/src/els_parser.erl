@@ -296,7 +296,8 @@ application(Tree) ->
                 false ->
                     Args = erl_syntax:application_arguments(Tree),
                     [poi(Pos, application, {F, A},
-                         #{args => args_from_subtrees(Args)
+                         #{args => args_from_subtrees(Args),
+                           args2 => args_from_subtrees2(Args)
                           })]
             end;
         {{ModType, M}, {FunType, F}, A} ->
@@ -306,11 +307,14 @@ application(Tree) ->
             ModTree = erl_syntax:module_qualifier_argument(ModFunTree),
             FunPos = erl_syntax:get_pos(FunTree),
             ModPos = erl_syntax:get_pos(ModTree),
+            Args = erl_syntax:application_arguments(Tree),
             Data = #{
                 name_range => els_range:range(FunPos),
                 mod_range => els_range:range(ModPos),
                 fun_is_variable => FunType =:= variable,
-                mod_is_variable => ModType =:= variable
+                mod_is_variable => ModType =:= variable,
+                args => args_from_subtrees(Args),
+                args2 => args_from_subtrees2(Args)
             },
             [poi(Pos, application, {M, F, A}, Data)] ++
                 [poi(ModPos, variable, M) || ModType =:= variable] ++
@@ -322,10 +326,13 @@ application(Tree) ->
             ModTree = erl_syntax:module_qualifier_argument(ModFunTree),
             %% ArgsTree = erl_syntax:application_arguments(Tree),
             %% ArgsRange = els_range:range(erl_syntax:get_pos(ArgsTree)),
+            Args = erl_syntax:application_arguments(Tree),
 
             Data = #{
                 name_range => els_range:range(erl_syntax:get_pos(FunTree)),
-                mod_range => els_range:range(erl_syntax:get_pos(ModTree))
+                mod_range => els_range:range(erl_syntax:get_pos(ModTree)),
+                args => args_from_subtrees(Args),
+                args2 => args_from_subtrees2(Args)
                 %% args_range => ArgsRange
             },
             [poi(Pos, application, MFA, Data)]
@@ -736,6 +743,20 @@ args_from_subtrees(Trees) ->
         end
      || {N, T} <- lists:zip(lists:seq(1, Arity), Trees)
     ].
+
+-spec args_from_subtrees2([tree()]) -> [map()].
+args_from_subtrees2(Trees) ->
+    Arity = length(Trees),
+    [
+        case extract_variable(T) of
+            {true, Variable} ->
+                {N, Variable, els_range:range(erl_syntax:get_pos(T))};
+            false ->
+                {N, "Arg" ++ integer_to_list(N), els_range:range(erl_syntax:get_pos(T))}
+        end
+     || {N, T} <- lists:zip(lists:seq(1, Arity), Trees)
+    ].
+
 
 -spec extract_variable(tree()) -> {true, string()} | false.
 extract_variable(T) ->

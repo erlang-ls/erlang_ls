@@ -450,9 +450,9 @@ textdocument_preparerename(Params, State) ->
 -spec textdocument_inlayhint(params(), els_server:state()) -> result().
 textdocument_inlayhint(Params, State) ->
     Provider = els_inlay_hint_provider,
-    {response, Response} =
+    {async, Uri, Job} =
         els_provider:handle_request(Provider, {inlay_hint, Params}),
-    {response, Response, State}.
+    {async, Uri, Job, State}.
 
 %%==============================================================================
 %% textDocument/semanticTokens/full
