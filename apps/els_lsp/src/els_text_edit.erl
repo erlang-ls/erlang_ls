@@ -50,14 +50,14 @@ make_text_edits([{del, Del}, {ins, Ins} | T], Line, Acc) ->
     Pos2 = #{line => Line + Len, character => 0},
     Edit = #{
         range => #{start => Pos1, 'end' => Pos2},
-        newText => els_utils:to_binary(lists:concat(Ins))
+        newText => list_to_binary(Ins)
     },
     make_text_edits(T, Line + Len, [Edit | Acc]);
 make_text_edits([{ins, Data} | T], Line, Acc) ->
     Pos = #{line => Line, character => 0},
     Edit = #{
         range => #{start => Pos, 'end' => Pos},
-        newText => els_utils:to_binary(lists:concat(Data))
+        newText => list_to_binary(Data)
     },
     make_text_edits(T, Line, [Edit | Acc]);
 make_text_edits([{del, Data} | T], Line, Acc) ->
@@ -77,7 +77,7 @@ edit_insert_text(Uri, Data, Line) ->
     Pos = #{line => Line, character => 0},
     Edit = #{
         range => #{start => Pos, 'end' => Pos},
-        newText => els_utils:to_binary(Data)
+        newText => Data
     },
     #{changes => #{Uri => [Edit]}}.
 
@@ -87,6 +87,6 @@ edit_replace_text(Uri, Data, LineFrom, LineTo) ->
     Pos2 = #{line => LineTo, character => 0},
     Edit = #{
         range => #{start => Pos1, 'end' => Pos2},
-        newText => els_utils:to_binary(Data)
+        newText => Data
     },
     #{changes => #{Uri => [Edit]}}.
