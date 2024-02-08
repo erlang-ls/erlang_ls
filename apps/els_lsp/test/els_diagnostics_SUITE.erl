@@ -108,8 +108,8 @@ init_per_testcase(TestCase, Config) when
 init_per_testcase(code_path_extra_dirs, Config) ->
     meck:new(yamerl, [passthrough, no_link]),
     Content = <<"code_path_extra_dirs:\n", "  - \"../code_navigation/*/\"\n">>,
-    meck:expect(yamerl, decode_file, 2, fun(_, Opts) ->
-        yamerl:decode(Content, Opts)
+    meck:expect(yamerl, decode, 2, fun(_, Opts) ->
+        meck:passthrough([Content, Opts])
     end),
     els_mock_diagnostics:setup(),
     els_test_utils:init_per_testcase(code_path_extra_dirs, Config);
@@ -268,8 +268,8 @@ end_per_testcase(TestCase, Config) ->
 -spec init_long_names_config(binary(), config()) -> config().
 init_long_names_config(Content, Config) ->
     meck:new(yamerl, [passthrough, no_link]),
-    meck:expect(yamerl, decode_file, 2, fun(_, Opts) ->
-        yamerl:decode(Content, Opts)
+    meck:expect(yamerl, decode, 2, fun(_, Opts) ->
+        meck:passthrough([Content, Opts])
     end),
     els_mock_diagnostics:setup(),
     els_test_utils:init_per_testcase(code_path_extra_dirs, Config).

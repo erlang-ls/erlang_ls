@@ -80,7 +80,11 @@ dispatch(Method, Params, MessageType, State) ->
     try
         do_dispatch(Function, Params, State)
     catch
-        error:undef ->
+        error:undef:Stack ->
+            ?LOG_ERROR(
+                "Internal [type=~p] [error=~p] [stack=~p]",
+                [error, undef, Stack]
+            ),
             not_implemented_method(Method, State);
         Type:Reason:Stack ->
             ?LOG_ERROR(
