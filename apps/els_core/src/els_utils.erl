@@ -303,21 +303,21 @@ race(Funs, Timeout) ->
     T :: term().
 
 uniq(L) ->
-    uniq_1(L, #{}).
+    uniq(L, #{}).
 
--spec uniq_1(List1, Map) -> List2 when
+-spec uniq(List1, Map) -> List2 when
     Map :: map(),
     List1 :: [T],
     List2 :: [T],
     T :: term().
-uniq_1([X | Xs], M) ->
+uniq([X | Xs], M) ->
     case is_map_key(X, M) of
         true ->
             uniq_1(Xs, M);
         false ->
             [X | uniq_1(Xs, M#{X => true})]
     end;
-uniq_1([], _) ->
+uniq([], _) ->
     [].
 
 %%==============================================================================
