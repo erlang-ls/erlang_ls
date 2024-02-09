@@ -582,6 +582,7 @@ expand_var(Bin, [{Var, Value} | RestEnv]) ->
             [Value, RestBin]
     end.
 
+-spec get_env() -> [{string(), string()}].
 -if(?OTP_RELEASE >= 24).
 get_env() ->
     os:env().
