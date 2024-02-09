@@ -1,5 +1,6 @@
 -module(els_code_actions).
 -export([
+    extract_function/2,
     create_function/4,
     export_function/4,
     fix_module_name/4,
@@ -197,6 +198,26 @@ fix_atom_typo(Uri, Range, _Data, [Atom]) ->
             Atom,
             Range
         )
+    ].
+
+-spec extract_function(uri(), range()) -> [map()].
+extract_function(Uri, Range) ->
+    [
+        #{
+            title => <<"Extract function">>,
+            kind => <<"refactor.extract">>,
+            command =>
+                els_command:make_command(
+                    <<"Extract function">>,
+                    <<"refactor.extract">>,
+                    [
+                        #{
+                            uri => Uri,
+                            range => Range
+                        }
+                    ]
+                )
+        }
     ].
 
 -spec undefined_callback(uri(), range(), binary(), [binary()]) -> [map()].

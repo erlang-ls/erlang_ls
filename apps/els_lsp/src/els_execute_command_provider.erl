@@ -106,6 +106,96 @@ execute_command(<<"suggest-spec">>, [
         },
     els_server:send_request(Method, Params),
     [];
+execute_command(<<"refactor.extract">>, [
+    #{
+        <<"uri">> := Uri,
+        <<"range">> := Range
+    }
+]) ->
+    {ok, [#{text := Text} = Document]} = els_dt_document:lookup(Uri),
+    #{from := {FromL, _} = From, to := {ToL, ToC}} = PoiRange = els_range:to_poi_range(Range),
+    ExtractString =
+        string:trim(
+            els_text:range(Text, From, {ToL, ToC}),
+            trailing,
+            ",."
+        ),
+    Method = <<"workspace/applyEdit">>,
+    FunPOIs = els_dt_document:pois(Document, [function]),
+    VarPOIs = els_dt_document:pois(Document, [variable]),
+    case
+        [
+            R
+         || #{data := #{wrapping_range := R}} <- FunPOIs,
+            els_range:in(PoiRange, R)
+        ]
+    of
+        [
+            #{
+                from := {FromLine, _},
+                to := {ToLine, _}
+            }
+            | _
+        ] ->
+            ?LOG_INFO("Extracting code to function: ~p", [ExtractString]),
+            BeforeRange = #{from => {FromLine, 1}, to => {FromL, 1}},
+            VarPOIsBefore = [
+                Id
+             || #{range := R, id := Id} <- VarPOIs,
+                els_range:in(R, BeforeRange)
+            ],
+            VarPOIsInside = [
+                Id
+             || #{range := R, id := Id} <- VarPOIs,
+                els_range:in(R, PoiRange)
+            ],
+            Args = els_utils:uniq(
+                [
+                    atom_to_list(Id)
+                 || Id <- VarPOIsInside,
+                    lists:member(Id, VarPOIsBefore)
+                ]
+            ),
+            ArgsBin = unicode:characters_to_binary(string:join(Args, ", ")),
+            FunClause = <<"new_function(", ArgsBin/binary, ")">>,
+            NewRange = els_protocol:range(
+                #{from => {ToLine + 1, 1}, to => {ToLine + 1, 1}}
+            ),
+            FunBody0 = <<FunClause/binary, "->\n", ExtractString/binary, ".">>,
+            FormatOptions = [],
+            {ok, FunBodyFormatted, _} =
+                erlfmt:format_string(
+                    unicode:characters_to_list(FunBody0),
+                    FormatOptions
+                ),
+            FunBody = unicode:characters_to_binary(
+                FunBodyFormatted ++ "\n"
+            ),
+            Params =
+                #{
+                    edit =>
+                        #{
+                            changes =>
+                                #{
+                                    Uri =>
+                                        [
+                                            #{
+                                                newText => FunClause,
+                                                range => Range
+                                            },
+                                            #{
+                                                newText => FunBody,
+                                                range => NewRange
+                                            }
+                                        ]
+                                }
+                        }
+                },
+            els_server:send_request(Method, Params);
+        _ ->
+            []
+    end,
+    [];
 execute_command(<<"add-behaviour-callbacks">>, [
     #{
         <<"uri">> := Uri,
