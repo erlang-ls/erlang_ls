@@ -15,7 +15,10 @@
     els_lsp_info/1,
     ct_run_test/1,
     strip_server_prefix/1,
-    suggest_spec/1
+    suggest_spec/1,
+    extract_function/1,
+    extract_function_case/1,
+    extract_function_tuple/1
 ]).
 
 %%==============================================================================
@@ -23,6 +26,7 @@
 %%==============================================================================
 -include_lib("common_test/include/ct.hrl").
 -include_lib("stdlib/include/assert.hrl").
+-include_lib("els_lsp/include/els_lsp.hrl").
 
 %%==============================================================================
 %% Types
@@ -49,8 +53,13 @@ end_per_suite(Config) ->
     els_test_utils:end_per_suite(Config).
 
 -spec init_per_testcase(atom(), config()) -> config().
-init_per_testcase(ct_run_test, Config0) ->
-    Config = els_test_utils:init_per_testcase(ct_run_test, Config0),
+init_per_testcase(TestCase, Config0) when
+    TestCase =:= ct_run_test;
+    TestCase =:= extract_function;
+    TestCase =:= extract_function_case;
+    TestCase =:= extract_function_tuple
+->
+    Config = els_test_utils:init_per_testcase(TestCase, Config0),
     setup_mocks(),
     Config;
 init_per_testcase(suggest_spec, Config0) ->
@@ -69,12 +78,17 @@ init_per_testcase(TestCase, Config) ->
     els_test_utils:init_per_testcase(TestCase, Config).
 
 -spec end_per_testcase(atom(), config()) -> ok.
-end_per_testcase(ct_run_test, Config) ->
+end_per_testcase(TestCase, Config) when
+    TestCase =:= ct_run_test;
+    TestCase =:= extract_function;
+    TestCase =:= extract_function_case;
+    TestCase =:= extract_function_tuple
+->
     teardown_mocks(),
-    els_test_utils:end_per_testcase(ct_run_test, Config);
+    els_test_utils:end_per_testcase(TestCase, Config);
 end_per_testcase(suggest_spec, Config) ->
     meck:unload(els_protocol),
-    els_test_utils:end_per_testcase(ct_run_test, Config);
+    els_test_utils:end_per_testcase(suggest_spec, Config);
 end_per_testcase(TestCase, Config) ->
     els_test_utils:end_per_testcase(TestCase, Config).
 
@@ -173,14 +187,7 @@ suggest_spec(Config) ->
         ),
     Expected = [],
     ?assertEqual(Expected, Result),
-    Pattern = ['_', <<"workspace/applyEdit">>, '_'],
-    ok = meck:wait(1, els_protocol, request, Pattern, 5000),
-    History = meck:history(els_protocol),
-    [Edit] = [
-        Params
-     || {_Pid, {els_protocol, request, [_RequestId, <<"workspace/applyEdit">>, Params]}, _Binary} <-
-            History
-    ],
+    [Edit] = get_edits_from_meck_history(),
     #{
         edit := #{
             changes := #{
@@ -258,6 +265,114 @@ setup_mocks() ->
         end
     ),
     ok.
+
+-spec extract_function(config()) -> ok.
+extract_function(Config) ->
+    Uri = ?config(extract_function_uri, Config),
+    execute_command_refactor_extract(Uri, {5, 8}, {5, 17}),
+    [#{edit := #{changes := #{Uri := Changes}}}] = get_edits_from_meck_history(),
+    [
+        #{
+            newText := <<"new_function(A, B, C)">>,
+            range := #{
+                start := #{character := 8, line := 5},
+                'end' := #{character := 17, line := 5}
+            }
+        },
+        #{
+            newText := <<
+                "new_function(A, B, C) ->\n"
+                "    A + B + C.\n\n"
+            >>,
+            range := #{
+                'end' := #{character := 0, line := 14},
+                start := #{character := 0, line := 14}
+            }
+        }
+    ] = Changes.
+
+-spec extract_function_case(config()) -> ok.
+extract_function_case(Config) ->
+    Uri = ?config(extract_function_uri, Config),
+    execute_command_refactor_extract(Uri, {6, 8}, {6, 12}),
+    [#{edit := #{changes := #{Uri := Changes}}}] = get_edits_from_meck_history(),
+    [
+        #{
+            newText := <<"new_function(A)">>,
+            range := #{
+                start := #{character := 8, line := 6},
+                'end' := #{character := 11, line := 9}
+            }
+        },
+        #{
+            newText :=
+                <<
+                    "new_function(A) ->\n"
+                    "    case A of\n"
+                    "        1 -> one;\n"
+                    "        _ -> other\n"
+                    "    end.\n\n"
+                >>,
+            range :=
+                #{
+                    'end' := #{character := 0, line := 14},
+                    start := #{character := 0, line := 14}
+                }
+        }
+    ] = Changes.
+
+-spec extract_function_tuple(config()) -> ok.
+extract_function_tuple(Config) ->
+    Uri = ?config(extract_function_uri, Config),
+    execute_command_refactor_extract(Uri, {11, 8}, {11, 18}),
+    [#{edit := #{changes := #{Uri := Changes}}}] = get_edits_from_meck_history(),
+    [
+        #{
+            newText := <<"new_function(A, B),">>,
+            range := #{
+                start := #{character := 8, line := 11},
+                'end' := #{character := 18, line := 11}
+            }
+        },
+        #{
+            newText :=
+                <<
+                    "new_function(A, B) ->"
+                    "\n    {A, B, A}."
+                    "\n\n"
+                >>,
+            range :=
+                #{
+                    'end' := #{character := 0, line := 14},
+                    start := #{character := 0, line := 14}
+                }
+        }
+    ] = Changes.
+
+-spec execute_command_refactor_extract(uri(), pos(), pos()) -> ok.
+execute_command_refactor_extract(Uri, {FromL, FromC}, {ToL, ToC}) ->
+    PrefixedCommand = els_command:with_prefix(<<"refactor.extract">>),
+    #{result := []} =
+        els_client:workspace_executecommand(
+            PrefixedCommand,
+            [
+                #{
+                    uri => Uri,
+                    range => #{
+                        start => #{character => FromC, line => FromL},
+                        'end' => #{character => ToC, line => ToL}
+                    }
+                }
+            ]
+        ),
+    ok.
+
+-spec get_edits_from_meck_history() -> [map()].
+get_edits_from_meck_history() ->
+    Pattern = ['_', <<"workspace/applyEdit">>, '_'],
+    ok = meck:wait(1, els_protocol, request, Pattern, 5000),
+    History = meck:history(els_protocol),
+    [Edit || {_, {_, _, [1, <<"workspace/applyEdit">>, Edit]}, _} <- History].
 
 -spec teardown_mocks() -> ok.
 teardown_mocks() ->

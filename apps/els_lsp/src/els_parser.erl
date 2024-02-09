@@ -272,12 +272,27 @@ do_points_of_interest(Tree) ->
                 type_application(Tree);
             record_type ->
                 record_type(Tree);
-            _ ->
+            Type when
+                Type == block_expr;
+                Type == case_expr;
+                Type == if_expr;
+                Type == implicit_fun;
+                Type == maybe_expr;
+                Type == receive_expr;
+                Type == try_expr
+            ->
+                keyword_expr(Type, Tree);
+            _Other ->
                 []
         end
     catch
         throw:syntax_error -> []
     end.
+
+-spec keyword_expr(atom(), tree()) -> [els_poi:poi()].
+keyword_expr(Type, Tree) ->
+    Pos = erl_syntax:get_pos(Tree),
+    [poi(Pos, keyword_expr, Type)].
 
 -spec application(tree()) -> [els_poi:poi()].
 application(Tree) ->

@@ -25,7 +25,7 @@ handle_request({document_highlight, Params}) ->
     } = Params,
     {ok, Document} = els_utils:lookup_document(Uri),
     Highlights =
-        case els_dt_document:get_element_at_pos(Document, Line + 1, Character + 1) of
+        case valid_highlight_pois(Document, Line, Character) of
             [POI | _] -> find_highlights(Document, POI);
             [] -> null
         end,
@@ -34,6 +34,18 @@ handle_request({document_highlight, Params}) ->
         {_, H} -> {response, H}
         %% overwrites them for more transparent Wrangler forms.
     end.
+
+-spec valid_highlight_pois(els_dt_document:item(), integer(), integer()) ->
+    [els_poi:poi()].
+valid_highlight_pois(Document, Line, Character) ->
+    POIs = els_dt_document:get_element_at_pos(Document, Line + 1, Character + 1),
+    [
+        P
+     || #{kind := Kind} = P <- POIs,
+        Kind /= keyword_expr,
+        Kind /= module,
+        Kind /= function_clause
+    ].
 
 %%==============================================================================
 %% Internal functions

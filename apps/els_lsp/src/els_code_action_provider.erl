@@ -13,6 +13,8 @@
 %%==============================================================================
 -spec handle_request(any()) -> {response, any()}.
 handle_request({document_codeaction, Params}) ->
+    %% TODO: Make code actions run async?
+    %% TODO: Extract document here
     #{
         <<"textDocument">> := #{<<"uri">> := Uri},
         <<"range">> := RangeLSP,
@@ -30,7 +32,8 @@ handle_request({document_codeaction, Params}) ->
 code_actions(Uri, Range, #{<<"diagnostics">> := Diagnostics}) ->
     lists:usort(
         lists:flatten([make_code_actions(Uri, D) || D <- Diagnostics]) ++
-            wrangler_handler:get_code_actions(Uri, Range)
+            wrangler_handler:get_code_actions(Uri, Range) ++
+            els_code_actions:extract_function(Uri, Range)
     ).
 
 -spec make_code_actions(uri(), map()) -> [map()].

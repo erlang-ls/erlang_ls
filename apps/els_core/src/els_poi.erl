@@ -43,6 +43,7 @@
     | import_entry
     | include
     | include_lib
+    | keyword_expr
     | macro
     | module
     | parse_transform

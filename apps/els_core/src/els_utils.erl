@@ -26,7 +26,8 @@
     jaro_distance/2,
     is_windows/0,
     system_tmp_dir/0,
-    race/2
+    race/2,
+    uniq/1
 ]).
 
 %%==============================================================================
@@ -294,6 +295,30 @@ race(Funs, Timeout) ->
         ok = flush(Ref),
         error(timeout)
     end.
+
+%% uniq/1: return a new list with the unique elements of the given list
+-spec uniq(List1) -> List2 when
+    List1 :: [T],
+    List2 :: [T],
+    T :: term().
+
+uniq(L) ->
+    uniq(L, #{}).
+
+-spec uniq(List1, Map) -> List2 when
+    Map :: map(),
+    List1 :: [T],
+    List2 :: [T],
+    T :: term().
+uniq([X | Xs], M) ->
+    case is_map_key(X, M) of
+        true ->
+            uniq(Xs, M);
+        false ->
+            [X | uniq(Xs, M#{X => true})]
+    end;
+uniq([], _) ->
+    [].
 
 %%==============================================================================
 %% Internal functions
