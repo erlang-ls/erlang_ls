@@ -558,7 +558,7 @@ add_code_paths(WCDirs, RootDir) ->
 
 -spec expand_env_vars(binary()) -> binary().
 expand_env_vars(Bin) ->
-    expand_vars(Bin, os:env()).
+    expand_vars(Bin, get_env()).
 
 -spec expand_vars(binary(), [{string(), string()}]) -> binary().
 expand_vars(Bin, Env0) ->
@@ -581,6 +581,14 @@ expand_var(Bin, [{Var, Value} | RestEnv]) ->
         RestBin ->
             [Value, RestBin]
     end.
+
+-if(?OTP_RELEASE >= 24).
+get_env() ->
+    os:env().
+-else.
+get_env() ->
+    [list_to_tuple(string:split(S, "=")) || S <- os:getenv()].
+-endif.
 
 -if(?OTP_RELEASE >= 23).
 -spec safe_relative_path(
