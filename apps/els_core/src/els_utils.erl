@@ -313,9 +313,9 @@ uniq(L) ->
 uniq([X | Xs], M) ->
     case is_map_key(X, M) of
         true ->
-            uniq_1(Xs, M);
+            uniq(Xs, M);
         false ->
-            [X | uniq_1(Xs, M#{X => true})]
+            [X | uniq(Xs, M#{X => true})]
     end;
 uniq([], _) ->
     [].
