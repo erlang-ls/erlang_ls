@@ -64,7 +64,6 @@
     dd
 ]).
 %% inline elements are:
--define(INLINE, [i, b, em, strong, code, a]).
 -define(IS_INLINE(ELEM),
     (((ELEM) =:= a) orelse ((ELEM) =:= code) orelse
         ((ELEM) =:= i) orelse ((ELEM) =:= em) orelse
