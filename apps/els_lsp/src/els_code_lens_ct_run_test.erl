@@ -12,8 +12,6 @@
     precondition/1
 ]).
 
--include("els_lsp.hrl").
-
 -spec command(els_dt_document:item(), els_poi:poi(), els_code_lens:state()) ->
     els_command:command().
 command(#{uri := Uri} = _Document, POI, _State) ->
