@@ -1,7 +1,5 @@
 -module(els_config_ct_run_test).
 
--include_lib("els_core/include/els_core.hrl").
-
 %% We may introduce a behaviour for config modules in the future
 -export([default_config/0]).
 

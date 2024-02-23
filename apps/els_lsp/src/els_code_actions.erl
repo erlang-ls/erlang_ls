@@ -12,8 +12,6 @@
 ]).
 
 -include("els_lsp.hrl").
--include_lib("kernel/include/logger.hrl").
-
 -spec create_function(uri(), range(), binary(), [binary()]) -> [map()].
 create_function(Uri, Range0, _Data, [UndefinedFun]) ->
     {ok, #{text := Text} = Document} = els_utils:lookup_document(Uri),

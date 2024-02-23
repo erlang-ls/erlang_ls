@@ -2,8 +2,6 @@
 -export([parse_after/2]).
 -export([parse_line/2]).
 
--include_lib("kernel/include/logger.hrl").
-
 -spec parse_after(binary(), integer()) -> [els_poi:poi()].
 parse_after(Text, Line) ->
     {_, AfterText} = els_text:split_at_line(Text, Line),

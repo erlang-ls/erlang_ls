@@ -2,8 +2,6 @@
 
 -include("els_lsp.hrl").
 
--include_lib("kernel/include/logger.hrl").
-
 -export([
     new/5,
     poi/1

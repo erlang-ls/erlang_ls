@@ -77,7 +77,7 @@ stop(Server) ->
 %%==============================================================================
 -spec start_link(config()) -> {ok, pid()}.
 start_link(Config) ->
-    gen_server:start_link(?MODULE, Config, []).
+    gen_server:start_link(?SERVER, Config, []).
 
 %%==============================================================================
 %% gen_server callbacks

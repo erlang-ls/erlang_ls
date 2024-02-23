@@ -31,7 +31,6 @@
 %% Includes
 %%==============================================================================
 -include("els_lsp.hrl").
--include_lib("kernel/include/logger.hrl").
 -include_lib("stdlib/include/ms_transform.hrl").
 
 %%==============================================================================
