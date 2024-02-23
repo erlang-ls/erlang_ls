@@ -404,17 +404,23 @@ find_config(Paths) ->
 -spec consult_config(path()) -> {ok, map()} | {error, term()}.
 consult_config(Path) ->
     Options = [{map_node_format, map}],
-    try yamerl:decode_file(Path, Options) of
-        [] ->
-            ?LOG_WARNING("Using empty configuration from ~s", [Path]),
-            {ok, #{}};
-        [Config] when is_map(Config) ->
-            {ok, Config};
-        _ ->
-            {error, {syntax_error, Path}}
-    catch
-        Class:Error ->
-            {error, {Class, Error}}
+    case file:read_file(Path) of
+        {ok, FileBin} ->
+            ExpandedBin = expand_env_vars(FileBin),
+            try yamerl:decode(ExpandedBin, Options) of
+                [] ->
+                    ?LOG_WARNING("Using empty configuration from ~s", [Path]),
+                    {ok, #{}};
+                [Config] when is_map(Config) ->
+                    {ok, Config};
+                _ ->
+                    {error, {syntax_error, Path}}
+            catch
+                Class:Error ->
+                    {error, {Class, Error}}
+            end;
+        {error, _} = Error ->
+            Error
     end.
 
 -spec report_missing_config(error_reporting()) -> ok.
@@ -550,6 +556,41 @@ add_code_paths(WCDirs, RootDir) ->
     ],
     lists:foreach(AddADir, Dirs).
 
+-spec expand_env_vars(binary()) -> binary().
+expand_env_vars(Bin) ->
+    expand_vars(Bin, get_env()).
+
+-spec expand_vars(binary(), [{string(), string()}]) -> binary().
+expand_vars(Bin, Env0) ->
+    %% Sort by longest key to ensure longest variable match.
+    Env = lists:sort(fun({A, _}, {B, _}) -> length(A) >= length(B) end, Env0),
+    case binary:split(Bin, <<"$">>, [global]) of
+        [_] ->
+            Bin;
+        [First | Rest] ->
+            iolist_to_binary([First] ++ [expand_var(B, Env) || B <- Rest])
+    end.
+
+-spec expand_var(binary(), [{string(), string()}]) -> iodata().
+expand_var(Bin, []) ->
+    [<<"$">>, Bin];
+expand_var(Bin, [{Var, Value} | RestEnv]) ->
+    case string:prefix(Bin, Var) of
+        nomatch ->
+            expand_var(Bin, RestEnv);
+        RestBin ->
+            [Value, RestBin]
+    end.
+
+-spec get_env() -> [{string(), string()}].
+-if(?OTP_RELEASE >= 24).
+get_env() ->
+    os:env().
+-else.
+get_env() ->
+    [list_to_tuple(string:split(S, "=")) || S <- os:getenv()].
+-endif.
+
 -if(?OTP_RELEASE >= 23).
 -spec safe_relative_path(
     Dir :: file:name_all(),
@@ -566,4 +607,44 @@ safe_relative_path(Dir, RootDir) ->
     Path :: file:name_all().
 safe_relative_path(Dir, _) ->
     filename:safe_relative_path(Dir).
+-endif.
+
+-ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
+
+expand_var_test_() ->
+    [
+        ?_assertEqual(
+            <<"foobar">>,
+            expand_vars(<<"foo$TEST">>, [{"TEST", "bar"}])
+        ),
+        ?_assertEqual(
+            <<"foobarbar">>,
+            expand_vars(<<"foo$TEST$TEST">>, [{"TEST", "bar"}])
+        ),
+        ?_assertEqual(
+            <<"foobarbaz">>,
+            expand_vars(<<"foo$TEST$TEST2">>, [
+                {"TEST", "bar"},
+                {"TEST2", "baz"}
+            ])
+        ),
+        ?_assertEqual(
+            <<"foo$TES">>,
+            expand_vars(<<"foo$TES">>, [{"TEST", "bar"}])
+        ),
+        ?_assertEqual(
+            <<"foobarBAZ">>,
+            expand_vars(<<"foo$TESTBAZ">>, [{"TEST", "bar"}])
+        ),
+        ?_assertEqual(
+            <<"foobar">>,
+            expand_vars(<<"foobar">>, [{"TEST", "bar"}])
+        ),
+        ?_assertEqual(
+            <<"foo$TEST">>,
+            expand_vars(<<"foo$TEST">>, [])
+        )
+    ].
+
 -endif.
