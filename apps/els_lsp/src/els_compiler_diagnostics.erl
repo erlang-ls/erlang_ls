@@ -99,6 +99,14 @@ compile(Uri) ->
                 diagnostics(Path, ES, ?DIAGNOSTIC_ERROR)
     end.
 
+-ifdef(OTP_RELEASE).
+-if(?OTP_RELEASE =< 23).
+%% Invalid spec in eep:open/1 will cause dialyzer to emit a warning
+%% in OTP 23 and earlier.
+-dialyzer([{nowarn_function, parse/1}]).
+-endif.
+-endif.
+
 -spec parse(uri()) -> [els_diagnostics:diagnostic()].
 parse(Uri) ->
     FileName = els_utils:to_list(els_uri:path(Uri)),
@@ -111,7 +119,11 @@ parse(Uri) ->
         end,
     {ok, Epp} = epp:open([
         {name, FileName},
-        {includes, els_config:get(include_paths)}
+        {includes, els_config:get(include_paths)},
+        {macros, [
+            {'MODULE', dummy_module, redefine},
+            {'MODULE_STRING', "dummy_module", redefine}
+        ]}
     ]),
     Res = [
         epp_diagnostic(Document, Anno, Module, Desc)
