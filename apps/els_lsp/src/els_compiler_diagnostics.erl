@@ -111,7 +111,11 @@ parse(Uri) ->
         end,
     {ok, Epp} = epp:open([
         {name, FileName},
-        {includes, els_config:get(include_paths)}
+        {includes, els_config:get(include_paths)},
+        {macros, [
+            {'MODULE', dummy_module, redefine},
+            {'MODULE_STRING', "dummy_module", redefine}
+        ]}
     ]),
     Res = [
         epp_diagnostic(Document, Anno, Module, Desc)

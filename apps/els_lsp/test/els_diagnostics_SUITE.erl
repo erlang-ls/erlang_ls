@@ -32,6 +32,7 @@
     use_long_names_no_domain/1,
     use_long_names_custom_hostname/1,
     epp_with_nonexistent_macro/1,
+    epp_with_builtin_macro/1,
     elvis/1,
     escript/1,
     escript_warnings/1,
@@ -690,11 +691,6 @@ epp_with_nonexistent_macro(_Config) ->
             range => {{2, 0}, {3, 0}}
         },
         #{
-            code => <<"E1507">>,
-            message => <<"undefined macro 'MODULE'">>,
-            range => {{4, 0}, {5, 0}}
-        },
-        #{
             code => <<"E1522">>,
             message => <<
                 "-error(\"including nonexistent_macro.hrl "
@@ -703,6 +699,16 @@ epp_with_nonexistent_macro(_Config) ->
             range => {{6, 0}, {7, 0}}
         }
     ],
+    Warnings = [],
+    Hints = [],
+    els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
+
+-spec epp_with_builtin_macro(config()) -> ok.
+epp_with_builtin_macro(_Config) ->
+    %% This should NOT trigger a diagnostic
+    Path = include_path("builtin_macros.hrl"),
+    Source = <<"Compiler">>,
+    Errors = [],
     Warnings = [],
     Hints = [],
     els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
