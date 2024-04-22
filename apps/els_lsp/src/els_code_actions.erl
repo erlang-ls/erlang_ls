@@ -264,7 +264,7 @@ format_args(Document, Arity, Range) ->
     ],
     case Matches of
         [#{data := #{args := Args0}} | _] ->
-            string:join([A || {_N, A} <- Args0], ", ");
+            string:join([els_arg:name(A) || A <- Args0], ", ");
         [] ->
             string:join(lists:duplicate(Arity, "_"), ", ")
     end.

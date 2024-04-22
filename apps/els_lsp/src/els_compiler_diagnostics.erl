@@ -117,20 +117,30 @@ parse(Uri) ->
             _ ->
                 undefined
         end,
-    {ok, Epp} = epp:open([
+    Options = [
         {name, FileName},
         {includes, els_config:get(include_paths)},
         {macros, [
             {'MODULE', dummy_module, redefine},
             {'MODULE_STRING', "dummy_module", redefine}
         ]}
-    ]),
-    Res = [
-        epp_diagnostic(Document, Anno, Module, Desc)
-     || {error, {Anno, Module, Desc}} <- epp:parse_file(Epp)
     ],
-    epp:close(Epp),
-    Res.
+    case epp:open(Options) of
+        {ok, Epp} ->
+            Res = [
+                epp_diagnostic(Document, Anno, Module, Desc)
+             || {error, {Anno, Module, Desc}} <- epp:parse_file(Epp)
+            ],
+            epp:close(Epp),
+            Res;
+        {error, Reason} ->
+            ?LOG_ERROR(
+                "Failed to open: ~s\n"
+                "Reason: ~p",
+                [FileName, Reason]
+            ),
+            []
+    end.
 
 %% Possible cases to handle
 %% ,{error,{19,erl_parse,["syntax error before: ","'-'"]}}

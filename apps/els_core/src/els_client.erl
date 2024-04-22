@@ -57,7 +57,8 @@
     preparecallhierarchy/3,
     callhierarchy_incomingcalls/1,
     callhierarchy_outgoingcalls/1,
-    get_notifications/0
+    get_notifications/0,
+    inlay_hint/2
 ]).
 
 -export([handle_responses/1]).
@@ -276,6 +277,10 @@ get_notifications() ->
 handle_responses(Responses) ->
     gen_server:cast(?SERVER, {handle_responses, Responses}).
 
+-spec inlay_hint(uri(), range()) -> ok.
+inlay_hint(Uri, Range) ->
+    gen_server:call(?SERVER, {inlay_hint, {Uri, Range}}).
+
 %%==============================================================================
 %% gen_server Callback Functions
 %%==============================================================================
@@ -462,6 +467,7 @@ method_lookup(implementation) -> <<"textDocument/implementation">>;
 method_lookup(folding_range) -> <<"textDocument/foldingRange">>;
 method_lookup(semantic_tokens) -> <<"textDocument/semanticTokens/full">>;
 method_lookup(preparecallhierarchy) -> <<"textDocument/prepareCallHierarchy">>;
+method_lookup(inlay_hint) -> <<"textDocument/inlayHint">>;
 method_lookup(callhierarchy_incomingcalls) -> <<"callHierarchy/incomingCalls">>;
 method_lookup(callhierarchy_outgoingcalls) -> <<"callHierarchy/outgoingCalls">>;
 method_lookup(workspace_symbol) -> <<"workspace/symbol">>;
@@ -476,6 +482,11 @@ request_params({document_symbol, {Uri}}) ->
     #{textDocument => TextDocument};
 request_params({workspace_symbol, {Query}}) ->
     #{query => Query};
+request_params({inlay_hint, {Uri, Range}}) ->
+    #{
+        textDocument => #{uri => Uri},
+        range => Range
+    };
 request_params({workspace_executecommand, {Command, Args}}) ->
     #{
         command => Command,

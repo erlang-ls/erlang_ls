@@ -42,11 +42,7 @@ run_lenses_job(Uri) ->
             end,
         entries => [Document],
         title => <<"Lenses">>,
-        on_complete =>
-            fun(Lenses) ->
-                els_server ! {result, Lenses, self()},
-                ok
-            end
+        on_complete => fun els_server:register_result/1
     },
     {ok, Pid} = els_background_job:new(Config),
     Pid.

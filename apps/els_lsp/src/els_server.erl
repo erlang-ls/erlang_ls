@@ -29,7 +29,9 @@
     set_io_device/1,
     send_notification/2,
     send_request/2,
-    send_response/2
+    send_response/2,
+    register_result/1,
+    register_diagonstics/2
 ]).
 
 %% Testing
@@ -99,6 +101,16 @@ send_request(Method, Params) ->
 -spec send_response(pid(), any()) -> ok.
 send_response(Job, Result) ->
     gen_server:cast(?SERVER, {response, Job, Result}).
+
+-spec register_result(any()) -> ok.
+register_result(Resp) ->
+    els_server ! {result, Resp, self()},
+    ok.
+
+-spec register_diagonstics([els_diagnostics:diagnostic()], pid()) -> ok.
+register_diagonstics(Diagnostics, Job) ->
+    els_server ! {diagnostics, Diagnostics, Job},
+    ok.
 
 %%==============================================================================
 %% Testing

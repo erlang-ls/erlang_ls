@@ -71,7 +71,17 @@ incoming_calls(Config) ->
                 #{
                     data =>
                         #{
-                            args => [{1, "Arg1"}],
+                            args => [
+                                #{
+                                    index => 1,
+                                    name => "N",
+                                    range => #{
+                                        from => {9, 12},
+                                        to => {9, 13}
+                                    }
+                                }
+                            ],
+
                             wrapping_range => #{
                                 from => {7, 1},
                                 to => {17, 0}
@@ -121,7 +131,16 @@ incoming_calls(Config) ->
                                     #{
                                         data =>
                                             #{
-                                                args => [{1, "Arg1"}],
+                                                args => [
+                                                    #{
+                                                        index => 1,
+                                                        name => "N",
+                                                        range => #{
+                                                            from => {9, 12},
+                                                            to => {9, 13}
+                                                        }
+                                                    }
+                                                ],
                                                 wrapping_range =>
                                                     #{
                                                         from => {7, 1},
@@ -174,7 +193,16 @@ incoming_calls(Config) ->
                                     #{
                                         data =>
                                             #{
-                                                args => [{1, "Arg1"}],
+                                                args => [
+                                                    #{
+                                                        index => 1,
+                                                        name => "N",
+                                                        range => #{
+                                                            from => {9, 12},
+                                                            to => {9, 13}
+                                                        }
+                                                    }
+                                                ],
                                                 wrapping_range =>
                                                     #{
                                                         from => {7, 1},
@@ -232,7 +260,17 @@ incoming_calls(Config) ->
                 ]
         }
     ],
-    [?assert(lists:member(Call, Result)) || Call <- Calls],
+    lists:map(
+        fun(Call) ->
+            case lists:member(Call, Result) of
+                true ->
+                    ct:comment("Call found: ~p", [Call]);
+                false ->
+                    ct:fail("Call not found: ~p", [Call])
+            end
+        end,
+        Calls
+    ),
     ?assertEqual(length(Calls), length(Result)).
 
 -spec outgoing_calls(config()) -> ok.
@@ -245,7 +283,13 @@ outgoing_calls(Config) ->
             poi =>
                 #{
                     data => #{
-                        args => [{1, "Arg1"}],
+                        args => [
+                            #{
+                                index => 1,
+                                name => "N",
+                                range => #{from => {9, 12}, to => {9, 13}}
+                            }
+                        ],
                         wrapping_range => #{
                             from => {7, 1},
                             to => {17, 0}
@@ -292,7 +336,13 @@ outgoing_calls(Config) ->
                     #{
                         data =>
                             #{
-                                args => [{1, "Arg1"}],
+                                args => [
+                                    #{
+                                        index => 1,
+                                        name => "N",
+                                        range => #{from => {9, 12}, to => {9, 13}}
+                                    }
+                                ],
                                 wrapping_range => #{
                                     from => {7, 1},
                                     to => {17, 0}
@@ -340,7 +390,13 @@ outgoing_calls(Config) ->
                     #{
                         data =>
                             #{
-                                args => [{1, "Arg1"}],
+                                args => [
+                                    #{
+                                        index => 1,
+                                        name => "N",
+                                        range => #{from => {9, 12}, to => {9, 13}}
+                                    }
+                                ],
                                 wrapping_range => #{
                                     from => {7, 1},
                                     to => {14, 0}

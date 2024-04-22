@@ -9,6 +9,7 @@
 -export([
     new/1,
     list/0,
+    list_titles/0,
     stop/1,
     stop_all/0
 ]).
@@ -82,6 +83,22 @@ list() ->
             supervisor:which_children(els_background_job_sup)
     ].
 
+%% @doc Return the list of running background jobs
+-spec list_titles() -> [any()].
+list_titles() ->
+    Children = supervisor:which_children(els_background_job_sup),
+    lists:flatmap(
+        fun({_Id, Pid, _Type, _Modules}) ->
+            case catch gen_server:call(Pid, get_title) of
+                {ok, Title} ->
+                    [Title];
+                _ ->
+                    []
+            end
+        end,
+        Children
+    ).
+
 %% @doc Terminate a background job
 -spec stop(pid()) -> ok.
 stop(Pid) ->
@@ -145,6 +162,12 @@ init(#{entries := Entries, title := Title} = Config) ->
 
 -spec handle_call(any(), {pid(), any()}, state()) ->
     {noreply, state()}.
+handle_call(
+    get_title,
+    _From,
+    #{config := #{title := Title}} = State
+) ->
+    {reply, {ok, Title}, State};
 handle_call(_Request, _From, State) ->
     {noreply, State}.
 

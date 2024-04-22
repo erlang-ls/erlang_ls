@@ -107,11 +107,7 @@ run_completion_job(Uri, Line, Character, TriggerKind, TriggerCharacter) ->
         task => fun find_completions/2,
         entries => [{Prefix, TriggerKind, Opts}],
         title => <<"Completion">>,
-        on_complete =>
-            fun(Resp) ->
-                els_server ! {result, Resp, self()},
-                ok
-            end
+        on_complete => fun els_server:register_result/1
     },
     {ok, Pid} = els_background_job:new(Config),
     Pid.
@@ -845,7 +841,7 @@ resolve_definition(Uri, #{kind := 'function', id := {F, A}} = POI, ItemFormat) -
         <<"function">> => F,
         <<"arity">> => A
     },
-    completion_item(POI, Data, ItemFormat);
+    completion_item(POI, Data, ItemFormat, Uri);
 resolve_definition(
     Uri,
     #{kind := 'type_definition', id := {T, A}} = POI,
@@ -856,9 +852,9 @@ resolve_definition(
         <<"type">> => T,
         <<"arity">> => A
     },
-    completion_item(POI, Data, ItemFormat);
-resolve_definition(_Uri, POI, ItemFormat) ->
-    completion_item(POI, ItemFormat).
+    completion_item(POI, Data, ItemFormat, Uri);
+resolve_definition(Uri, POI, ItemFormat) ->
+    completion_item(POI, #{}, ItemFormat, Uri).
 
 -spec exported_definitions(module(), els_poi:poi_kind(), item_format()) -> [map()].
 exported_definitions(Module, any, ItemFormat) ->
@@ -1102,8 +1098,8 @@ bifs(define, ItemFormat) ->
         {'FUNCTION_NAME', none},
         {'FUNCTION_ARITY', none},
         {'OTP_RELEASE', none},
-        {{'FEATURE_AVAILABLE', 1}, [{1, "Feature"}]},
-        {{'FEATURE_ENABLED', 1}, [{1, "Feature"}]}
+        {{'FEATURE_AVAILABLE', 1}, [#{index => 1, name => "Feature"}]},
+        {{'FEATURE_ENABLED', 1}, [#{index => 1, name => "Feature"}]}
     ],
     Range = #{from => {0, 0}, to => {0, 0}},
     POIs = [
@@ -1117,9 +1113,12 @@ bifs(define, ItemFormat) ->
     ],
     [completion_item(X, ItemFormat) || X <- POIs].
 
--spec generate_arguments(string(), integer()) -> [{integer(), string()}].
+-spec generate_arguments(string(), integer()) -> els_parser:args().
 generate_arguments(Prefix, Arity) ->
-    [{N, Prefix ++ integer_to_list(N)} || N <- lists:seq(1, Arity)].
+    [
+        #{index => N, name => Prefix ++ integer_to_list(N)}
+     || N <- lists:seq(1, Arity)
+    ].
 
 %%==============================================================================
 %% Filter by prefix
@@ -1142,14 +1141,14 @@ filter_by_prefix(Prefix, List, ToBinary, ItemFun) ->
 %%==============================================================================
 -spec completion_item(els_poi:poi(), item_format()) -> map().
 completion_item(POI, ItemFormat) ->
-    completion_item(POI, #{}, ItemFormat).
+    completion_item(POI, #{}, ItemFormat, undefined).
 
--spec completion_item(els_poi:poi(), map(), item_format()) -> map().
-completion_item(#{kind := Kind, id := {F, A}, data := POIData}, Data, args) when
+-spec completion_item(els_poi:poi(), map(), item_format(), uri() | undefined) -> map().
+completion_item(#{kind := Kind, id := {F, A}} = POI, Data, args, Uri) when
     Kind =:= function;
     Kind =:= type_definition
 ->
-    ArgsNames = maps:get(args, POIData),
+    Args = args(POI, Uri),
     Label = io_lib:format("~p/~p", [F, A]),
     SnippetSupport = snippet_support(),
     Format =
@@ -1160,11 +1159,11 @@ completion_item(#{kind := Kind, id := {F, A}, data := POIData}, Data, args) when
     #{
         label => els_utils:to_binary(Label),
         kind => completion_item_kind(Kind),
-        insertText => format_function(F, ArgsNames, SnippetSupport),
+        insertText => format_function(F, Args, SnippetSupport, Kind),
         insertTextFormat => Format,
         data => Data
     };
-completion_item(#{kind := Kind, id := {F, A}}, Data, no_args) when
+completion_item(#{kind := Kind, id := {F, A}}, Data, no_args, _Uri) when
     Kind =:= function;
     Kind =:= type_definition
 ->
@@ -1176,7 +1175,7 @@ completion_item(#{kind := Kind, id := {F, A}}, Data, no_args) when
         insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT,
         data => Data
     };
-completion_item(#{kind := Kind, id := {F, A}}, Data, arity_only) when
+completion_item(#{kind := Kind, id := {F, A}}, Data, arity_only, _Uri) when
     Kind =:= function;
     Kind =:= type_definition
 ->
@@ -1187,13 +1186,13 @@ completion_item(#{kind := Kind, id := {F, A}}, Data, arity_only) when
         insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT,
         data => Data
     };
-completion_item(#{kind := Kind = record, id := Name}, Data, _) ->
+completion_item(#{kind := Kind = record, id := Name}, Data, _, _Uri) ->
     #{
         label => atom_to_label(Name),
         kind => completion_item_kind(Kind),
         data => Data
     };
-completion_item(#{kind := Kind = define, id := Name, data := Info}, Data, _) ->
+completion_item(#{kind := Kind = define, id := Name, data := Info}, Data, _, _Uri) ->
     #{args := ArgNames} = Info,
     SnippetSupport = snippet_support(),
     Format =
@@ -1208,6 +1207,30 @@ completion_item(#{kind := Kind = define, id := Name, data := Info}, Data, _) ->
         insertTextFormat => Format,
         data => Data
     }.
+
+-spec args(els_poi:poi(), uri()) -> els_parser:args().
+args(#{kind := type_definition, data := POIData}, _Uri) ->
+    maps:get(args, POIData);
+args(#{kind := _Kind, data := POIData}, _Uri = undefined) ->
+    maps:get(args, POIData);
+args(#{kind := function, data := POIData, id := Id}, Uri) ->
+    %% Try to fetch args from -spec
+    {ok, [Document]} = els_dt_document:lookup(Uri),
+    POIs = els_dt_document:pois(Document, [spec]),
+    case [P || #{id := SpecId} = P <- POIs, SpecId == Id] of
+        [#{data := #{args := SpecArgs}} | _] when SpecArgs /= [] ->
+            merge_args(SpecArgs, maps:get(args, POIData));
+        _ ->
+            maps:get(args, POIData)
+    end.
+
+-spec merge_args(els_parser:args(), els_parser:args()) -> els_parser:args().
+merge_args([], []) ->
+    [];
+merge_args([#{name := undefined} | T1], [Arg | T2]) ->
+    [Arg | merge_args(T1, T2)];
+merge_args([Arg | T1], [_ | T2]) ->
+    [Arg | merge_args(T1, T2)].
 
 -spec features() -> items().
 features() ->
@@ -1230,32 +1253,53 @@ macro_label({Name, Arity}) ->
 macro_label(Name) ->
     atom_to_binary(Name, utf8).
 
--spec format_function(atom(), [{integer(), string()}], boolean()) -> binary().
-format_function(Name, Args, SnippetSupport) ->
-    format_args(atom_to_label(Name), Args, SnippetSupport).
+-spec format_function(atom(), els_parser:args(), boolean(), els_poi:poi_kind()) -> binary().
+format_function(Name, Args, SnippetSupport, Kind) ->
+    format_args(atom_to_label(Name), Args, SnippetSupport, Kind).
 
 -spec format_macro(
     atom() | {atom(), non_neg_integer()},
-    [{integer(), string()}],
+    els_parser:args(),
     boolean()
 ) -> binary().
 format_macro({Name0, _Arity}, Args, SnippetSupport) ->
     Name = atom_to_binary(Name0, utf8),
-    format_args(Name, Args, SnippetSupport);
+    format_args(Name, Args, SnippetSupport, define);
 format_macro(Name, none, _SnippetSupport) ->
     atom_to_binary(Name, utf8).
 
--spec format_args(binary(), [{integer(), string()}], boolean()) -> binary().
-format_args(Name, Args0, SnippetSupport) ->
+-spec format_args(
+    binary(),
+    els_parser:args(),
+    boolean(),
+    els_poi:poi_kind()
+) -> binary().
+format_args(Name, Args0, SnippetSupport, Kind) ->
     Args =
         case SnippetSupport of
             false ->
                 [];
             true ->
-                ArgList = [["${", integer_to_list(N), ":", A, "}"] || {N, A} <- Args0],
+                ArgList = [format_arg(Arg, Kind) || Arg <- Args0],
                 ["(", string:join(ArgList, ", "), ")"]
         end,
     els_utils:to_binary([Name | Args]).
+
+-spec format_arg(els_arg:arg(), els_poi:poi_kind()) -> iolist().
+format_arg(Arg, Kind) ->
+    [
+        "${",
+        els_arg:index(Arg),
+        ":",
+        els_arg:name(prefix(Kind), Arg),
+        "}"
+    ].
+
+-spec prefix(els_poi:poi_kind()) -> string().
+prefix(type_definition) ->
+    "Type";
+prefix(_) ->
+    "Arg".
 
 -spec snippet_support() -> boolean().
 snippet_support() ->

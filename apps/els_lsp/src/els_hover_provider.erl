@@ -47,11 +47,7 @@ run_hover_job(Uri, Line, Character) ->
         task => fun get_docs/2,
         entries => [{Uri, POIs}],
         title => <<"Hover">>,
-        on_complete =>
-            fun(HoverResp) ->
-                els_server ! {result, HoverResp, self()},
-                ok
-            end
+        on_complete => fun els_server:register_result/1
     },
     {ok, Pid} = els_background_job:new(Config),
     Pid.

@@ -18,6 +18,10 @@
     parse_text/1
 ]).
 
+-export_type([args/0]).
+
+-type args() :: [els_arg:arg()].
+
 %%==============================================================================
 %% Includes
 %%==============================================================================
@@ -295,7 +299,14 @@ application(Tree) ->
                 %% Local call
                 false ->
                     Args = erl_syntax:application_arguments(Tree),
-                    [poi(Pos, application, {F, A}, #{args => args_from_subtrees(Args)})]
+                    [
+                        poi(
+                            Pos,
+                            application,
+                            {F, A},
+                            #{args => args_from_subtrees(Args)}
+                        )
+                    ]
             end;
         {{ModType, M}, {FunType, F}, A} ->
             ModFunTree = erl_syntax:application_operator(Tree),
@@ -304,11 +315,13 @@ application(Tree) ->
             ModTree = erl_syntax:module_qualifier_argument(ModFunTree),
             FunPos = erl_syntax:get_pos(FunTree),
             ModPos = erl_syntax:get_pos(ModTree),
+            Args = erl_syntax:application_arguments(Tree),
             Data = #{
                 name_range => els_range:range(FunPos),
                 mod_range => els_range:range(ModPos),
                 fun_is_variable => FunType =:= variable,
-                mod_is_variable => ModType =:= variable
+                mod_is_variable => ModType =:= variable,
+                args => args_from_subtrees(Args)
             },
             [poi(Pos, application, {M, F, A}, Data)] ++
                 [poi(ModPos, variable, M) || ModType =:= variable] ++
@@ -318,9 +331,12 @@ application(Tree) ->
             Pos = erl_syntax:get_pos(ModFunTree),
             FunTree = erl_syntax:module_qualifier_body(ModFunTree),
             ModTree = erl_syntax:module_qualifier_argument(ModFunTree),
+            Args = erl_syntax:application_arguments(Tree),
+
             Data = #{
                 name_range => els_range:range(erl_syntax:get_pos(FunTree)),
-                mod_range => els_range:range(erl_syntax:get_pos(ModTree))
+                mod_range => els_range:range(erl_syntax:get_pos(ModTree)),
+                args => args_from_subtrees(Args)
             },
             [poi(Pos, application, MFA, Data)]
     end.
@@ -475,7 +491,7 @@ attribute(Tree) ->
                             Id,
                             #{
                                 name_range => els_range:range(erl_syntax:get_pos(Type)),
-                                args => type_args(TypeArgs)
+                                args => args_from_subtrees(TypeArgs)
                             }
                         )
                     ];
@@ -499,7 +515,8 @@ attribute(Tree) ->
                     []
             end;
         {spec, [ArgTuple]} ->
-            [FATree | _] = erl_syntax:tuple_elements(ArgTuple),
+            [FATree, SpecTree] = erl_syntax:tuple_elements(ArgTuple),
+            Args = get_spec_args(SpecTree),
             case spec_function_name(FATree) of
                 {F, A} ->
                     [FTree, _] = erl_syntax:tuple_elements(FATree),
@@ -508,7 +525,10 @@ attribute(Tree) ->
                             Pos,
                             spec,
                             {F, A},
-                            #{name_range => els_range:range(erl_syntax:get_pos(FTree))}
+                            #{
+                                args => Args,
+                                name_range => els_range:range(erl_syntax:get_pos(FTree))
+                            }
                         )
                     ];
                 undefined ->
@@ -525,7 +545,23 @@ attribute(Tree) ->
         _ ->
             []
     catch
-        throw:syntax_error ->
+        throw:syntax_error:St ->
+            ?LOG_INFO("Syntax error: ~p", [St]),
+            []
+    end.
+
+-spec get_spec_args(tree()) -> args().
+get_spec_args(Tree) ->
+    %% Just fetching from the first spec clause for simplicity
+    [SpecArg | _] = erl_syntax:list_elements(Tree),
+    case erl_syntax:type(SpecArg) of
+        constrained_function_type ->
+            %% too complicated to handle now
+            [];
+        function_type ->
+            TypeArgs = erl_syntax:function_type_arguments(SpecArg),
+            args_from_subtrees(TypeArgs);
+        _OtherType ->
             []
     end.
 
@@ -640,16 +676,6 @@ spec_function_name(FATree) ->
             undefined
     end.
 
--spec type_args([tree()]) -> [{integer(), string()}].
-type_args(Args) ->
-    [
-        case erl_syntax:type(T) of
-            variable -> {N, erl_syntax:variable_literal(T)};
-            _ -> {N, "Type" ++ integer_to_list(N)}
-        end
-     || {N, T} <- lists:zip(lists:seq(1, length(Args)), Args)
-    ].
-
 -spec function(tree()) -> [els_poi:poi()].
 function(Tree) ->
     FunName = erl_syntax:function_name(Tree),
@@ -695,53 +721,65 @@ function(Tree) ->
     ]).
 
 -spec analyze_function(tree(), [tree()]) ->
-    {atom(), arity(), [{integer(), string()}]}.
-analyze_function(FunName, Clauses) ->
+    {atom(), arity(), args()}.
+analyze_function(FunName, Clauses0) ->
     F =
         case is_atom_node(FunName) of
             {true, FAtom} -> FAtom;
             false -> throw(syntax_error)
         end,
 
-    case lists:dropwhile(fun(T) -> erl_syntax:type(T) =/= clause end, Clauses) of
-        [Clause | _] ->
-            {Arity, Args} = function_args(Clause),
-            {F, Arity, Args};
+    case lists:dropwhile(fun(T) -> erl_syntax:type(T) =/= clause end, Clauses0) of
         [] ->
-            throw(syntax_error)
+            throw(syntax_error);
+        Clauses ->
+            %% Extract args from clauses and choose the best
+            FunArgs = [function_args(Clause) || Clause <- Clauses],
+            SortedFunArgs = lists:sort(
+                fun({_, A1}, {_, A2}) ->
+                    %% Sort by count of undefined names
+                    A1Count = lists:sum([1 || #{name := undefined} <- A1]),
+                    A2Count = lists:sum([1 || #{name := undefined} <- A2]),
+                    A1Count =< A2Count
+                end,
+                FunArgs
+            ),
+            %% The first one in the list should have the least undefined names.
+            %% So it should be the "best".
+            {Arity, Args} = hd(SortedFunArgs),
+            {F, Arity, Args}
     end.
 
--spec function_args(tree()) -> {arity(), [{integer(), string()}]}.
+-spec function_args(tree()) -> {arity(), args()}.
 function_args(Clause) ->
     Patterns = erl_syntax:clause_patterns(Clause),
     Arity = length(Patterns),
     Args = args_from_subtrees(Patterns),
     {Arity, Args}.
 
--spec args_from_subtrees([tree()]) -> [{integer(), string()}].
+-spec args_from_subtrees([tree()]) -> args().
 args_from_subtrees(Trees) ->
     Arity = length(Trees),
     [
-        case extract_variable(T) of
-            {true, Variable} ->
-                {N, Variable};
-            false ->
-                {N, "Arg" ++ integer_to_list(N)}
-        end
+        #{
+            index => N,
+            name => extract_variable(T),
+            range => els_range:range(erl_syntax:get_pos(T))
+        }
      || {N, T} <- lists:zip(lists:seq(1, Arity), Trees)
     ].
 
--spec extract_variable(tree()) -> {true, string()} | false.
+-spec extract_variable(tree()) -> string() | undefined.
 extract_variable(T) ->
     case erl_syntax:type(T) of
         %% TODO: Handle literals
         variable ->
-            {true, erl_syntax:variable_literal(T)};
+            erl_syntax:variable_literal(T);
         match_expr ->
             Body = erl_syntax:match_expr_body(T),
             Pattern = erl_syntax:match_expr_pattern(T),
             case {extract_variable(Pattern), extract_variable(Body)} of
-                {false, Result} ->
+                {undefined, Result} ->
                     Result;
                 {Result, _} ->
                     Result
@@ -752,12 +790,20 @@ extract_variable(T) ->
                 atom ->
                     NameAtom = erl_syntax:atom_value(RecordNode),
                     NameBin = els_utils:camel_case(atom_to_binary(NameAtom, utf8)),
-                    {true, unicode:characters_to_list(NameBin)};
+                    unicode:characters_to_list(NameBin);
                 _ ->
-                    false
+                    undefined
+            end;
+        annotated_type ->
+            TypeName = erl_syntax:annotated_type_name(T),
+            case erl_syntax:type(TypeName) of
+                variable ->
+                    erl_syntax:variable_literal(TypeName);
+                _ ->
+                    undefined
             end;
         _Type ->
-            false
+            undefined
     end.
 
 -spec implicit_fun(tree()) -> [els_poi:poi()].
@@ -1057,7 +1103,7 @@ define_name(Tree) ->
             '_'
     end.
 
--spec define_args(tree()) -> none | [{integer(), string()}].
+-spec define_args(tree()) -> none | args().
 define_args(Define) ->
     case erl_syntax:type(Define) of
         application ->

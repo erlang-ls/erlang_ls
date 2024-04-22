@@ -171,7 +171,7 @@ signature_item(Module, #{data := #{args := Args}, id := {Function, Arity}}) ->
     #{
         documentation => els_markup_content:new(DocEntries),
         label => label(Function, Args),
-        parameters => [#{label => els_utils:to_binary(Name)} || {_Index, Name} <- Args]
+        parameters => [#{label => els_utils:to_binary(els_arg:name(Arg))} || Arg <- Args]
     }.
 
 -spec exported_function_pois(atom()) -> [els_poi:poi()].
@@ -196,9 +196,9 @@ exported_function_pois(Module) ->
             []
     end.
 
--spec label(atom(), [tuple()]) -> binary().
+-spec label(atom(), [els_arg:arg()]) -> binary().
 label(Function, Args0) ->
-    ArgList = ["(", string:join([Name || {_Index, Name} <- Args0], ", "), ")"],
+    ArgList = ["(", string:join([els_arg:name(Arg) || Arg <- Args0], ", "), ")"],
     els_utils:to_binary([atom_to_binary(Function, utf8) | ArgList]).
 
 -spec index_where(Predicate, list(), Default) -> non_neg_integer() | Default when
