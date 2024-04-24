@@ -471,6 +471,7 @@ attributes(Document) ->
         snippet(attribute_include),
         snippet(attribute_include_lib),
         snippet(attribute_on_load),
+        snippet(attribute_nifs),
         snippet(attribute_opaque),
         snippet(attribute_record),
         snippet(attribute_type),
@@ -599,6 +600,11 @@ snippet(attribute_on_load) ->
     snippet(
         <<"-on_load().">>,
         <<"on_load(${1:Function}).">>
+    );
+snippet(attribute_nifs) ->
+    snippet(
+        <<"-nifs().">>,
+        <<"nifs([${1:}]).">>
     );
 snippet(attribute_export_type) ->
     snippet(<<"-export_type().">>, <<"export_type([${1:}]).">>);
