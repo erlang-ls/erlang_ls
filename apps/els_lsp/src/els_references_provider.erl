@@ -83,7 +83,8 @@ find_references(Uri, #{
     Kind =:= implicit_fun;
     Kind =:= function;
     Kind =:= export_entry;
-    Kind =:= export_type_entry
+    Kind =:= export_type_entry;
+    Kind =:= nifs_entry
 ->
     Key =
         case Id of

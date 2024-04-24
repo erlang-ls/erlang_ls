@@ -217,7 +217,8 @@ ensure_dot(Tokens) ->
 -spec find_attribute_tokens([erlfmt_scan:token()]) -> [els_poi:poi()].
 find_attribute_tokens([{'-', Anno}, {atom, _, Name} | [_ | _] = Rest]) when
     Name =:= export;
-    Name =:= export_type
+    Name =:= export_type;
+    Name =:= nifs
 ->
     From = erlfmt_scan:get_anno(location, Anno),
     To = erlfmt_scan:get_anno(end_location, lists:last(Rest)),
@@ -424,6 +425,13 @@ attribute(Tree) ->
             AttrName =:= export_type
         ->
             find_export_pois(Tree, AttrName, Arg);
+        {nifs, [Arg]} ->
+            Nifs = erl_syntax:list_elements(Arg),
+            NifsEntries = find_nifs_entry_pois(Nifs),
+            [
+                poi(erl_syntax:get_pos(Tree), nifs, get_start_location(Tree))
+                | NifsEntries
+            ];
         {import, [ModTree, ImportList]} ->
             case is_atom_node(ModTree) of
                 {true, _} ->
@@ -606,6 +614,27 @@ find_export_entry_pois(EntryPoiKind, Exports) ->
                     []
             end
          || FATree <- Exports
+        ]
+    ).
+
+-spec find_nifs_entry_pois([tree()]) ->
+    [els_poi:poi()].
+find_nifs_entry_pois(Nifs) ->
+    lists:flatten(
+        [
+            case get_name_arity(FATree) of
+                {F, A} ->
+                    FTree = erl_syntax:arity_qualifier_body(FATree),
+                    poi(
+                        erl_syntax:get_pos(FATree),
+                        nifs_entry,
+                        {F, A},
+                        #{name_range => els_range:range(erl_syntax:get_pos(FTree))}
+                    );
+                false ->
+                    []
+            end
+         || FATree <- Nifs
         ]
     ).
 

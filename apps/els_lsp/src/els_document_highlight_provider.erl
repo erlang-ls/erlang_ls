@@ -110,7 +110,8 @@ kind_groups() ->
             application,
             implicit_fun,
             function,
-            export_entry
+            export_entry,
+            nifs_entry
         ],
         %% record
         [
