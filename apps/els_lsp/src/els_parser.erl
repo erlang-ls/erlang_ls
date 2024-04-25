@@ -831,9 +831,36 @@ implicit_fun(Tree) ->
             throw:syntax_error ->
                 undefined
         end,
+
     case FunSpec of
         undefined ->
-            [];
+            NameTree = erl_syntax:implicit_fun_name(Tree),
+            case try_analyze_implicit_fun(Tree) of
+                {{ModType, Mod}, {FunType, Function}, Arity} ->
+                    ModTree = erl_syntax:module_qualifier_argument(NameTree),
+                    FunTree = erl_syntax:arity_qualifier_body(
+                        erl_syntax:module_qualifier_body(NameTree)
+                    ),
+                    Data = #{
+                        name_range => els_range:range(erl_syntax:get_pos(FunTree)),
+                        mod_range => els_range:range(erl_syntax:get_pos(ModTree)),
+                        mod_is_variable => ModType =:= variable,
+                        fun_is_variable => FunType =:= variable
+                    },
+                    [poi(erl_syntax:get_pos(Tree), implicit_fun, {Mod, Function, Arity}, Data)];
+                {Function, Arity} ->
+                    ModTree = erl_syntax:module_qualifier_argument(NameTree),
+                    FunTree = erl_syntax:arity_qualifier_body(
+                        erl_syntax:module_qualifier_body(NameTree)
+                    ),
+                    Data = #{
+                        name_range => els_range:range(erl_syntax:get_pos(FunTree)),
+                        mod_range => els_range:range(erl_syntax:get_pos(ModTree))
+                    },
+                    [poi(erl_syntax:get_pos(Tree), implicit_fun, {Function, Arity}, Data)];
+                _ ->
+                    []
+            end;
         _ ->
             NameTree = erl_syntax:implicit_fun_name(Tree),
             Data =
@@ -852,6 +879,44 @@ implicit_fun(Tree) ->
                         #{name_range => els_range:range(erl_syntax:get_pos(FunTree))}
                 end,
             [poi(erl_syntax:get_pos(Tree), implicit_fun, FunSpec, Data)]
+    end.
+
+-spec try_analyze_implicit_fun(tree()) ->
+    {{atom(), atom()}, {atom(), atom()}, arity()}
+    | {atom(), arity()}
+    | undefined.
+try_analyze_implicit_fun(Tree) ->
+    FunName = erl_syntax:implicit_fun_name(Tree),
+    ModQBody = erl_syntax:module_qualifier_body(FunName),
+    ModQArg = erl_syntax:module_qualifier_argument(FunName),
+    case erl_syntax:type(ModQBody) of
+        arity_qualifier ->
+            AqBody = erl_syntax:arity_qualifier_body(ModQBody),
+            AqArg = erl_syntax:arity_qualifier_argument(ModQBody),
+            case {erl_syntax:type(ModQArg), erl_syntax:type(AqBody), erl_syntax:type(AqArg)} of
+                {macro, atom, integer} ->
+                    M = erl_syntax:variable_name(erl_syntax:macro_name(ModQArg)),
+                    F = erl_syntax:atom_value(AqBody),
+                    A = erl_syntax:integer_value(AqArg),
+                    case M of
+                        'MODULE' ->
+                            {F, A};
+                        _ ->
+                            undefined
+                    end;
+                {ModType, FunType, integer} when
+                    ModType =:= variable orelse ModType =:= atom,
+                    FunType =:= variable orelse FunType =:= atom
+                ->
+                    M = node_name(ModQArg),
+                    F = node_name(AqBody),
+                    A = erl_syntax:integer_value(AqArg),
+                    {{ModType, M}, {FunType, F}, A};
+                _Types ->
+                    undefined
+            end;
+        _Type ->
+            undefined
     end.
 
 -spec macro(tree()) -> [els_poi:poi()].

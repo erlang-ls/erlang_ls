@@ -46,11 +46,14 @@ find_implementation(Document, Line, Character) ->
 implementation(
     Document,
     #{
-        kind := application,
+        kind := Kind,
         id := {_M, F, A},
         data := #{mod_is_variable := true}
     } = POI
-) ->
+) when
+    Kind =:= application;
+    Kind =:= implicit_fun
+->
     %% Try to handle Mod:function() by assuming it is a behaviour callback.
     implementation(Document, POI#{kind => callback, id => {F, A}});
 implementation(Document, #{kind := application, id := MFA}) ->

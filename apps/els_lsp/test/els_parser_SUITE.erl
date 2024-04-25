@@ -39,7 +39,8 @@
     unicode_clause_pattern/1,
     latin1_source_code/1,
     record_comment/1,
-    pragma_noformat/1
+    pragma_noformat/1,
+    implicit_fun/1
 ]).
 
 %%==============================================================================
@@ -538,6 +539,29 @@ pragma_noformat(_Config) ->
     Text = <<"%% @noformat\nfoo">>,
     ?assertMatch({ok, _}, els_parser:parse(Text)),
     ?assertMatch({ok, _}, els_parser:parse_text(Text)).
+
+implicit_fun(_Config) ->
+    ?assertMatch(
+        [#{id := {foo, 0}}],
+        parse_find_pois(<<"fun foo/0">>, implicit_fun)
+    ),
+    ?assertMatch(
+        [#{id := {foo, foo, 0}}],
+        parse_find_pois(<<"fun foo:foo/0">>, implicit_fun)
+    ),
+    ?assertMatch(
+        [#{id := {'Var', foo, 0}, data := #{mod_is_variable := true}}],
+        parse_find_pois(<<"fun Var:foo/0">>, implicit_fun)
+    ),
+    ?assertMatch(
+        [#{id := {foo, 'Var', 0}, data := #{fun_is_variable := true}}],
+        parse_find_pois(<<"fun foo:Var/0">>, implicit_fun)
+    ),
+    ?assertMatch(
+        [#{id := {foo, 0}}],
+        parse_find_pois(<<"fun ?MODULE:foo/0">>, implicit_fun)
+    ),
+    ok.
 
 %%==============================================================================
 %% Helper functions
