@@ -24,6 +24,7 @@ options() ->
         <<"show-behaviour-usages">>,
         <<"suggest-spec">>,
         <<"function-references">>,
+        <<"refactor.extract">>,
         <<"add-behaviour-callbacks">>
     ],
     #{
@@ -105,6 +106,14 @@ execute_command(<<"suggest-spec">>, [
                 els_text_edit:edit_replace_text(Uri, NewText, Line - 1, Line)
         },
     els_server:send_request(Method, Params),
+    [];
+execute_command(<<"refactor.extract">>, [
+    #{
+        <<"uri">> := Uri,
+        <<"range">> := Range
+    }
+]) ->
+    ok = extract_function(Uri, Range),
     [];
 execute_command(<<"add-behaviour-callbacks">>, [
     #{
@@ -196,6 +205,137 @@ execute_command(Command, Arguments) ->
             )
     end,
     [].
+
+-spec extract_function(uri(), range()) -> ok.
+extract_function(Uri, Range) ->
+    {ok, [#{text := Text} = Document]} = els_dt_document:lookup(Uri),
+    ExtractRange = extract_range(Document, Range),
+    #{from := {FromL, FromC} = From, to := {ToL, ToC}} = ExtractRange,
+    ExtractString0 = els_text:range(Text, From, {ToL, ToC}),
+    %% Trim whitespace
+    ExtractString = string:trim(ExtractString0, both, " \n\r\t"),
+    %% Trim trailing termination symbol
+    ExtractStringTrimmed = string:trim(ExtractString, trailing, ",.;"),
+    Method = <<"workspace/applyEdit">>,
+    case els_dt_document:wrapping_functions(Document, FromL, FromC) of
+        [WrappingFunPOI | _] when ExtractStringTrimmed /= <<>> ->
+            %% WrappingFunPOI is the function that we are currently in
+            #{
+                data := #{
+                    wrapping_range :=
+                        #{
+                            from := {FunBeginLine, _},
+                            to := {FunEndLine, _}
+                        }
+                }
+            } = WrappingFunPOI,
+            %% Get args needed for the new function
+            Args = get_args(ExtractRange, Document, FromL, FunBeginLine),
+            ArgsBin = unicode:characters_to_binary(string:join(Args, ", ")),
+            FunClause = <<"new_function(", ArgsBin/binary, ")">>,
+            %% Place the new function after the current function
+            EndSymbol = end_symbol(ExtractString),
+            NewRange = els_protocol:range(
+                #{from => {FunEndLine + 1, 1}, to => {FunEndLine + 1, 1}}
+            ),
+            FunBody = unicode:characters_to_list(
+                <<FunClause/binary, " ->\n", ExtractStringTrimmed/binary, ".">>
+            ),
+            {ok, FunBodyFormatted, _} = erlfmt:format_string(FunBody, []),
+            NewFun = unicode:characters_to_binary(FunBodyFormatted ++ "\n"),
+            Changes = [
+                #{
+                    newText => <<FunClause/binary, EndSymbol/binary>>,
+                    range => els_protocol:range(ExtractRange)
+                },
+                #{
+                    newText => NewFun,
+                    range => NewRange
+                }
+            ],
+            Params = #{edit => #{changes => #{Uri => Changes}}},
+            els_server:send_request(Method, Params);
+        _ ->
+            ?LOG_INFO("No wrapping function found"),
+            ok
+    end.
+
+-spec end_symbol(binary()) -> binary().
+end_symbol(ExtractString) ->
+    case binary:last(ExtractString) of
+        $. -> <<".">>;
+        $, -> <<",">>;
+        $; -> <<";">>;
+        _ -> <<>>
+    end.
+
+%% @doc Find all variables defined in the function before the current.
+%%      If they are used inside the selected range, they need to be
+%%      sent in as arguments to the new function.
+-spec get_args(
+    els_poi:poi_range(),
+    els_dt_document:item(),
+    non_neg_integer(),
+    non_neg_integer()
+) -> [string()].
+get_args(PoiRange, Document, FromL, FunBeginLine) ->
+    %% TODO: Possible improvement. To make this bullet proof we should
+    %% ignore vars defined inside LCs and funs()
+    VarPOIs = els_poi:sort(els_dt_document:pois(Document, [variable])),
+    BeforeRange = #{from => {FunBeginLine, 1}, to => {FromL, 1}},
+    VarsBefore = ids_in_range(BeforeRange, VarPOIs),
+    VarsInside = ids_in_range(PoiRange, VarPOIs),
+    els_utils:uniq([
+        atom_to_list(Id)
+     || Id <- VarsInside,
+        lists:member(Id, VarsBefore)
+    ]).
+
+-spec ids_in_range(els_poi:poi_range(), [els_poi:poi()]) -> [atom()].
+ids_in_range(PoiRange, VarPOIs) ->
+    [
+        Id
+     || #{range := R, id := Id} <- VarPOIs,
+        els_range:in(R, PoiRange)
+    ].
+
+-spec extract_range(els_dt_document:item(), range()) -> els_poi:poi_range().
+extract_range(#{text := Text} = Document, Range) ->
+    PoiRange = els_range:to_poi_range(Range),
+    #{from := {CurrL, CurrC} = From, to := To} = PoiRange,
+    POIs = els_dt_document:get_element_at_pos(Document, CurrL, CurrC),
+    MarkedText = els_text:range(Text, From, To),
+    case is_keyword_expr(MarkedText) of
+        true ->
+            case sort_by_range_size([P || #{kind := keyword_expr} = P <- POIs]) of
+                [] ->
+                    PoiRange;
+                [{_Size, #{range := SmallestRange}} | _] ->
+                    SmallestRange
+            end;
+        false ->
+            PoiRange
+    end.
+
+-spec is_keyword_expr(binary()) -> boolean().
+is_keyword_expr(Text) ->
+    lists:member(Text, [
+        <<"begin">>,
+        <<"case">>,
+        <<"fun">>,
+        <<"if">>,
+        <<"maybe">>,
+        <<"receive">>,
+        <<"try">>
+    ]).
+
+-spec sort_by_range_size(_) -> _.
+sort_by_range_size(POIs) ->
+    lists:sort([{range_size(P), P} || P <- POIs]).
+
+-spec range_size(_) -> _.
+range_size(#{range := #{from := {FromL, FromC}, to := {ToL, ToC}}}) ->
+    {ToL - FromL, ToC - FromC}.
 
 -spec spec_text(binary()) -> binary().
 spec_text(<<"-callback", Rest/binary>>) ->

@@ -141,7 +141,7 @@ query_multiple(Config) ->
 
 -spec query_single(config()) -> ok.
 query_single(Config) ->
-    Query = <<"extra">>,
+    Query = <<"_extra">>,
     ExtraUri = ?config(code_navigation_extra_uri, Config),
     #{result := Result} = els_client:workspace_symbol(Query),
     Expected = [

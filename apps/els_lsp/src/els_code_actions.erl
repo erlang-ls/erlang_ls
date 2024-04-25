@@ -1,5 +1,6 @@
 -module(els_code_actions).
 -export([
+    extract_function/2,
     create_function/4,
     export_function/4,
     fix_module_name/4,
@@ -196,6 +197,59 @@ fix_atom_typo(Uri, Range, _Data, [Atom]) ->
             Range
         )
     ].
+
+-spec extract_function(uri(), range()) -> [map()].
+extract_function(Uri, Range) ->
+    {ok, [Document]} = els_dt_document:lookup(Uri),
+    #{from := From = {Line, Column}, to := To} = els_range:to_poi_range(Range),
+    %% We only want to extract if selection is large enough
+    %% and cursor is inside a function
+    case
+        large_enough_range(From, To) andalso
+            not contains_function_clause(Document, Line) andalso
+            els_dt_document:wrapping_functions(Document, Line, Column) /= []
+    of
+        true ->
+            [
+                #{
+                    title => <<"Extract function">>,
+                    kind => <<"refactor.extract">>,
+                    command => make_extract_function_command(Range, Uri)
+                }
+            ];
+        false ->
+            []
+    end.
+
+-spec make_extract_function_command(range(), uri()) -> map().
+make_extract_function_command(Range, Uri) ->
+    els_command:make_command(
+        <<"Extract function">>,
+        <<"refactor.extract">>,
+        [#{uri => Uri, range => Range}]
+    ).
+
+-spec contains_function_clause(
+    els_dt_document:item(),
+    non_neg_integer()
+) -> boolean().
+contains_function_clause(Document, Line) ->
+    POIs = els_dt_document:get_element_at_pos(Document, Line, 1),
+    lists:any(
+        fun
+            (#{kind := 'function_clause'}) ->
+                true;
+            (_) ->
+                false
+        end,
+        POIs
+    ).
+
+-spec large_enough_range(pos(), pos()) -> boolean().
+large_enough_range({Line, FromC}, {Line, ToC}) when (ToC - FromC) < 2 ->
+    false;
+large_enough_range(_From, _To) ->
+    true.
 
 -spec undefined_callback(uri(), range(), binary(), [binary()]) -> [map()].
 undefined_callback(Uri, _Range, _Data, [_Function, Behaviour]) ->
