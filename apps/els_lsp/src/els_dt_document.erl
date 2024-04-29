@@ -271,7 +271,7 @@ wrapping_functions(Document, Range) ->
 find_candidates(Pattern) ->
     find_candidates(Pattern, '_').
 
--spec find_candidates(atom() | string(), module | header) -> [uri()].
+-spec find_candidates(atom() | string(), module | header | '_') -> [uri()].
 find_candidates(Pattern, Kind) ->
     %% ets:fun2ms(fun(#els_dt_document{source = Source, uri = Uri, words = Words})
     %% when Source =/= otp -> {Uri, Words} end).

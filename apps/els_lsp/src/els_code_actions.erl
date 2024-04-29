@@ -183,7 +183,7 @@ add_include_lib_record(Uri, Range, _Data, [Record]) ->
     Name = binary_to_atom(Record, utf8),
     add_include_file(Uri, Range, 'record', Name, Name).
 
--spec add_include_file(uri(), range(), els_poi:poi_kind(), binary(), els_poi:poi_id()) -> [map()].
+-spec add_include_file(uri(), range(), els_poi:poi_kind(), atom(), els_poi:poi_id()) -> [map()].
 add_include_file(Uri, Range, Kind, Name, Id) ->
     %% TODO: Add support for -include() also
     %% TODO: Doesn't work for OTP headers
