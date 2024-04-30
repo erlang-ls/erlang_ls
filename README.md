@@ -5,18 +5,18 @@
 ![Build](https://github.com/erlang-ls/erlang_ls/workflows/Build/badge.svg)
 [![Coverage Status](https://coveralls.io/repos/github/erlang-ls/erlang_ls/badge.svg?branch=main)](https://coveralls.io/github/erlang-ls/erlang_ls?branch=main)
 
-An Erlang server implementing Microsoft's Language Server Protocol 3.15.
+An Erlang server implementing Microsoft's Language Server Protocol 3.17.
 
 [Documentation](https://erlang-ls.github.io/)
 
 ## Minimum Requirements
 
-* [Erlang OTP 22+](https://github.com/erlang/otp)
+* [Erlang OTP 24+](https://github.com/erlang/otp)
 * [rebar3 3.9.1+](https://github.com/erlang/rebar3)
 
 ## Supported OTP versions
 
-* 23, 24, 25, 26
+* 24, 25, 26
 
 ## Quickstart
 
