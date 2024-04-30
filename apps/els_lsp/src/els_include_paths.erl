@@ -28,7 +28,8 @@ includes(#{uri := Uri}) ->
 
 -spec include_libs() -> [binary()].
 include_libs() ->
-    {ok, Uris} = els_dt_document_index:find_by_kind(header),
+    {ok, Headers} = els_dt_document_index:find_by_kind(header),
+    Uris = [Uri || #{uri := Uri} <- Headers],
     include_libs(Uris).
 
 -spec include_libs([uri()]) -> [binary()].
