@@ -174,10 +174,10 @@ find_completions(
             {ItemFormat, TypeOrFun} =
                 completion_context(Document, Line, Column, Tokens),
             exported_definitions(Module, TypeOrFun, ItemFormat);
-        [{var, _, 'MODULE'}, {'?', 1}, {'fun', _} | _] ->
+        [{var, _, 'MODULE'}, {'?', _}, {'fun', _} | _] ->
             Module = els_uri:module(els_dt_document:uri(Document)),
             exported_definitions(Module, 'function', arity_only);
-        [{var, _, 'MODULE'}, {'?', 1} | _] = Tokens ->
+        [{var, _, 'MODULE'}, {'?', _} | _] = Tokens ->
             Module = els_uri:module(els_dt_document:uri(Document)),
             {ItemFormat, TypeOrFun} =
                 completion_context(Document, Line, Column, Tokens),
