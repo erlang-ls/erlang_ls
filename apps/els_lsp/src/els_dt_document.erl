@@ -38,6 +38,7 @@
     wrapping_functions/2,
     wrapping_functions/3,
     find_candidates/1,
+    find_candidates/2,
     get_words/1
 ]).
 
@@ -268,6 +269,10 @@ wrapping_functions(Document, Range) ->
 
 -spec find_candidates(atom() | string()) -> [uri()].
 find_candidates(Pattern) ->
+    find_candidates(Pattern, '_').
+
+-spec find_candidates(atom() | string(), module | header | '_') -> [uri()].
+find_candidates(Pattern, Kind) ->
     %% ets:fun2ms(fun(#els_dt_document{source = Source, uri = Uri, words = Words})
     %% when Source =/= otp -> {Uri, Words} end).
     MS = [
@@ -275,7 +280,7 @@ find_candidates(Pattern) ->
             #els_dt_document{
                 uri = '$1',
                 id = '_',
-                kind = '_',
+                kind = Kind,
                 text = '_',
                 pois = '_',
                 source = '$2',
@@ -319,6 +324,8 @@ tokens_to_words([{string, _Location, String} | Tokens], Words) ->
             tokens_to_words(Tokens, Words)
     end;
 tokens_to_words([{'?', _}, {var, _, Macro} | Tokens], Words) ->
+    tokens_to_words(Tokens, sets:add_element(Macro, Words));
+tokens_to_words([{'-', _}, {atom, _, define}, {'(', _}, {var, _, Macro} | Tokens], Words) ->
     tokens_to_words(Tokens, sets:add_element(Macro, Words));
 tokens_to_words([_ | Tokens], Words) ->
     tokens_to_words(Tokens, Words);
