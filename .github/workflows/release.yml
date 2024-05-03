@@ -103,7 +103,7 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v2
     - name: Install Erlang
-      run: choco install -y erlang --version 26.2.2
+      run: choco install -y erlang --version 24.0
     - name: Install rebar3
       run: choco install -y rebar3 --version 3.22.1
     - name: Compile
