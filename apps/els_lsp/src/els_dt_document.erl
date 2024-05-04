@@ -304,12 +304,12 @@ find_candidates(Pattern, Kind) ->
 get_words(Text) ->
     case erl_scan:string(els_utils:to_list(Text)) of
         {ok, Tokens, _EndLocation} ->
-            tokens_to_words(Tokens, sets:new());
+            tokens_to_words(Tokens, sets:new([{version, 2}]));
         {error, ErrorInfo, ErrorLocation} ->
             ?LOG_WARNING("Errors while get_words [info=~p] [location=~p]", [
                 ErrorInfo, ErrorLocation
             ]),
-            sets:new()
+            sets:new([{version, 2}])
     end.
 
 -spec tokens_to_words([erl_scan:token()], sets:set()) -> sets:set().
