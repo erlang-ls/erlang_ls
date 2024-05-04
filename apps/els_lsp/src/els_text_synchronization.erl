@@ -55,7 +55,7 @@ did_open(Params) ->
     } = Params,
     Document = els_dt_document:new(Uri, Text, _Source = app, Version),
     els_dt_document:insert(Document),
-    els_indexing:deep_index(Document),
+    els_indexing:deep_index(Document, _UpdateWords = false),
     ok.
 
 -spec did_save(map()) -> ok.
@@ -129,7 +129,7 @@ reload_from_disk(Uri) ->
 background_index(#{uri := Uri} = Document) ->
     Config = #{
         task => fun(Doc, _State) ->
-            els_indexing:deep_index(Doc),
+            els_indexing:deep_index(Doc, _UpdateWords = true),
             ok
         end,
         entries => [Document],
