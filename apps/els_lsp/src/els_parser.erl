@@ -569,12 +569,16 @@ attribute(Tree) ->
 get_spec_args(Tree) ->
     %% Just fetching from the first spec clause for simplicity
     [SpecArg | _] = erl_syntax:list_elements(Tree),
-    case erl_syntax:type(SpecArg) of
+    do_get_spec_args(SpecArg).
+
+-spec do_get_spec_args(tree()) -> args().
+do_get_spec_args(Tree) ->
+    case erl_syntax:type(Tree) of
         constrained_function_type ->
-            %% too complicated to handle now
-            [];
+            Body = erl_syntax:constrained_function_type_body(Tree),
+            do_get_spec_args(Body);
         function_type ->
-            TypeArgs = erl_syntax:function_type_arguments(SpecArg),
+            TypeArgs = erl_syntax:function_type_arguments(Tree),
             args_from_subtrees(TypeArgs);
         _OtherType ->
             []
