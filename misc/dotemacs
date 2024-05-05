@@ -41,7 +41,7 @@
 (setq lsp-log-io t)
 
 ;; Show line and column numbers
-(add-hook 'erlang-mode-hook 'linum-mode)
+(add-hook 'erlang-mode-hook #'display-line-numbers-mode)
 (add-hook 'erlang-mode-hook 'column-number-mode)
 
 ;; Enable and configure the LSP UI Package
