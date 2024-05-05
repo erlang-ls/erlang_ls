@@ -40,7 +40,8 @@
     latin1_source_code/1,
     record_comment/1,
     pragma_noformat/1,
-    implicit_fun/1
+    implicit_fun/1,
+    spec_args/1
 ]).
 
 %%==============================================================================
@@ -563,10 +564,25 @@ implicit_fun(_Config) ->
     ),
     ok.
 
+-spec spec_args(config()) -> ok.
+spec_args(_Config) ->
+    ?assertMatch(
+        [#{id := {f, 1}, data := #{args := [#{name := "Foo"}]}}],
+        parse_find_pois("-spec f(Foo :: any()) -> any()).", spec)
+    ),
+    ?assertMatch(
+        [#{id := {f, 1}, data := #{args := [#{name := "Foo"}]}}],
+        parse_find_pois("-spec f(Foo) -> any() when Foo :: any().", spec)
+    ),
+    ok.
+
 %%==============================================================================
 %% Helper functions
 %%==============================================================================
--spec parse_find_pois(string(), els_poi:poi_kind()) -> [els_poi:poi()].
+-spec parse_find_pois(string() | binary(), els_poi:poi_kind()) ->
+    [els_poi:poi()].
+parse_find_pois(Text, Kind) when is_list(Text) ->
+    parse_find_pois(unicode:characters_to_binary(Text), Kind);
 parse_find_pois(Text, Kind) ->
     {ok, POIs} = els_parser:parse(Text),
     SortedPOIs = els_poi:sort(POIs),
