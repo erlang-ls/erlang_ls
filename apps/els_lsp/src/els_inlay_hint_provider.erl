@@ -54,17 +54,37 @@ get_inlay_hints({Uri, Range}, _) ->
     %% Wait for indexing job to finish, so that we have the updated document
     wait_for_indexing_job(Uri),
     %% Read the document to get the latest version
+    TS = erlang:timestamp(),
     {ok, [Document]} = els_dt_document:lookup(Uri),
     %% Fetch all application POIs that are in the given range
     AppPOIs = els_dt_document:pois_in_range(Document, [application], Range),
-    [
-        arg_hint(ArgRange, ArgName)
-     || #{data := #{args := CallArgs}} = POI <- AppPOIs,
-        #{index := N, name := Name, range := ArgRange} <- CallArgs,
-        #{data := #{args := DefArgs}} <- [definition(Uri, POI)],
-        ArgName <- [arg_name(N, DefArgs)],
-        should_show_arg_hint(Name, ArgName)
-    ].
+    Res = lists:flatmap(fun(POI) -> arg_hints(Uri, POI) end, AppPOIs),
+    ?LOG_DEBUG(
+        "Inlay hints took ~p ms",
+        [timer:now_diff(erlang:timestamp(), TS) div 1000]
+    ),
+    Res.
+
+-spec arg_hints(uri(), els_poi:poi()) -> [inlay_hint()].
+arg_hints(Uri, #{kind := application, data := #{args := CallArgs}} = POI) ->
+    lists:flatmap(
+        fun(#{index := N, range := ArgRange, name := Name}) ->
+            case els_code_navigation:goto_definition(Uri, POI) of
+                {ok, [{DefUri, DefPOI} | _]} ->
+                    DefArgs = get_args(DefUri, DefPOI),
+                    DefArgName = arg_name(N, DefArgs),
+                    case should_show_arg_hint(Name, DefArgName) of
+                        true ->
+                            [arg_hint(ArgRange, DefArgName)];
+                        false ->
+                            []
+                    end;
+                {error, _} ->
+                    []
+            end
+        end,
+        CallArgs
+    ).
 
 -spec arg_hint(els_poi:poi_range(), string()) -> inlay_hint().
 arg_hint(#{from := {FromL, FromC}}, ArgName) ->
@@ -75,18 +95,27 @@ arg_hint(#{from := {FromL, FromC}}, ArgName) ->
         kind => ?INLAY_HINT_KIND_PARAMETER
     }.
 
--spec should_show_arg_hint(string() | undefined, string() | undefined) ->
+-spec should_show_arg_hint(
+    string() | undefined,
+    string() | undefined
+) ->
     boolean().
 should_show_arg_hint(Name, Name) ->
     false;
 should_show_arg_hint(_Name, undefined) ->
     false;
-should_show_arg_hint(_Name, _DefArgName) ->
-    true.
+should_show_arg_hint(undefined, _Name) ->
+    true;
+should_show_arg_hint(Name, DefArgName) ->
+    strip_trailing_digits(Name) /= strip_trailing_digits(DefArgName).
+
+-spec strip_trailing_digits(string()) -> string().
+strip_trailing_digits(String) ->
+    string:trim(String, trailing, "0123456789").
 
 -spec wait_for_indexing_job(uri()) -> ok.
 wait_for_indexing_job(Uri) ->
-    %% Add delay to allowing indexing job to finish
+    %% Add delay to allowing indexing job to start
     timer:sleep(10),
     JobTitles = els_background_job:list_titles(),
     case lists:member(<<"Indexing ", Uri/binary>>, JobTitles) of
@@ -98,22 +127,33 @@ wait_for_indexing_job(Uri) ->
             wait_for_indexing_job(Uri)
     end.
 
--spec arg_name(non_neg_integer(), els_parser:args()) -> string() | undefined.
+-spec arg_name(non_neg_integer(), els_arg:args()) -> string() | undefined.
+arg_name(_N, []) ->
+    undefined;
 arg_name(N, Args) ->
-    #{name := Name0} = lists:nth(N, Args),
-    case Name0 of
-        "_" ++ Name ->
+    case lists:nth(N, Args) of
+        #{name := "_" ++ Name} ->
             Name;
-        Name ->
+        #{name := Name} ->
             Name
     end.
 
--spec definition(uri(), els_poi:poi()) -> els_poi:poi() | error.
-definition(Uri, POI) ->
-    case els_code_navigation:goto_definition(Uri, POI) of
-        {ok, [{_Uri, DefPOI} | _]} ->
-            DefPOI;
-        Err ->
-            ?LOG_INFO("Error: ~p ~p", [Err, POI]),
-            error
+-spec get_args(uri(), els_poi:poi()) -> els_arg:args().
+get_args(Uri, #{
+    id := {F, A},
+    data := #{args := Args}
+}) ->
+    {ok, Document} = els_utils:lookup_document(Uri),
+    SpecPOIs = els_dt_document:pois(Document, [spec]),
+    SpecMatches = [
+        SpecArgs
+     || #{id := Id, data := #{args := SpecArgs}} <- SpecPOIs,
+        Id == {F, A},
+        SpecArgs /= []
+    ],
+    case SpecMatches of
+        [] ->
+            Args;
+        [SpecArgs | _] ->
+            els_arg:merge_args(SpecArgs, Args)
     end.

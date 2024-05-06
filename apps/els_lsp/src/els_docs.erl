@@ -541,7 +541,7 @@ format_edoc(Desc) when is_map(Desc) ->
     FormattedDoc = els_utils:to_list(docsh_edoc:format_edoc(Doc, #{})),
     [{text, FormattedDoc}].
 
--spec macro_signature(els_poi:poi_id(), els_parser:args()) -> unicode:charlist().
+-spec macro_signature(els_poi:poi_id(), els_arg:args()) -> unicode:charlist().
 macro_signature({Name, _Arity}, Args) ->
     [atom_to_list(Name), "(", lists:join(", ", [els_arg:name(A) || A <- Args]), ")"];
 macro_signature(Name, none) ->

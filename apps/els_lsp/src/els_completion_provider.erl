@@ -1039,10 +1039,10 @@ bif_pois(define) ->
      || {Id, Args} <- Macros
     ].
 
--spec generate_arguments(string(), integer()) -> els_parser:args().
+-spec generate_arguments(string(), integer()) -> els_arg:args().
 generate_arguments(Prefix, Arity) ->
     [
-        #{index => N, name => Prefix ++ integer_to_list(N)}
+        els_arg:new(N, Prefix ++ integer_to_list(N))
      || N <- lists:seq(1, Arity)
     ].
 
@@ -1134,7 +1134,7 @@ completion_item(#{kind := Kind = define, id := Name, data := Info}, Data, _, _Ur
         data => Data
     }.
 
--spec args(els_poi:poi(), uri()) -> els_parser:args().
+-spec args(els_poi:poi(), uri()) -> els_arg:args().
 args(#{kind := type_definition, data := POIData}, _Uri) ->
     maps:get(args, POIData);
 args(#{kind := _Kind, data := POIData}, _Uri = undefined) ->
@@ -1145,18 +1145,10 @@ args(#{kind := function, data := POIData, id := Id}, Uri) ->
     POIs = els_dt_document:pois(Document, [spec]),
     case [P || #{id := SpecId} = P <- POIs, SpecId == Id] of
         [#{data := #{args := SpecArgs}} | _] when SpecArgs /= [] ->
-            merge_args(SpecArgs, maps:get(args, POIData));
+            els_arg:merge_args(SpecArgs, maps:get(args, POIData));
         _ ->
             maps:get(args, POIData)
     end.
-
--spec merge_args(els_parser:args(), els_parser:args()) -> els_parser:args().
-merge_args([], []) ->
-    [];
-merge_args([#{name := undefined} | T1], [Arg | T2]) ->
-    [Arg | merge_args(T1, T2)];
-merge_args([Arg | T1], [_ | T2]) ->
-    [Arg | merge_args(T1, T2)].
 
 -spec features() -> items().
 features() ->
@@ -1179,13 +1171,13 @@ macro_label({Name, Arity}) ->
 macro_label(Name) ->
     atom_to_binary(Name, utf8).
 
--spec format_function(atom(), els_parser:args(), boolean(), els_poi:poi_kind()) -> binary().
+-spec format_function(atom(), els_arg:args(), boolean(), els_poi:poi_kind()) -> binary().
 format_function(Name, Args, SnippetSupport, Kind) ->
     format_args(atom_to_label(Name), Args, SnippetSupport, Kind).
 
 -spec format_macro(
     atom() | {atom(), non_neg_integer()},
-    els_parser:args(),
+    els_arg:args(),
     boolean()
 ) -> binary().
 format_macro({Name0, _Arity}, Args, SnippetSupport) ->
@@ -1196,7 +1188,7 @@ format_macro(Name, none, _SnippetSupport) ->
 
 -spec format_args(
     binary(),
-    els_parser:args(),
+    els_arg:args(),
     boolean(),
     els_poi:poi_kind()
 ) -> binary().
