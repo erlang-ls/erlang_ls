@@ -39,14 +39,16 @@
 -record(els_dt_signatures, {
     mfa :: mfa() | '_' | {atom(), '_', '_'},
     spec :: binary() | '_',
-    version :: version() | '_'
+    version :: version() | '_',
+    args :: els_arg:args() | '_'
 }).
 -type els_dt_signatures() :: #els_dt_signatures{}.
 -type version() :: null | integer().
 -type item() :: #{
     mfa := mfa(),
     spec := binary(),
-    version := version()
+    version := version(),
+    args := els_arg:args()
 }.
 -export_type([item/0]).
 
@@ -69,24 +71,28 @@ opts() ->
 from_item(#{
     mfa := MFA,
     spec := Spec,
-    version := Version
+    version := Version,
+    args := Args
 }) ->
     #els_dt_signatures{
         mfa = MFA,
         spec = Spec,
-        version = Version
+        version = Version,
+        args = Args
     }.
 
 -spec to_item(els_dt_signatures()) -> item().
 to_item(#els_dt_signatures{
     mfa = MFA,
     spec = Spec,
-    version = Version
+    version = Version,
+    args = Args
 }) ->
     #{
         mfa => MFA,
         spec => Spec,
-        version => Version
+        version => Version,
+        args => Args
     }.
 
 -spec insert(item()) -> ok | {error, any()}.

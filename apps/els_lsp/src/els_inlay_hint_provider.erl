@@ -71,7 +71,7 @@ arg_hints(Uri, #{kind := application, data := #{args := CallArgs}} = POI) ->
         fun(#{index := N, range := ArgRange, name := Name}) ->
             case els_code_navigation:goto_definition(Uri, POI) of
                 {ok, [{DefUri, DefPOI} | _]} ->
-                    DefArgs = get_args(DefUri, DefPOI),
+                    DefArgs = els_arg:get_args(DefUri, DefPOI),
                     DefArgName = arg_name(N, DefArgs),
                     case should_show_arg_hint(Name, DefArgName) of
                         true ->
@@ -84,7 +84,9 @@ arg_hints(Uri, #{kind := application, data := #{args := CallArgs}} = POI) ->
             end
         end,
         CallArgs
-    ).
+    );
+arg_hints(_Uri, _POI) ->
+    [].
 
 -spec arg_hint(els_poi:poi_range(), string()) -> inlay_hint().
 arg_hint(#{from := {FromL, FromC}}, ArgName) ->
@@ -136,24 +138,4 @@ arg_name(N, Args) ->
             Name;
         #{name := Name} ->
             Name
-    end.
-
--spec get_args(uri(), els_poi:poi()) -> els_arg:args().
-get_args(Uri, #{
-    id := {F, A},
-    data := #{args := Args}
-}) ->
-    {ok, Document} = els_utils:lookup_document(Uri),
-    SpecPOIs = els_dt_document:pois(Document, [spec]),
-    SpecMatches = [
-        SpecArgs
-     || #{id := Id, data := #{args := SpecArgs}} <- SpecPOIs,
-        Id == {F, A},
-        SpecArgs /= []
-    ],
-    case SpecMatches of
-        [] ->
-            Args;
-        [SpecArgs | _] ->
-            els_arg:merge_args(SpecArgs, Args)
     end.

@@ -1139,16 +1139,8 @@ args(#{kind := type_definition, data := POIData}, _Uri) ->
     maps:get(args, POIData);
 args(#{kind := _Kind, data := POIData}, _Uri = undefined) ->
     maps:get(args, POIData);
-args(#{kind := function, data := POIData, id := Id}, Uri) ->
-    %% Try to fetch args from -spec
-    {ok, [Document]} = els_dt_document:lookup(Uri),
-    POIs = els_dt_document:pois(Document, [spec]),
-    case [P || #{id := SpecId} = P <- POIs, SpecId == Id] of
-        [#{data := #{args := SpecArgs}} | _] when SpecArgs /= [] ->
-            els_arg:merge_args(SpecArgs, maps:get(args, POIData));
-        _ ->
-            maps:get(args, POIData)
-    end.
+args(#{kind := function} = POI, Uri) ->
+    els_arg:get_args(Uri, POI).
 
 -spec features() -> items().
 features() ->
