@@ -574,6 +574,30 @@ spec_args(_Config) ->
         [#{id := {f, 1}, data := #{args := [#{name := "Foo"}]}}],
         parse_find_pois("-spec f(Foo) -> any() when Foo :: any().", spec)
     ),
+    ?assertMatch(
+        [#{id := {f, 1}, data := #{args := [#{name := {type, "Any"}}]}}],
+        parse_find_pois("-spec f(any()) -> any().", spec)
+    ),
+    ?assertMatch(
+        [#{id := {f, 1}, data := #{args := [#{name := {type, "Foo"}}]}}],
+        parse_find_pois("-spec f(foo()) -> any().", spec)
+    ),
+    ?assertMatch(
+        [#{id := {f, 1}, data := #{args := [#{name := {type, "Bar"}}]}}],
+        parse_find_pois("-spec f(foo:bar()) -> any().", spec)
+    ),
+    ?assertMatch(
+        [#{id := {f, 1}, data := #{args := [#{name := {type, "Bars"}}]}}],
+        parse_find_pois("-spec f([foo:bar()]) -> any().", spec)
+    ),
+    ?assertMatch(
+        [#{id := {f, 1}, data := #{args := [#{name := {type, "Foo"}}]}}],
+        parse_find_pois("-spec f(#foo{}) -> any().", spec)
+    ),
+    ?assertMatch(
+        [#{id := {f, 1}, data := #{args := [#{name := {type, "Foos"}}]}}],
+        parse_find_pois("-spec f([#foo{}]) -> any().", spec)
+    ),
     ok.
 
 %%==============================================================================

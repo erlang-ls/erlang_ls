@@ -434,7 +434,7 @@ default_completions(Config) ->
     Uri = ?config(code_navigation_extra_uri, Config),
     Functions = [
         #{
-            insertText => <<"do_3(${1:Arg1}, ${2:Arg2})">>,
+            insertText => <<"do_3(${1:Nat}, ${2:Wot})">>,
             insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
             kind => ?COMPLETION_ITEM_KIND_FUNCTION,
             label => <<"do_3/2">>,
@@ -467,7 +467,7 @@ default_completions(Config) ->
             }
         },
         #{
-            insertText => <<"do_4(${1:Arg1}, ${2:Arg2})">>,
+            insertText => <<"do_4(${1:Nat}, ${2:OpaqueLocal})">>,
             insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
             kind => ?COMPLETION_ITEM_KIND_FUNCTION,
             label => <<"do_4/2">>,

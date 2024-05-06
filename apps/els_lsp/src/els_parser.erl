@@ -18,10 +18,6 @@
     parse_text/1
 ]).
 
--export_type([args/0]).
-
--type args() :: [els_arg:arg()].
-
 %%==============================================================================
 %% Includes
 %%==============================================================================
@@ -565,13 +561,13 @@ attribute(Tree) ->
             []
     end.
 
--spec get_spec_args(tree()) -> args().
+-spec get_spec_args(tree()) -> els_arg:args().
 get_spec_args(Tree) ->
     %% Just fetching from the first spec clause for simplicity
     [SpecArg | _] = erl_syntax:list_elements(Tree),
     do_get_spec_args(SpecArg).
 
--spec do_get_spec_args(tree()) -> args().
+-spec do_get_spec_args(tree()) -> els_arg:args().
 do_get_spec_args(Tree) ->
     case erl_syntax:type(Tree) of
         constrained_function_type ->
@@ -740,7 +736,7 @@ function(Tree) ->
     ]).
 
 -spec analyze_function(tree(), [tree()]) ->
-    {atom(), arity(), args()}.
+    {atom(), arity(), els_arg:args()}.
 analyze_function(FunName, Clauses0) ->
     F =
         case is_atom_node(FunName) of
@@ -769,14 +765,14 @@ analyze_function(FunName, Clauses0) ->
             {F, Arity, Args}
     end.
 
--spec function_args(tree()) -> {arity(), args()}.
+-spec function_args(tree()) -> {arity(), els_arg:args()}.
 function_args(Clause) ->
     Patterns = erl_syntax:clause_patterns(Clause),
     Arity = length(Patterns),
     Args = args_from_subtrees(Patterns),
     {Arity, Args}.
 
--spec args_from_subtrees([tree()]) -> args().
+-spec args_from_subtrees([tree()]) -> els_arg:args().
 args_from_subtrees(Trees) ->
     Arity = length(Trees),
     [
@@ -788,7 +784,8 @@ args_from_subtrees(Trees) ->
      || {N, T} <- lists:zip(lists:seq(1, Arity), Trees)
     ].
 
--spec extract_variable(tree()) -> string() | undefined.
+-spec extract_variable(tree()) ->
+    string() | undefined | {type, string() | undefined}.
 extract_variable(T) ->
     case erl_syntax:type(T) of
         %% TODO: Handle literals
@@ -805,14 +802,7 @@ extract_variable(T) ->
             end;
         record_expr ->
             RecordNode = erl_syntax:record_expr_type(T),
-            case erl_syntax:type(RecordNode) of
-                atom ->
-                    NameAtom = erl_syntax:atom_value(RecordNode),
-                    NameBin = els_utils:camel_case(atom_to_binary(NameAtom, utf8)),
-                    unicode:characters_to_list(NameBin);
-                _ ->
-                    undefined
-            end;
+            atom_to_name(RecordNode);
         annotated_type ->
             TypeName = erl_syntax:annotated_type_name(T),
             case erl_syntax:type(TypeName) of
@@ -821,7 +811,55 @@ extract_variable(T) ->
                 _ ->
                     undefined
             end;
-        _Type ->
+        type_application ->
+            TypeName = erl_syntax:type_application_name(T),
+            case erl_syntax:type(TypeName) of
+                atom ->
+                    {type, atom_to_name(TypeName)};
+                module_qualifier ->
+                    Fun = erl_syntax:module_qualifier_body(TypeName),
+                    {type, atom_to_name(Fun)};
+                _ ->
+                    undefined
+            end;
+        user_type_application ->
+            TypeName = erl_syntax:user_type_application_name(T),
+            {type, atom_to_name(TypeName)};
+        list ->
+            try erl_syntax:list_elements(T) of
+                [H | _] ->
+                    case extract_variable(H) of
+                        undefined ->
+                            undefined;
+                        {type, Name} when is_list(Name) ->
+                            {type, Name ++ "s"};
+                        Name when is_list(Name) ->
+                            Name ++ "s";
+                        Name ->
+                            Name
+                    end;
+                _ ->
+                    undefined
+            catch
+                error:_ ->
+                    undefined
+            end;
+        record_type ->
+            TypeName = erl_syntax:record_type_name(T),
+            {type, atom_to_name(TypeName)};
+        Type ->
+            ?LOG_DEBUG("Unknown type: ~p", [Type]),
+            undefined
+    end.
+
+-spec atom_to_name(tree()) -> string() | undefined.
+atom_to_name(T) ->
+    case erl_syntax:type(T) of
+        atom ->
+            NameAtom = erl_syntax:atom_value(T),
+            NameBin = els_utils:camel_case(atom_to_binary(NameAtom, utf8)),
+            unicode:characters_to_list(NameBin);
+        _ ->
             undefined
     end.
 
@@ -1187,7 +1225,7 @@ define_name(Tree) ->
             '_'
     end.
 
--spec define_args(tree()) -> none | args().
+-spec define_args(tree()) -> none | els_arg:args().
 define_args(Define) ->
     case erl_syntax:type(Define) of
         application ->
