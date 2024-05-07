@@ -58,12 +58,39 @@ get_inlay_hints({Uri, Range}, _) ->
     {ok, [Document]} = els_dt_document:lookup(Uri),
     %% Fetch all application POIs that are in the given range
     AppPOIs = els_dt_document:pois_in_range(Document, [application], Range),
-    Res = lists:flatmap(fun(POI) -> arg_hints(Uri, POI) end, AppPOIs),
+    ArgHints = lists:flatmap(fun(POI) -> arg_hints(Uri, POI) end, AppPOIs),
+
+    %% Fetch all function_clause POIs that are in the given range
+    FunPOIs = els_dt_document:pois_in_range(Document, [function_clause], Range),
+    %% Fetch all export entries
+    ExportPOIs = els_dt_document:pois(Document, [export_entry]),
+    FunHints = lists:flatmap(fun(POI) -> fun_hints(POI, ExportPOIs) end, FunPOIs),
+
     ?LOG_DEBUG(
         "Inlay hints took ~p ms",
         [timer:now_diff(erlang:timestamp(), TS) div 1000]
     ),
-    Res.
+    ArgHints ++ FunHints.
+
+%% @doc Output inlay hints for a function clause,
+%%      indicate if a function is exported or not
+-spec fun_hints(els_poi:poi(), [els_poi:poi()]) -> [inlay_hint()].
+fun_hints(#{id := {F, A, _}, range := Range}, ExportPOIs) ->
+    case lists:any(fun(#{id := Id}) -> Id == {F, A} end, ExportPOIs) of
+        true ->
+            [fun_exported_hint(Range)];
+        false ->
+            []
+    end.
+
+-spec fun_exported_hint(els_poi:poi_range()) -> inlay_hint().
+fun_exported_hint(#{from := {FromL, FromC}}) ->
+    #{
+        position => #{line => FromL - 1, character => FromC - 1},
+        label => unicode:characters_to_binary("exp"),
+        paddingRight => true,
+        kind => ?INLAY_HINT_KIND_TYPE
+    }.
 
 -spec arg_hints(uri(), els_poi:poi()) -> [inlay_hint()].
 arg_hints(Uri, #{kind := application, data := #{args := CallArgs}} = POI) ->

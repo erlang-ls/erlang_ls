@@ -158,6 +158,12 @@ basic(Config) ->
                 position => #{line => 6, character => 9},
                 kind => ?INLAY_HINT_KIND_PARAMETER,
                 paddingRight => true
+            },
+            #{
+                label => <<"exp">>,
+                position => #{line => 5, character => 0},
+                kind => ?INLAY_HINT_KIND_TYPE,
+                paddingRight => true
             }
         ],
         Result
