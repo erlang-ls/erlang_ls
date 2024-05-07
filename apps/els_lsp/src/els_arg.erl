@@ -4,9 +4,12 @@
 -export([name/2]).
 -export([index/1]).
 -export([merge_args/2]).
+-export([get_args/2]).
 
 -export_type([arg/0]).
 -export_type([args/0]).
+
+-include_lib("els_core/include/els_core.hrl").
 
 -type args() :: [arg()].
 -type arg() :: #{
@@ -18,6 +21,21 @@
 -spec new(pos_integer(), string()) -> arg().
 new(Index, Name) ->
     #{index => Index, name => Name}.
+
+-spec get_args(uri(), els_poi:poi()) -> els_arg:args().
+get_args(Uri, #{
+    id := {F, A},
+    data := #{args := Args}
+}) ->
+    M = els_uri:module(Uri),
+    case els_dt_signatures:lookup({M, F, A}) of
+        {ok, []} ->
+            Args;
+        {ok, [#{args := []} | _]} ->
+            Args;
+        {ok, [#{args := SpecArgs} | _]} ->
+            merge_args(SpecArgs, Args)
+    end.
 
 -spec name(arg()) -> string().
 name(Arg) ->

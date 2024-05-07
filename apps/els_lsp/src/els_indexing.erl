@@ -123,13 +123,14 @@ index_signatures(Id, Uri, Text, POIs, Version) ->
 -spec index_signature(atom(), binary(), els_poi:poi(), version()) -> ok.
 index_signature(_M, _Text, #{id := undefined}, _Version) ->
     ok;
-index_signature(M, Text, #{id := {F, A}, range := Range}, Version) ->
+index_signature(M, Text, #{id := {F, A}, range := Range, data := #{args := Args}}, Version) ->
     #{from := From, to := To} = Range,
     Spec = els_text:range(Text, From, To),
     els_dt_signatures:versioned_insert(#{
         mfa => {M, F, A},
         spec => Spec,
-        version => Version
+        version => Version,
+        args => Args
     }).
 
 -spec index_references(atom(), uri(), [els_poi:poi()], version()) -> ok.
