@@ -77,7 +77,8 @@ available_diagnostics() ->
         <<"unused_macros">>,
         <<"unused_record_fields">>,
         <<"refactorerl">>,
-        <<"eqwalizer">>
+        <<"eqwalizer">>,
+        <<"eunit">>
     ].
 
 -spec default_diagnostics() -> [diagnostic_id()].
