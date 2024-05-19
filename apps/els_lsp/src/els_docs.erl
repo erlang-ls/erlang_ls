@@ -372,10 +372,10 @@ edoc_run(Uri) ->
                         ?LOG_DEBUG("Done generating doc chunks for ~s.", [Module]),
                         Parent ! {Ref, Res}
                     catch
-                        _:Err:St ->
+                        _:Err:ST ->
                             ?LOG_INFO(
                                 "Generating do chunks for ~s failed: ~p\n~p",
-                                [Module, Err, St]
+                                [Module, Err, ST]
                             ),
                             %% Respond to parent with error
                             Parent ! {Ref, error}

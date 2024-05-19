@@ -103,7 +103,7 @@ find_references(Uri, POI = #{kind := Kind}) when
     Kind =:= define
 ->
     find_scoped_references_for_def(Uri, POI);
-find_references(Uri, Poi = #{kind := Kind, id := Id}) when
+find_references(Uri, POI = #{kind := Kind, id := Id}) when
     Kind =:= type_definition
 ->
     Key =
@@ -113,15 +113,15 @@ find_references(Uri, Poi = #{kind := Kind, id := Id}) when
         end,
     lists:usort(
         find_references_for_id(Kind, Key) ++
-            find_scoped_references_for_def(Uri, Poi)
+            find_scoped_references_for_def(Uri, POI)
     );
-find_references(Uri, Poi = #{kind := Kind, id := Id}) when
+find_references(Uri, POI = #{kind := Kind, id := Id}) when
     Kind =:= record_expr;
     Kind =:= record_field;
     Kind =:= macro;
     Kind =:= type_application
 ->
-    case els_code_navigation:goto_definition(Uri, Poi) of
+    case els_code_navigation:goto_definition(Uri, POI) of
         {ok, [{DefUri, DefPoi}]} ->
             find_references(DefUri, DefPoi);
         _ ->
@@ -175,8 +175,8 @@ find_scoped_references_naive(Uri, #{id := Id, kind := Kind}) ->
     Refs = els_scope:local_and_includer_pois(Uri, [RefKind]),
     MatchingRefs = [
         location(U, R)
-     || {U, Pois} <- Refs,
-        #{id := N, range := R} <- Pois,
+     || {U, POIs} <- Refs,
+        #{id := N, range := R} <- POIs,
         N =:= Id
     ],
     ?LOG_DEBUG(

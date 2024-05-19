@@ -75,8 +75,8 @@ request({get_chars, _Encoding, _Prompt, N}, Str) ->
     get_chars(N, Str);
 request({get_line, _Encoding, _Prompt}, Str) ->
     get_line(Str);
-request({get_until, _Encoding, _Prompt, Module, Function, Xargs}, Str) ->
-    get_until(Module, Function, Xargs, Str);
+request({get_until, _Encoding, _Prompt, Module, Function, XArgs}, Str) ->
+    get_until(Module, Function, XArgs, Str);
 request(_Other, State) ->
     {{error, request}, State}.
 

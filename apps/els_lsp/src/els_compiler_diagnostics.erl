@@ -284,7 +284,7 @@ make_code(compile, {crash, _Pass, _Reason, _Stk}) ->
     <<"C1010">>;
 make_code(compile, {bad_return, _Pass, _Reason}) ->
     <<"C1011">>;
-make_code(compile, {module_name, _Mod, _Filename}) ->
+make_code(compile, {module_name, _Mod, _FileName}) ->
     <<"C1012">>;
 make_code(compile, _Other) ->
     <<"C1099">>;
@@ -765,8 +765,8 @@ compile_file(Path, Dependencies) ->
     Res = compile:file(Path, diagnostics_options()),
     %% Restore things after compilation
     [
-        code:load_binary(Dependency, Filename, Binary)
-     || {{Dependency, Binary, Filename}, _} <- Olds
+        code:load_binary(Dependency, FileName, Binary)
+     || {{Dependency, Binary, FileName}, _} <- Olds
     ],
     Diagnostics = lists:flatten([Diags || {_, Diags} <- Olds]),
     {Res, Diagnostics ++ module_name_check(Path)}.

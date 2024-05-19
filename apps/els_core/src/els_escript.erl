@@ -225,20 +225,18 @@ epp_open24(File, Fd, StartLine, IncludePath, PreDefMacros) ->
 
 -spec check_source(state()) -> state().
 check_source(S) ->
-    case S of
-        #state{
-            exports_main = ExpMain,
-            forms_or_bin = [FileForm2, ModForm2 | Forms]
-        } ->
-            %% Optionally add export of main/1
-            Forms2 =
-                case ExpMain of
-                    false -> [{attribute, erl_anno:new(0), export, [{main, 1}]} | Forms];
-                    true -> Forms
-                end,
-            Forms3 = [FileForm2, ModForm2 | Forms2],
-            S#state{forms_or_bin = Forms3}
-    end.
+    #state{
+        exports_main = ExpMain,
+        forms_or_bin = [FileForm2, ModForm2 | Forms]
+    } = S,
+    %% Optionally add export of main/1
+    Forms2 =
+        case ExpMain of
+            false -> [{attribute, erl_anno:new(0), export, [{main, 1}]} | Forms];
+            true -> Forms
+        end,
+    Forms3 = [FileForm2, ModForm2 | Forms2],
+    S#state{forms_or_bin = Forms3}.
 
 -spec pre_def_macros(_) -> {any(), any()}.
 pre_def_macros(File) ->
