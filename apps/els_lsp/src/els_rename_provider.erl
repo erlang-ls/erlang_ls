@@ -299,13 +299,13 @@ changes(Uri, #{kind := function, id := {F, A}}, NewName) ->
         ]
     ),
     Changes;
-changes(Uri, #{kind := DefKind} = DefPoi, NewName) when
+changes(Uri, #{kind := DefKind} = DefPOI, NewName) when
     DefKind =:= define;
     DefKind =:= record;
     DefKind =:= record_def_field
 ->
-    Self = #{range => editable_range(DefPoi), newText => NewName},
-    Refs = els_references_provider:find_scoped_references_for_def(Uri, DefPoi),
+    Self = #{range => editable_range(DefPOI), newText => NewName},
+    Refs = els_references_provider:find_scoped_references_for_def(Uri, DefPOI),
     lists:foldl(
         fun(#{uri := U, range := R}, Acc) ->
             Change = #{
