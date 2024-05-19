@@ -725,13 +725,13 @@ elvis(_Config) ->
         Warnings = [
             #{
                 code => operator_spaces,
-                message => <<"Missing space right \",\" on line 6">>,
+                message => <<"Missing space to the right of \",\" on line 6">>,
                 range => {{5, 0}, {6, 0}},
                 relatedInformation => []
             },
             #{
                 code => operator_spaces,
-                message => <<"Missing space right \",\" on line 7">>,
+                message => <<"Missing space to the right of \",\" on line 7">>,
                 range => {{6, 0}, {7, 0}},
                 relatedInformation => []
             }
