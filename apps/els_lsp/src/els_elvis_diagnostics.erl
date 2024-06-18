@@ -123,7 +123,10 @@ diagnostic(Name, Msg, Ln, Info, Severity) ->
     ].
 
 -spec make_protocol_line(Line :: number()) -> number().
-make_protocol_line(Line) when Line =< 0 ->
+make_protocol_line(Line) when
+    Line =< 0 orelse
+        Line =:= unknown
+->
     1;
 make_protocol_line(Line) ->
     Line.
