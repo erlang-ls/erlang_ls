@@ -69,7 +69,7 @@ code_reload(Config) ->
     ok = els_code_reload:maybe_compile_and_load(Uri),
     {ok, HostName} = inet:gethostname(),
     NodeName = list_to_atom("fakenode@" ++ HostName),
-    ?assert(meck:called(rpc, call, [NodeName, c, c, [Module]])),
+    ?assert(meck:called(rpc, call, [NodeName, c, c, [Module, []]])),
     ok.
 
 -spec code_reload_sticky_mod(config()) -> ok.
@@ -90,7 +90,7 @@ code_reload_sticky_mod(Config) ->
     ),
     ok = els_code_reload:maybe_compile_and_load(Uri),
     ?assert(meck:called(rpc, call, [NodeName, code, is_sticky, [Module]])),
-    ?assertNot(meck:called(rpc, call, [NodeName, c, c, [Module]])),
+    ?assertNot(meck:called(rpc, call, [NodeName, c, c, [Module, []]])),
     ok.
 
 %%==============================================================================
@@ -105,7 +105,7 @@ mock_rpc() ->
         rpc,
         call,
         fun
-            (PNode, c, c, [Module]) when PNode =:= NodeName ->
+            (PNode, c, c, [Module, '_']) when PNode =:= NodeName ->
                 {ok, Module};
             (Node, Mod, Fun, Args) ->
                 meck:passthrough([Node, Mod, Fun, Args])
