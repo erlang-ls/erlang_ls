@@ -40,7 +40,8 @@ run(Uri) ->
                 application,
                 implicit_fun,
                 import_entry,
-                export_entry
+                export_entry,
+                nifs_entry
             ]),
             [make_diagnostic(POI) || POI <- POIs, not has_definition(POI, Document)]
     end.

@@ -46,6 +46,8 @@
     | keyword_expr
     | macro
     | module
+    | nifs
+    | nifs_entry
     | parse_transform
     | record
     | record_def_field

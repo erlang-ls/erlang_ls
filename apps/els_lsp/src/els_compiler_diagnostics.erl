@@ -536,6 +536,10 @@ make_code(erl_lint, {bad_dialyzer_option, _Term}) ->
     <<"L1316">>;
 make_code(erl_lint, {format_error, {_Fmt, _Args}}) ->
     <<"L1317">>;
+make_code(erl_lint, {undefined_nif, {_F, _A}}) ->
+    <<"L1318">>;
+make_code(erl_link, no_load_nif) ->
+    <<"L1319">>;
 make_code(erl_lint, _Other) ->
     <<"L1399">>;
 %% stdlib-3.15.2/src/erl_scan.erl
