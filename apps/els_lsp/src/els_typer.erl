@@ -34,14 +34,6 @@
 
 -include("els_lsp.hrl").
 
--if(?OTP_RELEASE >= 26).
--define(DEFAULT_PLT_FILE, dialyzer_iplt:get_default_iplt_filename()).
--define(PLT_FROM_FILE(PltFile), dialyzer_iplt:from_file(PltFile)).
--else.
--define(DEFAULT_PLT_FILE, dialyzer_plt:get_default_plt()).
--define(PLT_FROM_FILE(PltFile), dialyzer_plt:from_file(PltFile)).
--endif.
-
 -type files() :: [file:filename()].
 -type callgraph() :: dialyzer_callgraph:callgraph().
 -type codeserver() :: dialyzer_codeserver:codeserver().
@@ -435,11 +427,11 @@ get_dialyzer_plt() ->
     PltFile =
         case els_config:get(plt_path) of
             undefined ->
-                ?DEFAULT_PLT_FILE;
+                default_plt_file();
             PltPath ->
                 PltPath
         end,
-    ?PLT_FROM_FILE(PltFile).
+    plt_from_file(PltFile).
 
 %% Exported Types
 
@@ -503,3 +495,27 @@ map__lookup(Key, Map) ->
 -spec map__from_list([{fa(), term()}]) -> map_dict().
 map__from_list(List) ->
     dict:from_list(List).
+
+-dialyzer({nowarn_function, default_plt_file/0}).
+
+-spec default_plt_file() -> file:filename().
+default_plt_file() ->
+    %% OTP 26+ uses dialyzer_iplt
+    case erlang:function_exported(dialyzer_iplt, get_default_iplt_filename, 0) of
+        true ->
+            dialyzer_iplt:get_default_iplt_filename();
+        false ->
+            dialyzer_plt:get_default_plt()
+    end.
+
+-dialyzer({nowarn_function, plt_from_file/1}).
+
+-spec plt_from_file(file:filename()) -> dialyzer_plt:plt().
+plt_from_file(PltFile) ->
+    %% OTP 26+ uses dialyzer_iplt
+    case erlang:function_exported(dialyzer_iplt, from_file, 1) of
+        true ->
+            dialyzer_iplt:from_file(PltFile);
+        false ->
+            dialyzer_plt:from_file(PltFile)
+    end.
