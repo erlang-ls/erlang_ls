@@ -46,6 +46,8 @@ erlfmt_to_st(Node) ->
         %% The special `match` node is encoded as a regular binary operator
         {op, Pos, '=', Left, Right} ->
             erlfmt_to_st_1({match, Pos, Left, Right});
+        {op, Pos, '?=', Left, Right} ->
+            erlfmt_to_st_1({maybe_match, Pos, Left, Right});
         %% The special `catch` node is encoded as a regular unary operator
         {op, Pos, 'catch', Expr} ->
             erlfmt_to_st_1({'catch', Pos, Expr});

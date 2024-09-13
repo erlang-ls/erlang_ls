@@ -383,15 +383,19 @@ bound_var_in_pattern_maybe(_Config) ->
     Errors = [],
     Warnings = [],
     Hints = [
-        #{
-            message => <<"Bound variable in pattern: X">>,
-            range => {{24, 9}, {24, 10}}
-        },
-        #{
-            message => <<"Bound variable in pattern: Y">>,
-            range => {{27, 9}, {27, 10}}
-        }
-    ],
+                        #{
+                            message => <<"Bound variable in pattern: X">>,
+                            range => {{26, 8}, {26, 9}}
+                        },
+                        #{
+                            message => <<"Bound variable in pattern: Y">>,
+                            range => {{28, 8}, {28, 9}}
+                        },
+                        #{
+                            message => <<"Bound variable in pattern: Y">>,
+                            range => {{34, 13}, {34, 14}}
+                        }
+                    ],
     els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
 
 -spec bound_var_in_pattern_cannot_parse(config()) -> ok.

@@ -115,6 +115,10 @@ find_vars_in_tree(Tree, Acc) ->
             Pattern = erl_syntax:match_expr_pattern(Tree),
             NewAcc = fold_pattern(Pattern, Acc),
             find_vars_in_tree(erl_syntax:match_expr_body(Tree), NewAcc);
+        maybe_match_expr ->
+            Pattern = erl_syntax:maybe_match_expr_pattern(Tree),
+            NewAcc = fold_pattern(Pattern, Acc),
+            find_vars_in_tree(erl_syntax:maybe_match_expr_body(Tree), NewAcc);
         clause ->
             Patterns = erl_syntax:clause_patterns(Tree),
             NewAcc = fold_pattern_list(Patterns, Acc),
