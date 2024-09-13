@@ -6,7 +6,7 @@
 -feature(maybe_expr, enable).
 -endif.
 
--export([foo/0]).
+-export([foo/0, maybe_expr/0]).
 
 foo() ->
     maybe
@@ -18,3 +18,12 @@ foo() ->
 
 bar() ->
     foo.
+
+maybe_expr() ->
+    X = 1,
+    Y = ok,
+    maybe
+        X ?= 1
+    else
+        Y -> Y
+    end.

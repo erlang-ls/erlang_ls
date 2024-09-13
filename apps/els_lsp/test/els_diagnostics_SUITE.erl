@@ -202,7 +202,9 @@ init_per_testcase(TestCase, Config) when
             {skip, "Maybe expressions are only supported from OTP 25"};
         false ->
             Config
-    end;
+    end,
+    els_mock_diagnostics:setup(),
+    els_test_utils:init_per_testcase(TestCase, Config);
 init_per_testcase(TestCase, Config) ->
     els_mock_diagnostics:setup(),
     els_test_utils:init_per_testcase(TestCase, Config).
@@ -380,7 +382,16 @@ bound_var_in_pattern_maybe(_Config) ->
     Source = <<"BoundVarInPattern">>,
     Errors = [],
     Warnings = [],
-    Hints = [],
+    Hints = [
+        #{
+            message => <<"Bound variable in pattern: X">>,
+            range => {{24, 9}, {24, 10}}
+        },
+        #{
+            message => <<"Bound variable in pattern: Y">>,
+            range => {{27, 9}, {27, 10}}
+        }
+    ],
     els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
 
 -spec bound_var_in_pattern_cannot_parse(config()) -> ok.
