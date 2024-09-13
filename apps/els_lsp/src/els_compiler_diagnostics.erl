@@ -598,6 +598,14 @@ make_code(epp, {error, _Term}) ->
     <<"E1522">>;
 make_code(epp, {warning, _Term}) ->
     <<"E1523">>;
+make_code(epp, {moduledoc, invalid, _}) ->
+    <<"E1524">>;
+make_code(epp, {moduledoc, file, _}) ->
+    <<"E1525">>;
+make_code(epp, {doc, invalid, _}) ->
+    <<"E1526">>;
+make_code(epp, {doc, file, _}) ->
+    <<"E1527">>;
 make_code(epp, _E) ->
     <<"E1599">>;
 %% stdlib-3.15.2/src/qlc.erl
