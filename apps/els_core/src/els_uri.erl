@@ -5,10 +5,6 @@
 %%==============================================================================
 -module(els_uri).
 
--if(?OTP_RELEASE =:= 23).
--compile([{nowarn_deprecated_function, [{http_uri, decode, 1}]}]).
--endif.
-
 %%==============================================================================
 %% Exports
 %%==============================================================================
@@ -45,7 +41,7 @@ path(Uri, IsWindows) ->
         path := Path0,
         scheme := <<"file">>
     } = uri_string:normalize(Uri, [return_map]),
-    Path = percent_decode(Path0),
+    Path = uri_string:percent_decode(Path0),
     case {IsWindows, Host} of
         {true, <<>>} ->
             % Windows drive letter, have to strip the initial slash
@@ -88,31 +84,6 @@ uri(Path) ->
 -spec uri_join([path()]) -> iolist().
 uri_join(List) ->
     lists:join(<<"/">>, List).
-
--if(?OTP_RELEASE > 23).
--spec percent_decode(binary()) -> binary().
-percent_decode(Str) ->
-    uri_string:percent_decode(Str).
--elif(?OTP_RELEASE =:= 23).
--spec percent_decode(binary()) -> binary().
-percent_decode(Str) ->
-    %% The `percent_decode/1' function is unavailable until OTP 23.2
-    case erlang:function_exported(uri_string, percent_decode, 1) of
-        'true' ->
-            percent_decode2(Str);
-        'false' ->
-            http_uri:decode(Str)
-    end.
-
--dialyzer([{nowarn_function, percent_decode2/1}]).
--spec percent_decode2(binary()) -> binary().
-percent_decode2(Str) ->
-    uri_string:percent_decode(Str).
--else.
--spec percent_decode(binary()) -> binary().
-percent_decode(Str) ->
-    http_uri:decode(Str).
--endif.
 
 -spec lowercase_drive_letter(binary()) -> binary().
 lowercase_drive_letter(<<Drive0, ":", Rest/binary>>) ->
