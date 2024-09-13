@@ -1812,23 +1812,10 @@ resolve_application_remote_otp(Config) ->
     ?assertEqual(Expected, Result).
 
 call_markdown(F, Doc) ->
-    call_markdown(<<"completion_resolve">>, F, Doc).
-call_markdown(M, F, Doc) ->
-    case has_eep48_edoc() of
-        true ->
-            <<"```erlang\n", F/binary,
-                "() -> ok.\n"
-                "```\n\n"
-                "---\n\n", Doc/binary, "\n">>;
-        false ->
-            <<"## ", M/binary, ":", F/binary,
-                "/0\n\n"
-                "---\n\n"
-                "```erlang\n"
-                "-spec ", F/binary,
-                "() -> 'ok'.\n"
-                "```\n\n", Doc/binary, "\n\n">>
-    end.
+    <<"```erlang\n", F/binary,
+        "() -> ok.\n"
+        "```\n\n"
+        "---\n\n", Doc/binary, "\n">>.
 
 -spec resolve_type_application_local(config()) -> ok.
 resolve_type_application_local(Config) ->
@@ -1843,19 +1830,11 @@ resolve_type_application_local(Config) ->
     ),
     #{result := Result} = els_client:completionitem_resolve(Selected),
     Value =
-        case has_eep48_edoc() of
-            true ->
-                <<
-                    "```erlang\n-type mytype() :: "
-                    "completion_resolve_type:myopaque().\n```"
-                    "\n\n---\n\nThis is my type\n"
-                >>;
-            false ->
-                <<
-                    "```erlang\n-type mytype() :: "
-                    "completion_resolve_type:myopaque().\n```"
-                >>
-        end,
+        <<
+            "```erlang\n-type mytype() :: "
+            "completion_resolve_type:myopaque().\n```"
+            "\n\n---\n\nThis is my type\n"
+        >>,
     Expected = Selected#{
         documentation =>
             #{
@@ -1878,18 +1857,10 @@ resolve_opaque_application_local(Config) ->
     ),
     #{result := Result} = els_client:completionitem_resolve(Selected),
     Value =
-        case has_eep48_edoc() of
-            true ->
-                <<
-                    "```erlang\n-opaque myopaque() \n```\n\n---\n\n"
-                    "This is my opaque\n"
-                >>;
-            false ->
-                <<
-                    "```erlang\n"
-                    "-opaque myopaque() :: term().\n```"
-                >>
-        end,
+        <<
+            "```erlang\n-opaque myopaque() \n```\n\n---\n\n"
+            "This is my opaque\n"
+        >>,
     Expected = Selected#{
         documentation =>
             #{
@@ -1913,20 +1884,10 @@ resolve_opaque_application_remote_self(Config) ->
     #{result := Result} = els_client:completionitem_resolve(Selected),
 
     Value =
-        case has_eep48_edoc() of
-            true ->
-                <<
-                    "```erlang\n-opaque myopaque() \n```\n\n---\n\n"
-                    "This is my opaque\n"
-                >>;
-            false ->
-                <<
-                    "```erlang\n"
-                    "-opaque myopaque() :: term().\n"
-                    "```"
-                >>
-        end,
-
+        <<
+            "```erlang\n-opaque myopaque() \n```\n\n---\n\n"
+            "This is my opaque\n"
+        >>,
     Expected = Selected#{
         documentation =>
             #{
@@ -1949,15 +1910,10 @@ resolve_type_application_remote_external(Config) ->
     ),
     #{result := Result} = els_client:completionitem_resolve(Selected),
     Value =
-        case has_eep48_edoc() of
-            true ->
-                <<
-                    "```erlang\n-type mytype(T) :: [T].\n```\n\n---\n\n"
-                    "Hello\n"
-                >>;
-            false ->
-                <<"```erlang\n-type mytype(T) :: [T].\n```">>
-        end,
+        <<
+            "```erlang\n-type mytype(T) :: [T].\n```\n\n---\n\n"
+            "Hello\n"
+        >>,
     Expected = Selected#{
         documentation =>
             #{
@@ -1980,15 +1936,10 @@ resolve_opaque_application_remote_external(Config) ->
     ),
     #{result := Result} = els_client:completionitem_resolve(Selected),
     Value =
-        case has_eep48_edoc() of
-            true ->
-                <<
-                    "```erlang\n-opaque myopaque(T) \n```\n\n---\n\n"
-                    "Is there anybody in there\n"
-                >>;
-            false ->
-                <<"```erlang\n-opaque myopaque(T) :: [T].\n```">>
-        end,
+        <<
+            "```erlang\n-opaque myopaque(T) \n```\n\n---\n\n"
+            "Is there anybody in there\n"
+        >>,
     Expected = Selected#{
         documentation =>
             #{
@@ -2056,9 +2007,6 @@ completion_request_fails(Config) ->
 
 select_completionitems(CompletionItems, Kind, Label) ->
     [CI || #{kind := K, label := L} = CI <- CompletionItems, L =:= Label, K =:= Kind].
-
-has_eep48_edoc() ->
-    list_to_integer(erlang:system_info(otp_release)) >= 24.
 
 has_eep48(Module) ->
     case catch code:get_doc(Module) of
