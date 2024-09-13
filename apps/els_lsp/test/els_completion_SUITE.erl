@@ -100,137 +100,196 @@ end_per_testcase(TestCase, Config) ->
 attributes(Config) ->
     Uri = ?config(completion_attributes_uri, Config),
     TriggerKindChar = ?COMPLETION_TRIGGER_KIND_CHARACTER,
-    Expected = [
-        #{
-            insertText => <<"behaviour(${1:Behaviour}).">>,
-            insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
-            kind => ?COMPLETION_ITEM_KIND_SNIPPET,
-            label => <<"-behaviour().">>
-        },
-        #{
-            insertText => <<"define(${1:MACRO}, ${2:Value}).">>,
-            insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
-            kind => ?COMPLETION_ITEM_KIND_SNIPPET,
-            label => <<"-define().">>
-        },
-        #{
-            insertText => <<"export([${1:}]).">>,
-            insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
-            kind => ?COMPLETION_ITEM_KIND_SNIPPET,
-            label => <<"-export().">>
-        },
-        #{
-            insertText => <<"export_type([${1:}]).">>,
-            insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
-            kind => ?COMPLETION_ITEM_KIND_SNIPPET,
-            label => <<"-export_type().">>
-        },
-        #{
-            insertText => <<"feature(${1:Feature}, ${2:enable}).">>,
-            insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
-            kind => ?COMPLETION_ITEM_KIND_SNIPPET,
-            label => <<"-feature().">>
-        },
-        #{
-            insertText => <<"if(${1:Pred}).\n${2:}\n-endif.">>,
-            insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
-            kind => ?COMPLETION_ITEM_KIND_SNIPPET,
-            label => <<"-if().">>
-        },
-        #{
-            insertText => <<"ifdef(${1:VAR}).\n${2:}\n-endif.">>,
-            insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
-            kind => ?COMPLETION_ITEM_KIND_SNIPPET,
-            label => <<"-ifdef().">>
-        },
-        #{
-            insertText => <<"ifndef(${1:VAR}).\n${2:}\n-endif.">>,
-            insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
-            kind => ?COMPLETION_ITEM_KIND_SNIPPET,
-            label => <<"-ifndef().">>
-        },
-        #{
-            insertText => <<"include(${1:}).">>,
-            insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
-            kind => ?COMPLETION_ITEM_KIND_SNIPPET,
-            label => <<"-include().">>
-        },
-        #{
-            insertText => <<"include_lib(${1:}).">>,
-            insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
-            kind => ?COMPLETION_ITEM_KIND_SNIPPET,
-            label => <<"-include_lib().">>
-        },
-        #{
-            insertText => <<"opaque ${1:name}() :: ${2:definition}.">>,
-            insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
-            kind => ?COMPLETION_ITEM_KIND_SNIPPET,
-            label => <<"-opaque name() :: definition.">>
-        },
-        #{
-            insertText => <<
-                "record(${1:name}, {${2:field} = ${3:Value} "
-                ":: ${4:Type}()})."
-            >>,
-            insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
-            kind => ?COMPLETION_ITEM_KIND_SNIPPET,
-            label => <<"-record().">>
-        },
-        #{
-            insertText => <<"type ${1:name}() :: ${2:definition}.">>,
-            insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
-            kind => ?COMPLETION_ITEM_KIND_SNIPPET,
-            label => <<"-type name() :: definition.">>
-        },
-        #{
-            insertText => <<"dialyzer(${1:}).">>,
-            insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
-            kind => ?COMPLETION_ITEM_KIND_SNIPPET,
-            label => <<"-dialyzer().">>
-        },
-        #{
-            insertText => <<"compile(${1:}).">>,
-            insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
-            kind => ?COMPLETION_ITEM_KIND_SNIPPET,
-            label => <<"-compile().">>
-        },
-        #{
-            insertText => <<"import(${1:Module}, [${2:}]).">>,
-            insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
-            kind => ?COMPLETION_ITEM_KIND_SNIPPET,
-            label => <<"-import().">>
-        },
-        #{
-            insertText =>
-                <<"callback ${1:name}(${2:Args}) -> ${3:return()}.">>,
-            insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
-            kind => ?COMPLETION_ITEM_KIND_SNIPPET,
-            label => <<"-callback name(Args) -> return().">>
-        },
-        #{
-            insertText => <<"on_load(${1:Function}).">>,
-            insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
-            kind => ?COMPLETION_ITEM_KIND_SNIPPET,
-            label => <<"-on_load().">>
-        },
-        #{
-            insertText => <<"vsn(${1:Version}).">>,
-            insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
-            kind => ?COMPLETION_ITEM_KIND_SNIPPET,
-            label => <<"-vsn(Version).">>
-        },
-        #{
-            insertText => <<"module(completion_attributes).">>,
-            insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
-            kind => ?COMPLETION_ITEM_KIND_SNIPPET,
-            label => <<"-module(completion_attributes).">>
-        }
-    ],
+    Expected =
+        [
+            #{
+                insertText => <<"behaviour(${1:Behaviour}).">>,
+                insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
+                kind => ?COMPLETION_ITEM_KIND_SNIPPET,
+                label => <<"-behaviour().">>
+            },
+            #{
+                insertText => <<"define(${1:MACRO}, ${2:Value}).">>,
+                insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
+                kind => ?COMPLETION_ITEM_KIND_SNIPPET,
+                label => <<"-define().">>
+            },
+            #{
+                insertText => <<"export([${1:}]).">>,
+                insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
+                kind => ?COMPLETION_ITEM_KIND_SNIPPET,
+                label => <<"-export().">>
+            },
+            #{
+                insertText => <<"export_type([${1:}]).">>,
+                insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
+                kind => ?COMPLETION_ITEM_KIND_SNIPPET,
+                label => <<"-export_type().">>
+            },
+            #{
+                insertText => <<"feature(${1:Feature}, ${2:enable}).">>,
+                insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
+                kind => ?COMPLETION_ITEM_KIND_SNIPPET,
+                label => <<"-feature().">>
+            },
+            #{
+                insertText => <<"if(${1:Pred}).\n${2:}\n-endif.">>,
+                insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
+                kind => ?COMPLETION_ITEM_KIND_SNIPPET,
+                label => <<"-if().">>
+            },
+            #{
+                insertText => <<"ifdef(${1:VAR}).\n${2:}\n-endif.">>,
+                insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
+                kind => ?COMPLETION_ITEM_KIND_SNIPPET,
+                label => <<"-ifdef().">>
+            },
+            #{
+                insertText => <<"ifndef(${1:VAR}).\n${2:}\n-endif.">>,
+                insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
+                kind => ?COMPLETION_ITEM_KIND_SNIPPET,
+                label => <<"-ifndef().">>
+            },
+            #{
+                insertText => <<"include(${1:}).">>,
+                insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
+                kind => ?COMPLETION_ITEM_KIND_SNIPPET,
+                label => <<"-include().">>
+            },
+            #{
+                insertText => <<"include_lib(${1:}).">>,
+                insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
+                kind => ?COMPLETION_ITEM_KIND_SNIPPET,
+                label => <<"-include_lib().">>
+            },
+            #{
+                insertText => <<"opaque ${1:name}() :: ${2:definition}.">>,
+                insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
+                kind => ?COMPLETION_ITEM_KIND_SNIPPET,
+                label => <<"-opaque name() :: definition.">>
+            },
+            #{
+                insertText => <<
+                    "record(${1:name}, {${2:field} = ${3:Value} "
+                    ":: ${4:Type}()})."
+                >>,
+                insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
+                kind => ?COMPLETION_ITEM_KIND_SNIPPET,
+                label => <<"-record().">>
+            },
+            #{
+                insertText => <<"type ${1:name}() :: ${2:definition}.">>,
+                insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
+                kind => ?COMPLETION_ITEM_KIND_SNIPPET,
+                label => <<"-type name() :: definition.">>
+            },
+            #{
+                insertText => <<"dialyzer(${1:}).">>,
+                insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
+                kind => ?COMPLETION_ITEM_KIND_SNIPPET,
+                label => <<"-dialyzer().">>
+            },
+            #{
+                insertText => <<"compile(${1:}).">>,
+                insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
+                kind => ?COMPLETION_ITEM_KIND_SNIPPET,
+                label => <<"-compile().">>
+            },
+            #{
+                insertText => <<"import(${1:Module}, [${2:}]).">>,
+                insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
+                kind => ?COMPLETION_ITEM_KIND_SNIPPET,
+                label => <<"-import().">>
+            },
+            #{
+                insertText =>
+                    <<"callback ${1:name}(${2:Args}) -> ${3:return()}.">>,
+                insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
+                kind => ?COMPLETION_ITEM_KIND_SNIPPET,
+                label => <<"-callback name(Args) -> return().">>
+            },
+            #{
+                insertText => <<"on_load(${1:Function}).">>,
+                insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
+                kind => ?COMPLETION_ITEM_KIND_SNIPPET,
+                label => <<"-on_load().">>
+            },
+            #{
+                insertText => <<"vsn(${1:Version}).">>,
+                insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
+                kind => ?COMPLETION_ITEM_KIND_SNIPPET,
+                label => <<"-vsn(Version).">>
+            },
+            #{
+                insertText => <<"module(completion_attributes).">>,
+                insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
+                kind => ?COMPLETION_ITEM_KIND_SNIPPET,
+                label => <<"-module(completion_attributes).">>
+            }
+        ] ++ docs_attributes(),
     #{result := Completions} =
         els_client:completion(Uri, 5, 2, TriggerKindChar, <<"-">>),
     ?assertEqual([], Completions -- Expected),
     ?assertEqual([], Expected -- Completions),
     ok.
+
+-spec docs_attributes() -> [completion_item()].
+-if(?OTP_RELEASE >= 27).
+docs_attributes() ->
+    [
+        #{
+            label => <<"-moduledoc \"\"\"Text\"\"\".">>,
+            insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
+            kind => ?COMPLETION_ITEM_KIND_SNIPPET,
+            insertText => <<"moduledoc \"\"\"\n${1:Text}\n\"\"\".">>
+        },
+        #{
+            label => <<"-doc \"\"\"Text\"\"\".">>,
+            insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
+            kind => ?COMPLETION_ITEM_KIND_SNIPPET,
+            insertText => <<"doc \"\"\"\n${1:Text}\n\"\"\".">>
+        },
+        #{
+            label => <<"-moduledoc false.">>,
+            insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
+            kind => ?COMPLETION_ITEM_KIND_SNIPPET,
+            insertText => <<"moduledoc false.">>
+        },
+        #{
+            label => <<"-doc false.">>,
+            insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
+            kind => ?COMPLETION_ITEM_KIND_SNIPPET,
+            insertText => <<"doc false.">>
+        },
+        #{
+            label => <<"-moduledoc #{}.">>,
+            insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
+            kind => ?COMPLETION_ITEM_KIND_SNIPPET,
+            insertText => <<"moduledoc #{${1:}}.">>
+        },
+        #{
+            label => <<"-doc #{}.">>,
+            insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
+            kind => ?COMPLETION_ITEM_KIND_SNIPPET,
+            insertText => <<"doc #{${1:}}.">>
+        },
+        #{
+            label => <<"-moduledoc File.">>,
+            insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
+            kind => ?COMPLETION_ITEM_KIND_SNIPPET,
+            insertText => <<"moduledoc {file,\"${1:File}\"}.">>
+        },
+        #{
+            label => <<"-doc File.">>,
+            insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
+            kind => ?COMPLETION_ITEM_KIND_SNIPPET,
+            insertText => <<"doc {file,\"${1:File}\"}.">>
+        }
+    ].
+-else.
+docs_attributes() ->
+    [].
+-endif.
 
 -spec attribute_behaviour(config()) -> ok.
 attribute_behaviour(Config) ->
