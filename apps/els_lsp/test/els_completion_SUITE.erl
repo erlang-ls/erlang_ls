@@ -1727,7 +1727,6 @@ resolve_application_remote_external(Config) ->
             #{
                 kind => <<"markdown">>,
                 value => call_markdown(
-                    <<"completion_resolve_2">>,
                     <<"call_1">>,
                     <<"I just met you">>
                 )
