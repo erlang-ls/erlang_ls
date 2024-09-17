@@ -41,12 +41,12 @@ jobs:
       run: rebar3 compile
     - name: Escriptize LSP Server
       run: rebar3 escriptize
-    - name: Store LSP Server Escript
-      uses: actions/upload-artifact@v4
-      with:
-        name: erlang_ls
-        path: _build/default/bin/erlang_ls
-        overwrite: true
+    # - name: Store LSP Server Escript
+    #   uses: actions/upload-artifact@v4
+    #   with:
+    #     name: erlang_ls
+    #     path: _build/default/bin/erlang_ls
+    #     overwrite: true
     - name: Check formatting
       run: rebar3 fmt -c
     - name: Lint
@@ -57,12 +57,12 @@ jobs:
       run: epmd -daemon
     - name: Run CT Tests
       run: rebar3 ct
-    - name: Store CT Logs
-      uses: actions/upload-artifact@v4
-      with:
-        name: ct-logs
-        path: _build/test/logs
-        overwrite: true
+    # - name: Store CT Logs
+    #   uses: actions/upload-artifact@v4
+    #   with:
+    #     name: ct-logs
+    #     path: _build/test/logs
+    #     overwrite: true
     - name: Run PropEr Tests
       run: rebar3 proper --cover --constraint_tries 100
     - name: Run Checks
@@ -74,14 +74,14 @@ jobs:
     - name: Produce Documentation
       run: rebar3 edoc
       if: ${{ matrix.otp-version == '24' }}
-    - name: Publish Documentation
-      uses: actions/upload-artifact@v4
-      with:
-        name: edoc
-        path: |
-          apps/els_core/doc
-          apps/els_lsp/doc
-        overwrite: true
+    # - name: Publish Documentation
+    #   uses: actions/upload-artifact@v4
+    #   with:
+    #     name: edoc
+    #     path: |
+    #       apps/els_core/doc
+    #       apps/els_lsp/doc
+    #     overwrite: true
 
     # Make release artifacts : erlang_ls
     - name: Make erlang_ls-linux.tar.gz
@@ -113,12 +113,12 @@ jobs:
       run: rebar3 compile
     - name: Escriptize LSP Server
       run: rebar3 escriptize
-    - name: Store LSP Server Escript
-      uses: actions/upload-artifact@v4
-      with:
-        name: erlang_ls
-        path: _build/default/bin/erlang_ls
-        overwrite: true
+    # - name: Store LSP Server Escript
+    #   uses: actions/upload-artifact@v4
+    #   with:
+    #     name: erlang_ls
+    #     path: _build/default/bin/erlang_ls
+    #     overwrite: true
     - name: Lint
       run: rebar3 lint
     - name: Generate Dialyzer PLT for usage in CT Tests
@@ -127,12 +127,12 @@ jobs:
       run: erl -sname a -noinput -eval "halt(0)."
     - name: Run CT Tests
       run: rebar3 ct
-    - name: Store CT Logs
-      uses: actions/upload-artifact@v4
-      with:
-        name: ct-logs
-        path: _build/test/logs
-        overwrite: true
+    # - name: Store CT Logs
+    #   uses: actions/upload-artifact@v4
+    #   with:
+    #     name: ct-logs
+    #     path: _build/test/logs
+    #     overwrite: true
     - name: Run PropEr Tests
       run: rebar3 proper --cover --constraint_tries 100
     - name: Run Checks
