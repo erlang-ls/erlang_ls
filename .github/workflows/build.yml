@@ -113,7 +113,7 @@ jobs:
     # Smaller job for MacOS to avoid excessive billing
     strategy:
       matrix:
-        platform: [macos-latest-x64]
+        platform: [macos-latest-arm]
         otp-version: [26]
     runs-on: ${{ matrix.platform }}
     steps:
