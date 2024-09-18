@@ -481,7 +481,7 @@ attributes(Document) ->
         snippet(attribute_type),
         snippet(attribute_vsn),
         attribute_module(Document)
-    ].
+    ] ++ docs_attributes().
 
 -spec attribute_module(els_dt_document:item()) -> item().
 attribute_module(#{id := Id}) ->
@@ -490,6 +490,24 @@ attribute_module(#{id := Id}) ->
         <<"-module(", IdBin/binary, ").">>,
         <<"module(", IdBin/binary, ").">>
     ).
+
+-spec docs_attributes() -> items().
+-if(?OTP_RELEASE >= 27).
+docs_attributes() ->
+    [
+        snippet(attribute_moduledoc_map),
+        snippet(attribute_doc_map),
+        snippet(attribute_moduledoc_file),
+        snippet(attribute_doc_file),
+        snippet(attribute_moduledoc_text),
+        snippet(attribute_doc_text),
+        snippet(attribute_moduledoc_false),
+        snippet(attribute_doc_false)
+    ].
+-else.
+docs_attributes() ->
+    [].
+-endif.
 
 %%=============================================================================
 %% Include paths
@@ -567,6 +585,46 @@ snippet(attribute_compile) ->
     snippet(
         <<"-compile().">>,
         <<"compile(${1:}).">>
+    );
+snippet(attribute_moduledoc_text) ->
+    snippet(
+        <<"-moduledoc \"\"\"Text\"\"\".">>,
+        <<"moduledoc \"\"\"\n${1:Text}\n\"\"\".">>
+    );
+snippet(attribute_doc_text) ->
+    snippet(
+        <<"-doc \"\"\"Text\"\"\".">>,
+        <<"doc \"\"\"\n${1:Text}\n\"\"\".">>
+    );
+snippet(attribute_moduledoc_false) ->
+    snippet(
+        <<"-moduledoc false.">>,
+        <<"moduledoc false.">>
+    );
+snippet(attribute_doc_false) ->
+    snippet(
+        <<"-doc false.">>,
+        <<"doc false.">>
+    );
+snippet(attribute_moduledoc_map) ->
+    snippet(
+        <<"-moduledoc #{}.">>,
+        <<"moduledoc #{${1:}}.">>
+    );
+snippet(attribute_doc_map) ->
+    snippet(
+        <<"-doc #{}.">>,
+        <<"doc #{${1:}}.">>
+    );
+snippet(attribute_moduledoc_file) ->
+    snippet(
+        <<"-moduledoc File.">>,
+        <<"moduledoc {file,\"${1:File}\"}.">>
+    );
+snippet(attribute_doc_file) ->
+    snippet(
+        <<"-doc File.">>,
+        <<"doc {file,\"${1:File}\"}.">>
     ).
 
 -spec snippet(binary(), binary()) -> item().
