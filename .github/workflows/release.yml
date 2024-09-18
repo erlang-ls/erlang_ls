@@ -157,3 +157,42 @@ jobs:
         asset_name: erlang_ls-win32.tar.gz
         asset_path: erlang_ls-win32.tar.gz
         upload_url: "${{ steps.get_release_url.outputs.upload_url }}"
+  macos:
+    # Smaller job for MacOS to avoid excessive billing
+    strategy:
+      matrix:
+        platform: [macos-latest-arm]
+        otp-version: [26]
+    runs-on: ${{ matrix.platform }}
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install Erlang
+      run: brew install erlang@${{ matrix.otp-version }}
+    - name: Install Rebar3
+      run: brew install rebar3
+    - name: Compile
+      run: rebar3 compile
+    - name: Generate Dialyzer PLT for usage in CT Tests
+      run: dialyzer --build_plt --apps erts kernel stdlib compiler crypto parsetools
+    - name: Start epmd as daemon
+      run: epmd -daemon
+    - name: Run CT Tests
+      run: rebar3 ct
+
+    # Make release artifacts : erlang_ls
+    - name: Make erlang_ls-${{ matrix.otp-version }}-macos-arm.tar.gz
+      run: 'tar -zcvf erlang_ls-${{ matrix.otp-version }}-macos-arm.tar.gz -C _build/default/bin/ erlang_ls'
+    - env:
+        GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+      id: get_release_url
+      name: Get release url
+      uses: "bruceadams/get-release@v1.3.2"
+    - env:
+        GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+      name: Upload release erlang_ls-${{ matrix.otp-version }}-macos-arm.tar.gz
+      uses: "actions/upload-release-asset@v1.0.2"
+      with:
+        asset_content_type: application/octet-stream
+        asset_name: erlang_ls-${{ matrix.otp-version }}-macos-arm.tar.gz
+        asset_path: erlang_ls-${{ matrix.otp-version }}-macos-arm.tar.gz
+        upload_url: "${{ steps.get_release_url.outputs.upload_url }}"
