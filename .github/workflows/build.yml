@@ -9,26 +9,16 @@ on:
       - synchronize
 jobs:
   macos:
-    name: Test on MacOS
-    runs-on: macos-latest
+    strategy:
+      matrix:
+        platform: [macos-latest-x64, macos-latest-arm]
+        # No otp 27 in brew yet
+        otp-version: [24, 25, 26]
+    runs-on: ${{ matrix.platform }}
     steps:
     - uses: actions/checkout@v2
-    - name: Brew Version Check
-      run: brew --version
-    - name: Brew Cleanup
-      run: |
-        brew cleanup --prune=all -s
-        brew autoremove
-    - name: Brew Untap Casks
-      run: brew untap homebrew/cask homebrew/core
-    - name: Keep Brew Fresh
-      run: |
-        brew update || true
-        brew upgrade || true
-    - name: Debug Brew
-      run: brew doctor || true
     - name: Install Erlang
-      run: brew install erlang@26
+      run: brew install erlang@${{ matrix.otp-version }}
     - name: Install Rebar3
       run: brew install rebar3
     - name: Compile
