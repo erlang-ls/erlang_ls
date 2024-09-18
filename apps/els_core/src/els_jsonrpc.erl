@@ -7,7 +7,6 @@
 %% Exports
 %%==============================================================================
 -export([
-    default_opts/0,
     split/1,
     split/2
 ]).
@@ -26,18 +25,18 @@
 %%==============================================================================
 -spec split(binary()) -> {[map()], binary()}.
 split(Data) ->
-    split(Data, default_opts()).
+    split(Data, fun els_utils:json_decode_with_atom_keys/1).
 
--spec split(binary(), [any()]) -> {[map()], binary()}.
-split(Data, DecodeOpts) ->
-    split(Data, DecodeOpts, []).
+-spec split(binary(), fun()) -> {[map()], binary()}.
+split(Data, Decoder) ->
+    split(Data, Decoder, []).
 
--spec split(binary(), [any()], [map()]) -> {[map()], binary()}.
-split(Data, DecodeOpts, Responses) ->
+-spec split(binary(), fun(), [map()]) -> {[map()], binary()}.
+split(Data, Decoder, Responses) ->
     case peel_content(Data) of
         {ok, Body, Rest} ->
-            Response = jsx:decode(Body, DecodeOpts),
-            split(Rest, DecodeOpts, [Response | Responses]);
+            Response = Decoder(Body),
+            split(Rest, Decoder, [Response | Responses]);
         {more, _Length} ->
             {lists:reverse(Responses), Data}
     end.
@@ -74,7 +73,3 @@ peel_headers(Data, Headers) ->
         {error, Reason} ->
             erlang:error(Reason, [Data, Headers])
     end.
-
--spec default_opts() -> [any()].
-default_opts() ->
-    [return_maps, {labels, atom}].

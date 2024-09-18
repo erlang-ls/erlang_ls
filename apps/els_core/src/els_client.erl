@@ -290,7 +290,7 @@ init(#{io_device := IoDevice}) ->
         [],
         IoDevice,
         fun handle_responses/1,
-        els_jsonrpc:default_opts()
+        fun els_utils:json_decode_with_atom_keys/1
     ],
     _Pid = proc_lib:spawn_link(els_stdio, loop, Args),
     State = #state{io_device = IoDevice},

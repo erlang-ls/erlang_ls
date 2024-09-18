@@ -5,9 +5,9 @@
     {applications, [
         kernel,
         stdlib,
-        jsx,
         yamerl,
-        redbug
+        redbug,
+        json_polyfill
     ]},
     {env, [
         {io_device, standard_io},

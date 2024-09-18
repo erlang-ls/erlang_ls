@@ -27,7 +27,8 @@
     is_windows/0,
     system_tmp_dir/0,
     race/2,
-    uniq/1
+    uniq/1,
+    json_decode_with_atom_keys/1
 ]).
 
 %%==============================================================================
@@ -319,6 +320,12 @@ uniq([X | Xs], M) ->
     end;
 uniq([], _) ->
     [].
+
+-spec json_decode_with_atom_keys(binary()) -> map().
+json_decode_with_atom_keys(Binary) ->
+    Push = fun(Key, Value, Acc) -> [{binary_to_atom(Key), Value} | Acc] end,
+    {Result, ok, <<>>} = json:decode(Binary, ok, #{object_push => Push}),
+    Result.
 
 %%==============================================================================
 %% Internal functions
@@ -783,5 +790,9 @@ camel_case_test() ->
     ?assertEqual(<<"FooBar">>, camel_case(<<"foo_bar">>)),
     ?assertEqual(<<"FooBarBaz">>, camel_case(<<"foo_bar_baz">>)),
     ?assertEqual(<<"FooBarBaz">>, camel_case(<<"'foo_bar_baz'">>)).
+
+json_decode_with_atom_keys_test() ->
+    Json = list_to_binary(json:encode(#{foo => bar})),
+    ?assertEqual(#{foo => <<"bar">>}, json_decode_with_atom_keys(Json)).
 
 -endif.

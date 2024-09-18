@@ -642,8 +642,10 @@ memoize(Config) ->
     #{entries := Entries} = Item,
 
     %% JSON RPC
-    Encoded = jsx:encode(#{contents => els_markup_content:new(Entries)}),
-    Result = jsx:decode(Encoded, [{labels, atom}]),
+    Encoded = list_to_binary(
+        json:encode(#{contents => els_markup_content:new(Entries)})
+    ),
+    Result = els_utils:json_decode_with_atom_keys(Encoded),
 
     ?assertEqual(Expected, Result),
     ok.
