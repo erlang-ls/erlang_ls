@@ -106,9 +106,9 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v2
     - name: Install Erlang
-      run: choco install -y erlang --version 24.0
+      run: choco install -y erlang --version 26.2.5
     - name: Install rebar3
-      run: choco install -y rebar3 --version 3.22.1
+      run: choco install -y rebar3 --version 3.23.0
     - name: Compile
       run: rebar3 compile
     - name: Escriptize LSP Server
