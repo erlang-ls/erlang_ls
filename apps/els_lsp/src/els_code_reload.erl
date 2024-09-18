@@ -56,8 +56,8 @@ options(Node, Module) ->
             CompileOptions = proplists:get_value(
                 options, CompileInfo, []
             ),
-            case [Option || {d, 'TEST', _} = Option <- CompileOptions] of
-                [] ->
+            case lists:keyfind('TEST', 2, CompileOptions) of
+                false ->
                     %% Ensure TEST define is set, this is to
                     %% enable eunit diagnostics to run
                     [{d, 'TEST', true}];
