@@ -27,7 +27,8 @@
     define_macro/1,
     define_macro_with_args/1,
     suggest_macro/1,
-    undefined_record/1
+    undefined_record/1,
+    undefined_record_suggest/1
 ]).
 
 %%==============================================================================
@@ -732,6 +733,61 @@ undefined_record(Config) ->
             edit => #{changes => Changes3},
             kind => <<"quickfix">>,
             title => <<"Define record included_record_a">>
+        }
+    ],
+    ?assertEqual(Expected, Result),
+    ok.
+
+-spec undefined_record_suggest(config()) -> ok.
+undefined_record_suggest(Config) ->
+    Uri = ?config(undefined_record_suggest_uri, Config),
+    %% Don't care
+    Range = els_protocol:range(#{
+        from => {5, 4},
+        to => {5, 11}
+    }),
+    DestRange = els_protocol:range(#{
+        from => {4, 1},
+        to => {4, 1}
+    }),
+    Diag = #{
+        message => <<"record foo_bar undefined">>,
+        range => Range,
+        severity => 2,
+        source => <<"Compiler">>
+    },
+    #{result := Result} =
+        els_client:document_codeaction(Uri, Range, [Diag]),
+    Changes1 =
+        #{
+            binary_to_atom(Uri, utf8) =>
+                [
+                    #{
+                        range => Range,
+                        newText => <<"#foobar">>
+                    }
+                ]
+        },
+    Changes2 =
+        #{
+            binary_to_atom(Uri, utf8) =>
+                [
+                    #{
+                        range => DestRange,
+                        newText => <<"-record(foo_bar, {}).\n">>
+                    }
+                ]
+        },
+    Expected = [
+        #{
+            edit => #{changes => Changes1},
+            kind => <<"quickfix">>,
+            title => <<"Did you mean #foobar{}?">>
+        },
+        #{
+            edit => #{changes => Changes2},
+            kind => <<"quickfix">>,
+            title => <<"Define record foo_bar">>
         }
     ],
     ?assertEqual(Expected, Result),

@@ -52,6 +52,8 @@ make_code_actions(
             {"undefined macro '(.*)'", fun els_code_actions:suggest_macro/4},
             {"record (.*) undefined", fun els_code_actions:add_include_lib_record/4},
             {"record (.*) undefined", fun els_code_actions:define_record/4},
+            {"record (.*) undefined", fun els_code_actions:suggest_record/4},
+            {"field (.*) undefined in record (.*)", fun els_code_actions:suggest_record_field/4},
             {"Module name '(.*)' does not match file name '(.*)'",
                 fun els_code_actions:fix_module_name/4},
             {"Unused macro: (.*)", fun els_code_actions:remove_macro/4},
