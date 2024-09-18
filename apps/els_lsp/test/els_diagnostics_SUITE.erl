@@ -148,7 +148,7 @@ init_per_testcase(TestCase, Config) when TestCase =:= eqwalizer ->
     meck:expect(els_eqwalizer_diagnostics, is_default, 0, true),
     Diagnostics = [
         els_utils:to_list(
-            jsx:encode(#{
+            json:encode(#{
                 <<"diagnostic">> =>
                     #{
                         <<"code">> => <<"eqwalizer">>,

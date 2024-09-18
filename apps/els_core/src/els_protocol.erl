@@ -34,7 +34,7 @@ notification(Method, Params) ->
         method => Method,
         params => Params
     },
-    content(jsx:encode(Message)).
+    content(Message).
 
 -spec request(number(), binary()) -> binary().
 request(RequestId, Method) ->
@@ -43,7 +43,7 @@ request(RequestId, Method) ->
         method => Method,
         id => RequestId
     },
-    content(jsx:encode(Message)).
+    content(Message).
 
 -spec request(number(), binary(), any()) -> binary().
 request(RequestId, Method, Params) ->
@@ -53,7 +53,7 @@ request(RequestId, Method, Params) ->
         id => RequestId,
         params => Params
     },
-    content(jsx:encode(Message)).
+    content(Message).
 
 -spec response(number(), any()) -> binary().
 response(RequestId, Result) ->
@@ -63,7 +63,7 @@ response(RequestId, Result) ->
         result => Result
     },
     ?LOG_DEBUG("[Response] [message=~p]", [Message]),
-    content(jsx:encode(Message)).
+    content(Message).
 
 -spec error(number(), any()) -> binary().
 error(RequestId, Error) ->
@@ -73,7 +73,7 @@ error(RequestId, Error) ->
         error => Error
     },
     ?LOG_DEBUG("[Response] [message=~p]", [Message]),
-    content(jsx:encode(Message)).
+    content(Message).
 
 %%==============================================================================
 %% Data Structures
@@ -88,8 +88,9 @@ range(#{from := {FromL, FromC}, to := {ToL, ToC}}) ->
 %%==============================================================================
 %% Internal Functions
 %%==============================================================================
--spec content(binary()) -> binary().
-content(Body) ->
+-spec content(map()) -> binary().
+content(Message) ->
+    Body = list_to_binary(json:encode(Message)),
     els_utils:to_binary([headers(Body), "\r\n", Body]).
 
 -spec headers(binary()) -> iolist().

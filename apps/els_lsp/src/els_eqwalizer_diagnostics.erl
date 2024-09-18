@@ -63,7 +63,7 @@ eqwalize(Project, Module) ->
 
 -spec make_diagnostic(binary()) -> {true, els_diagnostics:diagnostic()} | false.
 make_diagnostic(Message) ->
-    try jsx:decode(els_utils:to_binary(Message)) of
+    try json:decode(els_utils:to_binary(Message)) of
         #{
             <<"relative_path">> := _RelativePath,
             <<"diagnostic">> :=

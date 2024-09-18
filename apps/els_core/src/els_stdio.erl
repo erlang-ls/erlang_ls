@@ -27,7 +27,7 @@ init({Cb, IoDevice}) ->
     ok = io:setopts(IoDevice, [binary, {encoding, latin1}]),
     {ok, Server} = application:get_env(els_core, server),
     ok = Server:set_io_device(IoDevice),
-    ?MODULE:loop([], IoDevice, Cb, [return_maps]).
+    ?MODULE:loop([], IoDevice, Cb, fun json:decode/1).
 
 -spec send(atom() | pid(), binary()) -> ok.
 send(IoDevice, Payload) ->
@@ -37,8 +37,8 @@ send(IoDevice, Payload) ->
 %% Listener loop function
 %%==============================================================================
 
--spec loop([binary()], any(), function(), [any()]) -> no_return().
-loop(Lines, IoDevice, Cb, JsonOpts) ->
+-spec loop([binary()], any(), function(), fun()) -> no_return().
+loop(Lines, IoDevice, Cb, JsonDecoder) ->
     case io:get_line(IoDevice, "") of
         <<"\n">> ->
             Headers = parse_headers(Lines),
@@ -46,9 +46,9 @@ loop(Lines, IoDevice, Cb, JsonOpts) ->
             Length = binary_to_integer(BinLength),
             %% Use file:read/2 since it reads bytes
             {ok, Payload} = file:read(IoDevice, Length),
-            Request = jsx:decode(Payload, JsonOpts),
+            Request = JsonDecoder(Payload),
             Cb([Request]),
-            ?MODULE:loop([], IoDevice, Cb, JsonOpts);
+            ?MODULE:loop([], IoDevice, Cb, JsonDecoder);
         eof ->
             Cb([
                 #{
@@ -57,7 +57,7 @@ loop(Lines, IoDevice, Cb, JsonOpts) ->
                 }
             ]);
         Line ->
-            ?MODULE:loop([Line | Lines], IoDevice, Cb, JsonOpts)
+            ?MODULE:loop([Line | Lines], IoDevice, Cb, JsonDecoder)
     end.
 
 -spec parse_headers([binary()]) -> [{binary(), binary()}].
