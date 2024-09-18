@@ -16,7 +16,7 @@ An Erlang server implementing Microsoft's Language Server Protocol 3.17.
 
 ## Supported OTP versions
 
-* 24, 25, 26
+* 24, 25, 26, 27
 
 ## Quickstart
 
