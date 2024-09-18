@@ -14,7 +14,9 @@
     define_record/4,
     add_include_lib_macro/4,
     add_include_lib_record/4,
-    suggest_macro/4
+    suggest_macro/4,
+    suggest_record/4,
+    suggest_record_field/4
 ]).
 
 -include("els_lsp.hrl").
@@ -291,6 +293,54 @@ suggest_macro(Uri, Range, _Data, [Macro]) ->
             Range
         )
      || {Distance, M} <- lists:reverse(lists:usort(Distances)),
+        Distance > 0.8
+    ].
+
+-spec suggest_record(uri(), range(), binary(), [binary()]) -> [map()].
+suggest_record(Uri, Range, _Data, [Record]) ->
+    %% Supply a quickfix to replace an unrecognized record with the most similar
+    %% record in scope.
+    {ok, Document} = els_utils:lookup_document(Uri),
+    POIs = els_scope:local_and_included_pois(Document, [record]),
+    RecordsInScope = [atom_to_binary(Id) || #{id := Id} <- POIs, is_atom(Id)],
+    Distances =
+        [{els_utils:jaro_distance(Rec, Record), Rec} || Rec <- RecordsInScope, Rec =/= Record],
+    [
+        make_edit_action(
+            Uri,
+            <<"Did you mean #", Rec/binary, "{}?">>,
+            ?CODE_ACTION_KIND_QUICKFIX,
+            <<"#", Rec/binary>>,
+            Range
+        )
+     || {Distance, Rec} <- lists:reverse(lists:usort(Distances)),
+        Distance > 0.8
+    ].
+
+-spec suggest_record_field(uri(), range(), binary(), [binary()]) -> [map()].
+suggest_record_field(Uri, Range, _Data, [Field, Record]) ->
+    %% Supply a quickfix to replace an unrecognized record field with the most
+    %% similar record field in Record.
+    {ok, Document} = els_utils:lookup_document(Uri),
+    POIs = els_scope:local_and_included_pois(Document, [record]),
+    RecordId = binary_to_atom(Record, utf8),
+    Fields = [
+        atom_to_binary(F)
+     || #{id := Id, data := #{field_list := Fs}} <- POIs,
+        F <- Fs,
+        Id =:= RecordId
+    ],
+    Distances =
+        [{els_utils:jaro_distance(F, Field), F} || F <- Fields, F =/= Field],
+    [
+        make_edit_action(
+            Uri,
+            <<"Did you mean #", Record/binary, ".", F/binary, "?">>,
+            ?CODE_ACTION_KIND_QUICKFIX,
+            <<F/binary>>,
+            Range
+        )
+     || {Distance, F} <- lists:reverse(lists:usort(Distances)),
         Distance > 0.8
     ].
 
