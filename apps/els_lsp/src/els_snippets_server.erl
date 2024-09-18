@@ -129,8 +129,12 @@ snippets_from_escript() ->
 -spec custom_snippets() -> [snippet()].
 custom_snippets() ->
     Dir = custom_snippets_dir(),
-    ensure_dir(Dir),
-    snippets_from_dir(Dir).
+    case ensure_dir(Dir) of
+        ok ->
+            snippets_from_dir(Dir);
+        {error, _} ->
+            []
+    end.
 
 -spec snippets_from_dir(file:filename_all()) -> [snippet()].
 snippets_from_dir(Dir) ->
@@ -141,9 +145,9 @@ snippet_from_file(Dir, Filename) ->
     {ok, Content} = file:read_file(filename:join(Dir, Filename)),
     {Filename, Content}.
 
--spec ensure_dir(file:filename_all()) -> ok.
+-spec ensure_dir(file:filename_all()) -> 'ok' | {'error', _}.
 ensure_dir(Dir) ->
-    ok = filelib:ensure_dir(filename:join(Dir, "dummy")).
+    filelib:ensure_dir(filename:join(Dir, "dummy")).
 
 -spec build_snippet({binary(), binary()}) -> completion_item().
 build_snippet({Name, Snippet}) ->
