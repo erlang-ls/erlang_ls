@@ -668,7 +668,7 @@ use_long_names_no_domain(_Config) ->
     NodeName =
         "my_node@" ++ HostName,
     Node = list_to_atom(NodeName),
-    ?assertMatch(Node, els_config_runtime:get_node_name()),
+    ?assertMatch(Node, strip_local(els_config_runtime:get_node_name())),
     ok.
 
 -spec use_long_names_custom_hostname(config()) -> ok.
@@ -677,7 +677,7 @@ use_long_names_custom_hostname(_Config) ->
     NodeName = "my_node@127.0.0.1",
     Node = list_to_atom(NodeName),
     ?assertMatch(HostName, "127.0.0.1"),
-    ?assertMatch(Node, els_config_runtime:get_node_name()),
+    ?assertMatch(Node, strip_local(els_config_runtime:get_node_name())),
     ok.
 
 -spec epp_with_nonexistent_macro(config()) -> ok.
@@ -1066,6 +1066,15 @@ unused_macros_refactorerl(_Config) ->
 %%==============================================================================
 %% Internal Functions
 %%==============================================================================
+strip_local(Node) ->
+    list_to_atom(strip_local(atom_to_list(Node), [])).
+
+strip_local([], Acc) ->
+    lists:reverse(Acc);
+strip_local(".local", Acc) ->
+    lists:reverse(Acc);
+strip_local([H | T], Acc) ->
+    strip_local(T, [H | Acc]).
 
 mock_compiler_telemetry_enabled() ->
     meck:new(els_config, [passthrough, no_link]),
