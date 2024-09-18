@@ -16,7 +16,7 @@ jobs:
     strategy:
       matrix:
         platform: [ubuntu-latest]
-        otp-version: [24, 25, 26]
+        otp-version: [24, 25, 26, 27]
     runs-on: ${{ matrix.platform }}
     container:
       image: erlang:${{ matrix.otp-version }}
@@ -52,7 +52,7 @@ jobs:
     - name: Lint
       run: rebar3 lint
     - name: Generate Dialyzer PLT for usage in CT Tests
-      run: dialyzer --build_plt --apps erts kernel stdlib
+      run: dialyzer --build_plt --apps erts kernel stdlib crypto compiler parsetools
     - name: Start epmd as daemon
       run: epmd -daemon
     - name: Run CT Tests
@@ -106,9 +106,9 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v2
     - name: Install Erlang
-      run: choco install -y erlang --version 24.0
+      run: choco install -y erlang --version 27.0
     - name: Install rebar3
-      run: choco install -y rebar3 --version 3.22.1
+      run: choco install -y rebar3 --version 3.24.0
     - name: Compile
       run: rebar3 compile
     - name: Escriptize LSP Server
@@ -122,7 +122,7 @@ jobs:
     - name: Lint
       run: rebar3 lint
     - name: Generate Dialyzer PLT for usage in CT Tests
-      run: dialyzer --build_plt --apps erts kernel stdlib crypto compiler
+      run: dialyzer --build_plt --apps erts kernel stdlib crypto compiler parsetools
     - name: Start epmd as daemon
       run: erl -sname a -noinput -eval "halt(0)."
     - name: Run CT Tests

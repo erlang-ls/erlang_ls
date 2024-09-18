@@ -213,7 +213,21 @@ remote_call_otp(Config) ->
     OtpRelease = list_to_integer(erlang:system_info(otp_release)),
     Value =
         case has_eep48(file) of
-            true when OtpRelease >= 26 ->
+            true when OtpRelease >= 27 ->
+                <<
+                    "## file:write/2\n\n---\n\n"
+                    "```erlang\n\n  write(File, Bytes) when is_pid(File) orelse is_atom(File)\n\n"
+                    "  write(#file_descriptor{module = Module} = Handle, Bytes) \n\n"
+                    "  write(_, _) \n\n"
+                    "```\n\n"
+                    "```erlang\n"
+                    "-spec write(IoDevice, Bytes) -> ok | {error, Reason} when\n"
+                    "      IoDevice :: io_device() | io:device(),\n"
+                    "      Bytes :: iodata(),\n"
+                    "      Reason :: posix() | badarg | terminated.\n"
+                    "```"
+                >>;
+            true when OtpRelease == 26 ->
                 <<
                     "```erlang\nwrite(IoDevice, Bytes) -> ok | {error, "
                     "Reason}\nwhen\n  IoDevice :: io_device() | io:device(),\n"
