@@ -67,6 +67,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: rebar3 do cover, coveralls send
+      if: matrix.otp-version == '27'
     # - name: Produce Documentation
     #   run: rebar3 edoc
     #   if: ${{ matrix.otp-version == '24' }}
