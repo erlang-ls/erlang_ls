@@ -351,6 +351,11 @@ find_completions(
             {ItemFormat, _POIKind} =
                 completion_context(Document, Line, Column, Tokens),
             complete_type_definition(Document, Name, ItemFormat);
+        %% Check for "::"
+        [{'::', _} | _] = Tokens ->
+            {ItemFormat, _POIKind} =
+                completion_context(Document, Line, Column, Tokens),
+            complete_type_definition(Document, '', ItemFormat);
         %% Check for ":: atom"
         [{atom, _, Name}, {'::', _} | _] = Tokens ->
             {ItemFormat, _POIKind} =
