@@ -379,25 +379,6 @@ find_completions(
 find_completions(_Prefix, _TriggerKind, _Opts) ->
     [].
 
--spec try_to_parse_next_function(binary(), line(), line()) ->
-    {ok, els_poi:poi()} | error.
-try_to_parse_next_function(Text, FromL, ToL) when ToL - FromL < 50 ->
-    try els_text:range(Text, {FromL, 1}, {ToL, 1}) of
-        Str ->
-            {ok, POIs} = els_parser:parse(Str),
-            case [P || #{kind := function} = P <- POIs] of
-                [POI | _] ->
-                    {ok, POI};
-                _ ->
-                    try_to_parse_next_function(Text, FromL, ToL + 1)
-            end
-    catch
-        _:_ ->
-            error
-    end;
-try_to_parse_next_function(_, _, _) ->
-    error.
-
 -spec complete_record_field(map(), list()) -> items().
 complete_record_field(_Opts, [{atom, _, _}, {'=', _} | _]) ->
     [];
@@ -530,8 +511,12 @@ docs_attributes() ->
 
 -spec attribute_spec(Document :: els_dt_document:item(), line()) -> items().
 attribute_spec(#{text := Text}, Line) ->
-    case try_to_parse_next_function(Text, Line + 1, Line + 2) of
-        {ok, #{id := {Id, Arity}}} ->
+    POIs = els_incomplete_parser:parse_after(Text, Line),
+    case [P || #{kind := function} = P <- POIs] of
+        [] ->
+            [];
+        FunPOIs ->
+            [#{id := {Id, Arity}} | _] = els_poi:sort(FunPOIs),
             Args = [els_arg:new(I, "_") || I <- lists:seq(1, Arity)],
             SnippetSupport = snippet_support(),
             FunBin = format_function(Id, Args, SnippetSupport, spec),
@@ -543,9 +528,7 @@ attribute_spec(#{text := Text}, Line) ->
                         N = integer_to_binary(Arity + 1),
                         <<" -> ${", N/binary, ":_}.">>
                 end,
-            [snippet(<<"-spec">>, <<"spec ", FunBin/binary, RetBin/binary>>)];
-        error ->
-            []
+            [snippet(<<"-spec">>, <<"spec ", FunBin/binary, RetBin/binary>>)]
     end.
 
 %%=============================================================================
