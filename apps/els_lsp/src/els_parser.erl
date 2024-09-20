@@ -929,35 +929,47 @@ implicit_fun(Tree) ->
     | undefined.
 try_analyze_implicit_fun(Tree) ->
     FunName = erl_syntax:implicit_fun_name(Tree),
-    ModQBody = erl_syntax:module_qualifier_body(FunName),
-    ModQArg = erl_syntax:module_qualifier_argument(FunName),
-    case erl_syntax:type(ModQBody) of
-        arity_qualifier ->
-            AqBody = erl_syntax:arity_qualifier_body(ModQBody),
-            AqArg = erl_syntax:arity_qualifier_argument(ModQBody),
-            case {erl_syntax:type(ModQArg), erl_syntax:type(AqBody), erl_syntax:type(AqArg)} of
-                {macro, atom, integer} ->
-                    M = erl_syntax:variable_name(erl_syntax:macro_name(ModQArg)),
-                    F = erl_syntax:atom_value(AqBody),
-                    A = erl_syntax:integer_value(AqArg),
-                    case M of
-                        'MODULE' ->
-                            {F, A};
-                        _ ->
-                            undefined
-                    end;
-                {ModType, FunType, integer} when
-                    ModType =:= variable orelse ModType =:= atom,
-                    FunType =:= variable orelse FunType =:= atom
-                ->
-                    M = node_name(ModQArg),
-                    F = node_name(AqBody),
-                    A = erl_syntax:integer_value(AqArg),
-                    {{ModType, M}, {FunType, F}, A};
-                _Types ->
+    case erl_syntax:type(FunName) of
+        module_qualifier ->
+            ModQBody = erl_syntax:module_qualifier_body(FunName),
+            ModQArg = erl_syntax:module_qualifier_argument(FunName),
+            case erl_syntax:type(ModQBody) of
+                arity_qualifier ->
+                    try_analyze_arity_qualifier(ModQBody, ModQArg);
+                _Type ->
                     undefined
             end;
         _Type ->
+            undefined
+    end.
+
+-spec try_analyze_arity_qualifier(tree(), tree()) ->
+    {{atom(), atom()}, {atom(), atom()}, arity()}
+    | {atom(), arity()}
+    | undefined.
+try_analyze_arity_qualifier(ModQBody, ModQArg) ->
+    AqBody = erl_syntax:arity_qualifier_body(ModQBody),
+    AqArg = erl_syntax:arity_qualifier_argument(ModQBody),
+    case {erl_syntax:type(ModQArg), erl_syntax:type(AqBody), erl_syntax:type(AqArg)} of
+        {macro, atom, integer} ->
+            M = erl_syntax:variable_name(erl_syntax:macro_name(ModQArg)),
+            F = erl_syntax:atom_value(AqBody),
+            A = erl_syntax:integer_value(AqArg),
+            case M of
+                'MODULE' ->
+                    {F, A};
+                _ ->
+                    undefined
+            end;
+        {ModType, FunType, integer} when
+            ModType =:= variable orelse ModType =:= atom,
+            FunType =:= variable orelse FunType =:= atom
+        ->
+            M = node_name(ModQArg),
+            F = node_name(AqBody),
+            A = erl_syntax:integer_value(AqArg),
+            {{ModType, M}, {FunType, F}, A};
+        _Types ->
             undefined
     end.
 
