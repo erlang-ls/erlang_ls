@@ -293,6 +293,9 @@ find_completions(
         %% Check for "[...] #"
         [{'#', _} | _] ->
             definitions(Document, record);
+        %% Check for "#{"
+        [{'{', _}, {'#', _} | _] ->
+            [map_comprehension_completion_item(Document, Line, Column)];
         %% Check for "[...] #anything"
         [_, {'#', _} | _] ->
             definitions(Document, record);
@@ -336,6 +339,9 @@ find_completions(
             Attribute =:= behaviour; Attribute =:= behavior
         ->
             [item_kind_module(Module) || Module <- behaviour_modules("")];
+        %% Check for "["
+        [{'[', _} | _] ->
+            [list_comprehension_completion_item(Document, Line, Column)];
         %% Check for "[...] fun atom"
         [{atom, _, _}, {'fun', _} | _] ->
             bifs(function, ItemFormat = arity_only) ++
@@ -370,6 +376,66 @@ find_completions(
     end;
 find_completions(_Prefix, _TriggerKind, _Opts) ->
     [].
+
+-spec list_comprehension_completion_item(els_dt_document:item(), line(), column()) ->
+    completion_item().
+list_comprehension_completion_item(#{text := Text}, Line, Column) ->
+    Suffix =
+        try els_text:get_char(Text, Line, Column + 1) of
+            {ok, $]} ->
+                %% Don't include ']' if next character is a ']'
+                %% I.e if cursor is at []
+                %%                     ^
+                <<"">>;
+            _ ->
+                <<"]">>
+        catch
+            _:_:_ ->
+                <<"]">>
+        end,
+    InsertText =
+        case snippet_support() of
+            true ->
+                <<"${3:Expr} || ${2:Elem} <- ${1:List}", Suffix/binary>>;
+            false ->
+                <<"Expr || Elem <- List", Suffix/binary>>
+        end,
+    #{
+        label => <<"[Expr || Elem <- List]">>,
+        kind => ?COMPLETION_ITEM_KIND_KEYWORD,
+        insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
+        insertText => InsertText
+    }.
+
+-spec map_comprehension_completion_item(els_dt_document:item(), line(), column()) ->
+    completion_item().
+map_comprehension_completion_item(#{text := Text}, Line, Column) ->
+    Suffix =
+        try els_text:get_char(Text, Line, Column + 1) of
+            {ok, $}} ->
+                %% Don't include '}' if next character is a '}'
+                %% I.e if cursor is at #{}
+                %%                      ^
+                <<"">>;
+            _ ->
+                <<"}">>
+        catch
+            _:_:_ ->
+                <<"}">>
+        end,
+    InsertText =
+        case snippet_support() of
+            true ->
+                <<"${4:K} => ${5:V} || ${2:K} => ${3:V} <- ${1:Map}", Suffix/binary>>;
+            false ->
+                <<"K => V || K := V <- Map", Suffix/binary>>
+        end,
+    #{
+        label => <<"#{K => V || K := V <- Map}">>,
+        kind => ?COMPLETION_ITEM_KIND_KEYWORD,
+        insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
+        insertText => InsertText
+    }.
 
 -spec complete_atom(atom(), [any()], map()) -> [completion_item()].
 complete_atom(Name, Tokens, Opts) ->
