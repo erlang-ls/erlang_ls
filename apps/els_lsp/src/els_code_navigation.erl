@@ -60,7 +60,8 @@ goto_definition(
 ) when
     Kind =:= application;
     Kind =:= implicit_fun;
-    Kind =:= export_entry
+    Kind =:= export_entry;
+    Kind =:= nifs_entry
 ->
     %% try to find local function first
     %% fall back to bif search if unsuccessful

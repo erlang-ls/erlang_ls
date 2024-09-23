@@ -122,7 +122,8 @@ workspace_edits(Uri, [#{kind := Kind} = POI | _], NewName) when
     Kind =:= export_entry;
     Kind =:= import_entry;
     Kind =:= export_type_entry;
-    Kind =:= type_application
+    Kind =:= type_application;
+    Kind =:= nifs_entry
 ->
     case els_code_navigation:goto_definition(Uri, POI) of
         {ok, [{DefUri, DefPOI}]} ->
@@ -205,7 +206,8 @@ editable_range(#{kind := Kind, data := #{name_range := Range}}, function) when
     Kind =:= export_type_entry;
     Kind =:= import_entry;
     Kind =:= type_application;
-    Kind =:= type_definition
+    Kind =:= type_definition;
+    Kind =:= nifs_entry
 ->
     %% application POI of a local call and
     %% type_application POI of a built-in type don't have name_range data
@@ -267,7 +269,8 @@ changes(Uri, #{kind := function, id := {F, A}}, NewName) ->
      || P <- els_dt_document:pois(Doc, [
             export_entry,
             function_clause,
-            spec
+            spec,
+            nifs_entry
         ]),
         IsMatch(P)
     ],

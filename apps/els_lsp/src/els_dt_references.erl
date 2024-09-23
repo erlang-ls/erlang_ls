@@ -161,7 +161,8 @@ kind_to_category(Kind) when
     Kind =:= function;
     Kind =:= function_clause;
     Kind =:= import_entry;
-    Kind =:= implicit_fun
+    Kind =:= implicit_fun;
+    Kind =:= nifs_entry
 ->
     function;
 kind_to_category(Kind) when
