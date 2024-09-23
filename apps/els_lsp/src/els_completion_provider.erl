@@ -452,7 +452,7 @@ complete_atom(Name, Tokens, Opts) ->
             #{text := Text} = Document,
             case
                 is_in(Document, Line, Column, [nifs]) orelse
-                is_in_heuristic(Text, <<"nifs">>, Line - 1)
+                    is_in_heuristic(Text, <<"nifs">>, Line - 1)
             of
                 true ->
                     definitions(Document, POIKind, ItemFormat, false);
