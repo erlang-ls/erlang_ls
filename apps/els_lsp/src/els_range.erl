@@ -36,6 +36,7 @@ in(#{from := FromA, to := ToA}, #{from := FromB, to := ToB}) ->
     els_poi:poi_range().
 range({{_Line, _Column} = From, {_ToLine, _ToColumn} = To}, Name, _, _Data) when
     Name =:= export;
+    Name =:= nifs;
     Name =:= export_type;
     Name =:= spec
 ->

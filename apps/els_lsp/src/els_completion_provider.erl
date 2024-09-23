@@ -308,6 +308,9 @@ find_completions(
         %% Check for "-export(["
         [{'[', _}, {'(', _}, {atom, _, export}, {'-', _}] ->
             unexported_definitions(Document, function);
+        %% Check for "-nifs(["
+        [{'[', _}, {'(', _}, {atom, _, nifs}, {'-', _}] ->
+            definitions(Document, function, arity_only, false);
         %% Check for "-export_type(["
         [{'[', _}, {'(', _}, {atom, _, export_type}, {'-', _}] ->
             unexported_definitions(Document, type_definition);
@@ -353,8 +356,18 @@ find_completions(
             {ItemFormat, POIKind} = completion_context(Document, Line, Column, Tokens),
             case ItemFormat of
                 arity_only ->
-                    %% Only complete unexported definitions when in export
-                    unexported_definitions(Document, POIKind);
+                    #{text := Text} = Document,
+                    case
+                        is_in(Document, Line, Column, [nifs]) orelse
+                            is_in_heuristic(Text, <<"nifs">>, Line - 1)
+                    of
+                        true ->
+                            definitions(Document, POIKind, ItemFormat, false);
+                        _ ->
+                            %% Only complete unexported definitions when in
+                            %% export
+                            unexported_definitions(Document, POIKind)
+                    end;
                 _ ->
                     case complete_record_field(Opts, Tokens) of
                         [] ->
@@ -476,6 +489,7 @@ attributes(Document, Line) ->
         snippet(attribute_include),
         snippet(attribute_include_lib),
         snippet(attribute_on_load),
+        snippet(attribute_nifs),
         snippet(attribute_opaque),
         snippet(attribute_record),
         snippet(attribute_type),
@@ -561,6 +575,11 @@ snippet(attribute_on_load) ->
     snippet(
         <<"-on_load().">>,
         <<"on_load(${1:Function}).">>
+    );
+snippet(attribute_nifs) ->
+    snippet(
+        <<"-nifs().">>,
+        <<"nifs([${1:}]).">>
     );
 snippet(attribute_export_type) ->
     snippet(<<"-export_type().">>, <<"export_type([${1:}]).">>);
@@ -770,7 +789,7 @@ definitions(Document, POIKind, ItemFormat, ExportedOnly) ->
     {item_format(), els_poi:poi_kind() | any}.
 completion_context(#{text := Text} = Document, Line, Column, Tokens) ->
     ItemFormat =
-        case is_in_export(Document, Line, Column) of
+        case is_in_mfa_list_attr(Document, Line, Column) of
             true ->
                 arity_only;
             false ->
@@ -794,7 +813,7 @@ completion_context(#{text := Text} = Document, Line, Column, Tokens) ->
             true ->
                 type_definition;
             false ->
-                case is_in(Document, Line, Column, [export, function]) of
+                case is_in(Document, Line, Column, [export, nifs, function]) of
                     true ->
                         function;
                     false ->
@@ -803,25 +822,30 @@ completion_context(#{text := Text} = Document, Line, Column, Tokens) ->
         end,
     {ItemFormat, POIKind}.
 
--spec is_in_export(els_dt_document:item(), line(), column()) -> boolean().
-is_in_export(#{text := Text} = Document, Line, Column) ->
-    %% Sometimes is_in will be confused because -export() failed to be parsed.
+-spec is_in_mfa_list_attr(els_dt_document:item(), line(), column()) -> boolean().
+is_in_mfa_list_attr(#{text := Text} = Document, Line, Column) ->
+    %% Sometimes is_in will be confused because e.g. -export() failed to be parsed.
     %% In such case we can use a heuristic to determine if we are inside
     %% an export.
-    is_in(Document, Line, Column, [export, export_type]) orelse
-        is_in_export_heuristic(Text, Line - 1).
+    is_in(Document, Line, Column, [export, export_type, nifs]) orelse
+        is_in_mfa_list_attr_heuristic(Text, Line - 1).
 
--spec is_in_export_heuristic(binary(), line()) -> boolean().
-is_in_export_heuristic(Text, Line) ->
+-spec is_in_mfa_list_attr_heuristic(binary(), line()) -> boolean().
+is_in_mfa_list_attr_heuristic(Text, Line) ->
+    is_in_heuristic(Text, <<"export">>, Line) orelse
+        is_in_heuristic(Text, <<"nifs">>, Line).
+
+-spec is_in_heuristic(binary(), binary(), line()) -> boolean().
+is_in_heuristic(Text, Attr, Line) ->
+    Len = byte_size(Attr),
     case els_text:line(Text, Line) of
-        <<"-export", _/binary>> ->
-            %% In export
+        <<"-", Attr:Len/binary, _/binary>> ->
+            %% In Attr
             true;
         <<" ", _/binary>> when Line > 1 ->
             %% Indented line, continue to search previous line
-            is_in_export_heuristic(Text, Line - 1);
+            is_in_heuristic(Text, Attr, Line - 1);
         _ ->
-            %% Not in export
             false
     end.
 
@@ -1392,12 +1416,12 @@ is_exported_heuristic_test_() ->
         "-define(FOO, foo).\n"
     >>,
     [
-        ?_assertEqual(false, is_in_export_heuristic(Text, 0)),
-        ?_assertEqual(true, is_in_export_heuristic(Text, 1)),
-        ?_assertEqual(true, is_in_export_heuristic(Text, 2)),
-        ?_assertEqual(true, is_in_export_heuristic(Text, 3)),
-        ?_assertEqual(true, is_in_export_heuristic(Text, 4)),
-        ?_assertEqual(false, is_in_export_heuristic(Text, 5))
+        ?_assertEqual(false, is_in_mfa_list_attr_heuristic(Text, 0)),
+        ?_assertEqual(true, is_in_mfa_list_attr_heuristic(Text, 1)),
+        ?_assertEqual(true, is_in_mfa_list_attr_heuristic(Text, 2)),
+        ?_assertEqual(true, is_in_mfa_list_attr_heuristic(Text, 3)),
+        ?_assertEqual(true, is_in_mfa_list_attr_heuristic(Text, 4)),
+        ?_assertEqual(false, is_in_mfa_list_attr_heuristic(Text, 5))
     ].
 
 -endif.
