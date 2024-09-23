@@ -352,35 +352,14 @@ find_completions(
             complete_type_definition(Document, Name, ItemFormat);
         %% Check for "[...] atom"
         [{atom, _, Name} | _] = Tokens ->
-            NameBinary = atom_to_binary(Name, utf8),
-            {ItemFormat, POIKind} = completion_context(Document, Line, Column, Tokens),
-            case ItemFormat of
-                arity_only ->
-                    #{text := Text} = Document,
-                    case
-                        is_in(Document, Line, Column, [nifs]) orelse
-                            is_in_heuristic(Text, <<"nifs">>, Line - 1)
-                    of
-                        true ->
-                            definitions(Document, POIKind, ItemFormat, false);
-                        _ ->
-                            %% Only complete unexported definitions when in
-                            %% export
-                            unexported_definitions(Document, POIKind)
-                    end;
-                _ ->
-                    case complete_record_field(Opts, Tokens) of
-                        [] ->
-                            keywords(POIKind, ItemFormat) ++
-                                bifs(POIKind, ItemFormat) ++
-                                atoms(Document, NameBinary) ++
-                                all_record_fields(Document, NameBinary) ++
-                                modules(NameBinary) ++
-                                definitions(Document, POIKind, ItemFormat) ++
-                                snippets(POIKind, ItemFormat);
-                        RecordFields ->
-                            RecordFields
-                    end
+            complete_atom(Name, Tokens, Opts);
+        %% Treat keywords as atom completion
+        [{Name, _} | _] = Tokens ->
+            case lists:member(Name, keywords()) of
+                true ->
+                    complete_atom(Name, Tokens, Opts);
+                false ->
+                    []
             end;
         Tokens ->
             ?LOG_DEBUG(
@@ -391,6 +370,40 @@ find_completions(
     end;
 find_completions(_Prefix, _TriggerKind, _Opts) ->
     [].
+
+-spec complete_atom(atom(), [any()], map()) -> [completion_item()].
+complete_atom(Name, Tokens, Opts) ->
+    #{document := Document, line := Line, column := Column} = Opts,
+    NameBinary = atom_to_binary(Name, utf8),
+    {ItemFormat, POIKind} = completion_context(Document, Line, Column, Tokens),
+    case ItemFormat of
+        arity_only ->
+            #{text := Text} = Document,
+            case
+                is_in(Document, Line, Column, [nifs]) orelse
+                is_in_heuristic(Text, <<"nifs">>, Line - 1)
+            of
+                true ->
+                    definitions(Document, POIKind, ItemFormat, false);
+                _ ->
+                    %% Only complete unexported definitions when in
+                    %% export
+                    unexported_definitions(Document, POIKind)
+            end;
+        _ ->
+            case complete_record_field(Opts, Tokens) of
+                [] ->
+                    keywords(POIKind, ItemFormat) ++
+                        bifs(POIKind, ItemFormat) ++
+                        atoms(Document, NameBinary) ++
+                        all_record_fields(Document, NameBinary) ++
+                        modules(NameBinary) ++
+                        definitions(Document, POIKind, ItemFormat) ++
+                        snippets(POIKind, ItemFormat);
+                RecordFields ->
+                    RecordFields
+            end
+    end.
 
 -spec complete_record_field(map(), list()) -> items().
 complete_record_field(_Opts, [{atom, _, _}, {'=', _} | _]) ->
@@ -999,7 +1012,15 @@ keywords(type_definition, _ItemFormat) ->
 keywords(_POIKind, arity_only) ->
     [];
 keywords(_POIKind, _ItemFormat) ->
-    Keywords = [
+    Keywords = keywords(),
+    [
+        keyword_completion_item(K, snippet_support())
+     || K <- Keywords
+    ].
+
+-spec keywords() -> [atom()].
+keywords() ->
+    [
         'after',
         'and',
         'andalso',
@@ -1015,9 +1036,11 @@ keywords(_POIKind, _ItemFormat) ->
         'cond',
         'div',
         'end',
+        'else',
         'fun',
         'if',
         'let',
+        'maybe',
         'not',
         'of',
         'or',
@@ -1027,14 +1050,127 @@ keywords(_POIKind, _ItemFormat) ->
         'try',
         'when',
         'xor'
-    ],
-    [
-        #{
-            label => atom_to_binary(K, utf8),
-            kind => ?COMPLETION_ITEM_KIND_KEYWORD
-        }
-     || K <- Keywords
     ].
+
+-spec keyword_completion_item(_, _) -> _.
+keyword_completion_item('case', true) ->
+    #{
+        label => <<"case">>,
+        kind => ?COMPLETION_ITEM_KIND_KEYWORD,
+        insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
+        insertText =>
+            <<
+                "case ${1:Exprs} of\n"
+                "  ${2:Pattern} ->\n"
+                "    ${3:Body}\n"
+                "end"
+            >>
+    };
+keyword_completion_item('try', true) ->
+    #{
+        label => <<"try">>,
+        kind => ?COMPLETION_ITEM_KIND_KEYWORD,
+        insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
+        insertText =>
+            <<
+                "try ${1:Exprs}\n"
+                "catch\n"
+                "  ${2:Class}:${3:ExceptionPattern}:${4:Stacktrace} ->\n"
+                "    ${5:ExceptionBody}\n"
+                "end"
+            >>
+    };
+keyword_completion_item('catch', true) ->
+    #{
+        label => <<"catch">>,
+        kind => ?COMPLETION_ITEM_KIND_KEYWORD,
+        insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
+        insertText =>
+            <<
+                "catch\n"
+                "  ${1:Class}:${2:ExceptionPattern}:${3:Stacktrace} ->\n"
+                "    ${4:ExceptionBody}\n"
+                "end"
+            >>
+    };
+keyword_completion_item('begin', true) ->
+    #{
+        label => <<"begin">>,
+        kind => ?COMPLETION_ITEM_KIND_KEYWORD,
+        insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
+        insertText =>
+            <<
+                "begin\n"
+                "  ${1:Body}\n"
+                "end"
+            >>
+    };
+keyword_completion_item('maybe', true) ->
+    #{
+        label => <<"maybe">>,
+        kind => ?COMPLETION_ITEM_KIND_KEYWORD,
+        insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
+        insertText =>
+            <<
+                "maybe\n"
+                "  ${1:Body}\n"
+                "end"
+            >>
+    };
+keyword_completion_item('after', true) ->
+    #{
+        label => <<"after">>,
+        kind => ?COMPLETION_ITEM_KIND_KEYWORD,
+        insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
+        insertText =>
+            <<
+                "after\n"
+                "  ${1:Duration} ->\n"
+                "    ${2:Body}"
+            >>
+    };
+keyword_completion_item('else', true) ->
+    #{
+        label => <<"else">>,
+        kind => ?COMPLETION_ITEM_KIND_KEYWORD,
+        insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
+        insertText =>
+            <<
+                "else\n"
+                "  ${1:Pattern} ->\n"
+                "    ${2:Body}"
+            >>
+    };
+keyword_completion_item('of', true) ->
+    #{
+        label => <<"of">>,
+        kind => ?COMPLETION_ITEM_KIND_KEYWORD,
+        insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
+        insertText =>
+            <<
+                "of\n"
+                "  ${1:Pattern} ->\n"
+                "    ${2:Body}"
+            >>
+    };
+keyword_completion_item('receive', true) ->
+    #{
+        label => <<"receive">>,
+        kind => ?COMPLETION_ITEM_KIND_KEYWORD,
+        insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
+        insertText =>
+            <<
+                "receive\n"
+                "  ${1:Pattern} ->\n"
+                "    ${2:Body}\n"
+                "end"
+            >>
+    };
+keyword_completion_item(K, _SnippetSupport) ->
+    #{
+        label => atom_to_binary(K, utf8),
+        kind => ?COMPLETION_ITEM_KIND_KEYWORD
+    }.
 
 %%==============================================================================
 %% Built-in functions

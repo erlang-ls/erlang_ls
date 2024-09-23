@@ -51,7 +51,9 @@
     resolve_type_application_remote_external/1,
     resolve_opaque_application_remote_external/1,
     resolve_type_application_remote_otp/1,
-    completion_request_fails/1
+    completion_request_fails/1,
+    list_comprehension/1,
+    map_comprehension/1
 ]).
 
 %%==============================================================================
@@ -231,12 +233,6 @@ attributes(Config) ->
                 insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
                 kind => ?COMPLETION_ITEM_KIND_SNIPPET,
                 label => <<"-spec">>
-            },
-            #{
-                insertText => <<"nifs([${1:}]).">>,
-                insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
-                kind => ?COMPLETION_ITEM_KIND_SNIPPET,
-                label => <<"-nifs().">>
             }
         ] ++ docs_attributes(),
     #{result := Completions} =
@@ -2058,3 +2054,67 @@ has_eep48(Module) ->
 
 keywords() ->
     els_completion_provider:keywords(test, test).
+
+list_comprehension(Config) ->
+    Uri = ?config(completion_more_uri, Config),
+    TriggerKind = ?COMPLETION_TRIGGER_KIND_INVOKED,
+    %% Complete at [|
+    #{result := Result1} = els_client:completion(Uri, 4, 6, TriggerKind, <<>>),
+    ?assertEqual(
+        [
+            #{
+                label => <<"[Expr || Elem <- List]">>,
+                kind => ?COMPLETION_ITEM_KIND_KEYWORD,
+                insertText => <<"${3:Expr} || ${2:Elem} <- ${1:List}]">>,
+                insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+            }
+        ],
+        Result1
+    ),
+    %% Complete at [|]
+    #{result := Result2} =
+        els_client:completion(Uri, 5, 6, TriggerKind, <<>>),
+    ?assertEqual(
+        [
+            #{
+                label => <<"[Expr || Elem <- List]">>,
+                kind => ?COMPLETION_ITEM_KIND_KEYWORD,
+                insertText => <<"${3:Expr} || ${2:Elem} <- ${1:List}">>,
+                insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+            }
+        ],
+        Result2
+    ).
+
+map_comprehension(Config) ->
+    Uri = ?config(completion_more_uri, Config),
+    TriggerKind = ?COMPLETION_TRIGGER_KIND_INVOKED,
+    %% Complete at #{|
+    #{result := Result1} = els_client:completion(Uri, 8, 7, TriggerKind, <<>>),
+    ?assertEqual(
+        [
+            #{
+                label => <<"#{K => V || K := V <- Map}">>,
+                kind => ?COMPLETION_ITEM_KIND_KEYWORD,
+                insertText =>
+                    <<"${4:K} => ${5:V} || ${2:K} => ${3:V} <- ${1:Map}}">>,
+                insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+            }
+        ],
+        Result1
+    ),
+    %% Complete at #{|}
+    #{result := Result2} =
+        els_client:completion(Uri, 9, 7, TriggerKind, <<>>),
+    ?assertEqual(
+        [
+            #{
+                label => <<"#{K => V || K := V <- Map}">>,
+                kind => ?COMPLETION_ITEM_KIND_KEYWORD,
+                insertText =>
+                    <<"${4:K} => ${5:V} || ${2:K} => ${3:V} <- ${1:Map}">>,
+                insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+            }
+        ],
+        Result2
+    ).
