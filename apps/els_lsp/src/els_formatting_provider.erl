@@ -74,8 +74,34 @@ handle_request({document_ontypeformatting, Params}) ->
 %% Internal functions
 %%==============================================================================
 -spec format_document(binary(), string(), formatting_options()) ->
-    {[text_edit()]}.
+    {response, [text_edit()]}.
 format_document(Path, RelativePath, Options) ->
+    Config = els_config:get(formatting),
+    case {get_formatter_files(Config), get_formatter_exclude_files(Config)} of
+        {all, ExcludeFiles} ->
+            case lists:member(Path, ExcludeFiles) of
+                true ->
+                    {response, []};
+                false ->
+                    do_format_document(Path, RelativePath, Options)
+            end;
+        {Files, ExcludeFiles} ->
+            case lists:member(Path, Files) of
+                true ->
+                    case lists:member(Path, ExcludeFiles) of
+                        true ->
+                            {response, []};
+                        false ->
+                            do_format_document(Path, RelativePath, Options)
+                    end;
+                false ->
+                    {response, []}
+            end
+    end.
+
+-spec do_format_document(binary(), string(), formatting_options()) ->
+    {response, [text_edit()]}.
+do_format_document(Path, RelativePath, Options) ->
     Fun = fun(Dir) ->
         format_document_local(Dir, RelativePath, Options),
         Outfile = filename:join(Dir, RelativePath),
@@ -121,6 +147,27 @@ rangeformat_document(_Uri, _Document, _Range, _Options) ->
     {ok, [text_edit()]}.
 ontypeformat_document(_Uri, _Document, _Line, _Col, _Char, _Options) ->
     {ok, []}.
+
+-spec get_formatter_files(map()) -> [binary()] | all.
+get_formatter_files(Config) ->
+    RootPath = els_uri:path(els_config:get(root_uri)),
+    case maps:get("files", Config, all) of
+        all ->
+            all;
+        Globs ->
+            lists:flatten([expand_glob(RootPath, Glob) || Glob <- Globs])
+    end.
+
+-spec get_formatter_exclude_files(map()) -> [binary()].
+get_formatter_exclude_files(Config) ->
+    RootPath = els_uri:path(els_config:get(root_uri)),
+    Globs = maps:get("exclude_files", Config, []),
+    lists:flatten([expand_glob(RootPath, Glob) || Glob <- Globs]).
+
+-spec expand_glob(binary(), binary()) -> [binary()].
+expand_glob(RootPath, Glob) ->
+    Wildcard = unicode:characters_to_list(filename:join(RootPath, Glob), utf8),
+    [unicode:characters_to_binary(Path) || Path <- filelib:wildcard(Wildcard)].
 
 -spec get_formatter_name(map() | undefined) ->
     sr_formatter | erlfmt_formatter | otp_formatter | default_formatter.
