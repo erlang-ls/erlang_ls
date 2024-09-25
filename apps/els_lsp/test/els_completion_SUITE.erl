@@ -233,6 +233,12 @@ attributes(Config) ->
                 insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
                 kind => ?COMPLETION_ITEM_KIND_SNIPPET,
                 label => <<"-spec">>
+            },
+            #{
+                insertText => <<"nifs([${1:}]).">>,
+                insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
+                kind => ?COMPLETION_ITEM_KIND_SNIPPET,
+                label => <<"-nifs().">>
             }
         ] ++ docs_attributes(),
     #{result := Completions} =
