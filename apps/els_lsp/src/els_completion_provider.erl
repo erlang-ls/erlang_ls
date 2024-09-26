@@ -44,6 +44,7 @@ trigger_characters() ->
         <<"-">>,
         <<"\"">>,
         <<"{">>,
+        <<"/">>,
         <<" ">>
     ].
 
@@ -199,6 +200,24 @@ find_completions(
 ) ->
     attributes(Document, Line);
 find_completions(
+    Prefix,
+    ?COMPLETION_TRIGGER_KIND_CHARACTER,
+    #{trigger := <<"/">>}
+) ->
+    Tokens = lists:reverse(els_text:tokens(Prefix)),
+    case in_binary_heuristic(Tokens) of
+        true ->
+            binary_type_specifier();
+        false ->
+            []
+    end;
+find_completions(
+    Prefix,
+    ?COMPLETION_TRIGGER_KIND_CHARACTER,
+    #{trigger := <<"-">>}
+) ->
+    binary_type_specifiers(Prefix);
+find_completions(
     _Prefix,
     ?COMPLETION_TRIGGER_KIND_CHARACTER,
     #{trigger := <<"#">>, document := Document}
@@ -308,6 +327,18 @@ find_completions(
         %% Check for "-anything"
         [{atom, _, _}, {'-', _}] ->
             attributes(Document, Line);
+        %% Check for "[...] -"
+        [{'-', _} | _] ->
+            binary_type_specifiers(Prefix);
+        %% Check for "[...] -"
+        [{'/', _} | _] ->
+            Tokens = lists:reverse(els_text:tokens(Prefix)),
+            case in_binary_heuristic(Tokens) of
+                true ->
+                    binary_type_specifier();
+                false ->
+                    []
+            end;
         %% Check for "-export(["
         [{'[', _}, {'(', _}, {atom, _, export}, {'-', _}] ->
             unexported_definitions(Document, function);
@@ -475,6 +506,115 @@ complete_atom(Name, Tokens, Opts) ->
                     RecordFields
             end
     end.
+
+-spec binary_type_specifiers(binary()) -> [completion_item()].
+binary_type_specifiers(Prefix) ->
+    %% in_binary_heuristic will only consider current line
+    %% TODO: make it work for multi-line binaries too.
+    Tokens = lists:reverse(els_text:tokens(Prefix)),
+    case
+        in_binary_heuristic(Tokens) andalso
+            in_binary_type_specifier(Tokens, [])
+    of
+        {true, TypeListTokens} ->
+            HasType = lists:any(
+                fun(T) ->
+                    lists:member(T, binary_types())
+                end,
+                TypeListTokens
+            ),
+            HasEndianess = lists:any(
+                fun(T) ->
+                    lists:member(T, binary_endianness())
+                end,
+                TypeListTokens
+            ),
+            HasSignedness = lists:any(
+                fun(T) ->
+                    lists:member(T, binary_signedness())
+                end,
+                TypeListTokens
+            ),
+            HasUnit = lists:member(unit, TypeListTokens),
+            [binary_type_specifier(unit) || not HasUnit] ++
+                [binary_type_specifier(Label) || Label <- binary_types(), not HasType] ++
+                [binary_type_specifier(Label) || Label <- binary_endianness(), not HasEndianess] ++
+                [binary_type_specifier(Label) || Label <- binary_signedness(), not HasSignedness];
+        false ->
+            []
+    end.
+
+-spec in_binary_heuristic([any()]) -> boolean().
+in_binary_heuristic([{'>>', _} | _]) ->
+    false;
+in_binary_heuristic([{'<<', _} | _]) ->
+    true;
+in_binary_heuristic([_ | T]) ->
+    in_binary_heuristic(T);
+in_binary_heuristic([]) ->
+    false.
+
+-spec in_binary_type_specifier([any()], [atom()]) -> {true, [atom()]} | false.
+in_binary_type_specifier([{integer, _, _}, {':', _}, {atom, _, unit} | T], Spec) ->
+    in_binary_type_specifier(T, [unit | Spec]);
+in_binary_type_specifier([{atom, _, Atom} | T], Spec) ->
+    case lists:member(Atom, binary_type_specifiers()) of
+        true ->
+            in_binary_type_specifier(T, [Atom | Spec]);
+        false ->
+            false
+    end;
+in_binary_type_specifier([{'-', _} | T], Spec) ->
+    in_binary_type_specifier(T, Spec);
+in_binary_type_specifier([{'/', _} | _], Spec) ->
+    {true, Spec};
+in_binary_type_specifier([], _Spec) ->
+    false.
+
+-spec binary_type_specifiers() -> [atom()].
+binary_type_specifiers() ->
+    binary_types() ++ binary_signedness() ++ binary_endianness() ++ [unit].
+
+-spec binary_signedness() -> [atom()].
+binary_signedness() ->
+    [signed, unsigned].
+
+-spec binary_types() -> [atom()].
+binary_types() ->
+    [integer, float, binary, bytes, bitstring, bits, utf8, utf16, utf32].
+
+-spec binary_endianness() -> [atom()].
+binary_endianness() ->
+    [big, little, native].
+
+-spec binary_type_specifier() -> [completion_item()].
+binary_type_specifier() ->
+    Labels = binary_type_specifiers(),
+    [binary_type_specifier(Label) || Label <- Labels].
+
+-spec binary_type_specifier(atom()) -> completion_item().
+binary_type_specifier(unit) ->
+    case snippet_support() of
+        true ->
+            #{
+                label => <<"unit:N">>,
+                kind => ?COMPLETION_ITEM_KIND_TYPE_PARAM,
+                insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
+                insertText => <<"unit:${1:N}">>
+            };
+        false ->
+            #{
+                label => <<"unit:">>,
+                kind => ?COMPLETION_ITEM_KIND_TYPE_PARAM,
+                insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+            }
+    end;
+binary_type_specifier(Label) ->
+    #{
+        label => atom_to_binary(Label),
+        kind => ?COMPLETION_ITEM_KIND_TYPE_PARAM,
+        insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+    }.
 
 -spec complete_record_field(map(), list()) -> items().
 complete_record_field(_Opts, [{atom, _, _}, {'=', _} | _]) ->
