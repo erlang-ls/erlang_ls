@@ -947,6 +947,13 @@ macros(Config) ->
         },
         #{
             kind => ?COMPLETION_ITEM_KIND_CONSTANT,
+            label => <<"'MACRO A'">>,
+            insertText => <<"'MACRO A'">>,
+            insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
+            data => #{}
+        },
+        #{
+            kind => ?COMPLETION_ITEM_KIND_CONSTANT,
             label => <<"MACRO_A/1">>,
             insertText => <<"MACRO_A(${1:X})">>,
             insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,

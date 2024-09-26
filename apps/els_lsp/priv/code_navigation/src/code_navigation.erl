@@ -17,7 +17,7 @@
 
 -define(MACRO_A, macro_a).
 -define(MACRO_A(X), erlang:display(X)).
-
+-define('MACRO A', macro_a).
 function_a() ->
   function_b(),
   #record_a{}.
