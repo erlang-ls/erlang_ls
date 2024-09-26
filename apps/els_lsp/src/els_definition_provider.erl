@@ -73,9 +73,87 @@ goto_definition(Uri, [POI | Rest]) ->
     end.
 
 -spec match_incomplete(binary(), pos()) -> [els_poi:poi()].
-match_incomplete(Text, Pos) ->
+match_incomplete(Text, {Line, Col} = Pos) ->
     %% Try parsing subsets of text to find a matching POI at Pos
-    match_after(Text, Pos) ++ match_line(Text, Pos).
+    case match_after(Text, Pos) ++ match_line(Text, Pos) of
+        [] ->
+            %% Still found nothing, let's analyze the tokens to kludge a POI
+            LineText = els_text:line(Text, Line),
+            Tokens = els_text:tokens(LineText, {Line, 1}),
+            kludge_match(Tokens, {Line, Col + 1});
+        POIs ->
+            POIs
+    end.
+
+-spec kludge_match([any()], pos()) -> [els_poi:poi()].
+kludge_match([], _Pos) ->
+    [];
+kludge_match(
+    [
+        {atom, {FromL, FromC}, Module},
+        {':', _},
+        {atom, _, Function},
+        {'(', {ToL, ToC}}
+        | _
+    ],
+    {_, C}
+) when
+    FromC =< C, C < ToC
+->
+    %% Match mod:fun(
+    Range = #{from => {FromL, FromC}, to => {ToL, ToC}},
+    POI = els_poi:new(Range, application, {Module, Function, any_arity}),
+    [POI];
+kludge_match([{atom, {FromL, FromC}, Function}, {'(', {ToL, ToC}} | _], {_, C}) when
+    FromC =< C, C < ToC
+->
+    %% Match fun(
+    Range = #{from => {FromL, FromC}, to => {ToL, ToC}},
+    POI = els_poi:new(Range, application, {Function, any_arity}),
+    [POI];
+kludge_match([{'#', _}, {atom, {FromL, FromC}, Record} | T], {_, C} = Pos) when
+    FromC =< C
+->
+    %% Match #record
+    ToC = FromC + length(atom_to_list(Record)),
+    case C =< ToC of
+        true ->
+            Range = #{from => {FromL, FromC}, to => {FromL, ToC}},
+            POI = els_poi:new(Range, record_expr, Record),
+            [POI];
+        false ->
+            kludge_match(T, Pos)
+    end;
+kludge_match([{'?', _}, {VarOrAtom, {FromL, FromC}, Macro} | T], {_, C} = Pos) when
+    FromC =< C, (VarOrAtom == var orelse VarOrAtom == atom)
+->
+    %% Match ?MACRO
+    ToC = FromC + length(atom_to_list(Macro)),
+    case C =< ToC of
+        true ->
+            %% Match fun(
+            Range = #{from => {FromL, FromC}, to => {FromL, ToC}},
+            POI = els_poi:new(Range, macro, Macro),
+            [POI];
+        false ->
+            kludge_match(T, Pos)
+    end;
+kludge_match([{atom, {FromL, FromC}, Atom} | T], {_, C} = Pos) when
+    FromC =< C
+->
+    %% Match atom
+    ToC = FromC + length(atom_to_list(Atom)),
+    case C =< ToC of
+        true ->
+            Range = #{from => {FromL, FromC}, to => {FromL, ToC}},
+            POI = els_poi:new(Range, atom, Atom),
+            [POI];
+        false ->
+            kludge_match(T, Pos)
+    end;
+kludge_match([_ | T], Pos) ->
+    %% TODO: Add more kludges here
+    kludge_match(T, Pos).
 
 -spec match_after(binary(), pos()) -> [els_poi:poi()].
 match_after(Text, {Line, Character}) ->

@@ -11,6 +11,7 @@
     range/3,
     split_at_line/2,
     tokens/1,
+    tokens/2,
     apply_edits/2
 ]).
 -export([strip_comments/1]).
@@ -70,6 +71,27 @@ tokens(Text) ->
         {ok, Tokens, _} -> Tokens;
         {error, _, _} -> []
     end.
+
+-spec tokens(text(), {integer(), integer()}) -> [any()].
+tokens(Text, Pos) ->
+    case erl_scan:string(els_utils:to_list(Text), Pos) of
+        {ok, Tokens, _} ->
+            [unpack_anno(T) || T <- Tokens];
+        {error, _, _} ->
+            []
+    end.
+
+-spec unpack_anno(erl_scan:token()) ->
+    {Category :: atom(), Pos :: {integer(), integer()}, Symbol :: any()}
+    | {Category :: atom(), Pos :: {integer(), integer()}}.
+unpack_anno({Category, Anno, Symbol}) ->
+    Line = erl_anno:line(Anno),
+    Column = erl_anno:column(Anno),
+    {Category, {Line, Column}, Symbol};
+unpack_anno({Category, Anno}) ->
+    Line = erl_anno:line(Anno),
+    Column = erl_anno:column(Anno),
+    {Category, {Line, Column}}.
 
 %% @doc Extract the last token from the given text.
 -spec last_token(text()) -> token() | {error, empty}.
