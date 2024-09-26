@@ -1610,9 +1610,27 @@ features() ->
 
 -spec macro_label(atom() | {atom(), non_neg_integer()}) -> binary().
 macro_label({Name, Arity}) ->
-    els_utils:to_binary(io_lib:format("~ts/~p", [Name, Arity]));
+    els_utils:to_binary(
+        io_lib:format(
+            "~ts/~p",
+            [macro_to_label(Name), Arity]
+        )
+    );
 macro_label(Name) ->
-    atom_to_binary(Name, utf8).
+    macro_to_label(Name).
+
+-spec macro_to_label(atom()) -> binary().
+macro_to_label(Name) ->
+    %% Trick to ensure we can handle macros like ?'FOO BAR'.
+    Bin = atom_to_binary(Name, utf8),
+    LowerBin = string:lowercase(Bin),
+    LowerAtom = binary_to_atom(LowerBin, utf8),
+    case atom_to_label(LowerAtom) == LowerBin of
+        true ->
+            Bin;
+        false ->
+            atom_to_label(Name)
+    end.
 
 -spec format_function(atom(), els_arg:args(), boolean(), els_poi:poi_kind()) -> binary().
 format_function(Name, Args, SnippetSupport, Kind) ->
@@ -1624,10 +1642,10 @@ format_function(Name, Args, SnippetSupport, Kind) ->
     boolean()
 ) -> binary().
 format_macro({Name0, _Arity}, Args, SnippetSupport) ->
-    Name = atom_to_binary(Name0, utf8),
+    Name = macro_to_label(Name0),
     format_args(Name, Args, SnippetSupport, define);
 format_macro(Name, none, _SnippetSupport) ->
-    atom_to_binary(Name, utf8).
+    macro_to_label(Name).
 
 -spec format_args(
     binary(),
