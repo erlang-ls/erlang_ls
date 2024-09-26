@@ -10,11 +10,17 @@
 %% Includes
 %%==============================================================================
 -include("els_lsp.hrl").
+-include_lib("kernel/include/logger.hrl").
 
 %%==============================================================================
 %% Macro Definitions
 %%==============================================================================
 -define(DEFAULT_SUB_INDENT, 2).
+-type formatter_name() ::
+    sr_formatter
+    | erlfmt_formatter
+    | otp_formatter
+    | default_formatter.
 
 %%==============================================================================
 %% els_provider functions
@@ -118,8 +124,8 @@ format_document_local(
         <<"tabSize">> := TabSize
     } = Options
 ) ->
-    SubIndent = maps:get(<<"subIndent">>, Options, ?DEFAULT_SUB_INDENT),
-    Opts = #{
+    SubIndent = get_sub_indent(Options),
+    Opts0 = #{
         remove_tabs => InsertSpaces,
         break_indent => TabSize,
         sub_indent => SubIndent,
@@ -127,9 +133,29 @@ format_document_local(
     },
     Config = els_config:get(formatting),
     FormatterName = get_formatter_name(Config),
+    Opts = maybe_set_width(FormatterName, Opts0, get_width(Config)),
+    ?LOG_INFO("Format using ~p with options: ~p", [FormatterName, Opts]),
     Formatter = rebar3_formatter:new(FormatterName, Opts, unused),
     rebar3_formatter:format_file(RelativePath, Formatter),
     ok.
+
+-spec get_sub_indent(map()) -> integer().
+get_sub_indent(Options) ->
+    maps:get("subIndent", Options, ?DEFAULT_SUB_INDENT).
+
+-spec maybe_set_width(formatter_name(), map(), integer() | undefined) -> map().
+maybe_set_width(erlfmt_formatter, Opts, Width) when is_integer(Width) ->
+    Opts#{print_width => Width};
+maybe_set_width(default_formatter, Opts, Width) when is_integer(Width) ->
+    Opts#{paper => Width};
+maybe_set_width(otp_formatter, Opts, Width) when is_integer(Width) ->
+    Opts#{paper => Width};
+maybe_set_width(_Formatter, Opts, _) ->
+    Opts.
+
+-spec get_width(map()) -> integer() | undefined.
+get_width(Config) ->
+    maps:get("width", Config, undefined).
 
 -spec rangeformat_document(uri(), map(), range(), formatting_options()) ->
     {ok, [text_edit()]}.
@@ -169,8 +195,7 @@ expand_glob(RootPath, Glob) ->
     Wildcard = unicode:characters_to_list(filename:join(RootPath, Glob), utf8),
     [unicode:characters_to_binary(Path) || Path <- filelib:wildcard(Wildcard)].
 
--spec get_formatter_name(map() | undefined) ->
-    sr_formatter | erlfmt_formatter | otp_formatter | default_formatter.
+-spec get_formatter_name(map() | undefined) -> formatter_name().
 get_formatter_name(undefined) ->
     default_formatter;
 get_formatter_name(Config) ->
