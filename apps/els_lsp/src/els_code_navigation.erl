@@ -144,7 +144,9 @@ goto_definition(Uri, #{kind := callback, id := Id}) ->
 goto_definition(_Filename, _) ->
     {error, not_found}.
 
--spec is_imported_bif(uri(), atom(), non_neg_integer()) -> boolean().
+-spec is_imported_bif(uri(), atom(), non_neg_integer() | any_arity) -> boolean().
+is_imported_bif(_Uri, _F, any_arity) ->
+    false;
 is_imported_bif(_Uri, F, A) ->
     OldBif = erl_internal:old_bif(F, A),
     Bif = erl_internal:bif(F, A),
