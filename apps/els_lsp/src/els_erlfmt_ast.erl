@@ -680,6 +680,11 @@ erlfmt_to_st(Node) ->
         {args, Pos, Args} ->
             AAnno = dummy_anno(),
             erlfmt_to_st_1({tuple, Pos, [{atom, AAnno, '*args*'} | Args]});
+        {sigil, Pos, _SigilPrefix, {string, StringPos0, Text}, _SigilSuffix} ->
+            %% erl_syntax doesn't handle sigils, so we just extract the string
+            %% Move start of string to start of sigil
+            StringPos = StringPos0#{location := maps:get(location, Pos)},
+            erlfmt_to_st_1({string, StringPos, Text});
         %% TODO:
         %% New `{spec_clause, Anno, Head, Body, Guards}` node for clauses
         %% inside `spec` and `callback` attributes, similar to the `clause`
