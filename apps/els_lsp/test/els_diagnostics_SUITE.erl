@@ -14,6 +14,7 @@
 -export([
     atom_typo/1,
     bound_var_in_pattern/1,
+    bound_var_in_pattern_maybe/1,
     bound_var_in_pattern_cannot_parse/1,
     compiler/1,
     compiler_with_behaviour/1,
@@ -193,6 +194,17 @@ init_per_testcase(TestCase, Config) when
 ->
     mock_refactorerl(),
     els_test_utils:init_per_testcase(TestCase, Config);
+init_per_testcase(TestCase, Config) when
+    TestCase =:= bound_var_in_pattern_maybe
+->
+    case ?OTP_RELEASE < 25 of
+        true ->
+            {skip, "Maybe expressions are only supported from OTP 25"};
+        false ->
+            Config
+    end,
+    els_mock_diagnostics:setup(),
+    els_test_utils:init_per_testcase(TestCase, Config);
 init_per_testcase(TestCase, Config) ->
     els_mock_diagnostics:setup(),
     els_test_utils:init_per_testcase(TestCase, Config).
@@ -361,6 +373,29 @@ bound_var_in_pattern(_Config) ->
                     ]
                 )
         end,
+    els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
+
+%% #1527
+-spec bound_var_in_pattern_maybe(config()) -> ok.
+bound_var_in_pattern_maybe(_Config) ->
+    Path = src_path("diagnostics_bound_var_in_pattern_maybe.erl"),
+    Source = <<"BoundVarInPattern">>,
+    Errors = [],
+    Warnings = [],
+    Hints = [
+                        #{
+                            message => <<"Bound variable in pattern: X">>,
+                            range => {{26, 8}, {26, 9}}
+                        },
+                        #{
+                            message => <<"Bound variable in pattern: Y">>,
+                            range => {{28, 8}, {28, 9}}
+                        },
+                        #{
+                            message => <<"Bound variable in pattern: Y">>,
+                            range => {{34, 13}, {34, 14}}
+                        }
+                    ],
     els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
 
 -spec bound_var_in_pattern_cannot_parse(config()) -> ok.
