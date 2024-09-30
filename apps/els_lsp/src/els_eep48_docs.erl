@@ -157,6 +157,7 @@ render(Module, Function, #docs_v1{docs = Docs} = D, Config) when
             Docs
         ),
         D,
+        Module,
         Config
     );
 render(_Module, Function, Arity, #docs_v1{} = D) ->
@@ -183,6 +184,7 @@ render(Module, Function, Arity, #docs_v1{docs = Docs} = D, Config) when
             Docs
         ),
         D,
+        Module,
         Config
     ).
 
@@ -210,7 +212,7 @@ render_type(Module, Type, D = #docs_v1{}) ->
         Arity :: arity(),
         Docs :: docs_v1(),
         Res :: unicode:chardata() | {error, type_missing}.
-render_type(_Module, Type, #docs_v1{docs = Docs} = D, Config) ->
+render_type(Module, Type, #docs_v1{docs = Docs} = D, Config) ->
     render_typecb_docs(
         lists:filter(
             fun
@@ -222,6 +224,7 @@ render_type(_Module, Type, #docs_v1{docs = Docs} = D, Config) ->
             Docs
         ),
         D,
+        Module,
         Config
     );
 render_type(_Module, Type, Arity, #docs_v1{} = D) ->
@@ -234,7 +237,7 @@ render_type(_Module, Type, Arity, #docs_v1{} = D) ->
     Docs :: docs_v1(),
     Config :: config(),
     Res :: unicode:chardata() | {error, type_missing}.
-render_type(_Module, Type, Arity, #docs_v1{docs = Docs} = D, Config) ->
+render_type(Module, Type, Arity, #docs_v1{docs = Docs} = D, Config) ->
     render_typecb_docs(
         lists:filter(
             fun
@@ -246,6 +249,7 @@ render_type(_Module, Type, Arity, #docs_v1{docs = Docs} = D, Config) ->
             Docs
         ),
         D,
+        Module,
         Config
     ).
 
@@ -275,7 +279,7 @@ render_callback(_Module, Callback, #docs_v1{} = D) ->
         Res :: unicode:chardata() | {error, callback_missing}.
 render_callback(_Module, Callback, Arity, #docs_v1{} = D) ->
     render_callback(_Module, Callback, Arity, D, #{});
-render_callback(_Module, Callback, #docs_v1{docs = Docs} = D, Config) ->
+render_callback(Module, Callback, #docs_v1{docs = Docs} = D, Config) ->
     render_typecb_docs(
         lists:filter(
             fun
@@ -287,6 +291,7 @@ render_callback(_Module, Callback, #docs_v1{docs = Docs} = D, Config) ->
             Docs
         ),
         D,
+        Module,
         Config
     ).
 
@@ -297,7 +302,7 @@ render_callback(_Module, Callback, #docs_v1{docs = Docs} = D, Config) ->
     Docs :: docs_v1(),
     Config :: config(),
     Res :: unicode:chardata() | {error, callback_missing}.
-render_callback(_Module, Callback, Arity, #docs_v1{docs = Docs} = D, Config) ->
+render_callback(Module, Callback, Arity, #docs_v1{docs = Docs} = D, Config) ->
     render_typecb_docs(
         lists:filter(
             fun
@@ -309,6 +314,7 @@ render_callback(_Module, Callback, Arity, #docs_v1{docs = Docs} = D, Config) ->
             Docs
         ),
         D,
+        Module,
         Config
     ).
 
@@ -353,11 +359,11 @@ normalize_format(Docs, #docs_v1{format = <<"text/", _/binary>>}) when is_binary(
     [{pre, [], [Docs]}].
 
 %%% Functions for rendering reference documentation
--spec render_function([chunk_entry()], #docs_v1{}, map()) ->
+-spec render_function([chunk_entry()], #docs_v1{}, atom(), map()) ->
     unicode:chardata() | {'error', 'function_missing'}.
-render_function([], _D, _Config) ->
+render_function([], _D, _Module, _Config) ->
     {error, function_missing};
-render_function(FDocs, #docs_v1{docs = Docs} = D, Config) ->
+render_function(FDocs, #docs_v1{docs = Docs} = D, Module, Config) ->
     Grouping =
         lists:foldl(
             fun
@@ -375,7 +381,7 @@ render_function(FDocs, #docs_v1{docs = Docs} = D, Config) ->
         fun({Group, Members}) ->
             lists:map(
                 fun(Member = {_, _, _, Doc, _}) ->
-                    Sig = render_signature(Member),
+                    Sig = render_signature(Member, Module),
                     LocalDoc =
                         if
                             Doc =:= #{} ->
@@ -399,8 +405,8 @@ render_function(FDocs, #docs_v1{docs = Docs} = D, Config) ->
     ).
 
 %% Render the signature of either function, type, or anything else really.
--spec render_signature(chunk_entry()) -> chunk_elements().
-render_signature({{_Type, _F, _A}, _Anno, _Sigs, _Docs, #{signature := Specs} = Meta}) ->
+-spec render_signature(chunk_entry(), module()) -> chunk_elements() | els_poi:poi().
+render_signature({{_Type, _F, _A}, _Anno, _Sigs, _Docs, #{signature := Specs} = Meta}, _Module) ->
     lists:flatmap(
         fun(ASTSpec) ->
             PPSpec = erl_pp:attribute(ASTSpec, [{encoding, utf8}]),
@@ -424,8 +430,13 @@ render_signature({{_Type, _F, _A}, _Anno, _Sigs, _Docs, #{signature := Specs} = 
         end,
         Specs
     );
-render_signature({{_Type, _F, _A}, _Anno, Sigs, _Docs, Meta}) ->
-    [{pre, [], Sigs}, {hr, [], []} | render_meta(Meta)].
+render_signature({{_Type, F, A}, _Anno, Sigs, _Docs, Meta}, Module) ->
+    case els_dt_signatures:lookup({Module, F, A}) of
+        {ok, [#{spec := <<"-spec ", Spec/binary>>}]} ->
+            [{pre, [], Spec}, {hr, [], []} | render_meta(Meta)];
+        {ok, _} ->
+            [{pre, [], Sigs}, {hr, [], []} | render_meta(Meta)]
+    end.
 
 -spec trim_spec(unicode:chardata()) -> unicode:chardata().
 trim_spec(Spec) ->
@@ -499,7 +510,7 @@ render_headers_and_docs(Headers, DocContents, #config{} = Config) ->
         render_docs(DocContents, 0, Config)
     ].
 
--spec render_typecb_docs([TypeCB] | TypeCB, #config{}) ->
+-spec render_typecb_docs([TypeCB] | TypeCB, module(), #config{}) ->
     unicode:chardata() | {'error', 'type_missing'}
 when
     TypeCB :: {
@@ -508,16 +519,20 @@ when
         Sig :: [binary()],
         none | hidden | #{binary() => chunk_elements()}
     }.
-render_typecb_docs([], _C) ->
+render_typecb_docs([], _Module, _C) ->
     {error, type_missing};
-render_typecb_docs(TypeCBs, #config{} = C) when is_list(TypeCBs) ->
-    [render_typecb_docs(TypeCB, C) || TypeCB <- TypeCBs];
-render_typecb_docs({F, _, _Sig, Docs, _Meta} = TypeCB, #config{docs = D} = C) ->
-    render_headers_and_docs(render_signature(TypeCB), get_local_doc(F, Docs, D), C).
--spec render_typecb_docs(chunk_elements(), #docs_v1{}, _) ->
+render_typecb_docs(TypeCBs, Module, #config{} = C) when is_list(TypeCBs) ->
+    [render_typecb_docs(TypeCB, Module, C) || TypeCB <- TypeCBs];
+render_typecb_docs({F, _, _Sig, Docs, _Meta} = TypeCB, Module, #config{docs = D} = C) ->
+    render_headers_and_docs(
+        render_signature(TypeCB, Module),
+        get_local_doc(F, Docs, D),
+        C
+    ).
+-spec render_typecb_docs(chunk_elements(), #docs_v1{}, module(), _) ->
     unicode:chardata() | {'error', 'type_missing'}.
-render_typecb_docs(Docs, D, Config) ->
-    render_typecb_docs(Docs, init_config(D, Config)).
+render_typecb_docs(Docs, D, Module, Config) ->
+    render_typecb_docs(Docs, Module, init_config(D, Config)).
 
 %%% General rendering functions
 -spec render_docs([chunk_element()], #config{}) -> unicode:chardata().
@@ -540,6 +555,12 @@ init_config(D, _Config) ->
     #config{}
 ) ->
     {unicode:chardata(), non_neg_integer()}.
+render_docs(Str, State, Pos, Ind, D) when
+    is_list(Str),
+    is_integer(hd(Str))
+->
+    %% This is a string, convert it to binary.
+    render_docs([unicode:characters_to_binary(Str)], State, Pos, Ind, D);
 render_docs(Elems, State, Pos, Ind, D) when is_list(Elems) ->
     lists:mapfoldl(
         fun(Elem, P) ->

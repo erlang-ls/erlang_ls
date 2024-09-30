@@ -215,17 +215,25 @@ remote_call_otp(Config) ->
         case has_eep48(file) of
             true when OtpRelease >= 27 ->
                 <<
-                    "## file:write/2\n\n---\n\n"
-                    "```erlang\n\n  write(File, Bytes) when is_pid(File) orelse is_atom(File)\n\n"
-                    "  write(#file_descriptor{module = Module} = Handle, Bytes) \n\n"
-                    "  write(_, _) \n\n"
-                    "```\n\n"
-                    "```erlang\n"
-                    "-spec write(IoDevice, Bytes) -> ok | {error, Reason} when\n"
-                    "      IoDevice :: io_device() | io:device(),\n"
+                    "```erlang\nwrite(IoDevice, Bytes) -> ok | {error, Reason}"
+                    " when\n      IoDevice :: io_device() | io:device(),\n"
                     "      Bytes :: iodata(),\n"
                     "      Reason :: posix() | badarg | terminated.\n"
-                    "```"
+                    "```\n\n---\n\n"
+                    "```erlang\nWrites `Bytes` to the file referenced by"
+                    " `IoDevice`. This function is the only\nway to write to a"
+                    " file opened in `raw` mode (although it works for normally\n"
+                    "opened files too). Returns `ok` if successful, and"
+                    " `{error, Reason}` otherwise.\n\nIf the file is opened with"
+                    " `encoding` set to something else than `latin1`, each\nbyte"
+                    " written can result in many bytes being written to the file,"
+                    " as the byte\nrange 0..255 can represent anything between"
+                    " one and four bytes depending on\nvalue and UTF encoding"
+                    " type. If you want to write `t:unicode:chardata/0` to the\n"
+                    "`IoDevice` you should use `io:put_chars/2` instead.\n\n"
+                    "Typical error reasons:\n\n"
+                    "- **`ebadf`** - The file is not opened for writing.\n\n"
+                    "- **`enospc`** - No space is left on the device.\n```\n"
                 >>;
             true when OtpRelease == 26 ->
                 <<
