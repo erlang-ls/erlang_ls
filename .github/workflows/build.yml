@@ -110,3 +110,24 @@ jobs:
       run: rebar3 do dialyzer, xref
     - name: Produce Documentation
       run: rebar3 edoc
+  macos:
+    # Smaller job for MacOS to avoid excessive billing
+    strategy:
+      matrix:
+        platform: [macos-latest]
+        otp-version: [27]
+    runs-on: ${{ matrix.platform }}
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install Erlang
+      run: brew install erlang@${{ matrix.otp-version }}
+    - name: Install Rebar3
+      run: brew install rebar3
+    - name: Compile
+      run: rebar3 compile
+    - name: Generate Dialyzer PLT for usage in CT Tests
+      run: dialyzer --build_plt --apps erts kernel stdlib compiler crypto parsetools
+    - name: Start epmd as daemon
+      run: epmd -daemon
+    - name: Run CT Tests
+      run: rebar3 ct
