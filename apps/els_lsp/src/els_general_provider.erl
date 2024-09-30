@@ -84,6 +84,7 @@ handle_request({initialize, Params}) ->
     ok = els_config:initialize(RootUri, Capabilities, InitOptions, lsp_notification),
     {response, server_capabilities()};
 handle_request({initialized, _Params}) ->
+    ok = check_version(),
     RootUri = els_config:get(root_uri),
     NodeName = els_distribution_server:node_name(
         <<"erlang_ls">>,
@@ -109,6 +110,31 @@ handle_request({exit, #{status := Status}}) ->
 %%==============================================================================
 %% API
 %%==============================================================================
+-spec check_version() -> ok.
+check_version() ->
+    RuntimeVersion = list_to_integer(erlang:system_info(otp_release)),
+    BuildVersion = ?OTP_RELEASE,
+    case RuntimeVersion == BuildVersion of
+        true ->
+            ok;
+        false ->
+            Message = els_utils:to_binary(
+                io_lib:format(
+                    "Running Erlang/OTP ~p, but compiled with Erlang/OTP ~p.\n"
+                    "If you experience issues, "
+                    "please recompile Erlang LS using Erlang/OTP ~p.",
+                    [RuntimeVersion, BuildVersion, RuntimeVersion]
+                )
+            ),
+            ?LOG_WARNING(Message),
+            els_server:send_notification(
+                <<"window/showMessage">>,
+                #{
+                    type => ?MESSAGE_TYPE_WARNING,
+                    message => Message
+                }
+            )
+    end.
 
 %% @doc Give all available providers
 -spec available_providers() -> [provider_id()].
