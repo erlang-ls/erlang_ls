@@ -16,7 +16,8 @@
     add_include_lib_record/4,
     suggest_macro/4,
     suggest_record/4,
-    suggest_record_field/4
+    suggest_record_field/4,
+    bump_variables/2
 ]).
 
 -include("els_lsp.hrl").
@@ -440,12 +441,50 @@ extract_function(Uri, Range) ->
             []
     end.
 
+-spec bump_variables(uri(), range()) -> [map()].
+bump_variables(Uri, Range) ->
+    {ok, Document} = els_utils:lookup_document(Uri),
+    #{from := {Line, Column}} = els_range:to_poi_range(Range),
+    POIs = els_dt_document:get_element_at_pos(Document, Line, Column),
+    case [POI || #{kind := variable} = POI <- POIs] of
+        [] ->
+            [];
+        [#{id := Id, range := PoiRange} = _POI | _] ->
+            Name = atom_to_binary(Id),
+            case ends_with_digit(Name) of
+                false ->
+                    [];
+                true ->
+                    VarRange = els_protocol:range(PoiRange),
+                    [
+                        #{
+                            title => <<"Bump variables: ", Name/binary>>,
+                            kind => ?CODE_ACTION_KIND_QUICKFIX,
+                            command => make_bump_variables_command(VarRange, Uri, Name)
+                        }
+                    ]
+            end
+    end.
+
+-spec ends_with_digit(binary()) -> boolean().
+ends_with_digit(Bin) ->
+    N = binary:last(Bin),
+    $0 =< N andalso N =< $9.
+
 -spec make_extract_function_command(range(), uri()) -> map().
 make_extract_function_command(Range, Uri) ->
     els_command:make_command(
         <<"Extract function">>,
         <<"refactor.extract">>,
         [#{uri => Uri, range => Range}]
+    ).
+
+-spec make_bump_variables_command(range(), uri(), binary()) -> map().
+make_bump_variables_command(Range, Uri, Name) ->
+    els_command:make_command(
+        <<"Bump variables">>,
+        <<"bump-variables">>,
+        [#{uri => Uri, range => Range, name => Name}]
     ).
 
 -spec contains_function_clause(

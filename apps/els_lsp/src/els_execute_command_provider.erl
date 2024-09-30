@@ -25,7 +25,8 @@ options() ->
         <<"suggest-spec">>,
         <<"function-references">>,
         <<"refactor.extract">>,
-        <<"add-behaviour-callbacks">>
+        <<"add-behaviour-callbacks">>,
+        <<"bump-variables">>
     ],
     #{
         commands => [
@@ -114,6 +115,15 @@ execute_command(<<"refactor.extract">>, [
     }
 ]) ->
     ok = extract_function(Uri, Range),
+    [];
+execute_command(<<"bump-variables">>, [
+    #{
+        <<"uri">> := Uri,
+        <<"range">> := Range,
+        <<"name">> := Name
+    }
+]) ->
+    ok = bump_variables(Uri, Range, Name),
     [];
 execute_command(<<"add-behaviour-callbacks">>, [
     #{
@@ -205,6 +215,63 @@ execute_command(Command, Arguments) ->
             )
     end,
     [].
+
+-spec bump_variables(uri(), range(), binary()) -> ok.
+bump_variables(Uri, Range, VarName) ->
+    {Name, Number} = split_variable(VarName),
+    {ok, Document} = els_utils:lookup_document(Uri),
+    VarPOIs = els_poi:sort(els_dt_document:pois(Document, [variable])),
+    VarRange = els_range:to_poi_range(Range),
+    ScopeRange = els_scope:variable_scope_range(VarRange, Document),
+    Changes =
+        [
+            bump_variable_change(POI)
+         || POI <- pois_in(VarPOIs, ScopeRange),
+            should_bump_variable(POI, Name, Number)
+        ],
+    Method = <<"workspace/applyEdit">>,
+    Params = #{edit => #{changes => #{Uri => Changes}}},
+    els_server:send_request(Method, Params).
+
+-spec should_bump_variable(els_poi:poi(), binary(), binary()) -> boolean().
+should_bump_variable(#{id := Id}, Name, Number) ->
+    case split_variable(Id) of
+        {PName, PNumber} when PName == Name ->
+            binary_to_integer(PNumber) >= binary_to_integer(Number);
+        _ ->
+            false
+    end.
+
+-spec bump_variable_change(els_poi:poi()) -> map().
+bump_variable_change(#{id := Id, range := PoiRange}) ->
+    {Name, Number} = split_variable(Id),
+    NewNumber = integer_to_binary(binary_to_integer(Number) + 1),
+    NewId = binary_to_atom(<<Name/binary, NewNumber/binary>>, utf8),
+    #{
+        newText => NewId,
+        range => els_protocol:range(PoiRange)
+    }.
+
+-spec pois_in([els_poi:poi()], els_poi:poi_range()) ->
+    [els_poi:poi()].
+pois_in(POIs, Range) ->
+    [POI || #{range := R} = POI <- POIs, els_range:in(R, Range)].
+
+-spec split_variable(atom() | binary() | list()) -> {binary(), binary()} | error.
+split_variable(Name) when is_atom(Name) ->
+    split_variable(atom_to_list(Name));
+split_variable(Name) when is_binary(Name) ->
+    split_variable(unicode:characters_to_list(Name));
+split_variable(Name) when is_list(Name) ->
+    split_variable(lists:reverse(Name), []).
+
+-spec split_variable(string(), string()) -> {binary(), binary()} | error.
+split_variable([H | T], Acc) when $0 =< H, H =< $9 ->
+    split_variable(T, [H | Acc]);
+split_variable(_Name, []) ->
+    error;
+split_variable(Name, Acc) ->
+    {list_to_binary(lists:reverse(Name)), list_to_binary(Acc)}.
 
 -spec extract_function(uri(), range()) -> ok.
 extract_function(Uri, Range) ->

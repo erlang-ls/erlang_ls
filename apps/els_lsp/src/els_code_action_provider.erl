@@ -33,7 +33,8 @@ code_actions(Uri, Range, #{<<"diagnostics">> := Diagnostics}) ->
     lists:usort(
         lists:flatten([make_code_actions(Uri, D) || D <- Diagnostics]) ++
             wrangler_handler:get_code_actions(Uri, Range) ++
-            els_code_actions:extract_function(Uri, Range)
+            els_code_actions:extract_function(Uri, Range) ++
+            els_code_actions:bump_variables(Uri, Range)
     ).
 
 -spec make_code_actions(uri(), map()) -> [map()].
