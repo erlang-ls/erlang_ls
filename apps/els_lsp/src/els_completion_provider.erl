@@ -628,15 +628,16 @@ complete_record_field(
 -spec complete_record_field(map(), pos(), binary()) -> items().
 complete_record_field(#{text := Text0} = Document, Pos, Suffix) ->
     Prefix0 = els_text:range(Text0, {1, 1}, Pos),
-    POIs = els_dt_document:pois(Document, [function]),
-    %% Look for record start between current pos and end of last function
+    POIs = els_dt_document:pois(Document, [function, spec, define, callback, record]),
+    %% Look for record start between current position and end of last
+    %% relevant top level expression
     Prefix =
         case els_scope:pois_before(POIs, #{from => Pos, to => Pos}) of
             [#{range := #{to := {Line, _}}} | _] ->
                 {_, Prefix1} = els_text:split_at_line(Prefix0, Line),
                 Prefix1;
             _ ->
-                %% No function before, consider all the text
+                %% Found no POI before, consider all the text
                 Prefix0
         end,
     case parse_record(els_text:strip_comments(Prefix), Suffix) of
