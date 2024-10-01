@@ -32,11 +32,12 @@ handle_request({document_formatting, Params}) ->
         <<"textDocument">> := #{<<"uri">> := Uri}
     } = Params,
     Path = els_uri:path(Uri),
+    {ok, Document} = els_utils:lookup_document(Uri),
     case els_utils:project_relative(Uri) of
         {error, not_relative} ->
             {response, []};
         RelativePath ->
-            format_document(Path, RelativePath, Options)
+            format_document(Path, Document, RelativePath, Options)
     end;
 handle_request({document_rangeformatting, Params}) ->
     #{
@@ -79,9 +80,9 @@ handle_request({document_ontypeformatting, Params}) ->
 %%==============================================================================
 %% Internal functions
 %%==============================================================================
--spec format_document(binary(), string(), formatting_options()) ->
+-spec format_document(binary(), els_dt_document:item(), string(), formatting_options()) ->
     {response, [text_edit()]}.
-format_document(Path, RelativePath, Options) ->
+format_document(Path, Document, RelativePath, Options) ->
     Config = els_config:get(formatting),
     case {get_formatter_files(Config), get_formatter_exclude_files(Config)} of
         {all, ExcludeFiles} ->
@@ -89,7 +90,7 @@ format_document(Path, RelativePath, Options) ->
                 true ->
                     {response, []};
                 false ->
-                    do_format_document(Path, RelativePath, Options)
+                    do_format_document(Document, RelativePath, Options)
             end;
         {Files, ExcludeFiles} ->
             case lists:member(Path, Files) of
@@ -98,20 +99,32 @@ format_document(Path, RelativePath, Options) ->
                         true ->
                             {response, []};
                         false ->
-                            do_format_document(Path, RelativePath, Options)
+                            do_format_document(Document, RelativePath, Options)
                     end;
                 false ->
                     {response, []}
             end
     end.
 
--spec do_format_document(binary(), string(), formatting_options()) ->
+-spec do_format_document(els_dt_document:item(), string(), formatting_options()) ->
     {response, [text_edit()]}.
-do_format_document(Path, RelativePath, Options) ->
+do_format_document(#{text := Text}, RelativePath, Options) ->
     Fun = fun(Dir) ->
-        format_document_local(Dir, RelativePath, Options),
-        Outfile = filename:join(Dir, RelativePath),
-        {response, els_text_edit:diff_files(Path, Outfile)}
+        {ok, OldCwd} = file:get_cwd(),
+        ok = file:set_cwd(Dir),
+        try
+            Basename = filename:basename(RelativePath),
+            InFile = filename:join(Dir, Basename),
+            OutDir = filename:join([Dir, "formatted"]),
+            OutFile = filename:join(OutDir, Basename),
+            ok = filelib:ensure_dir(OutFile),
+            ok = file:write_file(InFile, Text),
+            ok = format_document_local(OutDir, Basename, Options),
+            Diff = els_text_edit:diff_files(InFile, OutFile),
+            {response, Diff}
+        after
+            ok = file:set_cwd(OldCwd)
+        end
     end,
     tempdir:mktmp(Fun).
 

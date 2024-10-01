@@ -73,6 +73,7 @@ format_doc(Config) ->
     try
         file:set_cwd(RootPath),
         Uri = ?config(format_input_uri, Config),
+        ok = els_config:set(formatting, #{}),
         #{result := Result} = els_client:document_formatting(Uri, 8, true),
         ?assertEqual(
             [
