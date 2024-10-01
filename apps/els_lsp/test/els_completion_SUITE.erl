@@ -33,6 +33,7 @@
     records/1,
     record_fields/1,
     record_fields_inside_record/1,
+    record_fields_no_completion/1,
     types/1,
     types_export_list/1,
     types_context/1,
@@ -1193,6 +1194,23 @@ record_fields_inside_record(Config) ->
     ?assertNotEqual(lists:sort(Expected2), Completion3),
     ?assertEqual(lists:sort(Expected1), lists:sort(Completion1)),
     ?assertEqual(lists:sort(Expected2), lists:sort(Completion2)),
+    ok.
+
+-spec record_fields_no_completion(config()) -> ok.
+record_fields_no_completion(Config) ->
+    %% These should NOT trigger record fields completion
+    %% Instead expected behaviour is to trigger regular atom completion
+    Uri = ?config(completion_records_uri, Config),
+    TriggerKindInvoked = ?COMPLETION_TRIGGER_KIND_INVOKED,
+    #{result := Result} =
+        els_client:completion(Uri, 14, 14, TriggerKindInvoked, <<>>),
+
+    #{result := Result} =
+        els_client:completion(Uri, 18, 14, TriggerKindInvoked, <<>>),
+
+    Labels = [Label || #{label := Label} <- Result],
+    ?assert(lists:member(<<"function_a/1">>, Labels)),
+    ?assert(lists:member(<<"function_b/1">>, Labels)),
     ok.
 
 -spec types(config()) -> ok.
