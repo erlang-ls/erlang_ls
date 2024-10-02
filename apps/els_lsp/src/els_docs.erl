@@ -18,13 +18,10 @@
 -include("els_lsp.hrl").
 -include_lib("kernel/include/logger.hrl").
 
--ifdef(OTP_RELEASE).
--if(?OTP_RELEASE >= 23).
 -include_lib("kernel/include/eep48.hrl").
 -export([eep48_docs/4]).
+-export([eep59_docs/4]).
 -type docs_v1() :: #docs_v1{}.
--endif.
--endif.
 
 %%==============================================================================
 %% Macro Definitions
@@ -135,23 +132,28 @@ function_docs(Type, M, F, A, true = _DocsMemo) ->
     end;
 function_docs(Type, M, F, A, false = _DocsMemo) ->
     %% call via ?MODULE to enable mocking in tests
-    case ?MODULE:eep48_docs(function, M, F, A) of
+    case ?MODULE:eep59_docs(function, M, F, A) of
         {ok, Docs} ->
             [{text, Docs}];
         {error, not_available} ->
-            %% We cannot fetch the EEP-48 style docs, so instead we create
-            %% something similar using the tools we have.
-            Sig = {h2, signature(Type, M, F, A)},
-            L = [
-                function_clauses(M, F, A),
-                specs(M, F, A),
-                edoc(M, F, A)
-            ],
-            case lists:append(L) of
-                [] ->
-                    [Sig];
-                Docs ->
-                    [Sig, {text, "---"} | Docs]
+            case ?MODULE:eep48_docs(function, M, F, A) of
+                {ok, Docs} ->
+                    [{text, Docs}];
+                {error, not_available} ->
+                    %% We cannot fetch the EEP-48 style docs, so instead we create
+                    %% something similar using the tools we have.
+                    Sig = {h2, signature(Type, M, F, A)},
+                    L = [
+                        function_clauses(M, F, A),
+                        specs(M, F, A),
+                        edoc(M, F, A)
+                    ],
+                    case lists:append(L) of
+                        [] ->
+                            [Sig];
+                        Docs ->
+                            [Sig, {text, "---"} | Docs]
+                    end
             end
     end.
 
@@ -207,36 +209,24 @@ signature('remote', M, F, A) ->
 %% If it is not available it tries to create the EEP-48 style docs
 %% using edoc.
 -ifdef(NATIVE_FORMAT).
+-define(MARKDOWN_FORMAT, <<"text/markdown">>).
+
 -spec eep48_docs(function | type, atom(), atom(), non_neg_integer()) ->
     {ok, string()} | {error, not_available}.
 eep48_docs(Type, M, F, A) ->
-    Render =
-        case Type of
-            function ->
-                render;
-            type ->
-                render_type
-        end,
     GL = setup_group_leader_proxy(),
     try get_doc_chunk(M) of
         {ok,
             #docs_v1{
-                format = ?NATIVE_FORMAT,
+                format = Format,
                 module_doc = MDoc
-            } = DocChunk} when MDoc =/= hidden ->
+            } = DocChunk} when
+            MDoc =/= hidden,
+            (Format == ?MARKDOWN_FORMAT orelse
+                Format == ?NATIVE_FORMAT)
+        ->
             flush_group_leader_proxy(GL),
-
-            case els_eep48_docs:Render(M, F, A, DocChunk) of
-                {error, _R0} ->
-                    case els_eep48_docs:Render(M, F, DocChunk) of
-                        {error, _R1} ->
-                            {error, not_available};
-                        Docs ->
-                            {ok, els_utils:to_list(Docs)}
-                    end;
-                Docs ->
-                    {ok, els_utils:to_list(Docs)}
-            end;
+            render_doc(Type, M, F, A, DocChunk);
         _R1 ->
             ?LOG_DEBUG(#{error => _R1}),
             {error, not_available}
@@ -253,6 +243,108 @@ eep48_docs(Type, M, F, A) ->
                 io => IO
             }),
             {error, not_available}
+    end.
+
+-spec eep59_docs(function | type, atom(), atom(), non_neg_integer()) ->
+    {ok, string()} | {error, not_available}.
+eep59_docs(Type, M, F, A) ->
+    try get_doc(M) of
+        {ok,
+            #docs_v1{
+                format = Format,
+                module_doc = MDoc
+            } = DocChunk} when
+            MDoc =/= hidden,
+            (Format == ?MARKDOWN_FORMAT orelse
+                Format == ?NATIVE_FORMAT)
+        ->
+            render_doc(Type, M, F, A, DocChunk);
+        _R1 ->
+            ?LOG_DEBUG(#{error => _R1}),
+            {error, not_available}
+    catch
+        C:E:ST ->
+            %% code:get_doc/1 fails for escriptized modules, so fall back
+            %% reading docs from source. See #751 for details
+            ?LOG_DEBUG(#{
+                slogan => "Error fetching docs, falling back to src.",
+                module => M,
+                error => {C, E},
+                st => ST
+            }),
+            {error, not_available}
+    end.
+
+-spec get_doc(module()) -> {ok, docs_v1()} | {error, not_available}.
+get_doc(Module) when is_atom(Module) ->
+    %% This will error if module isn't loaded
+    try code:get_doc(Module) of
+        {ok, DocChunk} ->
+            {ok, DocChunk};
+        {error, _} ->
+            %% If the module isn't loaded, we try
+            %% to find the doc chunks from any .beam files
+            %% matching the module name.
+            Beams = find_beams(Module),
+            get_doc(Beams, Module)
+    catch
+        C:E:ST ->
+            %% code:get_doc/1 fails for escriptized modules, so fall back
+            %% reading docs from source. See #751 for details
+            ?LOG_INFO(#{
+                slogan => "Error fetching docs, falling back to src.",
+                module => Module,
+                error => {C, E},
+                st => ST
+            }),
+            {error, not_available}
+    end.
+
+-spec get_doc([file:filename()], module()) ->
+    {ok, docs_v1()} | {error, not_available}.
+get_doc([], _Module) ->
+    {error, not_available};
+get_doc([Beam | T], Module) ->
+    case beam_lib:chunks(Beam, ["Docs"]) of
+        {ok, {Module, [{"Docs", Bin}]}} ->
+            {ok, binary_to_term(Bin)};
+        _ ->
+            get_doc(T, Module)
+    end.
+
+-spec find_beams(module()) -> [file:filename()].
+find_beams(Module) ->
+    %% Look for matching .beam files under the project root
+    RootUri = els_config:get(root_uri),
+    Root = binary_to_list(els_uri:path(RootUri)),
+    Beams0 = filelib:wildcard(
+        filename:join([Root, "**", atom_to_list(Module) ++ ".beam"])
+    ),
+    %% Sort the beams, to ensure we try the newest beam first
+    TimeBeams = [{filelib:last_modified(Beam), Beam} || Beam <- Beams0],
+    {_, Beams} = lists:unzip(lists:reverse(lists:sort(TimeBeams))),
+    Beams.
+
+-spec render_doc(function | type, module(), atom(), arity(), docs_v1()) ->
+    {ok, string()} | {error, not_available}.
+render_doc(Type, M, F, A, DocChunk) ->
+    Render =
+        case Type of
+            function ->
+                render;
+            type ->
+                render_type
+        end,
+    case els_eep48_docs:Render(M, F, A, DocChunk) of
+        {error, _R0} ->
+            case els_eep48_docs:Render(M, F, DocChunk) of
+                {error, _R1} ->
+                    {error, not_available};
+                Docs ->
+                    {ok, els_utils:to_list(Docs)}
+            end;
+        Docs ->
+            {ok, els_utils:to_list(Docs)}
     end.
 
 %% This function first tries to read the doc chunk from the .beam file
