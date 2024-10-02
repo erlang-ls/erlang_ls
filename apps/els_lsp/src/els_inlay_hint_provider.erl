@@ -136,7 +136,17 @@ should_show_arg_hint(_Name, undefined) ->
 should_show_arg_hint(undefined, _Name) ->
     true;
 should_show_arg_hint(Name, DefArgName) ->
-    strip_trailing_digits(Name) /= strip_trailing_digits(DefArgName).
+    normalize(Name) /= normalize(DefArgName).
+
+-spec normalize(string()) -> string().
+normalize(String) ->
+    remove_leading_underscore(
+        strip_trailing_digits(String)
+    ).
+
+-spec remove_leading_underscore(string()) -> string().
+remove_leading_underscore(String) ->
+    string:trim(String, leading, "_").
 
 -spec strip_trailing_digits(string()) -> string().
 strip_trailing_digits(String) ->
