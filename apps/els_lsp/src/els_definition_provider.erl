@@ -7,7 +7,7 @@
 ]).
 
 -include("els_lsp.hrl").
-
+-include_lib("kernel/include/logger.hrl").
 %%==============================================================================
 %% els_provider functions
 %%==============================================================================
@@ -24,17 +24,75 @@ handle_request({definition, Params}) ->
     POIs = els_dt_document:get_element_at_pos(Document, Line + 1, Character + 1),
     case goto_definition(Uri, POIs) of
         null ->
-            #{text := Text} = Document,
+            ?LOG_INFO("goto defintion failed", []),
+            #{
+                text := Text
+            } = Document,
             IncompletePOIs = match_incomplete(Text, {Line, Character}),
+            ?LOG_INFO("Incomplete pois: ~p", [IncompletePOIs]),
             case goto_definition(Uri, IncompletePOIs) of
                 null ->
-                    els_references_provider:handle_request({references, Params});
+                    Fuzzy = make_fuzzy(POIs),
+                    ?LOG_INFO("FUZZY: ~p", [Fuzzy]),
+                    case goto_definition(Uri, Fuzzy) of
+                        null ->
+                            ?LOG_INFO("goto defintion failed AGAIN", []),
+                            els_references_provider:handle_request({references, Params});
+                        GoTo ->
+                            {response, GoTo}
+                    end;
                 GoTo ->
                     {response, GoTo}
             end;
         GoTo ->
+            ?LOG_INFO("goto??? ~p", [GoTo]),
             {response, GoTo}
     end.
+
+-spec make_fuzzy(els_poi:poi()) -> els_poi:poi() | foo_bar_baz(1).
+make_fuzzy(POIs) ->
+    lists:flatmap(
+        fun
+            (#{kind := application, id := {M, F, _A}} = POI) ->
+                [
+                    POI#{id => {M, F, any_arity}, kind => application},
+                    POI#{id => {M, F, any_arity}, kind => type_application}
+                ];
+            (#{kind := type_application, id := {M, F, _A}} = POI) ->
+                [
+                    POI#{id => {M, F, any_arity}, kind => type_application},
+                    POI#{id => {M, F, any_arity}, kind => application}
+                ];
+            (#{kind := application, id := {F, _A}} = POI) ->
+                [
+                    POI#{id => {F, any_arity}, kind => application},
+                    POI#{id => {F, any_arity}, kind => type_application},
+                    POI#{id => {F, any_arity}, kind => macro},
+                    POI#{id => F, kind => macro}
+                ];
+            (#{kind := type_application, id := {F, _A}} = POI) ->
+                [
+                    POI#{id => {F, any_arity}, kind => type_application},
+                    POI#{id => {F, any_arity}, kind => application},
+                    POI#{id => {F, any_arity}, kind => macro},
+                    POI#{id => F, kind => macro}
+                ];
+            (#{kind := macro, id := {M, _A}} = POI) ->
+                [
+                    POI#{id => M},
+                    POI#{id => {M, any_arity}}
+                ];
+            (#{kind := atom, id := Id} = POI) ->
+                [
+                    POI#{id => {Id, any_arity}, kind => application},
+                    POI#{id => {Id, any_arity}, kind => type_application},
+                    POI#{id => Id, kind => macro}
+                ];
+            (_POI) ->
+                []
+        end,
+        POIs
+    ).
 
 -spec goto_definition(uri(), [els_poi:poi()]) -> [map()] | null.
 goto_definition(_Uri, []) ->
@@ -47,8 +105,10 @@ goto_definition(Uri, [#{id := FunId, kind := function} = POI | Rest]) ->
             %% cursor is not over a function - continue
             case els_code_navigation:goto_definition(Uri, POI) of
                 {ok, Definitions} ->
+                    ?LOG_INFO("found definitions: ~p", [Definitions]),
                     goto_definitions_to_goto(Definitions);
                 _ ->
+                    ?LOG_INFO("try rest..."),
                     goto_definition(Uri, Rest)
             end;
         Behaviours ->
@@ -64,11 +124,14 @@ goto_definition(Uri, [#{id := FunId, kind := function} = POI | Rest]) ->
                     goto_definitions_to_goto(Definitions)
             end
     end;
-goto_definition(Uri, [POI | Rest]) ->
+goto_definition(Uri, [#{id := Id} = POI | Rest]) ->
+    ?LOG_INFO("goto: ~p", [Id]),
     case els_code_navigation:goto_definition(Uri, POI) of
         {ok, Definitions} ->
+            ?LOG_INFO("got definitions: ~p", [Definitions]),
             goto_definitions_to_goto(Definitions);
         _ ->
+            ?LOG_INFO("try rest... ~p", [Rest]),
             goto_definition(Uri, Rest)
     end.
 

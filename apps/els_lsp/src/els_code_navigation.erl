@@ -17,7 +17,7 @@
 %% Includes
 %%==============================================================================
 -include("els_lsp.hrl").
-
+-include_lib("kernel/include/logger.hrl").
 %%==============================================================================
 %% Type definitions
 %%==============================================================================
@@ -204,12 +204,20 @@ find_in_document([Uri | Uris0], Document, Kind, Data, AlreadyVisited) ->
     Defs = [POI || #{id := Id} = POI <- POIs, Id =:= Data],
     {AllDefs, MultipleDefs} =
         case Data of
-            {_, any_arity} when Kind =:= function ->
+            {_, any_arity} when
+                Kind =:= function;
+                Kind =:= define;
+                Kind =:= type_definition
+            ->
+                ?LOG_INFO("uri: ~p", [Uri]),
+                ?LOG_INFO("find in document any arity! ~p ~p", [Kind, Data]),
                 %% Including defs with any arity
                 AnyArity = [
                     POI
-                 || #{id := {F, _}} = POI <- POIs, Kind =:= function, Data =:= {F, any_arity}
+                 || #{id := {F, _}} = POI <- POIs,
+                    Data =:= {F, any_arity}
                 ],
+                ?LOG_INFO("any arity: ~p", [AnyArity]),
                 {AnyArity, true};
             _ ->
                 {Defs, false}
