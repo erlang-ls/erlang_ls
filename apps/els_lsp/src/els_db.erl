@@ -32,6 +32,7 @@ tables() ->
         els_dt_document_index,
         els_dt_references,
         els_dt_signatures,
+        els_dt_functions,
         els_docs_memo
     ].
 

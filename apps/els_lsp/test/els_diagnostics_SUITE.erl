@@ -38,6 +38,7 @@
     escript_warnings/1,
     escript_errors/1,
     crossref/1,
+    crossref_compiler_enabled/1,
     crossref_autoimport/1,
     crossref_autoimport_disabled/1,
     crossref_pseudo_functions/1,
@@ -92,20 +93,22 @@ end_per_suite(Config) ->
 init_per_testcase(TestCase, Config) when
     TestCase =:= atom_typo
 ->
-    meck:new(els_atom_typo_diagnostics, [passthrough, no_link]),
-    meck:expect(els_atom_typo_diagnostics, is_default, 0, true),
-    els_mock_diagnostics:setup(),
-    els_test_utils:init_per_testcase(TestCase, Config);
+    init_with_diagnostics(TestCase, [<<"atom_typo">>], Config);
 init_per_testcase(TestCase, Config) when
     TestCase =:= crossref orelse
         TestCase =:= crossref_pseudo_functions orelse
         TestCase =:= crossref_autoimport orelse
         TestCase =:= crossref_autoimport_disabled
 ->
-    meck:new(els_crossref_diagnostics, [passthrough, no_link]),
-    meck:expect(els_crossref_diagnostics, is_default, 0, true),
-    els_mock_diagnostics:setup(),
-    els_test_utils:init_per_testcase(TestCase, Config);
+    init_with_diagnostics(TestCase, [<<"crossref">>], Config);
+init_per_testcase(TestCase, Config) when
+    TestCase =:= elvis
+->
+    init_with_diagnostics(TestCase, [<<"elvis">>], Config);
+init_per_testcase(TestCase, Config) when
+    TestCase =:= crossref_compiler_enabled
+->
+    init_with_diagnostics(TestCase, [<<"crossref">>, <<"compiler">>], Config);
 init_per_testcase(code_path_extra_dirs, Config) ->
     meck:new(yamerl, [passthrough, no_link]),
     Content = <<"code_path_extra_dirs:\n", "  - \"../code_navigation/*/\"\n">>,
@@ -129,11 +132,10 @@ init_per_testcase(use_long_names_custom_hostname, Config) ->
         <<"runtime:\n", "  use_long_names: true\n", "  cookie: mycookie\n",
             "  node_name: my_node\n", "  hostname: 127.0.0.1">>,
     init_long_names_config(Content, Config);
-init_per_testcase(exclude_unused_includes = TestCase, Config) ->
-    els_mock_diagnostics:setup(),
-    NewConfig = els_test_utils:init_per_testcase(TestCase, Config),
+init_per_testcase(exclude_unused_includes = TestCase, Config0) ->
+    Config = init_with_diagnostics(TestCase, [<<"unused_includes">>], Config0),
     els_config:set(exclude_unused_includes, ["et/include/et.hrl"]),
-    NewConfig;
+    Config;
 init_per_testcase(TestCase, Config) when TestCase =:= compiler_telemetry ->
     els_mock_diagnostics:setup(),
     mock_compiler_telemetry_enabled(),
@@ -193,28 +195,17 @@ init_per_testcase(TestCase, Config) when
 ->
     mock_refactorerl(),
     els_test_utils:init_per_testcase(TestCase, Config);
+init_per_testcase(TestCase, Config) when
+    TestCase =:= unused_includes;
+    TestCase =:= unused_includes_broken;
+    TestCase =:= unused_includes_compiler_attribute
+->
+    init_with_diagnostics(TestCase, [<<"unused_includes">>], Config);
 init_per_testcase(TestCase, Config) ->
     els_mock_diagnostics:setup(),
     els_test_utils:init_per_testcase(TestCase, Config).
 
 -spec end_per_testcase(atom(), config()) -> ok.
-end_per_testcase(TestCase, Config) when
-    TestCase =:= atom_typo
-->
-    meck:unload(els_atom_typo_diagnostics),
-    els_test_utils:end_per_testcase(TestCase, Config),
-    els_mock_diagnostics:teardown(),
-    ok;
-end_per_testcase(TestCase, Config) when
-    TestCase =:= crossref orelse
-        TestCase =:= crossref_pseudo_functions orelse
-        TestCase =:= crossref_autoimport orelse
-        TestCase =:= crossref_autoimport_disabled
-->
-    meck:unload(els_crossref_diagnostics),
-    els_test_utils:end_per_testcase(TestCase, Config),
-    els_mock_diagnostics:teardown(),
-    ok;
 end_per_testcase(TestCase, Config) when
     TestCase =:= code_path_extra_dirs orelse
         TestCase =:= use_long_names orelse
@@ -226,6 +217,7 @@ end_per_testcase(TestCase, Config) when
     els_mock_diagnostics:teardown(),
     ok;
 end_per_testcase(exclude_unused_includes = TestCase, Config) ->
+    reset_diagnostics_config(Config),
     els_config:set(exclude_unused_includes, []),
     els_test_utils:end_per_testcase(TestCase, Config),
     els_mock_diagnostics:teardown(),
@@ -262,6 +254,7 @@ end_per_testcase(TestCase, Config) when
     els_mock_diagnostics:teardown(),
     ok;
 end_per_testcase(TestCase, Config) ->
+    reset_diagnostics_config(Config),
     els_test_utils:end_per_testcase(TestCase, Config),
     els_mock_diagnostics:teardown(),
     ok.
@@ -792,7 +785,23 @@ crossref(_Config) ->
             },
             #{
                 message => <<"Cannot find definition for function lists:map/3">>,
-                range => {{5, 2}, {5, 11}}
+                range => {{5, 8}, {5, 11}}
+            }
+        ],
+    Warnings = [],
+    Hints = [],
+    els_test:run_diagnostics_test(Path, Source, Errors, Warnings, Hints).
+
+-spec crossref_compiler_enabled(config()) -> ok.
+crossref_compiler_enabled(_Config) ->
+    Path = src_path("diagnostics_xref.erl"),
+    Source = <<"CrossRef">>,
+    %% Don't expect diagnostics for missing local functions if compiler is enabled
+    Errors =
+        [
+            #{
+                message => <<"Cannot find definition for function lists:map/3">>,
+                range => {{5, 8}, {5, 11}}
             }
         ],
     Warnings = [],
@@ -806,28 +815,16 @@ crossref_pseudo_functions(_Config) ->
     Errors =
         [
             #{
-                message =>
-                    <<
-                        "Cannot find definition for function "
-                        "unknown_module:nonexistent/0"
-                    >>,
-                range => {{34, 2}, {34, 28}}
+                message => <<"Cannot find module unknown_module">>,
+                range => {{36, 2}, {36, 16}}
             },
             #{
-                message =>
-                    <<
-                        "Cannot find definition for function "
-                        "unknown_module:module_info/1"
-                    >>,
-                range => {{13, 2}, {13, 28}}
+                message => <<"Cannot find module unknown_module">>,
+                range => {{13, 2}, {13, 16}}
             },
             #{
-                message =>
-                    <<
-                        "Cannot find definition for function "
-                        "unknown_module:module_info/0"
-                    >>,
-                range => {{12, 2}, {12, 28}}
+                message => <<"Cannot find module unknown_module">>,
+                range => {{12, 2}, {12, 16}}
             }
         ],
     els_test:run_diagnostics_test(Path, <<"CrossRef">>, Errors, [], []).
@@ -846,7 +843,7 @@ crossref_autoimport_disabled(_Config) ->
     %% This testcase cannot be run from an Erlang source tree version,
     %% it needs a released version.
     Path = src_path("diagnostics_autoimport_disabled.erl"),
-    els_test:run_diagnostics_test(Path, <<"CrossRef">>, [], [], []).
+    els_test:run_diagnostics_test(Path, <<"Quick CrossRef">>, [], [], []).
 
 -spec unused_includes(config()) -> ok.
 unused_includes(_Config) ->
@@ -1156,3 +1153,29 @@ mock_refactorerl() ->
 unmock_refactoerl() ->
     meck:unload(els_refactorerl_diagnostics),
     meck:unload(els_refactorerl_utils).
+
+-spec init_with_diagnostics(atom(), [binary()], config()) -> config().
+init_with_diagnostics(TestCase, Diags, Config0) ->
+    els_mock_diagnostics:setup(),
+    Config = els_test_utils:init_per_testcase(TestCase, Config0),
+    enable_diagnostics(Diags, Config).
+
+%% Enable given diagnostics and disable the rest
+-spec enable_diagnostics([binary()], config()) -> config().
+enable_diagnostics(Diags, Config) ->
+    Available = els_diagnostics:available_diagnostics(),
+    OldDiagnosticsConfig = els_config:get(diagnostics),
+    Disabled = Available -- Diags,
+    DiagConfig = #{"enabled" => Diags, "disabled" => Disabled},
+    els_config:set(diagnostics, DiagConfig),
+    [{old_diagnostics_config, OldDiagnosticsConfig} | Config].
+
+-spec reset_diagnostics_config(config()) -> config().
+reset_diagnostics_config(Config) ->
+    case proplists:get_value(old_diagnostics_config, Config, undefined) of
+        undefined ->
+            Config;
+        DiagnosticsConfig ->
+            ok = els_config:set(diagnostics, DiagnosticsConfig),
+            Config
+    end.

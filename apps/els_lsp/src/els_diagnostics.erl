@@ -121,7 +121,10 @@ run_diagnostics(Uri) ->
             ok = wait_for_indexing_job(Uri),
             [run_diagnostic(Uri, Id) || Id <- enabled_diagnostics()];
         false ->
-            ?LOG_INFO("Initial indexing is not done, skip running diagnostics."),
+            ?LOG_INFO(
+                "Initial indexing is not done, skip running diagnostics for ~p",
+                [els_uri:module(Uri)]
+            ),
             []
     end.
 
@@ -130,6 +133,8 @@ run_diagnostics(Uri) ->
 %%==============================================================================
 -spec is_initial_indexing_done() -> boolean().
 is_initial_indexing_done() ->
+    %% Keep in sync with els_indexing
+    Jobs = [<<"Applications">>, <<"OTP">>, <<"Dependencies">>],
     JobTitles = els_background_job:list_titles(),
     lists:all(
         fun(Job) ->
@@ -138,7 +143,7 @@ is_initial_indexing_done() ->
                 JobTitles
             )
         end,
-        [<<"Applications">>, <<"OTP">>, <<"Dependencies">>]
+        Jobs
     ).
 
 -spec wait_for_indexing_job(uri()) -> ok.

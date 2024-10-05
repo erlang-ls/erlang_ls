@@ -14,6 +14,7 @@ main() ->
   unknown_module:module_info(module),
   ?MODULE:behaviour_info(callbacks),
   lager:debug("log message", []),
+  lager:debug_unsafe("log message", []),
   lager:info("log message", []),
   lager:notice("log message", []),
   lager:warning("log message", []),
@@ -23,6 +24,7 @@ main() ->
   lager:emergency("log message", []),
 
   lager:debug("log message"),
+  lager:debug_unsafe("log message", []),
   lager:info("log message"),
   lager:notice("log message"),
   lager:warning("log message"),
