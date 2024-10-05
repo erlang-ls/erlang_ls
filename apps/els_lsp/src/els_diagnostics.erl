@@ -116,11 +116,44 @@ make_diagnostic(Range, Message, Severity, Source, Data) ->
 
 -spec run_diagnostics(uri()) -> [pid()].
 run_diagnostics(Uri) ->
-    [run_diagnostic(Uri, Id) || Id <- enabled_diagnostics()].
+    case is_initial_indexing_done() of
+        true ->
+            ok = wait_for_indexing_job(Uri),
+            [run_diagnostic(Uri, Id) || Id <- enabled_diagnostics()];
+        false ->
+            ?LOG_INFO("Initial indexing is not done, skip running diagnostics."),
+            []
+    end.
 
 %%==============================================================================
 %% Internal Functions
 %%==============================================================================
+-spec is_initial_indexing_done() -> boolean().
+is_initial_indexing_done() ->
+    JobTitles = els_background_job:list_titles(),
+    lists:all(
+        fun(Job) ->
+            not lists:member(
+                <<"Indexing ", Job/binary>>,
+                JobTitles
+            )
+        end,
+        [<<"Applications">>, <<"OTP">>, <<"Dependencies">>]
+    ).
+
+-spec wait_for_indexing_job(uri()) -> ok.
+wait_for_indexing_job(Uri) ->
+    %% Add delay to allowing indexing job to start
+    timer:sleep(10),
+    JobTitles = els_background_job:list_titles(),
+    case lists:member(<<"Indexing ", Uri/binary>>, JobTitles) of
+        false ->
+            %% No indexing job is running, we're ready!
+            ok;
+        true ->
+            %% Indexing job is still running, retry until it finishes
+            wait_for_indexing_job(Uri)
+    end.
 
 -spec run_diagnostic(uri(), diagnostic_id()) -> pid().
 run_diagnostic(Uri, Id) ->

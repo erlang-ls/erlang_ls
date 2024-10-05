@@ -249,8 +249,8 @@ start(Group, Skip, SkipTag, Entries, Source) ->
                 },
                 ?LOG_INFO(
                     "Completed indexing for ~s "
-                    "(succeeded: ~p, skipped: ~p, failed: ~p)",
-                    [Group, Succeeded, Skipped, Failed]
+                    "(succeeded: ~p, skipped: ~p, failed: ~p, duration: ~p ms)",
+                    [Group, Succeeded, Skipped, Failed, Duration]
                 ),
                 els_telemetry:send_notification(Event)
             end
