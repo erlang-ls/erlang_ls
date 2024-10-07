@@ -101,6 +101,7 @@ deep_index(Document0, UpdateWords) ->
         end,
     case els_dt_document:versioned_insert(Document) of
         ok ->
+            index_functions(Id, Uri, POIs, Version),
             index_signatures(Id, Uri, Text, POIs, Version),
             case Source of
                 otp ->
@@ -131,6 +132,19 @@ index_signature(M, Text, #{id := {F, A}, range := Range, data := #{args := Args}
         spec => Spec,
         version => Version,
         args => Args
+    }).
+
+-spec index_functions(atom(), uri(), [els_poi:poi()], version()) -> ok.
+index_functions(M, Uri, POIs, Version) ->
+    ok = els_dt_functions:versioned_delete_by_uri(Uri, Version),
+    [index_function(M, POI, Version) || #{kind := function} = POI <- POIs],
+    ok.
+
+-spec index_function(atom(), els_poi:poi(), version()) -> ok.
+index_function(M, #{id := {F, A}}, Version) ->
+    els_dt_functions:versioned_insert(#{
+        mfa => {M, F, A},
+        version => Version
     }).
 
 -spec index_references(atom(), uri(), [els_poi:poi()], version()) -> ok.
@@ -249,8 +263,8 @@ start(Group, Skip, SkipTag, Entries, Source) ->
                 },
                 ?LOG_INFO(
                     "Completed indexing for ~s "
-                    "(succeeded: ~p, skipped: ~p, failed: ~p)",
-                    [Group, Succeeded, Skipped, Failed]
+                    "(succeeded: ~p, skipped: ~p, failed: ~p, duration: ~p ms)",
+                    [Group, Succeeded, Skipped, Failed, Duration]
                 ),
                 els_telemetry:send_notification(Event)
             end
@@ -263,7 +277,8 @@ remove(Uri) ->
     ok = els_dt_document:delete(Uri),
     ok = els_dt_document_index:delete_by_uri(Uri),
     ok = els_dt_references:delete_by_uri(Uri),
-    ok = els_dt_signatures:delete_by_uri(Uri).
+    ok = els_dt_signatures:delete_by_uri(Uri),
+    ok = els_dt_functions:delete_by_uri(Uri).
 
 %%==============================================================================
 %% Internal functions
