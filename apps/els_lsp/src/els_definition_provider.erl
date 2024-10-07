@@ -28,13 +28,68 @@ handle_request({definition, Params}) ->
             IncompletePOIs = match_incomplete(Text, {Line, Character}),
             case goto_definition(Uri, IncompletePOIs) of
                 null ->
-                    els_references_provider:handle_request({references, Params});
+                    FuzzyPOIs = make_fuzzy(POIs),
+                    case goto_definition(Uri, FuzzyPOIs) of
+                        null ->
+                            els_references_provider:handle_request({references, Params});
+                        GoTo ->
+                            {response, GoTo}
+                    end;
                 GoTo ->
                     {response, GoTo}
             end;
         GoTo ->
             {response, GoTo}
     end.
+
+-spec make_fuzzy([els_poi:poi()]) -> [els_poi:poi()].
+make_fuzzy(POIs) ->
+    lists:flatmap(
+        fun
+            (#{kind := application, id := {M, F, _A}} = POI) ->
+                [
+                    POI#{id => {M, F, any_arity}, kind => application},
+                    POI#{id => {M, F, any_arity}, kind => type_application}
+                ];
+            (#{kind := type_application, id := {M, F, _A}} = POI) ->
+                [
+                    POI#{id => {M, F, any_arity}, kind => type_application},
+                    POI#{id => {M, F, any_arity}, kind => application}
+                ];
+            (#{kind := application, id := {F, _A}} = POI) ->
+                [
+                    POI#{id => {F, any_arity}, kind => application},
+                    POI#{id => {F, any_arity}, kind => type_application},
+                    POI#{id => {F, any_arity}, kind => macro},
+                    POI#{id => F, kind => macro}
+                ];
+            (#{kind := type_application, id := {F, _A}} = POI) ->
+                [
+                    POI#{id => {F, any_arity}, kind => type_application},
+                    POI#{id => {F, any_arity}, kind => application},
+                    POI#{id => {F, any_arity}, kind => macro},
+                    POI#{id => F, kind => macro}
+                ];
+            (#{kind := macro, id := {M, _A}} = POI) ->
+                [
+                    POI#{id => M},
+                    POI#{id => {M, any_arity}}
+                ];
+            (#{kind := macro, id := M} = POI) ->
+                [
+                    POI#{id => {M, any_arity}}
+                ];
+            (#{kind := atom, id := Id} = POI) ->
+                [
+                    POI#{id => {Id, any_arity}, kind => application},
+                    POI#{id => {Id, any_arity}, kind => type_application},
+                    POI#{id => Id, kind => macro}
+                ];
+            (_POI) ->
+                []
+        end,
+        POIs
+    ).
 
 -spec goto_definition(uri(), [els_poi:poi()]) -> [map()] | null.
 goto_definition(_Uri, []) ->

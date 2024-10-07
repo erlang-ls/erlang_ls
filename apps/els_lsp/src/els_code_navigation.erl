@@ -204,11 +204,15 @@ find_in_document([Uri | Uris0], Document, Kind, Data, AlreadyVisited) ->
     Defs = [POI || #{id := Id} = POI <- POIs, Id =:= Data],
     {AllDefs, MultipleDefs} =
         case Data of
-            {_, any_arity} when Kind =:= function ->
+            {_, any_arity} when
+                Kind =:= function;
+                Kind =:= define;
+                Kind =:= type_definition
+            ->
                 %% Including defs with any arity
                 AnyArity = [
                     POI
-                 || #{id := {F, _}} = POI <- POIs, Kind =:= function, Data =:= {F, any_arity}
+                 || #{id := {F, _}} = POI <- POIs, Data =:= {F, any_arity}
                 ],
                 {AnyArity, true};
             _ ->
@@ -232,7 +236,8 @@ find_in_document([Uri | Uris0], Document, Kind, Data, AlreadyVisited) ->
             case MultipleDefs of
                 true ->
                     %% This will be the case only when the user tries to
-                    %% navigate to the definition of an atom
+                    %% navigate to the definition of an atom or a
+                    %% function/type/macro of wrong arity.
                     [{Uri, POI} || POI <- SortedDefs];
                 false ->
                     %% In the general case, we return only one def
