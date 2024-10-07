@@ -17,7 +17,7 @@
 %% Includes
 %%==============================================================================
 -include("els_lsp.hrl").
--include_lib("kernel/include/logger.hrl").
+
 %%==============================================================================
 %% Type definitions
 %%==============================================================================
@@ -209,15 +209,11 @@ find_in_document([Uri | Uris0], Document, Kind, Data, AlreadyVisited) ->
                 Kind =:= define;
                 Kind =:= type_definition
             ->
-                ?LOG_INFO("uri: ~p", [Uri]),
-                ?LOG_INFO("find in document any arity! ~p ~p", [Kind, Data]),
                 %% Including defs with any arity
                 AnyArity = [
                     POI
-                 || #{id := {F, _}} = POI <- POIs,
-                    Data =:= {F, any_arity}
+                 || #{id := {F, _}} = POI <- POIs, Data =:= {F, any_arity}
                 ],
-                ?LOG_INFO("any arity: ~p", [AnyArity]),
                 {AnyArity, true};
             _ ->
                 {Defs, false}
@@ -240,7 +236,8 @@ find_in_document([Uri | Uris0], Document, Kind, Data, AlreadyVisited) ->
             case MultipleDefs of
                 true ->
                     %% This will be the case only when the user tries to
-                    %% navigate to the definition of an atom
+                    %% navigate to the definition of an atom or a
+                    %% function/type/macro of wrong arity.
                     [{Uri, POI} || POI <- SortedDefs];
                 false ->
                     %% In the general case, we return only one def
