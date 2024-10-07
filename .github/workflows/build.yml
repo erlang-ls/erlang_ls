@@ -83,7 +83,7 @@ jobs:
     strategy:
       matrix:
         platform: [windows-latest]
-        otp-version: [24, 25, 26]
+        otp-version: [24.0, 25.3.2.1, 26.2.5.3]
     runs-on: windows-latest
     steps:
     - name: Checkout
