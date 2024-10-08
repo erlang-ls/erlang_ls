@@ -314,26 +314,6 @@ attribute_behaviour(Config) ->
         #{
             insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT,
             kind => ?COMPLETION_ITEM_KIND_MODULE,
-            label => <<"gen_event">>
-        },
-        #{
-            insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT,
-            kind => ?COMPLETION_ITEM_KIND_MODULE,
-            label => <<"gen_server">>
-        },
-        #{
-            insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT,
-            kind => ?COMPLETION_ITEM_KIND_MODULE,
-            label => <<"gen_statem">>
-        },
-        #{
-            insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT,
-            kind => ?COMPLETION_ITEM_KIND_MODULE,
-            label => <<"supervisor">>
-        },
-        #{
-            insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT,
-            kind => ?COMPLETION_ITEM_KIND_MODULE,
             label => <<"behaviour_a">>
         }
     ],
