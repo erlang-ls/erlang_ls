@@ -17,6 +17,8 @@
     suggest_macro/4,
     suggest_record/4,
     suggest_record_field/4,
+    suggest_function/4,
+    suggest_module/4,
     bump_variables/2
 ]).
 
@@ -342,6 +344,52 @@ suggest_record_field(Uri, Range, _Data, [Field, Record]) ->
             Range
         )
      || {Distance, F} <- lists:reverse(lists:usort(Distances)),
+        Distance > 0.8
+    ].
+
+-spec suggest_function(uri(), range(), binary(), [binary()]) -> [map()].
+suggest_function(Uri, Range, _Data, [FunBin]) ->
+    [ModNameBin, _ArityBin] = string:split(FunBin, <<"/">>),
+    {{ok, Document}, NameBin} =
+        case string:split(ModNameBin, <<":">>) of
+            [ModBin, NameBin0] ->
+                Mod = binary_to_atom(ModBin, utf8),
+                {ok, ModUri} = els_utils:find_module(Mod),
+                {els_utils:lookup_document(ModUri), NameBin0};
+            [NameBin0] ->
+                {els_utils:lookup_document(Uri), NameBin0}
+        end,
+    POIs = els_dt_document:pois(Document, [function]),
+    Funs = [atom_to_binary(F) || #{id := {F, _A}} <- POIs],
+    Distances =
+        [{els_utils:jaro_distance(F, NameBin), F} || F <- Funs, F =/= NameBin],
+    [
+        make_edit_action(
+            Uri,
+            <<"Did you mean ", F/binary, "?">>,
+            ?CODE_ACTION_KIND_QUICKFIX,
+            F,
+            Range
+        )
+     || {Distance, F} <- lists:reverse(lists:usort(Distances)),
+        Distance > 0.8
+    ].
+
+-spec suggest_module(uri(), range(), binary(), [binary()]) -> [map()].
+suggest_module(Uri, Range, _Data, [NameBin]) ->
+    {ok, Items} = els_dt_document_index:find_by_kind(module),
+    Mods = [atom_to_binary(M) || #{id := M} <- Items],
+    Distances =
+        [{els_utils:jaro_distance(M, NameBin), M} || M <- Mods, M =/= NameBin],
+    [
+        make_edit_action(
+            Uri,
+            <<"Did you mean ", M/binary, "?">>,
+            ?CODE_ACTION_KIND_QUICKFIX,
+            M,
+            Range
+        )
+     || {Distance, M} <- lists:reverse(lists:usort(Distances)),
         Distance > 0.8
     ].
 
