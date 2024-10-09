@@ -104,7 +104,7 @@ jobs:
     strategy:
       matrix:
         platform: [windows-latest]
-        otp-version: [24, 25, 26]
+        otp-version: [26.2.5.3]
     runs-on: ${{ matrix.platform }}
     steps:
     - name: Checkout
