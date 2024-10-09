@@ -39,6 +39,7 @@
     wrapping_functions/3,
     find_candidates/1,
     find_candidates/2,
+    find_candidates_with_otp/2,
     get_words/1
 ]).
 
@@ -66,7 +67,7 @@
     kind :: kind() | '_',
     text :: binary() | '_',
     pois :: [els_poi:poi()] | '_' | ondemand,
-    source :: source() | '$2',
+    source :: source() | '_' | '$2',
     words :: sets:set() | '_' | '$3',
     version :: version() | '_'
 }).
@@ -288,6 +289,35 @@ find_candidates(Pattern, Kind) ->
                 version = '_'
             },
             [{'=/=', '$2', otp}],
+            [{{'$1', '$3'}}]
+        }
+    ],
+    All = ets:select(name(), MS),
+    Fun = fun({Uri, Words}) ->
+        case sets:is_element(Pattern, Words) of
+            true -> {true, Uri};
+            false -> false
+        end
+    end,
+    lists:filtermap(Fun, All).
+
+-spec find_candidates_with_otp(atom() | string(), module | header | '_') -> [uri()].
+find_candidates_with_otp(Pattern, Kind) ->
+    %% ets:fun2ms(fun(#els_dt_document{source = Source, uri = Uri, words = Words})
+    %% when Source =/= otp -> {Uri, Words} end).
+    MS = [
+        {
+            #els_dt_document{
+                uri = '$1',
+                id = '_',
+                kind = Kind,
+                text = '_',
+                pois = '_',
+                source = '_',
+                words = '$3',
+                version = '_'
+            },
+            [],
             [{{'$1', '$3'}}]
         }
     ],

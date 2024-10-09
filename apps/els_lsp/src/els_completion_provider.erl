@@ -946,20 +946,14 @@ item_kind_module(Module) ->
 
 -spec behaviour_modules(list()) -> [atom()].
 behaviour_modules(Begin) ->
-    OtpBehaviours = [
-        gen_event,
-        gen_server,
-        gen_statem,
-        supervisor
-    ],
-    Candidates = els_dt_document:find_candidates(callback),
+    Candidates = els_dt_document:find_candidates_with_otp(callback, 'module'),
     Behaviours = [
         els_uri:module(Uri)
      || Uri <- Candidates,
         lists:prefix(Begin, atom_to_list(els_uri:module(Uri))),
         is_behaviour(Uri)
     ],
-    OtpBehaviours ++ Behaviours.
+    Behaviours.
 
 -spec is_behaviour(uri()) -> boolean().
 is_behaviour(Uri) ->

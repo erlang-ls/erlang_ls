@@ -191,9 +191,8 @@ add_include_lib_record(Uri, Range, _Data, [Record]) ->
 -spec add_include_file(uri(), range(), els_poi:poi_kind(), atom(), els_poi:poi_id()) -> [map()].
 add_include_file(Uri, Range, Kind, Name, Id) ->
     %% TODO: Add support for -include() also
-    %% TODO: Doesn't work for OTP headers
     CandidateUris =
-        els_dt_document:find_candidates(Name, 'header'),
+        els_dt_document:find_candidates_with_otp(Name, 'header'),
     Uris = [
         CandidateUri
      || CandidateUri <- CandidateUris,
