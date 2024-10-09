@@ -84,7 +84,7 @@ jobs:
     #     overwrite: true
 
     # Make release artifacts : erlang_ls
-    - name: Make erlang_ls-linux.tar.gz
+    - name: Make erlang_ls-linux-${{ matrix.otp-version }}.tar.gz
       run: 'tar -zcvf erlang_ls-linux-${{ matrix.otp-version }}.tar.gz -C _build/default/bin/ erlang_ls'
     - env:
         GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
@@ -93,7 +93,7 @@ jobs:
       uses: "bruceadams/get-release@v1.3.2"
     - env:
         GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
-      name: Upload release erlang_ls.-linux.tar.gz
+      name: Upload release erlang_ls-linux-${{ matrix.otp-version }}.tar.gz
       uses: "actions/upload-release-asset@v1.0.2"
       with:
         asset_content_type: application/octet-stream
@@ -101,12 +101,16 @@ jobs:
         asset_path: "erlang_ls-linux-${{ matrix.otp-version }}.tar.gz"
         upload_url: "${{ steps.get_release_url.outputs.upload_url }}"
   windows:
-    runs-on: windows-latest
+    strategy:
+      matrix:
+        platform: [windows-latest]
+        otp-version: [26.2.5.3]
+    runs-on: ${{ matrix.platform }}
     steps:
     - name: Checkout
       uses: actions/checkout@v2
     - name: Install Erlang
-      run: choco install -y erlang --version 26.2.5
+      run: choco install -y erlang --version ${{ matrix.otp-version }}
     - name: Install rebar3
       run: choco install -y rebar3 --version 3.23.0
     - name: Compile
@@ -141,8 +145,8 @@ jobs:
       run: rebar3 edoc
 
     # Make release artifacts : erlang_ls
-    - name: Make erlang_ls-win32.tar.gz
-      run: 'tar -zcvf erlang_ls-win32.tar.gz -C _build/default/bin/ erlang_ls'
+    - name: Make erlang_ls-windows-${{ matrix.otp-version }}.tar.gz
+      run: 'tar -zcvf erlang_ls-windows-${{ matrix.otp-version }}.tar.gz -C _build/default/bin/ erlang_ls'
     - env:
         GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
       id: get_release_url
@@ -150,12 +154,12 @@ jobs:
       uses: "bruceadams/get-release@v1.3.2"
     - env:
         GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
-      name: Upload release erlang_ls.-win32.tar.gz
+      name: Upload release erlang_ls-windows-${{ matrix.otp-version }}.tar.gz
       uses: "actions/upload-release-asset@v1.0.2"
       with:
         asset_content_type: application/octet-stream
-        asset_name: erlang_ls-win32.tar.gz
-        asset_path: erlang_ls-win32.tar.gz
+        asset_name: erlang_ls-windows-${{ matrix.otp-version }}.tar.gz
+        asset_path: erlang_ls-windows-${{ matrix.otp-version }}.tar.gz
         upload_url: "${{ steps.get_release_url.outputs.upload_url }}"
   macos:
     # Smaller job for MacOS to avoid excessive billing
@@ -175,8 +179,8 @@ jobs:
     - name: Escriptize LSP Server
       run: rebar3 escriptize
     # Make release artifacts : erlang_ls
-    - name: Make erlang_ls-${{ matrix.otp-version }}-macos.tar.gz
-      run: 'tar -zcvf erlang_ls-${{ matrix.otp-version }}-macos.tar.gz -C _build/default/bin/ erlang_ls'
+    - name: Make erlang_ls-macos-${{ matrix.otp-version }}.tar.gz
+      run: 'tar -zcvf erlang_ls-macos-${{ matrix.otp-version }}.tar.gz -C _build/default/bin/ erlang_ls'
     - env:
         GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
       id: get_release_url
@@ -184,10 +188,10 @@ jobs:
       uses: "bruceadams/get-release@v1.3.2"
     - env:
         GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
-      name: Upload release erlang_ls-${{ matrix.otp-version }}-macos.tar.gz
+      name: Upload release erlang_ls-macos-${{ matrix.otp-version }}.tar.gz
       uses: "actions/upload-release-asset@v1.0.2"
       with:
         asset_content_type: application/octet-stream
-        asset_name: erlang_ls-${{ matrix.otp-version }}-macos.tar.gz
-        asset_path: erlang_ls-${{ matrix.otp-version }}-macos.tar.gz
+        asset_name: erlang_ls-macos-${{ matrix.otp-version }}.tar.gz
+        asset_path: erlang_ls-macos-${{ matrix.otp-version }}.tar.gz
         upload_url: "${{ steps.get_release_url.outputs.upload_url }}"
