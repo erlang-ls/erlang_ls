@@ -24,7 +24,8 @@
     find_by/1,
     find_by_id/2,
     insert/2,
-    versioned_insert/2
+    versioned_insert/2,
+    kind_to_category/1
 ]).
 
 %%==============================================================================

@@ -581,6 +581,8 @@
 %%------------------------------------------------------------------------------
 
 -define(CODE_ACTION_KIND_QUICKFIX, <<"quickfix">>).
+-define(CODE_ACTION_KIND_BROWSE, <<"browse">>).
+
 -type code_action_kind() :: binary().
 
 -type code_action_context() :: #{

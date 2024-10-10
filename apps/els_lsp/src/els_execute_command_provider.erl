@@ -26,7 +26,9 @@ options() ->
         <<"function-references">>,
         <<"refactor.extract">>,
         <<"add-behaviour-callbacks">>,
-        <<"bump-variables">>
+        <<"bump-variables">>,
+        <<"browse-error">>,
+        <<"browse-docs">>
     ],
     #{
         commands => [
@@ -204,6 +206,54 @@ execute_command(<<"add-behaviour-callbacks">>, [
             els_server:send_request(Method, Params),
             []
     end;
+execute_command(<<"browse-error">>, [#{<<"source">> := Source, <<"code">> := ErrorCodeBin}]) ->
+    Url = make_url_browse_error(Source, ErrorCodeBin),
+    launch_browser(Url);
+execute_command(<<"browse-docs">>, [
+    #{
+        <<"source">> := <<"otp">>,
+        <<"app">> := App,
+        <<"module">> := Module,
+        <<"function">> := Function,
+        <<"arity">> := Arity,
+        <<"kind">> := Kind
+    }
+]) ->
+    Prefix =
+        case Kind of
+            <<"function">> -> "";
+            <<"type">> -> "t:"
+        end,
+    Url = io_lib:format(
+        "https://www.erlang.org/doc/apps/~s/~s.html#~s~s/~p",
+        [App, Module, Prefix, Function, Arity]
+    ),
+    %% TODO: Function
+    launch_browser(Url);
+execute_command(<<"browse-docs">>, [
+    #{
+        <<"source">> := <<"hex">>,
+        <<"app">> := App,
+        <<"module">> := Module,
+        <<"function">> := Function,
+        <<"arity">> := Arity,
+        <<"kind">> := Kind
+    }
+]) ->
+    %% Edoc uses #function-arity while ExDoc uses #function/arity
+    %% We just support ExDoc for now.
+    %% Suppose we could add special handling for known edoc apps.
+    Prefix =
+        case Kind of
+            <<"function">> -> "";
+            <<"type">> -> "t:"
+        end,
+
+    Url = io_lib:format(
+        "https://hexdocs.pm/~s/~s.html#~s~s/~p",
+        [App, Module, Prefix, Function, Arity]
+    ),
+    launch_browser(Url);
 execute_command(Command, Arguments) ->
     case wrangler_handler:execute_command(Command, Arguments) of
         true ->
@@ -215,6 +265,32 @@ execute_command(Command, Arguments) ->
             )
     end,
     [].
+
+-spec make_url_browse_error(binary(), binary()) -> string().
+make_url_browse_error(<<"Compiler">>, ErrorCodeBin) ->
+    [Prefix | _] = ErrorCode = binary_to_list(ErrorCodeBin),
+    "https://whatsapp.github.io/erlang-language-platform/" ++
+        "docs/erlang-error-index/" ++
+        string:lowercase([Prefix]) ++ "/" ++ ErrorCode ++ "/";
+make_url_browse_error(<<"Elvis">>, ErrorCodeBin) ->
+    ErrorCode = binary_to_list(ErrorCodeBin),
+    "https://github.com/inaka/elvis_core/blob/main/doc_rules/elvis_style/" ++
+        ErrorCode ++ ".md".
+
+-spec launch_browser(_) -> ok.
+launch_browser(Url) ->
+    case os:type() of
+        {win32, _} ->
+            %% TODO: Not sure if this is the correct way to open a browser on Windows
+            os:cmd("start " ++ Url);
+        {_, linux} ->
+            os:cmd("xdg-open " ++ Url);
+        {_, darwin} ->
+            os:cmd("open " ++ Url);
+        {_, _} ->
+            not_supported
+    end,
+    ok.
 
 -spec bump_variables(uri(), range(), binary()) -> ok.
 bump_variables(Uri, Range, VarName) ->

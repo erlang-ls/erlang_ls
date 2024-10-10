@@ -11,7 +11,8 @@
 -export([
     module/1,
     path/1,
-    uri/1
+    uri/1,
+    app/1
 ]).
 
 %%==============================================================================
@@ -25,6 +26,21 @@
 %% Includes
 %%==============================================================================
 -include("els_core.hrl").
+
+-spec app(uri() | [binary()]) -> {ok, atom()} | error.
+app(Uri) when is_binary(Uri) ->
+    app(lists:reverse(filename:split(path(Uri))));
+app([]) ->
+    error;
+app([_File, <<"src">>, AppBin0 | _]) ->
+    case binary:split(AppBin0, <<"-">>) of
+        [AppBin, _Vsn] ->
+            {ok, binary_to_atom(AppBin)};
+        [AppBin] ->
+            {ok, binary_to_atom(AppBin)}
+    end;
+app([_ | Rest]) ->
+    app(Rest).
 
 -spec module(uri()) -> atom().
 module(Uri) ->
