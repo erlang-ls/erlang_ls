@@ -119,7 +119,9 @@ arg_hints(_Uri, _POI) ->
 arg_hint(#{from := {FromL, FromC}}, ArgName) ->
     #{
         position => #{line => FromL - 1, character => FromC - 1},
-        label => unicode:characters_to_binary(ArgName ++ ":"),
+        label => unicode:characters_to_binary(
+            remove_leading_underscore(ArgName) ++ ":"
+        ),
         paddingRight => true,
         kind => ?INLAY_HINT_KIND_PARAMETER
     }.

@@ -10,7 +10,7 @@ test() ->
     d(1, 2),
     e(1, 2),
     f(1, 2),
-    g(1, 2),
+    g(1, 2, 3),
     lists:append([], []).
 
 a(A1, A2) ->
@@ -36,6 +36,6 @@ e(_, _) ->
 f(_, _) ->
     ok.
 
--spec g(G1, any()) -> ok when G1 :: any().
-g(_, G2) ->
+-spec g(G1, any(), _) -> ok when G1 :: any().
+g(_, G2, _G3) ->
     ok.
