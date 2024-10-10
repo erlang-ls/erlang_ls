@@ -7,7 +7,8 @@
     initialize/4,
     get/1,
     set/2,
-    start_link/0
+    start_link/0,
+    is_dep/1
 ]).
 
 %% gen_server callbacks
@@ -583,6 +584,15 @@ expand_var(Bin, [{Var, Value} | RestEnv]) ->
         RestBin ->
             [Value, RestBin]
     end.
+
+-spec is_dep(string()) -> boolean().
+is_dep(Path) ->
+    lists:any(
+        fun(DepPath) ->
+            lists:prefix(DepPath, Path)
+        end,
+        els_config:get(deps_paths)
+    ).
 
 -spec get_env() -> [{string(), string()}].
 -if(?OTP_RELEASE >= 24).

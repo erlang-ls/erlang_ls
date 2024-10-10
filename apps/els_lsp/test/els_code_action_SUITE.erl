@@ -28,7 +28,10 @@
     define_macro_with_args/1,
     suggest_macro/1,
     undefined_record/1,
-    undefined_record_suggest/1
+    undefined_record_suggest/1,
+    browse_docs/1,
+    browse_error_compiler/1,
+    browse_error_elvis/1
 ]).
 
 %%==============================================================================
@@ -62,10 +65,32 @@ end_per_suite(Config) ->
     els_test_utils:end_per_suite(Config).
 
 -spec init_per_testcase(atom(), config()) -> config().
+init_per_testcase(TestCase, Config) when
+    TestCase == browse_docs
+->
+    meck:new(els_utils, [passthrough]),
+    meck:expect(els_utils, find_module, fun
+        (my_dep_mod) ->
+            {ok, <<"file:///home/me/proj/lib/my_dep/src/my_dep_mod.erl">>};
+        (M) ->
+            meck:passthrough([M])
+    end),
+    meck:new(els_config, [passthrough]),
+    meck:expect(els_config, is_dep, fun
+        ("/home/me/proj/lib/my_dep/src/my_dep_mod.erl") -> true;
+        (_) -> false
+    end),
+
+    els_test_utils:init_per_testcase(TestCase, Config);
 init_per_testcase(TestCase, Config) ->
     els_test_utils:init_per_testcase(TestCase, Config).
 
 -spec end_per_testcase(atom(), config()) -> ok.
+end_per_testcase(TestCase, Config) when
+    TestCase == browse_docs
+->
+    meck:unload([els_config, els_utils]),
+    els_test_utils:end_per_testcase(TestCase, Config);
 end_per_testcase(TestCase, Config) ->
     els_test_utils:end_per_testcase(TestCase, Config).
 %%==============================================================================
@@ -791,4 +816,322 @@ undefined_record_suggest(Config) ->
         }
     ],
     ?assertEqual(Expected, Result),
+    ok.
+
+-spec browse_docs(config()) -> ok.
+browse_docs(Config) ->
+    Uri = ?config(code_action_browse_docs_uri, Config),
+    %% -spec function_a(file:filename()) -> pid().
+    %%                                      ^
+    Range1 = els_protocol:range(#{
+        from => {3, 38},
+        to => {3, 39}
+    }),
+    #{result := Result1} =
+        els_client:document_codeaction(Uri, Range1, []),
+    ?assertMatch(
+        [
+            #{
+                command :=
+                    #{
+                        command := _,
+                        title := <<"Browse: OTP docs: erlang:pid/0">>,
+                        arguments :=
+                            [
+                                #{
+                                    arity := 0,
+                                    function := <<"pid">>,
+                                    module := <<"erlang">>,
+                                    source := <<"otp">>,
+                                    app := <<"erts">>,
+                                    kind := <<"type">>
+                                }
+                            ]
+                    },
+                title := <<"Browse: OTP docs: erlang:pid/0">>,
+                kind := <<"browse">>
+            }
+        ],
+        Result1
+    ),
+    %% -spec function_a(file:filename()) -> pid().
+    %%                                      ^
+    Range2 = els_protocol:range(#{
+        from => {3, 38},
+        to => {3, 39}
+    }),
+    #{result := Result2} =
+        els_client:document_codeaction(Uri, Range2, []),
+    ?assertMatch(
+        [
+            #{
+                command :=
+                    #{
+                        command := _,
+                        title := <<"Browse: OTP docs: erlang:pid/0">>,
+                        arguments :=
+                            [
+                                #{
+                                    arity := 0,
+                                    function := <<"pid">>,
+                                    module := <<"erlang">>,
+                                    source := <<"otp">>,
+                                    app := <<"erts">>,
+                                    kind := <<"type">>
+                                }
+                            ]
+                    },
+                title := <<"Browse: OTP docs: erlang:pid/0">>,
+                kind := <<"browse">>
+            }
+        ],
+        Result2
+    ),
+    %% -spec function_a(file:filename()) -> pid().
+    %%                  ^
+    Range3 = els_protocol:range(#{
+        from => {3, 18},
+        to => {3, 19}
+    }),
+    #{result := Result3} =
+        els_client:document_codeaction(Uri, Range3, []),
+    ?assertMatch(
+        [
+            #{
+                command :=
+                    #{
+                        command := _,
+                        title := <<"Browse: OTP docs: file:filename/0">>,
+                        arguments :=
+                            [
+                                #{
+                                    arity := 0,
+                                    function := <<"filename">>,
+                                    module := <<"file">>,
+                                    source := <<"otp">>,
+                                    app := <<"kernel">>,
+                                    kind := <<"type">>
+                                }
+                            ]
+                    },
+                title := <<"Browse: OTP docs: file:filename/0">>,
+                kind := <<"browse">>
+            }
+        ],
+        Result3
+    ),
+    %% lists:sort(L),
+    %% ^
+    Range4 = els_protocol:range(#{
+        from => {5, 5},
+        to => {5, 6}
+    }),
+    #{result := Result4} =
+        els_client:document_codeaction(Uri, Range4, []),
+    ?assertMatch(
+        [
+            #{
+                command :=
+                    #{
+                        command := _,
+                        title := <<"Browse: OTP docs: lists:sort/1">>,
+                        arguments :=
+                            [
+                                #{
+                                    arity := 1,
+                                    function := <<"sort">>,
+                                    module := <<"lists">>,
+                                    source := <<"otp">>,
+                                    app := <<"stdlib">>,
+                                    kind := <<"function">>
+                                }
+                            ]
+                    },
+                title := <<"Browse: OTP docs: lists:sort/1">>,
+                kind := <<"browse">>
+            }
+        ],
+        Result4
+    ),
+    %% self(),
+    %% ^
+    Range5 = els_protocol:range(#{
+        from => {6, 5},
+        to => {6, 6}
+    }),
+    #{result := Result5} =
+        els_client:document_codeaction(Uri, Range5, []),
+    ?assertMatch(
+        [
+            #{
+                command :=
+                    #{
+                        command := _,
+                        title := <<"Browse: OTP docs: erlang:self/0">>,
+                        arguments :=
+                            [
+                                #{
+                                    arity := 0,
+                                    function := <<"self">>,
+                                    module := <<"erlang">>,
+                                    source := <<"otp">>,
+                                    app := <<"erts">>,
+                                    kind := <<"function">>
+                                }
+                            ]
+                    },
+                title := <<"Browse: OTP docs: erlang:self/0">>,
+                kind := <<"browse">>
+            }
+        ],
+        Result5
+    ),
+    %% -spec function_b() -> my_dep_mod:my_type().
+    %%                       ^
+    Range6 = els_protocol:range(#{
+        from => {8, 23},
+        to => {8, 24}
+    }),
+    #{result := Result6} =
+        els_client:document_codeaction(Uri, Range6, []),
+
+    ?assertMatch(
+        [
+            #{
+                command :=
+                    #{
+                        command := _,
+                        title := <<"Browse: Hex docs: my_dep_mod:my_type/0">>,
+                        arguments :=
+                            [
+                                #{
+                                    arity := 0,
+                                    function := <<"my_type">>,
+                                    module := <<"my_dep_mod">>,
+                                    source := <<"hex">>,
+                                    app := <<"my_dep">>,
+                                    kind := <<"type">>
+                                }
+                            ]
+                    },
+                title := <<"Browse: Hex docs: my_dep_mod:my_type/0">>,
+                kind := <<"browse">>
+            }
+        ],
+        Result6
+    ),
+    %% my_dep_mod:my_function().
+    %% ^
+    Range7 = els_protocol:range(#{
+        from => {10, 5},
+        to => {10, 6}
+    }),
+    #{result := Result7} =
+        els_client:document_codeaction(Uri, Range7, []),
+
+    ?assertMatch(
+        [
+            #{
+                command :=
+                    #{
+                        command := _,
+                        title := <<"Browse: Hex docs: my_dep_mod:my_function/0">>,
+                        arguments :=
+                            [
+                                #{
+                                    arity := 0,
+                                    function := <<"my_function">>,
+                                    module := <<"my_dep_mod">>,
+                                    source := <<"hex">>,
+                                    app := <<"my_dep">>,
+                                    kind := <<"function">>
+                                }
+                            ]
+                    },
+                title := <<"Browse: Hex docs: my_dep_mod:my_function/0">>,
+                kind := <<"browse">>
+            }
+        ],
+        Result7
+    ),
+    ok.
+
+-spec browse_error_compiler(config()) -> ok.
+browse_error_compiler(Config) ->
+    Uri = ?config(code_action_uri, Config),
+    %% Don't care
+    Range = els_protocol:range(#{
+        from => {5, 4},
+        to => {5, 11}
+    }),
+    Diag = #{
+        message => <<"Some cool compiler error">>,
+        code => <<"L1337">>,
+        range => Range,
+        severity => 2,
+        source => <<"Compiler">>
+    },
+    #{result := Result} =
+        els_client:document_codeaction(Uri, Range, [Diag]),
+    ?assertMatch(
+        [
+            #{
+                command :=
+                    #{
+                        command := _,
+                        title := <<"Browse: Erlang Error Index: L1337">>,
+                        arguments :=
+                            [
+                                #{
+                                    source := <<"Compiler">>,
+                                    code := <<"L1337">>
+                                }
+                            ]
+                    },
+                title := <<"Browse: Erlang Error Index: L1337">>,
+                kind := <<"browse">>
+            }
+        ],
+        Result
+    ),
+    ok.
+
+-spec browse_error_elvis(config()) -> ok.
+browse_error_elvis(Config) ->
+    Uri = ?config(code_action_uri, Config),
+    %% Don't care
+    Range = els_protocol:range(#{
+        from => {5, 4},
+        to => {5, 11}
+    }),
+    Diag = #{
+        message => <<"Elvis cool error">>,
+        code => <<"cool_error">>,
+        range => Range,
+        severity => 2,
+        source => <<"Elvis">>
+    },
+    #{result := Result} =
+        els_client:document_codeaction(Uri, Range, [Diag]),
+    ?assertMatch(
+        [
+            #{
+                command :=
+                    #{
+                        command := _,
+                        title := <<"Browse: Elvis rules: cool_error">>,
+                        arguments :=
+                            [
+                                #{
+                                    source := <<"Elvis">>,
+                                    code := <<"cool_error">>
+                                }
+                            ]
+                    },
+                title := <<"Browse: Elvis rules: cool_error">>,
+                kind := <<"browse">>
+            }
+        ],
+        Result
+    ),
     ok.
