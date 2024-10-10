@@ -276,7 +276,8 @@ do_points_of_interest(Tree) ->
                 Type == implicit_fun;
                 Type == maybe_expr;
                 Type == receive_expr;
-                Type == try_expr
+                Type == try_expr;
+                Type == fun_expr
             ->
                 keyword_expr(Type, Tree);
             _Other ->
