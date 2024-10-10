@@ -472,27 +472,43 @@ fix_callbacks(Config) ->
 extract_function(Config) ->
     Uri = ?config(extract_function_uri, Config),
     %% These shouldn't return any code actions
+    %% -export([f/2]).
+    %% ^^^^^
     #{result := []} = els_client:document_codeaction(
         Uri,
         els_protocol:range(#{from => {2, 1}, to => {2, 5}}),
         []
     ),
+    %% <empty line>
     #{result := []} = els_client:document_codeaction(
         Uri,
         els_protocol:range(#{from => {3, 1}, to => {3, 5}}),
         []
     ),
+    %% f(A, B) ->
+    %% ^^^^^
     #{result := []} = els_client:document_codeaction(
         Uri,
         els_protocol:range(#{from => {4, 1}, to => {4, 5}}),
         []
     ),
+    %% C = 1,
+    %%     ^
     #{result := []} = els_client:document_codeaction(
         Uri,
         els_protocol:range(#{from => {5, 8}, to => {5, 9}}),
         []
     ),
+    %% other_function()
+    %% ^^^^^^^^^^^^^^^^
+    #{result := []} = els_client:document_codeaction(
+        Uri,
+        els_protocol:range(#{from => {13, 4}, to => {13, 20}}),
+        []
+    ),
     %% This should return a code action
+    %% F = A + B + C,
+    %%     ^^^^^^^^^
     #{
         result := [
             #{
@@ -506,7 +522,64 @@ extract_function(Config) ->
         ]
     } = els_client:document_codeaction(
         Uri,
-        els_protocol:range(#{from => {5, 8}, to => {5, 17}}),
+        els_protocol:range(#{from => {6, 8}, to => {6, 17}}),
+        []
+    ),
+    %% This should return a code action
+    %% G = case A of
+    %%     ^^^^
+    #{
+        result := [
+            #{
+                command := #{
+                    title := <<"Extract function">>,
+                    arguments := [#{uri := Uri}]
+                },
+                kind := <<"refactor.extract">>,
+                title := <<"Extract function">>
+            }
+        ]
+    } = els_client:document_codeaction(
+        Uri,
+        els_protocol:range(#{from => {7, 9}, to => {7, 13}}),
+        []
+    ),
+    %% This should return a code action
+    %% H = [X || X <- [A, B, C], X > 1],
+    %%     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    #{
+        result := [
+            #{
+                command := #{
+                    title := <<"Extract function">>,
+                    arguments := [#{uri := Uri}]
+                },
+                kind := <<"refactor.extract">>,
+                title := <<"Extract function">>
+            }
+        ]
+    } = els_client:document_codeaction(
+        Uri,
+        els_protocol:range(#{from => {11, 8}, to => {11, 36}}),
+        []
+    ),
+    %% This should return a code action
+    %% I = {A, B, A},
+    %%     ^^^^^^^^^
+    #{
+        result := [
+            #{
+                command := #{
+                    title := <<"Extract function">>,
+                    arguments := [#{uri := Uri}]
+                },
+                kind := <<"refactor.extract">>,
+                title := <<"Extract function">>
+            }
+        ]
+    } = els_client:document_codeaction(
+        Uri,
+        els_protocol:range(#{from => {12, 8}, to => {12, 17}}),
         []
     ),
     ok.

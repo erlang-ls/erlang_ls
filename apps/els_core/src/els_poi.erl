@@ -44,6 +44,7 @@
     | include
     | include_lib
     | keyword_expr
+    | list_comp
     | macro
     | module
     | nifs

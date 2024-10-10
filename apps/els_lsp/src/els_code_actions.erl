@@ -421,11 +421,17 @@ fix_atom_typo(Uri, Range, _Data, [Atom]) ->
 -spec extract_function(uri(), range()) -> [map()].
 extract_function(Uri, Range) ->
     {ok, [Document]} = els_dt_document:lookup(Uri),
-    #{from := From = {Line, Column}, to := To} = els_range:to_poi_range(Range),
+    PoiRange = els_range:to_poi_range(Range),
+    #{from := From = {Line, Column}, to := To} = PoiRange,
     %% We only want to extract if selection is large enough
     %% and cursor is inside a function
+    POIsInRange = els_dt_document:pois_in_range(Document, PoiRange),
+    #{text := Text} = Document,
+    MarkedText = els_text:range(Text, From, To),
     case
-        large_enough_range(From, To) andalso
+        (length(POIsInRange) > 1 orelse
+            els_text:is_keyword_expr(MarkedText)) andalso
+            large_enough_range(From, To) andalso
             not contains_function_clause(Document, Line) andalso
             els_dt_document:wrapping_functions(Document, Line, Column) /= []
     of

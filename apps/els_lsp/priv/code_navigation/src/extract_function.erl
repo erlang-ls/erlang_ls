@@ -10,7 +10,8 @@ f(A, B) ->
         end,
     H = [X || X <- [A, B, C], X > 1],
     I = {A, B, A},
-    ok.
+    other_function(),
+    [X || X <- [A, B, C], X > 1].
 
 other_function() ->
     hello.

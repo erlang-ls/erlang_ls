@@ -18,7 +18,8 @@
     suggest_spec/1,
     extract_function/1,
     extract_function_case/1,
-    extract_function_tuple/1
+    extract_function_tuple/1,
+    extract_function_list_comp/1
 ]).
 
 %%==============================================================================
@@ -57,7 +58,8 @@ init_per_testcase(TestCase, Config0) when
     TestCase =:= ct_run_test;
     TestCase =:= extract_function;
     TestCase =:= extract_function_case;
-    TestCase =:= extract_function_tuple
+    TestCase =:= extract_function_tuple;
+    TestCase =:= extract_function_list_comp
 ->
     Config = els_test_utils:init_per_testcase(TestCase, Config0),
     setup_mocks(),
@@ -82,7 +84,8 @@ end_per_testcase(TestCase, Config) when
     TestCase =:= ct_run_test;
     TestCase =:= extract_function;
     TestCase =:= extract_function_case;
-    TestCase =:= extract_function_tuple
+    TestCase =:= extract_function_tuple;
+    TestCase =:= extract_function_list_comp
 ->
     teardown_mocks(),
     els_test_utils:end_per_testcase(TestCase, Config);
@@ -285,8 +288,8 @@ extract_function(Config) ->
                 "    A + B + C.\n\n"
             >>,
             range := #{
-                'end' := #{character := 0, line := 14},
-                start := #{character := 0, line := 14}
+                'end' := #{character := 0, line := 15},
+                start := #{character := 0, line := 15}
             }
         }
     ] = Changes.
@@ -315,9 +318,37 @@ extract_function_case(Config) ->
                 >>,
             range :=
                 #{
-                    'end' := #{character := 0, line := 14},
-                    start := #{character := 0, line := 14}
+                    'end' := #{character := 0, line := 15},
+                    start := #{character := 0, line := 15}
                 }
+        }
+    ] = Changes.
+
+-spec extract_function_list_comp(config()) -> ok.
+extract_function_list_comp(Config) ->
+    Uri = ?config(extract_function_uri, Config),
+    execute_command_refactor_extract(Uri, {13, 4}, {13, 32}),
+    [#{edit := #{changes := #{Uri := Changes}}}] = get_edits_from_meck_history(),
+    [
+        #{
+            range :=
+                #{
+                    start := #{line := 13, character := 4},
+                    'end' := #{line := 13, character := 32}
+                },
+            newText := <<"new_function(A, B, C)">>
+        },
+        #{
+            range :=
+                #{
+                    start := #{line := 15, character := 0},
+                    'end' := #{line := 15, character := 0}
+                },
+            newText :=
+                <<
+                    "new_function(A, B, C) ->\n"
+                    "    [X || X <- [A, B, C], X > 1].\n\n"
+                >>
         }
     ] = Changes.
 
@@ -343,8 +374,8 @@ extract_function_tuple(Config) ->
                 >>,
             range :=
                 #{
-                    'end' := #{character := 0, line := 14},
-                    start := #{character := 0, line := 14}
+                    'end' := #{character := 0, line := 15},
+                    start := #{character := 0, line := 15}
                 }
         }
     ] = Changes.
