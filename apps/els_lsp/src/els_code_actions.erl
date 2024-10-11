@@ -138,19 +138,24 @@ define_macro(Uri, Range, _Data, [Macro0]) ->
         [module, include, include_lib, define],
         BeforeRange
     ),
-    #{range := #{to := {Line, _}}} = lists:last(els_poi:sort(POIs)),
-    [
-        make_edit_action(
-            Uri,
-            <<"Define ", Macro0/binary>>,
-            ?CODE_ACTION_KIND_QUICKFIX,
-            NewText,
-            els_protocol:range(#{
-                to => {Line + 1, 1},
-                from => {Line + 1, 1}
-            })
-        )
-    ].
+    case POIs of
+        [] ->
+            [];
+        _ ->
+            #{range := #{to := {Line, _}}} = lists:last(els_poi:sort(POIs)),
+            [
+                make_edit_action(
+                    Uri,
+                    <<"Define ", Macro0/binary>>,
+                    ?CODE_ACTION_KIND_QUICKFIX,
+                    NewText,
+                    els_protocol:range(#{
+                        to => {Line + 1, 1},
+                        from => {Line + 1, 1}
+                    })
+                )
+            ]
+    end.
 
 -spec define_record(uri(), range(), binary(), [binary()]) -> [map()].
 define_record(Uri, Range, _Data, [Record]) ->
@@ -163,19 +168,24 @@ define_record(Uri, Range, _Data, [Record]) ->
         [module, include, include_lib, record],
         BeforeRange
     ),
-    Line = end_line(lists:last(els_poi:sort(POIs))),
-    [
-        make_edit_action(
-            Uri,
-            <<"Define record ", Record/binary>>,
-            ?CODE_ACTION_KIND_QUICKFIX,
-            NewText,
-            els_protocol:range(#{
-                to => {Line + 1, 1},
-                from => {Line + 1, 1}
-            })
-        )
-    ].
+    case POIs of
+        [] ->
+            [];
+        _ ->
+            Line = end_line(lists:last(els_poi:sort(POIs))),
+            [
+                make_edit_action(
+                    Uri,
+                    <<"Define record ", Record/binary>>,
+                    ?CODE_ACTION_KIND_QUICKFIX,
+                    NewText,
+                    els_protocol:range(#{
+                        to => {Line + 1, 1},
+                        from => {Line + 1, 1}
+                    })
+                )
+            ]
+    end.
 
 -spec end_line(els_poi:poi()) -> non_neg_integer().
 end_line(#{data := #{value_range := #{to := {Line, _}}}}) ->
