@@ -94,6 +94,13 @@ basic(Config) ->
             },
 
             #{
+                label => <<"G3:">>,
+                position => #{line => 12, character => 12},
+                kind => ?INLAY_HINT_KIND_PARAMETER,
+                paddingRight => true
+            },
+
+            #{
                 label => <<"F1:">>,
                 position => #{line => 11, character => 6},
                 kind => ?INLAY_HINT_KIND_PARAMETER,
