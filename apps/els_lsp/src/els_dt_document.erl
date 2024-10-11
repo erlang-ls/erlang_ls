@@ -30,6 +30,7 @@
     new/4,
     pois/1,
     pois/2,
+    pois_in_range/2,
     pois_in_range/3,
     get_element_at_pos/3,
     uri/1,
@@ -213,6 +214,16 @@ pois(#{pois := POIs}) ->
 -spec pois(item(), [els_poi:poi_kind()]) -> [els_poi:poi()].
 pois(Item, Kinds) ->
     [POI || #{kind := K} = POI <- pois(Item), lists:member(K, Kinds)].
+
+%% @doc Returns the list of POIs of the given types in the given range
+%%      for the current document
+-spec pois_in_range(item(), els_poi:poi_range()) -> [els_poi:poi()].
+pois_in_range(Item, Range) ->
+    [
+        POI
+     || #{range := R} = POI <- pois(Item),
+        els_range:in(R, Range)
+    ].
 
 %% @doc Returns the list of POIs of the given types in the given range
 %%      for the current document

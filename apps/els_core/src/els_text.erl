@@ -12,7 +12,8 @@
     split_at_line/2,
     tokens/1,
     tokens/2,
-    apply_edits/2
+    apply_edits/2,
+    is_keyword_expr/1
 ]).
 -export([strip_comments/1]).
 
@@ -175,6 +176,18 @@ strip_comments(Text) ->
             bin_to_lines(Text)
         )
     ).
+
+-spec is_keyword_expr(binary()) -> boolean().
+is_keyword_expr(Text) ->
+    lists:member(Text, [
+        <<"begin">>,
+        <<"case">>,
+        <<"fun">>,
+        <<"if">>,
+        <<"maybe">>,
+        <<"receive">>,
+        <<"try">>
+    ]).
 
 %%==============================================================================
 %% Internal functions

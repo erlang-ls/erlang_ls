@@ -346,25 +346,41 @@ end_symbol(ExtractString) ->
     non_neg_integer()
 ) -> [string()].
 get_args(PoiRange, Document, FromL, FunBeginLine) ->
-    %% TODO: Possible improvement. To make this bullet proof we should
-    %% ignore vars defined inside LCs and funs()
-    VarPOIs = els_poi:sort(els_dt_document:pois(Document, [variable])),
     BeforeRange = #{from => {FunBeginLine, 1}, to => {FromL, 1}},
-    VarsBefore = ids_in_range(BeforeRange, VarPOIs),
-    VarsInside = ids_in_range(PoiRange, VarPOIs),
+    VarPOIsBefore = els_dt_document:pois_in_range(Document, [variable], BeforeRange),
+    %% Remove all variables inside LCs or keyword expressions
+    LCPOIs = els_dt_document:pois(Document, [list_comp]),
+    FunExprPOIs = [
+        POI
+     || #{id := fun_expr} = POI <- els_dt_document:pois(Document, [keyword_expr])
+    ],
+    %% Only consider fun exprs that doesn't contain the selected range
+    ExcludePOIs = [
+        POI
+     || #{range := R} = POI <- FunExprPOIs ++ LCPOIs, not els_range:in(PoiRange, R)
+    ],
+    VarsBefore = [
+        Id
+     || #{range := VarRange, id := Id} <- VarPOIsBefore,
+        not_in_any_range(VarRange, ExcludePOIs)
+    ],
+    %% Find all variables defined before the current function that are used
+    %% inside the selected range.
+    VarPOIsInside = els_dt_document:pois_in_range(Document, [variable], PoiRange),
     els_utils:uniq([
         atom_to_list(Id)
-     || Id <- VarsInside,
+     || #{id := Id} <- els_poi:sort(VarPOIsInside),
         lists:member(Id, VarsBefore)
     ]).
 
--spec ids_in_range(els_poi:poi_range(), [els_poi:poi()]) -> [atom()].
-ids_in_range(PoiRange, VarPOIs) ->
-    [
-        Id
-     || #{range := R, id := Id} <- VarPOIs,
-        els_range:in(R, PoiRange)
-    ].
+-spec not_in_any_range(els_poi:poi_range(), [els_poi:poi()]) -> boolean().
+not_in_any_range(VarRange, POIs) ->
+    not lists:any(
+        fun(#{range := Range}) ->
+            els_range:in(VarRange, Range)
+        end,
+        POIs
+    ).
 
 -spec extract_range(els_dt_document:item(), range()) -> els_poi:poi_range().
 extract_range(#{text := Text} = Document, Range) ->
@@ -372,7 +388,7 @@ extract_range(#{text := Text} = Document, Range) ->
     #{from := {CurrL, CurrC} = From, to := To} = PoiRange,
     POIs = els_dt_document:get_element_at_pos(Document, CurrL, CurrC),
     MarkedText = els_text:range(Text, From, To),
-    case is_keyword_expr(MarkedText) of
+    case els_text:is_keyword_expr(MarkedText) of
         true ->
             case sort_by_range_size([P || #{kind := keyword_expr} = P <- POIs]) of
                 [] ->
@@ -383,18 +399,6 @@ extract_range(#{text := Text} = Document, Range) ->
         false ->
             PoiRange
     end.
-
--spec is_keyword_expr(binary()) -> boolean().
-is_keyword_expr(Text) ->
-    lists:member(Text, [
-        <<"begin">>,
-        <<"case">>,
-        <<"fun">>,
-        <<"if">>,
-        <<"maybe">>,
-        <<"receive">>,
-        <<"try">>
-    ]).
 
 -spec sort_by_range_size(_) -> _.
 sort_by_range_size(POIs) ->
