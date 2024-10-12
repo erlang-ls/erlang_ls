@@ -600,6 +600,11 @@ default_completions(Config) ->
             insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT,
             kind => ?COMPLETION_ITEM_KIND_MODULE,
             label => <<"code_completion_fail">>
+        },
+        #{
+            insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT,
+            kind => ?COMPLETION_ITEM_KIND_MODULE,
+            label => <<"code_action_browse_docs">>
         }
         | Functions
     ],

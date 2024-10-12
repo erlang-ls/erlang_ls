@@ -19,7 +19,9 @@
     suggest_record_field/4,
     suggest_function/4,
     suggest_module/4,
-    bump_variables/2
+    bump_variables/2,
+    browse_error/1,
+    browse_docs/2
 ]).
 
 -include("els_lsp.hrl").
@@ -592,6 +594,125 @@ undefined_callback(Uri, _Range, _Data, [_Function, Behaviour]) ->
                 )
         }
     ].
+
+-spec browse_docs(uri(), range()) -> [map()].
+browse_docs(Uri, Range) ->
+    #{from := {Line, Column}} = els_range:to_poi_range(Range),
+    {ok, Document} = els_utils:lookup_document(Uri),
+    POIs = els_dt_document:get_element_at_pos(Document, Line, Column),
+    lists:flatten([browse_docs(POI) || POI <- POIs]).
+
+-spec browse_docs(els_poi:poi()) -> [map()].
+browse_docs(#{id := {M, F, A}, kind := Kind}) when
+    Kind == application;
+    Kind == type_application
+->
+    case els_utils:find_module(M) of
+        {ok, ModUri} ->
+            case els_uri:app(ModUri) of
+                {ok, App} ->
+                    DocType = doc_type(ModUri),
+                    make_browse_docs_command(DocType, {M, F, A}, App, Kind);
+                error ->
+                    []
+            end;
+        {error, not_found} ->
+            []
+    end;
+browse_docs(_) ->
+    [].
+
+-spec doc_type(uri()) -> otp | hex | other.
+doc_type(Uri) ->
+    Path = binary_to_list(els_uri:path(Uri)),
+    OtpPath = els_config:get(otp_path),
+    case lists:prefix(OtpPath, Path) of
+        true ->
+            otp;
+        false ->
+            case els_config:is_dep(Path) of
+                true ->
+                    hex;
+                false ->
+                    other
+            end
+    end.
+
+-spec make_browse_docs_command(atom(), mfa(), atom(), atom()) ->
+    [map()].
+make_browse_docs_command(other, _MFA, _App, _Kind) ->
+    [];
+make_browse_docs_command(DocType, {M, F, A}, App, Kind) ->
+    Title = make_browse_docs_title(DocType, {M, F, A}),
+    [
+        #{
+            title => Title,
+            kind => ?CODE_ACTION_KIND_BROWSE,
+            command =>
+                els_command:make_command(
+                    Title,
+                    <<"browse-docs">>,
+                    [
+                        #{
+                            source => DocType,
+                            module => M,
+                            function => F,
+                            arity => A,
+                            app => App,
+                            kind => els_dt_references:kind_to_category(Kind)
+                        }
+                    ]
+                )
+        }
+    ].
+
+-spec make_browse_docs_title(atom(), mfa()) -> binary().
+make_browse_docs_title(otp, {M, F, A}) ->
+    list_to_binary(io_lib:format("Browse: OTP docs: ~p:~p/~p", [M, F, A]));
+make_browse_docs_title(hex, {M, F, A}) ->
+    list_to_binary(io_lib:format("Browse: Hex docs: ~p:~p/~p", [M, F, A])).
+
+-spec browse_error(map()) -> [map()].
+browse_error(#{<<"source">> := <<"Compiler">>, <<"code">> := ErrorCode}) ->
+    Title = <<"Browse: Erlang Error Index: ", ErrorCode/binary>>,
+    [
+        #{
+            title => Title,
+            kind => ?CODE_ACTION_KIND_BROWSE,
+            command =>
+                els_command:make_command(
+                    Title,
+                    <<"browse-error">>,
+                    [
+                        #{
+                            source => <<"Compiler">>,
+                            code => ErrorCode
+                        }
+                    ]
+                )
+        }
+    ];
+browse_error(#{<<"source">> := <<"Elvis">>, <<"code">> := ErrorCode}) ->
+    Title = <<"Browse: Elvis rules: ", ErrorCode/binary>>,
+    [
+        #{
+            title => Title,
+            kind => ?CODE_ACTION_KIND_BROWSE,
+            command =>
+                els_command:make_command(
+                    Title,
+                    <<"browse-error">>,
+                    [
+                        #{
+                            source => <<"Elvis">>,
+                            code => ErrorCode
+                        }
+                    ]
+                )
+        }
+    ];
+browse_error(_Diagnostic) ->
+    [].
 
 -spec ensure_range(els_poi:poi_range(), binary(), [els_poi:poi()]) ->
     {ok, els_poi:poi_range()} | error.
