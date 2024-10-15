@@ -14,4 +14,4 @@ dynamic_call(Foo, Bar) ->
   foo:Bar().
 
 not_exported() ->
-    lists:map_1(foo, [1,2,3]).
+    code_navigation:function_c().

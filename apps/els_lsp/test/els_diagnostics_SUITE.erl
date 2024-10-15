@@ -787,9 +787,11 @@ crossref(_Config) ->
                 message => <<"Cannot find definition for function lists:map/3">>,
                 range => {{5, 8}, {5, 11}}
             },
+
             #{
-                message => <<"Function lists:map_1/2 is not exported.">>,
-                range => {{16, 10}, {16, 15}}
+                message =>
+                    <<"Function code_navigation:function_c/0 is not exported.">>,
+                range => {{16, 20}, {16, 30}}
             }
         ],
     Warnings = [],
@@ -808,8 +810,9 @@ crossref_compiler_enabled(_Config) ->
                 range => {{5, 8}, {5, 11}}
             },
             #{
-                message => <<"Function lists:map_1/2 is not exported.">>,
-                range => {{16, 10}, {16, 15}}
+                message =>
+                    <<"Function code_navigation:function_c/0 is not exported.">>,
+                range => {{16, 20}, {16, 30}}
             }
         ],
     Warnings = [],
