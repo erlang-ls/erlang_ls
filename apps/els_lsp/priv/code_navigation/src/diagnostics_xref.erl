@@ -12,3 +12,6 @@ existing() ->
 dynamic_call(Foo, Bar) ->
   Foo:bar(),
   foo:Bar().
+
+not_exported() ->
+    lists:map_1(foo, [1,2,3]).

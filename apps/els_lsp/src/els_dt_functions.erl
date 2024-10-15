@@ -37,13 +37,15 @@
 
 -record(els_dt_functions, {
     mfa :: mfa() | '_' | {atom(), '_', '_'},
-    version :: version() | '_'
+    version :: version() | '_',
+    is_exported :: boolean() | '_'
 }).
 -type els_dt_functions() :: #els_dt_functions{}.
 -type version() :: null | integer().
 -type item() :: #{
     mfa := mfa(),
-    version := version()
+    version := version(),
+    is_exported := boolean()
 }.
 -export_type([item/0]).
 
@@ -65,21 +67,25 @@ opts() ->
 -spec from_item(item()) -> els_dt_functions().
 from_item(#{
     mfa := MFA,
-    version := Version
+    version := Version,
+    is_exported := IsExported
 }) ->
     #els_dt_functions{
         mfa = MFA,
-        version = Version
+        version = Version,
+        is_exported = IsExported
     }.
 
 -spec to_item(els_dt_functions()) -> item().
 to_item(#els_dt_functions{
     mfa = MFA,
-    version = Version
+    version = Version,
+    is_exported = IsExported
 }) ->
     #{
         mfa => MFA,
-        version => Version
+        version => Version,
+        is_exported => IsExported
     }.
 
 -spec insert(item()) -> ok | {error, any()}.
@@ -96,8 +102,7 @@ versioned_insert(#{mfa := MFA, version := Version} = Map) ->
     els_db:conditional_write(name(), MFA, Record, Condition).
 
 -spec lookup(mfa()) -> {ok, [item()]}.
-lookup({M, _F, _A} = MFA) ->
-    {ok, _Uris} = els_utils:find_modules(M),
+lookup(MFA) ->
     {ok, Items} = els_db:lookup(name(), MFA),
     {ok, [to_item(Item) || Item <- Items]}.
 

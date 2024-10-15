@@ -18,6 +18,8 @@
     source/0
 ]).
 
+-type missing_reason() :: module | function | export.
+
 %%==============================================================================
 %% Includes
 %%==============================================================================
@@ -114,19 +116,23 @@ make_diagnostic({missing, Kind}, #{id := Id} = POI) ->
 make_diagnostic(true, _) ->
     [].
 
--spec range(module | function, els_poi:poi()) -> els_poi:poi_range().
+-spec range(missing_reason(), els_poi:poi()) -> els_poi:poi_range().
 range(module, #{data := #{mod_range := Range}}) ->
     Range;
 range(function, #{data := #{name_range := Range}}) ->
     Range;
+range(export, #{data := #{name_range := Range}}) ->
+    Range;
 range(_, #{range := Range}) ->
     Range.
 
--spec error_msg(module | function, els_poi:poi_id()) -> binary().
+-spec error_msg(missing_reason(), els_poi:poi_id()) -> binary().
 error_msg(module, {M, _F, _A}) ->
     els_utils:to_binary(io_lib:format("Cannot find module ~p", [M]));
 error_msg(function, Id) ->
-    els_utils:to_binary(io_lib:format("Cannot find definition for function ~s", [id_str(Id)])).
+    els_utils:to_binary(io_lib:format("Cannot find definition for function ~s", [id_str(Id)]));
+error_msg(export, Id) ->
+    els_utils:to_binary(io_lib:format("Function ~s is not exported.", [id_str(Id)])).
 
 -spec id_str(els_poi:poi_id()) -> string().
 id_str(Id) ->
@@ -136,7 +142,7 @@ id_str(Id) ->
     end.
 
 -spec has_definition(els_poi:poi(), els_dt_document:item(), _) ->
-    true | {missing, function | module}.
+    true | {missing, missing_reason()}.
 has_definition(#{data := #{imported := true}}, _Document, _Opts) ->
     %% Call to a bif
     true;
@@ -177,7 +183,9 @@ has_definition(
     case function_lookup(MFA) of
         true ->
             true;
-        false ->
+        {missing, export} ->
+            true;
+        {missing, function} ->
             case els_code_navigation:goto_definition(Uri, POI) of
                 {ok, _Defs} ->
                     true;
@@ -189,12 +197,14 @@ has_definition(#{id := {M, _F, _A} = MFA} = POI, _Document, _Opts) ->
     case function_lookup(MFA) of
         true ->
             true;
-        false ->
+        {missing, export} ->
+            {missing, export};
+        {missing, function} ->
             case els_utils:find_module(M) of
                 {ok, Uri} ->
                     case els_code_navigation:goto_definition(Uri, POI) of
                         {ok, _Defs} ->
-                            true;
+                            function_lookup(MFA);
                         {error, _Error} ->
                             {missing, function}
                     end;
@@ -205,13 +215,15 @@ has_definition(#{id := {M, _F, _A} = MFA} = POI, _Document, _Opts) ->
 has_definition(_POI, #{uri := _Uri}, _Opts) ->
     true.
 
--spec function_lookup(mfa()) -> boolean().
+-spec function_lookup(mfa()) -> true | {missing, missing_reason()}.
 function_lookup(MFA) ->
-    case els_db:lookup(els_dt_functions:name(), MFA) of
+    case els_dt_functions:lookup(MFA) of
         {ok, []} ->
-            false;
-        {ok, _} ->
-            true
+            {missing, function};
+        {ok, [#{is_exported := true}]} ->
+            true;
+        {ok, [#{is_exported := false}]} ->
+            {missing, export}
     end.
 
 -spec lager_definition(atom(), integer()) -> boolean().

@@ -137,14 +137,17 @@ index_signature(M, Text, #{id := {F, A}, range := Range, data := #{args := Args}
 -spec index_functions(atom(), uri(), [els_poi:poi()], version()) -> ok.
 index_functions(M, Uri, POIs, Version) ->
     ok = els_dt_functions:versioned_delete_by_uri(Uri, Version),
-    [index_function(M, POI, Version) || #{kind := function} = POI <- POIs],
+    Exports = [{F, A} || #{id := {F, A}, kind := export_entry} <- POIs],
+    [index_function(M, POI, Exports, Version) || #{kind := function} = POI <- POIs],
     ok.
 
--spec index_function(atom(), els_poi:poi(), version()) -> ok.
-index_function(M, #{id := {F, A}}, Version) ->
+-spec index_function(atom(), els_poi:poi(), els_poi:poi_id(), version()) -> ok.
+index_function(M, #{id := {F, A}}, Exports, Version) ->
+    IsExported = lists:member({F, A}, Exports),
     els_dt_functions:versioned_insert(#{
         mfa => {M, F, A},
-        version => Version
+        version => Version,
+        is_exported => IsExported
     }).
 
 -spec index_references(atom(), uri(), [els_poi:poi()], version()) -> ok.
