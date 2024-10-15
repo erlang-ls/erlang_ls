@@ -382,6 +382,9 @@ find_completions(
             {ItemFormat, _POIKind} =
                 completion_context(Document, Line, Column, Tokens),
             complete_type_definition(Document, Name, ItemFormat);
+        %% Check for "<<"
+        [{'<<', _} | _] ->
+            complete_binary_literal();
         %% Check for "::"
         [{'::', _} | _] = Tokens ->
             {ItemFormat, _POIKind} =
@@ -412,6 +415,22 @@ find_completions(
     end;
 find_completions(_Prefix, _TriggerKind, _Opts) ->
     [].
+
+-spec complete_binary_literal() -> completion_item().
+complete_binary_literal() ->
+    case snippet_support() of
+        true ->
+            [
+                #{
+                    label => <<">>">>,
+                    kind => ?COMPLETION_ITEM_KIND_KEYWORD,
+                    insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
+                    insertText => <<"${1:}>>">>
+                }
+            ];
+        false ->
+            []
+    end.
 
 -spec list_comprehension_completion_item(els_dt_document:item(), line(), column()) ->
     completion_item().
