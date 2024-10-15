@@ -3,6 +3,7 @@
     extract_function/2,
     create_function/4,
     export_function/4,
+    export_external_function/4,
     fix_module_name/4,
     ignore_variable/4,
     remove_macro/4,
@@ -82,6 +83,32 @@ export_function(Uri, _Range, _Data, [UnusedFun]) ->
                     els_protocol:range(#{from => Pos, to => Pos})
                 )
             ]
+    end.
+
+-spec export_external_function(uri(), range(), binary(), [binary()]) -> [map()].
+export_external_function(_Uri, _Range, _Data, [ModBin, FABin]) ->
+    Mod = binary_to_atom(ModBin, utf8),
+    case els_utils:find_module(Mod) of
+        {ok, Uri} ->
+            {ok, Document} = els_utils:lookup_document(Uri),
+            case els_poi:sort(els_dt_document:pois(Document, [module, export])) of
+                [] ->
+                    [];
+                POIs ->
+                    #{range := #{to := {Line, _Col}}} = lists:last(POIs),
+                    Pos = {Line + 1, 1},
+                    [
+                        make_edit_action(
+                            Uri,
+                            <<"Export ", FABin/binary>>,
+                            ?CODE_ACTION_KIND_QUICKFIX,
+                            <<"-export([", FABin/binary, "]).\n">>,
+                            els_protocol:range(#{from => Pos, to => Pos})
+                        )
+                    ]
+            end;
+        {error, not_found} ->
+            []
     end.
 
 -spec ignore_variable(uri(), range(), binary(), [binary()]) -> [map()].

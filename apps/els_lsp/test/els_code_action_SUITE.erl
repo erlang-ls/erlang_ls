@@ -14,6 +14,7 @@
 -export([
     add_underscore_to_unused_var/1,
     export_unused_function/1,
+    export_external_function/1,
     suggest_variable/1,
     fix_module_name/1,
     remove_unused_macro/1,
@@ -133,6 +134,54 @@ export_unused_function(Config) ->
                     changes =>
                         #{
                             binary_to_atom(Uri, utf8) =>
+                                [
+                                    #{
+                                        range =>
+                                            #{
+                                                'end' => #{
+                                                    character => 0,
+                                                    line => ?COMMENTS_LINES + 3
+                                                },
+                                                start => #{
+                                                    character => 0,
+                                                    line => ?COMMENTS_LINES + 3
+                                                }
+                                            },
+                                        newText => <<"-export([function_c/0]).\n">>
+                                    }
+                                ]
+                        }
+                },
+                kind => <<"quickfix">>,
+                title => <<"Export function_c/0">>
+            }
+        ],
+    ?assertEqual(Expected, Result),
+    ok.
+
+-spec export_external_function(config()) -> ok.
+export_external_function(Config) ->
+    Uri = ?config(code_navigation_uri, Config),
+    %% Don't care
+    Range = els_protocol:range(#{
+        from => {1, 1},
+        to => {1, 2}
+    }),
+    Diag = #{
+        message => <<"Function code_action:function_c/0 is not exported.">>,
+        range => Range,
+        severity => 2,
+        source => <<"CrossRef">>
+    },
+    #{result := Result} = els_client:document_codeaction(Uri, Range, [Diag]),
+    TargetUri = ?config(code_action_uri, Config),
+    Expected =
+        [
+            #{
+                edit => #{
+                    changes =>
+                        #{
+                            binary_to_atom(TargetUri, utf8) =>
                                 [
                                     #{
                                         range =>

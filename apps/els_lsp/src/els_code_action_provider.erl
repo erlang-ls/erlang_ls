@@ -62,6 +62,8 @@ make_code_actions(
             {"function (.*) undefined", fun els_code_actions:suggest_function/4},
             {"Cannot find definition for function (.*)", fun els_code_actions:suggest_function/4},
             {"Cannot find module (.*)", fun els_code_actions:suggest_module/4},
+            {"Function (.+):(.+) is not exported.",
+                fun els_code_actions:export_external_function/4},
             {"Unused file: (.*)", fun els_code_actions:remove_unused/4},
             {"Atom typo\\? Did you mean: (.*)", fun els_code_actions:fix_atom_typo/4},
             {"undefined callback function (.*) \\\(behaviour '(.*)'\\\)",
