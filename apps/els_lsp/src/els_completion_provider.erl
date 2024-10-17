@@ -416,7 +416,7 @@ find_completions(
 find_completions(_Prefix, _TriggerKind, _Opts) ->
     [].
 
--spec complete_binary_literal() -> completion_item().
+-spec complete_binary_literal() -> [completion_item()].
 complete_binary_literal() ->
     case snippet_support() of
         true ->
