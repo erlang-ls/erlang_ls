@@ -1618,12 +1618,10 @@ macro_label(Name) ->
 macro_to_label(Name) ->
     %% Trick to ensure we can handle macros like ?'FOO BAR'.
     Bin = atom_to_binary(Name, utf8),
-    LowerBin = string:lowercase(Bin),
-    LowerAtom = binary_to_atom(LowerBin, utf8),
-    case atom_to_label(LowerAtom) == LowerBin of
-        true ->
+    case re:run(Bin, "\s", [{capture, none}]) of
+        nomatch ->
             Bin;
-        false ->
+        match ->
             atom_to_label(Name)
     end.
 
