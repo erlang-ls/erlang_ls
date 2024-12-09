@@ -479,7 +479,7 @@ fix_atom_typo(Uri, Range, _Data, [Atom]) ->
 
 -spec extract_function(uri(), range()) -> [map()].
 extract_function(Uri, Range) ->
-    {ok, [Document]} = els_dt_document:lookup(Uri),
+    {ok, Document} = els_utils:lookup_document(Uri),
     PoiRange = els_range:to_poi_range(Range),
     #{from := From = {Line, Column}, to := To} = PoiRange,
     %% We only want to extract if selection is large enough
@@ -766,8 +766,6 @@ format_args(Document, Arity, Range) ->
     end.
 
 -spec guess_indentation([binary()]) -> pos_integer().
-guess_indentation([]) ->
-    2;
 guess_indentation([A, B | Rest]) ->
     ACount = count_leading_spaces(A, 0),
     BCount = count_leading_spaces(B, 0),
@@ -776,7 +774,9 @@ guess_indentation([A, B | Rest]) ->
             N;
         {_, _} ->
             guess_indentation([B | Rest])
-    end.
+    end;
+guess_indentation(_) ->
+    2.
 
 -spec count_leading_spaces(binary(), non_neg_integer()) -> non_neg_integer().
 count_leading_spaces(<<>>, _Acc) ->
