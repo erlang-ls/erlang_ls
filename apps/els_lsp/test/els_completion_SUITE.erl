@@ -711,6 +711,7 @@ exported_types(Config) ->
             <<"filename_all">>,
             <<"io_device">>
         ] ++
+            [<<"io_server">> || OtpRelease >= 27] ++
             [<<"location">> || OtpRelease >= 26] ++
             [
                 <<"mode">>,
