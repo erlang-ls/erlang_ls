@@ -82,6 +82,48 @@ docs(Uri, #{kind := record_expr} = POI) ->
         _ ->
             []
     end;
+docs(Uri, #{kind := record_field, id := {Rid, Field}} = POI) ->
+    case els_code_navigation:goto_definition(Uri, POI) of
+        {ok, [{DefUri, #{range := #{from := From}}}]} ->
+            {ok, #{pois := POIs}} = els_utils:lookup_document(DefUri),
+            case lists:search(
+                fun(#{id := Id, kind := Kind}) ->
+                    Id == Rid andalso Kind == record
+                end, POIs)
+            of
+                {value, #{data := #{field_list := FieldList, value_range := #{to := {Line, C}}}}} ->
+                    {To, Index} = record_field_docs(FieldList, Field, {Line, C - 3}, 2, Rid, POIs),
+                    ValueText = get_valuetext(DefUri, #{from => From, to => To}),
+                    [{code_line, string:trim(ValueText, trailing)},
+                        {text, "---"}, {text, lists:concat(["index: ", Index])}];
+                false ->
+                    []
+            end;
+        _ ->
+            []
+    end;
+docs(Uri, #{kind := record_def_field, id := {Rid, Field}}) ->
+    {ok, #{pois := POIs}} = els_utils:lookup_document(Uri),
+    case lists:search(
+        fun(#{id := Id, kind := Kind}) ->
+            Id == Rid andalso Kind == record
+        end, POIs)
+    of
+        {value, #{data := #{field_list := FieldList}}} ->
+            Index =
+                catch lists:foldl(
+                    fun(Elem, AccIn) ->
+                        case Elem of
+                            Field ->
+                                throw(AccIn);
+                            _ ->
+                                AccIn + 1
+                        end
+                    end, 2, FieldList),
+            [{text, lists:concat(["index: ", Index])}];
+        false ->
+            []
+    end;
 docs(_M, #{kind := Kind, id := {M, F, A}}) when
     Kind =:= type_application;
     Kind =:= type_definition
@@ -156,6 +198,26 @@ function_docs(Type, M, F, A, false = _DocsMemo) ->
                     end
             end
     end.
+
+-spec record_field_docs([atom()], atom(), tuple(), integer(), atom(), [els_poi:poi()]) ->
+    {tuple(), integer()}.
+record_field_docs([], _Field, To, Index, _Rid, _POIs) ->
+    {To, Index};
+record_field_docs([Field], Field, To, Index, _Rid, _POIs) ->
+    {To, Index};
+record_field_docs([Field, Next | _], Field, To, Index, Rid, POIs) ->
+    case lists:search(
+        fun(#{id := Id, kind := Kind}) ->
+            Id == {Rid, Next} andalso Kind == record_def_field
+        end, POIs)
+    of
+        {value, #{range := #{from := From}}} ->
+            {From, Index};
+        false ->
+            {To, Index}
+    end;
+record_field_docs([_ | T], Field, To, Index, Rid, POIs) ->
+    record_field_docs(T, Field, To, Index + 1, Rid, POIs).
 
 -spec type_docs(application_type(), atom(), atom(), non_neg_integer()) ->
     [els_markup_content:doc_entry()].
