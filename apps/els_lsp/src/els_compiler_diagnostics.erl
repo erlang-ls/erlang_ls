@@ -190,7 +190,7 @@ diagnostics(Path, List, Severity) ->
                     diagnostic(
                         Path,
                         MessagePath,
-                        range(Document, Anno),
+                        exact_range(Desc, Document, Anno),
                         Document,
                         Module,
                         Desc,
@@ -203,6 +203,28 @@ diagnostics(Path, List, Severity) ->
         {error, _Error} ->
             []
     end.
+
+-spec exact_range(
+    tuple(),
+    els_dt_document:item() | undefined,
+    erl_anno:anno() | none
+) -> els_poi:poi_range().
+exact_range({Flag, Fid}, #{pois := POIs} = Document, Anno) when
+    Flag == undefined_function;
+    Flag == duplicated_export
+->
+    case lists:search(
+        fun(#{id := Id, kind := Kind}) ->
+            Id == Fid andalso Kind == export_entry
+        end, POIs)
+    of
+        {value, #{range := Range}} ->
+            Range;
+        false ->
+            range(Document, Anno)
+    end;
+exact_range(_Desc, Document, Anno) ->
+    range(Document, Anno).
 
 -spec diagnostic(
     string(),
