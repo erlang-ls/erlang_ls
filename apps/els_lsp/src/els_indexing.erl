@@ -134,10 +134,25 @@ index_signature(M, Text, #{id := {F, A}, range := Range, data := #{args := Args}
         args => Args
     }).
 
+-spec is_export_all([els_poi:poi()]) -> boolean().
+is_export_all([]) ->
+    false;
+is_export_all([#{kind := compile}, #{id := export_all} | _]) ->
+    true;
+is_export_all([_ | T]) ->
+    is_export_all(T).
+
 -spec index_functions(atom(), uri(), [els_poi:poi()], version()) -> ok.
 index_functions(M, Uri, POIs, Version) ->
     ok = els_dt_functions:versioned_delete_by_uri(Uri, Version),
-    [index_function(M, POI, Version) || #{kind := function} = POI <- POIs],
+    Fkind =
+        case is_export_all(POIs) of
+            true ->
+                function;
+            false ->
+                export_entry
+        end,
+    [index_function(M, POI, Version) || #{kind := Kind} = POI <- POIs, Kind =:= Fkind],
     ok.
 
 -spec index_function(atom(), els_poi:poi(), version()) -> ok.

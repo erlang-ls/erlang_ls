@@ -200,5 +200,5 @@ line_starts(Text) ->
 -spec pos([{integer(), any()}], {line_num(), column_num()}) ->
     pos_integer().
 pos(LineStarts, {LineNum, ColumnNum}) ->
-    {LinePos, _} = lists:nth(LineNum, LineStarts),
+    {LinePos, _} = lists:nth(min(length(LineStarts), LineNum), LineStarts),
     LinePos + ColumnNum.
