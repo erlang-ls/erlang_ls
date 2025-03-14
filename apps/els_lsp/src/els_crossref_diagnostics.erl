@@ -114,19 +114,23 @@ make_diagnostic({missing, Kind}, #{id := Id} = POI) ->
 make_diagnostic(true, _) ->
     [].
 
--spec range(module | function, els_poi:poi()) -> els_poi:poi_range().
+-spec range(module | function | no_export, els_poi:poi()) -> els_poi:poi_range().
 range(module, #{data := #{mod_range := Range}}) ->
     Range;
 range(function, #{data := #{name_range := Range}}) ->
     Range;
+range(no_export, #{data := #{name_range := Range}}) ->
+    Range;
 range(_, #{range := Range}) ->
     Range.
 
--spec error_msg(module | function, els_poi:poi_id()) -> binary().
+-spec error_msg(module | function | no_export, els_poi:poi_id()) -> binary().
 error_msg(module, {M, _F, _A}) ->
     els_utils:to_binary(io_lib:format("Cannot find module ~p", [M]));
 error_msg(function, Id) ->
-    els_utils:to_binary(io_lib:format("Cannot find definition for function ~s", [id_str(Id)])).
+    els_utils:to_binary(io_lib:format("Cannot find definition for function ~s", [id_str(Id)]));
+error_msg(no_export, Id) ->
+    els_utils:to_binary(io_lib:format("Cannot find export for function ~s", [id_str(Id)])).
 
 -spec id_str(els_poi:poi_id()) -> string().
 id_str(Id) ->
@@ -136,7 +140,7 @@ id_str(Id) ->
     end.
 
 -spec has_definition(els_poi:poi(), els_dt_document:item(), _) ->
-    true | {missing, function | module}.
+    true | {missing, module | function | no_export}.
 has_definition(#{data := #{imported := true}}, _Document, _Opts) ->
     %% Call to a bif
     true;
@@ -186,21 +190,21 @@ has_definition(
             end
     end;
 has_definition(#{id := {M, _F, _A} = MFA} = POI, _Document, _Opts) ->
-    case function_lookup(MFA) of
-        true ->
-            true;
-        false ->
-            case els_utils:find_module(M) of
-                {ok, Uri} ->
-                    case els_code_navigation:goto_definition(Uri, POI) of
-                        {ok, _Defs} ->
+    case els_utils:find_module(M) of
+        {ok, Uri} ->
+            case els_code_navigation:goto_definition(Uri, POI) of
+                {ok, _Defs} ->
+                    case function_lookup(MFA) of
+                        true ->
                             true;
-                        {error, _Error} ->
-                            {missing, function}
+                        false ->
+                            {missing, no_export}
                     end;
-                {error, _} ->
-                    {missing, module}
-            end
+                {error, _Error} ->
+                    {missing, function}
+            end;
+        {error, _} ->
+            {missing, module}
     end;
 has_definition(_POI, #{uri := _Uri}, _Opts) ->
     true.
