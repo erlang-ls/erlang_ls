@@ -209,7 +209,10 @@ diagnostics(Path, List, Severity) ->
     els_dt_document:item() | undefined,
     erl_anno:anno() | none
 ) -> els_poi:poi_range().
-exact_range({undefined_function, Fid}, #{pois := POIs} = Document, Anno) ->
+exact_range({Flag, Fid}, #{pois := POIs} = Document, Anno) when
+    Flag == undefined_function;
+    Flag == duplicated_export
+->
     case lists:search(
         fun(#{id := Id, kind := Kind}) ->
             Id == Fid andalso Kind == export_entry
