@@ -85,7 +85,7 @@ uri(Path) ->
                 {H, uri_join(T)};
             {true, _} ->
                 % Strip the trailing slash from the first component
-                H1 = string:slice(Head, 0, 2),
+                H1 = percent_encoding(string:slice(Head, 0, 2)),
                 {<<>>, uri_join([H1 | Tail])}
         end,
 
@@ -96,6 +96,15 @@ uri(Path) ->
             path => [$/, Path1]
         })
     ).
+
+-spec percent_encoding(iodata()) -> iodata().
+-if(?OTP_RELEASE >= 25).
+percent_encoding(Data) ->
+    uri_string:quote(Data).
+-else.
+percent_encoding(Data) ->
+    http_uri:encode(Data).
+-endif.
 
 -spec uri_join([path()]) -> iolist().
 uri_join(List) ->
