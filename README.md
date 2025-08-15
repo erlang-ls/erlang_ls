@@ -1,3 +1,12 @@
+
+> [!WARNING]
+> The Erlang LS project is currently unmaintained.
+>
+> We recommend switching to the [Erlang Language Platform (ELP)](https://github.com/whatsapp/erlang-language-platform) language server.
+> 
+> * [VS Code extension](https://marketplace.visualstudio.com/items?itemName=erlang-language-platform.erlang-language-platform)
+> * [Documentation](https://whatsapp.github.io/erlang-language-platform/docs/get-started/)
+
 # erlang_ls
 
 ![erlang_ls](images/erlang-ls-logo-small.png?raw=true "Erlang LS")
