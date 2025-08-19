@@ -797,7 +797,13 @@ analyze_function(FunName, Clauses0) ->
 
 -spec function_args(tree()) -> {arity(), els_arg:args()}.
 function_args(Clause) ->
-    Patterns = erl_syntax:clause_patterns(Clause),
+    Patterns =
+        case Clause of
+            {_, macro, _, _} ->
+                erl_syntax:macro_arguments(Clause);
+            _ ->
+                erl_syntax:clause_patterns(Clause)
+        end,
     Arity = length(Patterns),
     Args = args_from_subtrees(Patterns),
     {Arity, Args}.
